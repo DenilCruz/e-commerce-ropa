@@ -1,0 +1,12 @@
+{
+  "expo": {
+    "name": "E-Commerce Ropa Mobile",
+    "slug": "ecommerce-ropa-mobile",
+    "version": "1.0.0",
+    "orientation": "portrait",
+    "userInterfaceStyle": "light",
+    "ios": {
+      "supportsTablet": true
+    }
+  }
+}
