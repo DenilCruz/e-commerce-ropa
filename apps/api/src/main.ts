@@ -1,5 +1,7 @@
 import { NestFactory } from '@nestjs/core';
 import { ValidationPipe } from '@nestjs/common';
+import * as express from 'express';
+import { join } from 'path';
 import { DocumentBuilder, SwaggerModule } from '@nestjs/swagger';
 import { AppModule } from './app.module';
 
@@ -15,6 +17,12 @@ async function bootstrap() {
       transform: true,
     }),
   );
+
+  // Servir imágenes públicamente
+  const uploadsFolder = process.cwd().endsWith('apps/api')
+    ? join(process.cwd(), 'uploads')
+    : join(process.cwd(), 'apps', 'api', 'uploads');
+  app.use('/uploads', express.static(uploadsFolder));
 
   // Swagger Configuration
   const config = new DocumentBuilder()

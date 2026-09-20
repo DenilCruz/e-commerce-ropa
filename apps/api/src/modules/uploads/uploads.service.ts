@@ -1,12 +1,30 @@
-import { Injectable } from '@nestjs/common';
+import { Injectable, BadRequestException } from '@nestjs/common';
 
 @Injectable()
-export class UploadsService {
-  async findAll() {
-    return { message: 'Listado de Uploads (en desarrollo)' };
-  }
+export class ArchivosService {
+  constructor() {}
 
-  async findOne(id: string) {
-    return { id, message: 'Detalle de Uploads (en desarrollo)' };
+  // ==========================================
+  // SERVICIO DE ARCHIVOS (SUBIDA)
+  // ==========================================
+  procesarSubida(file: Express.Multer.File): { url: string; nombre: string; tamanio: number } {
+    if (!file) {
+      throw new BadRequestException('No se envió ningún archivo de imagen.');
+    }
+
+    // Validar tipo de archivo (Solo imágenes)
+    const permitidos = ['image/jpeg', 'image/png', 'image/webp'];
+    if (!permitidos.includes(file.mimetype)) {
+      throw new BadRequestException('Formato de archivo no válido. Solo se permite JPG, PNG o WEBP.');
+    }
+
+    // Devolvemos la URL pública donde estará disponible la imagen
+    const urlPublica = `/uploads/${file.filename}`;
+
+    return {
+      url: urlPublica,
+      nombre: file.filename,
+      tamanio: file.size, // En bytes
+    };
   }
 }

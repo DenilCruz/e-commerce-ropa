@@ -1,10 +1,13 @@
 import { Module } from '@nestjs/common';
-import { WishlistController } from './wishlist.controller';
-import { WishlistService } from './wishlist.service';
+import { TypeOrmModule } from '@nestjs/typeorm';
+import { WishlistEntity } from './entities/wishlist.entity';
+import { FavoritosService } from './wishlist.service';
+import { FavoritosController } from './wishlist.controller';
 
 @Module({
-  controllers: [WishlistController],
-  providers: [WishlistService],
-  exports: [WishlistService],
+  imports: [TypeOrmModule.forFeature([WishlistEntity])],
+  controllers: [FavoritosController],
+  providers: [FavoritosService],
+  exports: [FavoritosService],
 })
 export class WishlistModule {}

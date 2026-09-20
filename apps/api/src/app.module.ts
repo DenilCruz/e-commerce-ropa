@@ -1,5 +1,5 @@
 import { Module } from '@nestjs/common';
-import { ConfigModule } from '@nestjs/config';
+import { ConfigModule, ConfigService } from '@nestjs/config';
 import { configuration } from './config/configuration';
 
 // Modules
@@ -16,6 +16,7 @@ import { ReviewsModule } from './modules/reseñas/reviews.module';
 import { CouponsModule } from './modules/cupones/coupons.module';
 import { WishlistModule } from './modules/listadedeseos/wishlist.module';
 import { UploadsModule } from './modules/uploads/uploads.module';
+import { TypeOrmModule } from '@nestjs/typeorm';
 import { MailModule } from './modules/mail/mail.module';
 import { AdminModule } from './modules/admin/admin.module';
 
@@ -24,6 +25,20 @@ import { AdminModule } from './modules/admin/admin.module';
     ConfigModule.forRoot({
       isGlobal: true,
       load: [configuration],
+    }),
+    TypeOrmModule.forRootAsync({
+      imports: [ConfigModule],
+      inject: [ConfigService],
+      useFactory: (configService: ConfigService) => ({
+        type: 'postgres',
+        host: configService.get<string>('database.host'),
+        port: configService.get<number>('database.port'),
+        username: configService.get<string>('database.user'),
+        password: configService.get<string>('database.password'),
+        database: configService.get<string>('database.name'),
+        autoLoadEntities: true,
+        synchronize: false,
+      }),
     }),
     AuthModule,
     UsersModule,
