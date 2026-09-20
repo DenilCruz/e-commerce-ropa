@@ -1,21 +1,29 @@
-import { Controller, Get, Post, Body, Param } from '@nestjs/common';
-import { ApiTags, ApiOperation } from '@nestjs/swagger';
-import { InventoryService } from './inventory.service';
+import { Controller, Get, Put, Body, Param, ParseUUIDPipe } from '@nestjs/common';
+import { ApiTags, ApiOperation, ApiResponse, ApiParam } from '@nestjs/swagger';
+import { InventarioService } from './inventory.service';
+import { AjustarStockDto } from './dto/ajustar-stock.dto';
 
-@ApiTags('Inventory')
-@Controller('inventory')
-export class InventoryController {
-  constructor(private readonly inventoryService: InventoryService) {}
+@ApiTags('Inventario y Almacén')
+@Controller('inventario')
+export class InventarioController {
+  constructor(private readonly servicioInventario: InventarioService) {}
 
-  @Get()
-  @ApiOperation({ summary: 'Listar registros de Inventory' })
-  findAll() {
-    return this.inventoryService.findAll();
+  @Get('alertas')
+  @ApiOperation({ summary: 'Obtener un reporte de todos los productos que tienen stock bajo o nulo' })
+  @ApiResponse({ status: 200, description: 'Reporte de alertas generado exitosamente.' })
+  obtenerAlertas() {
+    return this.servicioInventario.obtenerAlertasDeStock();
   }
 
-  @Get(':id')
-  @ApiOperation({ summary: 'Obtener un registro de Inventory por ID' })
-  findOne(@Param('id') id: string) {
-    return this.inventoryService.findOne(id);
+  @Put('variante/:varianteId/ajustar')
+  @ApiOperation({ summary: 'Ajustar manualmente el stock de una variante específica (por pérdida, ingreso, etc.)' })
+  @ApiParam({ name: 'varianteId', description: 'ID de la variante del producto' })
+  @ApiResponse({ status: 200, description: 'Stock actualizado exitosamente.' })
+  @ApiResponse({ status: 400, description: 'Operación inválida o stock insuficiente para reducir.' })
+  ajustarStock(
+    @Param('varianteId', ParseUUIDPipe) varianteId: string,
+    @Body() datos: AjustarStockDto,
+  ) {
+    return this.servicioInventario.ajustarStock(varianteId, datos);
   }
 }
