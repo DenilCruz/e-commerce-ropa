@@ -1,24 +1,70 @@
 import { create } from 'zustand';
-import { User } from '@ecommerce/shared';
+import { UserProfile } from '../features/autenticacion/types';
 
 interface AuthState {
-  user: User | null;
-  token: string | null;
+  user: UserProfile | null;
+  accessToken: string | null;
+  refreshToken: string | null;
   isAuthenticated: boolean;
-  setAuth: (user: User, token: string) => void;
+  setAuth: (user: UserProfile, accessToken: string, refreshToken: string) => void;
+  setTokens: (accessToken: string, refreshToken?: string) => void;
+  setUser: (user: UserProfile) => void;
   logout: () => void;
 }
 
+const getStoredUser = (): UserProfile | null => {
+  try {
+    const raw = localStorage.getItem('auth_user');
+    return raw ? JSON.parse(raw) : null;
+  } catch {
+    return null;
+  }
+};
+
 export const useAuthStore = create<AuthState>((set) => ({
-  user: null,
-  token: localStorage.getItem('access_token'),
+  user: getStoredUser(),
+  accessToken: localStorage.getItem('access_token'),
+  refreshToken: localStorage.getItem('refresh_token'),
   isAuthenticated: !!localStorage.getItem('access_token'),
-  setAuth: (user, token) => {
-    localStorage.setItem('access_token', token);
-    set({ user, token, isAuthenticated: true });
+
+  setAuth: (user, accessToken, refreshToken) => {
+    localStorage.setItem('access_token', accessToken);
+    localStorage.setItem('refresh_token', refreshToken);
+    localStorage.setItem('auth_user', JSON.stringify(user));
+    set({
+      user,
+      accessToken,
+      refreshToken,
+      isAuthenticated: true,
+    });
   },
+
+  setTokens: (accessToken, refreshToken) => {
+    localStorage.setItem('access_token', accessToken);
+    if (refreshToken) {
+      localStorage.setItem('refresh_token', refreshToken);
+    }
+    set((state) => ({
+      accessToken,
+      refreshToken: refreshToken || state.refreshToken,
+      isAuthenticated: true,
+    }));
+  },
+
+  setUser: (user) => {
+    localStorage.setItem('auth_user', JSON.stringify(user));
+    set({ user });
+  },
+
   logout: () => {
     localStorage.removeItem('access_token');
-    set({ user: null, token: null, isAuthenticated: false });
+    localStorage.removeItem('refresh_token');
+    localStorage.removeItem('auth_user');
+    set({
+      user: null,
+      accessToken: null,
+      refreshToken: null,
+      isAuthenticated: false,
+    });
   },
 }));
