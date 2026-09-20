@@ -19,7 +19,10 @@ async function bootstrap() {
   );
 
   // Servir imágenes públicamente
-  app.use('/uploads', express.static(join(process.cwd(), 'apps', 'api', 'uploads')));
+  const uploadsFolder = process.cwd().endsWith('apps/api')
+    ? join(process.cwd(), 'uploads')
+    : join(process.cwd(), 'apps', 'api', 'uploads');
+  app.use('/uploads', express.static(uploadsFolder));
 
   // Swagger Configuration
   const config = new DocumentBuilder()
