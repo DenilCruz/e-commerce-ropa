@@ -9,6 +9,10 @@ import { AdminRoute } from './AdminRoute';
 
 import { LoginPage } from '../features/autenticacion/pages/LoginPage';
 import { RegisterPage } from '../features/autenticacion/pages/RegisterPage';
+import { ForgotPasswordPage } from '../features/autenticacion/pages/ForgotPasswordPage';
+import { ResetPasswordPage } from '../features/autenticacion/pages/ResetPasswordPage';
+import { VerifyEmailPage } from '../features/autenticacion/pages/VerifyEmailPage';
+
 import { CatalogPage } from '../features/catalogo/pages/CatalogPage';
 import { ProductDetailPage } from '../features/detalleproducto/pages/ProductDetailPage';
 import { CartPage } from '../features/carrito/pages/CartPage';
@@ -39,10 +43,13 @@ export const AppRouter: React.FC = () => {
         </Route>
       </Route>
 
-      {/* Autenticación */}
+      {/* Flujos de Autenticación */}
       <Route element={<AuthLayout />}>
         <Route path="/login" element={<LoginPage />} />
         <Route path="/registro" element={<RegisterPage />} />
+        <Route path="/recuperar-password" element={<ForgotPasswordPage />} />
+        <Route path="/restablecer-password" element={<ResetPasswordPage />} />
+        <Route path="/verificar-email" element={<VerifyEmailPage />} />
       </Route>
 
       {/* Panel Administrador */}

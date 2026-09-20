@@ -1,13 +1,44 @@
-import React from 'react';
+import React, { useState } from 'react';
 
-export const Input = React.forwardRef<HTMLInputElement, React.InputHTMLAttributes<HTMLInputElement>>(
-  ({ className = '', ...props }, ref) => {
+export interface InputProps extends React.InputHTMLAttributes<HTMLInputElement> {
+  showPasswordToggle?: boolean;
+}
+
+export const Input = React.forwardRef<HTMLInputElement, InputProps>(
+  ({ className = '', type, showPasswordToggle = true, ...props }, ref) => {
+    const [visible, setVisible] = useState(false);
+
+    if (type === 'password' && showPasswordToggle) {
+      return (
+        <div className="relative w-full">
+          <input
+            ref={ref}
+            type={visible ? 'text' : 'password'}
+            className={`w-full px-3 py-2 pr-10 border border-gray-300 rounded-lg focus:ring-2 focus:ring-black focus:outline-none transition-all ${className}`}
+            {...props}
+          />
+          <button
+            type="button"
+            onClick={() => setVisible(!visible)}
+            className="absolute right-2.5 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-700 text-sm focus:outline-none p-1"
+            tabIndex={-1}
+            title={visible ? 'Ocultar contraseña' : 'Ver contraseña'}
+          >
+            {visible ? '🙈' : '👁️'}
+          </button>
+        </div>
+      );
+    }
+
     return (
       <input
         ref={ref}
-        className={`w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-black focus:outline-none ${className}`}
+        type={type}
+        className={`w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-black focus:outline-none transition-all ${className}`}
         {...props}
       />
     );
-  }
+  },
 );
+
+Input.displayName = 'Input';
