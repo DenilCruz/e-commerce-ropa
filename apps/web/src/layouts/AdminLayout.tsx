@@ -9,6 +9,7 @@ export const AdminLayout: React.FC = () => {
         <nav className="flex flex-col space-y-2 text-sm">
           <Link to="/admin" className="p-2 hover:bg-gray-800 rounded">Dashboard</Link>
           <Link to="/admin/productos" className="p-2 hover:bg-gray-800 rounded">Productos</Link>
+          <Link to="/admin/inventario" className="p-2 hover:bg-gray-800 rounded">Inventario</Link>
           <Link to="/admin/pedidos" className="p-2 hover:bg-gray-800 rounded">Pedidos</Link>
           <Link to="/admin/usuarios" className="p-2 hover:bg-gray-800 rounded">Usuarios</Link>
         </nav>
