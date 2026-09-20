@@ -35,7 +35,8 @@ export const useFavoritosStore = create<FavoritosState>((set, get) => ({
       set({ items: items.filter(i => i.productoId !== productoId) });
       try {
         await favoritosApi.eliminar(usuarioId, productoId);
-      } catch {
+      } catch (err: any) {
+        console.error("FAVORITOS ERROR:", err.response?.data || err);
         // Revert on error
         get().cargarFavoritos(usuarioId);
       }
@@ -46,7 +47,8 @@ export const useFavoritosStore = create<FavoritosState>((set, get) => ({
       try {
         await favoritosApi.agregar({ usuarioId, productoId });
         get().cargarFavoritos(usuarioId); // Refresh real ID
-      } catch {
+      } catch (err: any) {
+        console.error("FAVORITOS ERROR:", err.response?.data || err);
         get().cargarFavoritos(usuarioId);
       }
     }
