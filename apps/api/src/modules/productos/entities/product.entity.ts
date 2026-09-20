@@ -44,9 +44,9 @@ export class ProductEntity {
   @JoinColumn({ name: 'marca_id' })
   marca: BrandEntity;
 
-  @OneToMany(() => ProductVariantEntity, variant => variant.producto)
+  @OneToMany(() => ProductVariantEntity, variant => variant.producto, { cascade: true })
   variantes: ProductVariantEntity[];
 
-  @OneToMany(() => ProductImageEntity, image => image.producto)
+  @OneToMany(() => ProductImageEntity, image => image.producto, { cascade: true })
   imagenes: ProductImageEntity[];
 }

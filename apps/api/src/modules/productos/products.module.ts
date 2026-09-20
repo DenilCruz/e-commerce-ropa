@@ -6,13 +6,22 @@ import { ProductImageEntity } from './entities/product-image.entity';
 import { BrandEntity } from './entities/brand.entity';
 import { SizeEntity } from './entities/size.entity';
 import { ColorEntity } from './entities/color.entity';
-import { ProductsController } from './products.controller';
-import { ProductsService } from './products.service';
+import { ProductosService } from './products.service';
+import { ProductosController } from './products.controller';
 
 @Module({
-  imports: [TypeOrmModule.forFeature([ProductEntity, ProductVariantEntity, ProductImageEntity, BrandEntity, SizeEntity, ColorEntity])],
-  controllers: [ProductsController],
-  providers: [ProductsService],
-  exports: [ProductsService],
+  imports: [
+    TypeOrmModule.forFeature([
+      ProductEntity,
+      ProductVariantEntity,
+      ProductImageEntity,
+      BrandEntity,
+      SizeEntity,
+      ColorEntity,
+    ]),
+  ],
+  controllers: [ProductosController],
+  providers: [ProductosService],
+  exports: [ProductosService],
 })
 export class ProductsModule {}
