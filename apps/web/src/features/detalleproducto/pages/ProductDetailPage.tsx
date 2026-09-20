@@ -3,7 +3,7 @@ import { useParams, Link } from 'react-router-dom';
 import { obtenerProductoPorId } from "../../catalogo/services/catalogo.api";
 import { Producto, VarianteProducto } from "../../catalogo/types";
 import { HeartButton } from '../../favoritos/components/HeartButton';
-import { ResenasSection } from '../../reseñas/components/ResenasSection';
+import { ResenasSection } from '../../resenas/components/ResenasSection';
 
 const ASSETS_URL = (import.meta.env.VITE_API_URL || 'http://localhost:3000/api/v1').replace('/api/v1', '');
 

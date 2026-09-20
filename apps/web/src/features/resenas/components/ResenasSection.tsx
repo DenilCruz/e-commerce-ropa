@@ -2,6 +2,7 @@ import React, { useEffect, useState } from 'react';
 import { resenasApi } from '../services/resenas.api';
 import { Resena, ResumenResenas } from '../types';
 import { useAuthStore } from '../../../store/auth.store';
+import { Link } from 'react-router-dom';
 
 interface ResenasSectionProps {
   productoId: string;
@@ -93,9 +94,9 @@ export const ResenasSection: React.FC<ResenasSectionProps> = ({ productoId }) =>
           <h2 className="text-sm tracking-widest uppercase font-medium mb-6">Valoraciones</h2>
           
           <div className="flex items-end gap-3 mb-4">
-            <span className="text-4xl font-light leading-none">{resumen.promedio.toFixed(1)}</span>
+            <span className="text-4xl font-light leading-none">{Number(resumen.promedio).toFixed(1)}</span>
             <div className="pb-1">
-              {renderStars(Math.round(resumen.promedio))}
+              {renderStars(Math.round(Number(resumen.promedio)))}
             </div>
           </div>
           <p className="text-xs text-gray-500 uppercase tracking-widest mb-10">{resumen.total} Opiniones</p>
