@@ -1,9 +1,10 @@
 import React, { useEffect, useState } from 'react';
-import { useParams, Link } from 'react-router-dom';
+import { useParams, Link, useNavigate } from 'react-router-dom';
 import { obtenerProductoPorId } from "../../catalogo/services/catalogo.api";
 import { Producto, VarianteProducto } from "../../catalogo/types";
 import { HeartButton } from '../../favoritos/components/HeartButton';
 import { ResenasSection } from '../../resenas/components/ResenasSection';
+import { useCartStore } from '../../../store/cart.store';
 
 const ASSETS_URL = (import.meta.env.VITE_API_URL || 'http://localhost:3000/api/v1').replace('/api/v1', '');
 
@@ -51,8 +52,14 @@ export const ProductDetailPage: React.FC = () => {
     return `${ASSETS_URL}/uploads/${url}`;
   };
 
+  const { addItem } = useCartStore();
+  const navigateTo = useNavigate();
+
   const handleAddToCart = () => {
-    alert(`Añadido al carrito:\n${producto?.nombre}\nTalla: ${varianteSeleccionada?.talla?.nombre || 'Única'}`);
+    if (varianteSeleccionada) {
+      addItem(varianteSeleccionada.id, 1);
+      navigateTo('/carrito');
+    }
   };
 
   if (cargando) {
