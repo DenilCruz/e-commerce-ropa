@@ -19,6 +19,7 @@ import { CartPage } from '../features/carrito/pages/CartPage';
 import { CheckoutPage } from '../features/pago/pages/CheckoutPage';
 import { OrdersPage } from '../features/pedidos/pages/OrdersPage';
 import { ProfilePage } from '../features/perfil/pages/ProfilePage';
+import { FavoritosPage } from '../features/favoritos/pages/FavoritosPage';
 
 import { AdminDashboardPage } from '../features/admin/dashboard/AdminDashboardPage';
 import { AdminProductsPage } from '../features/admin/productos/AdminProductsPage';
@@ -40,6 +41,7 @@ export const AppRouter: React.FC = () => {
           <Route path="/checkout" element={<CheckoutPage />} />
           <Route path="/pedidos" element={<OrdersPage />} />
           <Route path="/perfil" element={<ProfilePage />} />
+          <Route path="/favoritos" element={<FavoritosPage />} />
         </Route>
       </Route>
 

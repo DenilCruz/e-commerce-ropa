@@ -34,6 +34,7 @@ export const MainLayout: React.FC = () => {
             <Link to="/carrito" className="hover:text-black transition-colors">Carrito</Link>
             {isAuthenticated && (
               <>
+                <Link to="/favoritos" className="hover:text-black transition-colors">Favoritos</Link>
                 <Link to="/pedidos" className="hover:text-black transition-colors">Mis Pedidos</Link>
                 <Link to="/perfil" className="hover:text-black transition-colors">Mi Perfil</Link>
               </>

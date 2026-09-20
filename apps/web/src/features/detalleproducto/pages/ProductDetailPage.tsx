@@ -1,7 +1,9 @@
 import React, { useEffect, useState } from 'react';
 import { useParams, Link } from 'react-router-dom';
-import { obtenerProductoPorId } from '../../catalogo/services/catalogo.api';
-import { Producto, VarianteProducto } from '../../catalogo/types';
+import { obtenerProductoPorId } from "../../catalogo/services/catalogo.api";
+import { Producto, VarianteProducto } from "../../catalogo/types";
+import { HeartButton } from '../../favoritos/components/HeartButton';
+import { ResenasSection } from '../../reseñas/components/ResenasSection';
 
 const ASSETS_URL = (import.meta.env.VITE_API_URL || 'http://localhost:3000/api/v1').replace('/api/v1', '');
 
@@ -177,11 +179,7 @@ export const ProductDetailPage: React.FC = () => {
                   ? 'Agotado' 
                   : 'Añadir a la Cesta'}
             </button>
-            <button className="w-14 h-14 flex items-center justify-center border border-gray-200 hover:border-black transition-colors">
-              <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={1} stroke="currentColor" className="w-5 h-5">
-                <path strokeLinecap="round" strokeLinejoin="round" d="M21 8.25c0-2.485-2.099-4.5-4.688-4.5-1.935 0-3.597 1.126-4.312 2.733-.715-1.607-2.377-2.733-4.313-2.733C5.1 3.75 3 5.765 3 8.25c0 7.22 9 12 9 12s9-4.78 9-12z" />
-              </svg>
-            </button>
+            <HeartButton productoId={producto.id} className="w-14 h-14 border border-gray-200 hover:border-black" />
           </div>
 
           {/* Acordeones Editoriales (Detalles, Envío, Composición) */}
@@ -248,6 +246,11 @@ export const ProductDetailPage: React.FC = () => {
           </div>
 
         </div>
+      </div>
+
+      {/* Sección de Reseñas */}
+      <div className="px-6">
+        <ResenasSection productoId={producto.id} />
       </div>
     </div>
   );
