@@ -10,9 +10,16 @@ interface ProductCardProps {
 const ASSETS_URL = (import.meta.env.VITE_API_URL || 'http://localhost:3000/api/v1').replace('/api/v1', '');
 
 export const ProductCard: React.FC<ProductCardProps> = ({ producto }) => {
-  // Buscar la imagen principal o la primera
+  // Función para normalizar la URL de la imagen
+  const getImageUrl = (url: string) => {
+    if (url.startsWith('http')) return url;
+    if (url.startsWith('/uploads')) return `${ASSETS_URL}${url}`;
+    if (url.startsWith('/')) return `${ASSETS_URL}/uploads${url}`;
+    return `${ASSETS_URL}/uploads/${url}`;
+  };
+
   const imagenPrincipal = producto.imagenes?.find(img => img.esPrincipal) || producto.imagenes?.[0];
-  const urlImagen = imagenPrincipal ? `${ASSETS_URL}${imagenPrincipal.url}` : 'https://placehold.co/400x500?text=Sin+Imagen';
+  const urlImagen = imagenPrincipal ? getImageUrl(imagenPrincipal.url) : 'https://placehold.co/400x500?text=Sin+Imagen';
 
   return (
     <div className="group bg-white border border-gray-200 rounded-xl overflow-hidden hover:shadow-lg transition-all duration-300">
