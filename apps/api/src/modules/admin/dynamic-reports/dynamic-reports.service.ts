@@ -264,7 +264,7 @@ REGLAS OBLIGATORIAS DE SEGURIDAD Y GENERACIÓN:
     const model =
       this.configService.get<string>('GROQ_MODEL') ||
       process.env.GROQ_MODEL ||
-      'openai/gpt-oss-120b';
+      'llama-3.3-70b-versatile';
 
     try {
       const response = await fetch('https://api.groq.com/openai/v1/chat/completions', {

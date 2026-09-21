@@ -9,6 +9,7 @@ import {
   Dimensions,
   TextInput,
   RefreshControl,
+  Alert,
 } from 'react-native';
 import { Image } from 'expo-image';
 import { HeartButton } from '../../components/HeartButton';
@@ -19,6 +20,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { RootStackParamList } from '../../navigation/types';
 import { catalogoApi, Producto, Categoria, FiltrosProductos } from '../../services/catalogo.api';
 import { api } from '../../services/api';
+import { useAuthStore } from '../../store/auth.store';
 
 const { width } = Dimensions.get('window');
 const numColumns = 2;
@@ -44,12 +46,38 @@ export const CatalogScreen: React.FC = () => {
   const [cargando, setCargando] = useState(true);
   const [refrescando, setRefrescando] = useState(false);
 
+  const user = useAuthStore((s) => s.user);
+  const isAdmin = user?.rol?.toUpperCase() === 'ADMIN';
+
   // Escuchar parámetros de navegación (ej: al tocar una categoría en Inicio)
   useEffect(() => {
     if (route.params?.categoriaId !== undefined) {
       setCategoriaSeleccionada(route.params.categoriaId);
     }
   }, [route.params?.categoriaId]);
+
+  const handleEliminarProducto = (producto: Producto) => {
+    Alert.alert(
+      'Eliminar Prenda (Admin)',
+      `¿Deseas eliminar permanentemente "${producto.nombre}" de la tienda?`,
+      [
+        { text: 'Cancelar', style: 'cancel' },
+        {
+          text: 'Eliminar',
+          style: 'destructive',
+          onPress: async () => {
+            try {
+              await catalogoApi.eliminarProducto(producto.id);
+              Alert.alert('Éxito', `"${producto.nombre}" ha sido eliminado.`);
+              fetchProductos();
+            } catch (err: any) {
+              Alert.alert('Error', err?.response?.data?.message || 'No se pudo eliminar el producto.');
+            }
+          },
+        },
+      ]
+    );
+  };
 
   // Cargar categorías iniciales
   useEffect(() => {
@@ -227,6 +255,19 @@ export const CatalogScreen: React.FC = () => {
           <View style={styles.heartContainer}>
             <HeartButton productoId={item.id} size={18} />
           </View>
+
+          {/* ACCIÓN ADMIN: ELIMINAR DIRECTO DE LA TIENDA */}
+          {isAdmin && (
+            <TouchableOpacity
+              style={styles.adminDeleteBtn}
+              onPress={(e) => {
+                e.stopPropagation();
+                handleEliminarProducto(item);
+              }}
+            >
+              <Ionicons name="trash-outline" size={15} color="#ef4444" />
+            </TouchableOpacity>
+          )}
         </View>
 
         <View style={styles.cardInfo}>
@@ -426,6 +467,22 @@ const styles = StyleSheet.create({
     position: 'absolute',
     top: 8,
     right: 8,
+  },
+  adminDeleteBtn: {
+    position: 'absolute',
+    bottom: 8,
+    right: 8,
+    backgroundColor: '#ffffff',
+    padding: 6,
+    borderRadius: 16,
+    elevation: 3,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.2,
+    shadowRadius: 2,
+    zIndex: 10,
+    borderWidth: 1,
+    borderColor: '#fee2e2',
   },
   cardInfo: {
     padding: 10,

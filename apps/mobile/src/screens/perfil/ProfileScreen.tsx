@@ -17,10 +17,22 @@ import { Ionicons } from '@expo/vector-icons';
 import { useAuthStore } from '../../store/auth.store';
 import { authService } from '../../services/auth.service';
 import { perfilApi, DireccionEnvio } from '../../services/perfil.api';
+import { catalogoApi, Producto } from '../../services/catalogo.api';
+import { api } from '../../services/api';
 
 export const ProfileScreen: React.FC = () => {
   const navigation = useNavigation<any>();
   const { user, isAuthenticated, logout, refreshToken, setUser } = useAuthStore();
+
+  const getImageUrl = (url?: string | null) => {
+    if (!url) return 'https://placehold.co/400x500?text=Sin+Imagen';
+    if (url.startsWith('http')) return url;
+    const baseURL = api.defaults.baseURL || 'http://192.168.0.5:3000/api/v1';
+    const assetsURL = baseURL.replace('/api/v1', '');
+    if (url.startsWith('/uploads')) return `${assetsURL}${url}`;
+    if (url.startsWith('/')) return `${assetsURL}/uploads${url}`;
+    return `${assetsURL}/uploads/${url}`;
+  };
 
   // Direcciones (HU-12, HU-13, HU-14)
   const [direcciones, setDirecciones] = useState<DireccionEnvio[]>([]);
@@ -30,6 +42,9 @@ export const ProfileScreen: React.FC = () => {
   const [modalEditarPerfil, setModalEditarPerfil] = useState(false);
   const [modalCambiarPassword, setModalCambiarPassword] = useState(false);
   const [modalNuevaDireccion, setModalNuevaDireccion] = useState(false);
+  const [modalGestionProductos, setModalGestionProductos] = useState(false);
+  const [adminProductos, setAdminProductos] = useState<Producto[]>([]);
+  const [cargandoAdminProductos, setCargandoAdminProductos] = useState(false);
 
   // Estados de formulario de edición (HU-10)
   const [formNombre, setFormNombre] = useState('');
@@ -233,6 +248,42 @@ export const ProfileScreen: React.FC = () => {
     ]);
   };
 
+  const handleAbrirGestionProductos = async () => {
+    setModalGestionProductos(true);
+    setCargandoAdminProductos(true);
+    try {
+      const prods = await catalogoApi.obtenerProductos();
+      setAdminProductos(prods);
+    } catch (err) {
+      Alert.alert('Error', 'No se pudieron cargar los productos');
+    } finally {
+      setCargandoAdminProductos(false);
+    }
+  };
+
+  const handleEliminarProductoAdmin = (p: Producto) => {
+    Alert.alert(
+      'Eliminar Producto',
+      `¿Estás seguro de eliminar permanentemente "${p.nombre}"?`,
+      [
+        { text: 'Cancelar', style: 'cancel' },
+        {
+          text: 'Eliminar',
+          style: 'destructive',
+          onPress: async () => {
+            try {
+              await catalogoApi.eliminarProducto(p.id);
+              Alert.alert('Éxito', `"${p.nombre}" ha sido eliminado.`);
+              setAdminProductos((prev) => prev.filter((item) => item.id !== p.id));
+            } catch (err: any) {
+              Alert.alert('Error', err?.response?.data?.message || 'No se pudo eliminar el producto.');
+            }
+          },
+        },
+      ]
+    );
+  };
+
   if (!isAuthenticated || !user) {
     return (
       <View style={styles.centerContainer}>
@@ -338,6 +389,24 @@ export const ProfileScreen: React.FC = () => {
               <Ionicons name="desktop-outline" size={16} color="#fff" style={{ marginRight: 8 }} />
               <Text style={styles.adminPrimaryBtnText}>Abrir Dashboard Admin (Web)</Text>
               <Ionicons name="open-outline" size={16} color="#94a3b8" style={{ marginLeft: 'auto' }} />
+            </TouchableOpacity>
+
+            <TouchableOpacity
+              style={[styles.adminPrimaryBtn, { backgroundColor: '#dc2626', borderColor: '#b91c1c' }]}
+              onPress={handleAbrirGestionProductos}
+            >
+              <Ionicons name="trash-bin-outline" size={16} color="#fff" style={{ marginRight: 8 }} />
+              <Text style={styles.adminPrimaryBtnText}>Eliminar / Gestionar Prendas</Text>
+              <Ionicons name="chevron-forward" size={16} color="#fca5a5" style={{ marginLeft: 'auto' }} />
+            </TouchableOpacity>
+
+            <TouchableOpacity
+              style={[styles.adminPrimaryBtn, { backgroundColor: '#4f46e5', borderColor: '#4338ca' }]}
+              onPress={() => Linking.openURL('http://192.168.0.5:5173/admin/reportes-dinamicos')}
+            >
+              <Ionicons name="sparkles" size={16} color="#fff" style={{ marginRight: 8 }} />
+              <Text style={styles.adminPrimaryBtnText}>Reportes Dinámicos por Voz / IA</Text>
+              <Ionicons name="chevron-forward" size={16} color="#c7d2fe" style={{ marginLeft: 'auto' }} />
             </TouchableOpacity>
 
             <View style={styles.adminShortcutsRow}>
@@ -677,6 +746,91 @@ export const ProfileScreen: React.FC = () => {
                 )}
               </TouchableOpacity>
             </View>
+          </View>
+        </View>
+      </Modal>
+
+      {/* MODAL GESTIÓN DE PRODUCTOS (ADMIN) */}
+      <Modal
+        visible={modalGestionProductos}
+        animationType="slide"
+        transparent={true}
+        onRequestClose={() => setModalGestionProductos(false)}
+      >
+        <View style={styles.modalOverlay}>
+          <View style={[styles.modalCard, { maxHeight: '85%' }]}>
+            <View style={styles.modalHeader}>
+              <View>
+                <Text style={styles.modalTitle}>Gestionar Prendas (Admin)</Text>
+                <Text style={{ fontSize: 11, color: '#64748b' }}>Toca la papelera para eliminar cualquier prenda</Text>
+              </View>
+              <TouchableOpacity onPress={() => setModalGestionProductos(false)}>
+                <Ionicons name="close-circle-outline" size={26} color="#6b7280" />
+              </TouchableOpacity>
+            </View>
+
+            {cargandoAdminProductos ? (
+              <View style={{ padding: 40, alignItems: 'center' }}>
+                <ActivityIndicator size="large" color="#000" />
+                <Text style={{ marginTop: 10, color: '#64748b' }}>Cargando catálogo...</Text>
+              </View>
+            ) : adminProductos.length === 0 ? (
+              <View style={{ padding: 40, alignItems: 'center' }}>
+                <Ionicons name="shirt-outline" size={48} color="#d1d5db" />
+                <Text style={{ marginTop: 10, color: '#64748b', fontWeight: '600' }}>No hay productos registrados</Text>
+              </View>
+            ) : (
+              <ScrollView showsVerticalScrollIndicator={false} style={{ marginTop: 10 }}>
+                {adminProductos.map((p) => {
+                  const img = p.imagenes?.find((i) => i.esPrincipal || i.principal)?.url || p.imagenes?.[0]?.url;
+                  return (
+                    <View
+                      key={p.id}
+                      style={{
+                        flexDirection: 'row',
+                        alignItems: 'center',
+                        backgroundColor: '#f8fafc',
+                        padding: 10,
+                        borderRadius: 12,
+                        marginBottom: 8,
+                        borderWidth: 1,
+                        borderColor: '#e2e8f0',
+                      }}
+                    >
+                      {img ? (
+                        <Image source={{ uri: getImageUrl(img) }} style={{ width: 44, height: 44, borderRadius: 8 }} contentFit="cover" />
+                      ) : (
+                        <View style={{ width: 44, height: 44, borderRadius: 8, backgroundColor: '#e2e8f0' }} />
+                      )}
+                      <View style={{ flex: 1, marginLeft: 12 }}>
+                        <Text style={{ fontSize: 13, fontWeight: '700', color: '#0f172a' }} numberOfLines={1}>{p.nombre}</Text>
+                        <Text style={{ fontSize: 11, color: '#64748b' }}>
+                          {p.categoria?.nombre || 'General'} • Bs. {Number(p.precio).toFixed(2)}
+                        </Text>
+                      </View>
+                      <TouchableOpacity
+                        style={{
+                          backgroundColor: '#fee2e2',
+                          padding: 8,
+                          borderRadius: 8,
+                          marginLeft: 8,
+                        }}
+                        onPress={() => handleEliminarProductoAdmin(p)}
+                      >
+                        <Ionicons name="trash-outline" size={18} color="#dc2626" />
+                      </TouchableOpacity>
+                    </View>
+                  );
+                })}
+              </ScrollView>
+            )}
+
+            <TouchableOpacity
+              style={[styles.modalSaveBtn, { marginTop: 14, backgroundColor: '#0f172a', alignItems: 'center' }]}
+              onPress={() => setModalGestionProductos(false)}
+            >
+              <Text style={styles.modalSaveText}>Listo / Cerrar</Text>
+            </TouchableOpacity>
           </View>
         </View>
       </Modal>

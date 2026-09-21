@@ -94,4 +94,13 @@ export const catalogoApi = {
     const response = await api.get(`/productos/${id}/relacionados`);
     return response.data;
   },
+
+  eliminarProducto: async (id: string): Promise<void> => {
+    await api.delete(`/productos/${id}`);
+  },
+
+  toggleActivo: async (id: string): Promise<Producto> => {
+    const response = await api.put(`/productos/${id}/toggle`);
+    return response.data;
+  },
 };
