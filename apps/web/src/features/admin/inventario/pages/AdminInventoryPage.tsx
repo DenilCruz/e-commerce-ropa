@@ -10,10 +10,7 @@ import {
   Plus, 
   Minus, 
   ArrowUpDown, 
-  RefreshCw, 
-  ShoppingBag, 
-  Undo2, 
-  TrendingDown
+  RefreshCw
 } from 'lucide-react';
 import { toast } from 'sonner';
 import { inventoryApi } from '../services/inventory.api';
@@ -51,12 +48,6 @@ export const AdminInventoryPage: React.FC = () => {
   const [motivo, setMotivo] = useState('Llegada de mercadería / Lote estándar');
   const [guardandoAjuste, setGuardandoAjuste] = useState(false);
 
-  // Panel Simulador de Pedidos (HU-38 y HU-39)
-  const [mostrarSimulador, setMostrarSimulador] = useState(false);
-  const [simVarianteId, setSimVarianteId] = useState('');
-  const [simCantidad, setSimCantidad] = useState(1);
-  const [procesandoSimulacion, setProcesandoSimulacion] = useState(false);
-
   const cargarDatos = async () => {
     try {
       setCargando(true);
@@ -66,9 +57,6 @@ export const AdminInventoryPage: React.FC = () => {
       ]);
       setVariantes(vars);
       setKpis(stats);
-      if (vars.length > 0 && !simVarianteId) {
-        setSimVarianteId(vars[0].id);
-      }
     } catch (error) {
       console.error('Error cargando inventario:', error);
       toast.error('Error al cargar datos del inventario');
@@ -144,44 +132,6 @@ export const AdminInventoryPage: React.FC = () => {
     }
   };
 
-  // Simulación de Confirmación de Pedido (HU-38)
-  const handleSimularConfirmarPedido = async () => {
-    if (!simVarianteId) {
-      toast.error('Selecciona una variante para simular el pedido');
-      return;
-    }
-
-    try {
-      setProcesandoSimulacion(true);
-      const res = await inventoryApi.descontarStock([{ varianteId: simVarianteId, cantidad: simCantidad }]);
-      toast.success(`HU-38 (Sistema): Pedido confirmado. ${res.mensaje}`);
-      cargarDatos();
-    } catch (err: any) {
-      toast.error(err.response?.data?.message || 'Error al descontar stock por pedido');
-    } finally {
-      setProcesandoSimulacion(false);
-    }
-  };
-
-  // Simulación de Cancelación de Pedido (HU-39)
-  const handleSimularCancelarPedido = async () => {
-    if (!simVarianteId) {
-      toast.error('Selecciona una variante para simular la cancelación');
-      return;
-    }
-
-    try {
-      setProcesandoSimulacion(true);
-      const res = await inventoryApi.devolverStock([{ varianteId: simVarianteId, cantidad: simCantidad }]);
-      toast.success(`HU-39 (Sistema): Pedido cancelado. ${res.mensaje}`);
-      cargarDatos();
-    } catch (err: any) {
-      toast.error(err.response?.data?.message || 'Error al devolver stock al inventario');
-    } finally {
-      setProcesandoSimulacion(false);
-    }
-  };
-
   return (
     <div className="max-w-7xl mx-auto p-4 sm:p-6 lg:p-8 space-y-8">
       {/* HEADER PRINCIPAL */}
@@ -192,29 +142,18 @@ export const AdminInventoryPage: React.FC = () => {
             Control de Inventario
           </h1>
           <p className="text-sm text-gray-500 mt-1">
-            Gestión de stock por variante, recepción de mercadería y alertas de reabastecimiento (HU-35 a HU-39).
+            Gestión de stock por variante, recepción de mercadería y alertas de reabastecimiento.
           </p>
         </div>
 
         <div className="flex items-center gap-3">
           <button
-            onClick={() => setMostrarSimulador(!mostrarSimulador)}
-            className={`inline-flex items-center gap-2 px-4 py-2.5 rounded-lg text-sm font-medium transition-colors border ${
-              mostrarSimulador
-                ? 'bg-purple-50 text-purple-700 border-purple-300'
-                : 'bg-white text-gray-700 border-gray-300 hover:bg-gray-50'
-            }`}
-          >
-            <ShoppingBag className="w-4 h-4 text-purple-600" />
-            <span>Simulador de Pedidos (HU-38/39)</span>
-          </button>
-
-          <button
             onClick={cargarDatos}
-            className="p-2.5 text-gray-500 hover:text-black hover:bg-gray-100 rounded-lg transition-colors border border-gray-200"
+            className="inline-flex items-center gap-2 px-3.5 py-2 text-sm text-gray-600 hover:text-black hover:bg-gray-100 rounded-lg transition-colors border border-gray-200 font-medium"
             title="Actualizar datos"
           >
             <RefreshCw className={`w-4 h-4 ${cargando ? 'animate-spin' : ''}`} />
+            <span>Actualizar</span>
           </button>
         </div>
       </div>
@@ -251,7 +190,7 @@ export const AdminInventoryPage: React.FC = () => {
             <AlertTriangle className="w-6 h-6" />
           </div>
           <div>
-            <p className="text-xs uppercase tracking-wider text-amber-700 font-semibold">Stock Bajo (HU-37)</p>
+            <p className="text-xs uppercase tracking-wider text-amber-700 font-semibold">Stock Bajo</p>
             <p className="text-2xl font-bold text-amber-900">{kpis.stockBajo}</p>
           </div>
         </div>
@@ -272,7 +211,7 @@ export const AdminInventoryPage: React.FC = () => {
         </div>
       </div>
 
-      {/* BANNER DE ALERTA ACTIVA DE STOCK (HU-37) */}
+      {/* BANNER DE ALERTA ACTIVA DE STOCK */}
       {(kpis.stockBajo > 0 || kpis.agotados > 0) && (
         <div className="bg-amber-50 border border-amber-200 p-4 rounded-xl flex items-center justify-between gap-4 text-amber-900 animate-in fade-in duration-200">
           <div className="flex items-center gap-3">
@@ -290,93 +229,12 @@ export const AdminInventoryPage: React.FC = () => {
             onClick={() => setFiltroEstado('alerta')}
             className="px-3.5 py-1.5 bg-amber-600 text-white rounded-lg text-xs font-semibold hover:bg-amber-700 transition-colors whitespace-nowrap"
           >
-            Ver Alertas (HU-37)
+            Ver Alertas
           </button>
         </div>
       )}
 
-      {/* SIMULADOR DE PEDIDOS (HU-38 y HU-39) */}
-      {mostrarSimulador && (
-        <div className="bg-gradient-to-r from-purple-900 to-indigo-950 text-white p-6 rounded-2xl shadow-xl space-y-4 animate-in slide-in-from-top duration-200">
-          <div className="flex items-center justify-between border-b border-purple-800 pb-3">
-            <div>
-              <h3 className="text-base font-bold flex items-center gap-2">
-                <ShoppingBag className="w-5 h-5 text-purple-300" />
-                Simulador del Rol Sistema (HU-38 y HU-39)
-              </h3>
-              <p className="text-xs text-purple-200 mt-0.5">
-                Prueba cómo el sistema descuenta existencias al confirmar pedidos y restituye el stock al cancelarlos.
-              </p>
-            </div>
-            <button
-              onClick={() => setMostrarSimulador(false)}
-              className="text-purple-300 hover:text-white p-1 rounded-lg"
-            >
-              <X className="w-5 h-5" />
-            </button>
-          </div>
-
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-4 items-end">
-            <div className="space-y-1.5">
-              <label className="text-xs font-semibold uppercase tracking-wider text-purple-200">
-                Seleccionar Variante
-              </label>
-              <select
-                value={simVarianteId}
-                onChange={e => setSimVarianteId(e.target.value)}
-                className="w-full text-xs p-2.5 rounded-lg bg-purple-800/80 border border-purple-600 text-white focus:outline-none focus:border-white"
-              >
-                {variantes.map(v => (
-                  <option key={v.id} value={v.id} className="bg-gray-900 text-white">
-                    {v.producto?.nombre} - SKU: {v.sku} ({v.talla?.nombre}/{v.color?.nombre}) - Stock: {v.stock}
-                  </option>
-                ))}
-              </select>
-            </div>
-
-            <div className="space-y-1.5">
-              <label className="text-xs font-semibold uppercase tracking-wider text-purple-200">
-                Cantidad a Procesar
-              </label>
-              <input
-                type="number"
-                min={1}
-                value={simCantidad}
-                onChange={e => setSimCantidad(Math.max(1, Number(e.target.value)))}
-                className="w-full text-xs p-2.5 rounded-lg bg-purple-800/80 border border-purple-600 text-white focus:outline-none focus:border-white"
-              />
-            </div>
-
-            <div className="flex gap-2">
-              {/* HU-38: Descontar por pedido confirmado */}
-              <button
-                type="button"
-                onClick={handleSimularConfirmarPedido}
-                disabled={procesandoSimulacion}
-                className="flex-1 inline-flex items-center justify-center gap-1.5 bg-emerald-500 hover:bg-emerald-600 text-white px-3 py-2.5 rounded-lg text-xs font-semibold transition-colors disabled:opacity-50"
-                title="Descontar stock automáticamente tras confirmación del pedido"
-              >
-                <TrendingDown className="w-4 h-4" />
-                <span>Confirmar Pedido (HU-38)</span>
-              </button>
-
-              {/* HU-39: Devolver por pedido cancelado */}
-              <button
-                type="button"
-                onClick={handleSimularCancelarPedido}
-                disabled={procesandoSimulacion}
-                className="flex-1 inline-flex items-center justify-center gap-1.5 bg-amber-500 hover:bg-amber-600 text-white px-3 py-2.5 rounded-lg text-xs font-semibold transition-colors disabled:opacity-50"
-                title="Devolver stock al almacén tras cancelación del pedido"
-              >
-                <Undo2 className="w-4 h-4" />
-                <span>Cancelar Pedido (HU-39)</span>
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
-
-      {/* BARRA DE BÚSQUEDA Y PESTAÑAS DE FILTRO (HU-35 y HU-37) */}
+      {/* BARRA DE BÚSQUEDA Y PESTAÑAS DE FILTRO */}
       <div className="bg-white p-4 rounded-xl border border-gray-200 shadow-sm flex flex-col md:flex-row gap-4 justify-between items-center">
         <div className="relative w-full md:w-96">
           <Search className="w-4 h-4 text-gray-400 absolute left-3.5 top-3" />

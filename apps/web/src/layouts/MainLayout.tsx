@@ -46,6 +46,21 @@ export const MainLayout: React.FC = () => {
   const [categoriaMovilExpandida, setCategoriaMovilExpandida] = useState<string | null>(null);
 
   const dropdownRef = useRef<HTMLDivElement>(null);
+  const dropdownTimeoutRef = useRef<NodeJS.Timeout | null>(null);
+
+  const handleMouseEnterDropdown = () => {
+    if (dropdownTimeoutRef.current) {
+      clearTimeout(dropdownTimeoutRef.current);
+      dropdownTimeoutRef.current = null;
+    }
+    setDropdownCategoriasAbierto(true);
+  };
+
+  const handleMouseLeaveDropdown = () => {
+    dropdownTimeoutRef.current = setTimeout(() => {
+      setDropdownCategoriasAbierto(false);
+    }, 200);
+  };
 
   // Sincronizar favoritos del usuario autenticado
   useEffect(() => {
@@ -77,7 +92,10 @@ export const MainLayout: React.FC = () => {
       }
     };
     document.addEventListener('mousedown', handleClickAfuera);
-    return () => document.removeEventListener('mousedown', handleClickAfuera);
+    return () => {
+      document.removeEventListener('mousedown', handleClickAfuera);
+      if (dropdownTimeoutRef.current) clearTimeout(dropdownTimeoutRef.current);
+    };
   }, []);
 
   // Cerrar menús al cambiar de ruta
@@ -126,8 +144,13 @@ export const MainLayout: React.FC = () => {
                 <span>Catálogo</span>
               </Link>
 
-              {/* DROPDOWN ÁRBOL DE CATEGORÍAS (HU-33) */}
-              <div className="relative" ref={dropdownRef}>
+              {/* DROPDOWN ÁRBOL DE CATEGORÍAS */}
+              <div 
+                className="relative" 
+                ref={dropdownRef}
+                onMouseEnter={handleMouseEnterDropdown}
+                onMouseLeave={handleMouseLeaveDropdown}
+              >
                 <button
                   type="button"
                   onClick={() => setDropdownCategoriasAbierto(!dropdownCategoriasAbierto)}
@@ -144,12 +167,12 @@ export const MainLayout: React.FC = () => {
 
                 {/* MEGA-MENÚ DESPLEGABLE CON EL ÁRBOL */}
                 {dropdownCategoriasAbierto && (
-                  <div className="absolute left-0 mt-3 w-[540px] bg-white rounded-2xl shadow-xl border border-gray-200 p-6 z-50 animate-in fade-in zoom-in-95 duration-150">
+                  <div className="absolute left-0 mt-2 w-[540px] bg-white rounded-2xl shadow-xl border border-gray-200 p-6 z-50 animate-in fade-in zoom-in-95 duration-150">
                     <div className="flex items-center justify-between pb-3 mb-4 border-b border-gray-100">
                       <div>
                         <h3 className="text-xs uppercase tracking-wider font-bold text-gray-900 flex items-center gap-2">
                           <FolderTree className="w-4 h-4 text-black" />
-                          Árbol de Categorías (HU-33)
+                          Árbol de Categorías
                         </h3>
                         <p className="text-[11px] text-gray-400 mt-0.5">Explora nuestras colecciones y prendas</p>
                       </div>
@@ -367,7 +390,7 @@ export const MainLayout: React.FC = () => {
             <div className="border-t border-gray-200 pt-3">
               <p className="text-xs font-bold uppercase tracking-wider text-gray-500 mb-2 flex items-center gap-1.5">
                 <FolderTree className="w-4 h-4 text-black" />
-                Categorías de Ropa
+                Árbol de Categorías
               </p>
               <div className="space-y-1">
                 {categorias.map(cat => {

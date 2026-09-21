@@ -7,13 +7,22 @@ TRUNCATE TABLE color CASCADE;
 TRUNCATE TABLE talla CASCADE;
 TRUNCATE TABLE producto CASCADE;
 
-INSERT INTO categoria (id, nombre, descripcion, activa) VALUES
-('264efe79-ded7-4cfa-a0b0-110b822944c5', 'Vestidos', 'Vestidos para toda ocasión', true),
-('5977fad7-63be-49cd-bee5-1d572e849cdd', 'Poleras', 'Poleras casuales', true),
-('67c0ec1b-94fa-4bd4-b37a-9f74f815031f', 'Faldas', 'Faldas modernas', true),
-('3a3ed9f0-94be-45a7-8699-c007a4ef9795', 'Camisas', 'Camisas formales', true),
-('fe5e4893-0236-4533-817c-da2e1db599f6', 'Shorts', 'Shorts de verano', true),
-('afc1e8b6-47ab-45bc-a0d7-02dcd023ff3b', 'Abrigos', 'Abrigos de invierno', true);
+INSERT INTO categoria (id, nombre, descripcion, activa, padre_id) VALUES
+('264efe79-ded7-4cfa-a0b0-110b822944c5', 'Vestidos', 'Vestidos para toda ocasión', true, NULL),
+('5977fad7-63be-49cd-bee5-1d572e849cdd', 'Poleras', 'Poleras casuales', true, NULL),
+('67c0ec1b-94fa-4bd4-b37a-9f74f815031f', 'Faldas', 'Faldas modernas', true, NULL),
+('3a3ed9f0-94be-45a7-8699-c007a4ef9795', 'Camisas', 'Camisas formales', true, NULL),
+('fe5e4893-0236-4533-817c-da2e1db599f6', 'Shorts', 'Shorts de verano', true, NULL),
+('afc1e8b6-47ab-45bc-a0d7-02dcd023ff3b', 'Abrigos', 'Abrigos de invierno', true, NULL),
+('583d0937-40b2-4070-96b3-4685fdb92bc2', 'Pantalones', 'Pantalones y jeans', true, NULL),
+('11111111-1111-4111-a111-111111111101', 'Vestidos de Noche', 'Vestidos largos y elegantes para eventos', true, '264efe79-ded7-4cfa-a0b0-110b822944c5'),
+('11111111-1111-4111-a111-111111111102', 'Vestidos Casuales', 'Vestidos de verano y día a día', true, '264efe79-ded7-4cfa-a0b0-110b822944c5'),
+('22222222-2222-4222-a222-222222222201', 'Poleras Básicas', 'Poleras lisas de algodón', true, '5977fad7-63be-49cd-bee5-1d572e849cdd'),
+('22222222-2222-4222-a222-222222222202', 'Poleras Estampadas', 'Diseños gráficos modernos', true, '5977fad7-63be-49cd-bee5-1d572e849cdd'),
+('33333333-3333-4333-a333-333333333301', 'Camisas Formales', 'Camisas de oficina y etiqueta', true, '3a3ed9f0-94be-45a7-8699-c007a4ef9795'),
+('33333333-3333-4333-a333-333333333302', 'Camisas de Seda / Lino', 'Prendas premium transpirables', true, '3a3ed9f0-94be-45a7-8699-c007a4ef9795'),
+('44444444-4444-4444-a444-444444444401', 'Chaquetas y Blazers', 'Abrigos ligeros y sacos', true, 'afc1e8b6-47ab-45bc-a0d7-02dcd023ff3b'),
+('44444444-4444-4444-a444-444444444402', 'Tapados de Invierno', 'Abrigos pesados de lana', true, 'afc1e8b6-47ab-45bc-a0d7-02dcd023ff3b');
 
 INSERT INTO color (id, nombre) VALUES 
 ('5fab2609-5a5d-4c3f-b09f-4c46e4c047a6', 'Azul Noche'),
@@ -29,7 +38,7 @@ INSERT INTO talla (id, nombre) VALUES
 
 -- 1. VESTIDO
 INSERT INTO producto (id, nombre, descripcion, precio, activo, destacado, categoria_id) VALUES
-('eafb6edc-ad0c-4e68-8085-f3a478e8a806', 'Vestido de Noche Elegante', 'Vestido largo con detalles de encaje y pedrería. Ideal para eventos formales y galas. Diseño sin costuras y caída perfecta.', 250.00, true, true, '264efe79-ded7-4cfa-a0b0-110b822944c5');
+('eafb6edc-ad0c-4e68-8085-f3a478e8a806', 'Vestido de Noche Elegante', 'Vestido largo con detalles de encaje y pedrería. Ideal para eventos formales y galas. Diseño sin costuras y caída perfecta.', 250.00, true, true, '11111111-1111-4111-a111-111111111101');
 
 INSERT INTO imagen_producto (producto_id, url, principal, orden) VALUES
 ('eafb6edc-ad0c-4e68-8085-f3a478e8a806', '/uploads/elegant_dress_1789943810626.jpg', true, 1);
@@ -40,7 +49,7 @@ INSERT INTO producto_variante (producto_id, color_id, talla_id, sku, stock, prec
 
 -- 2. POLERA
 INSERT INTO producto (id, nombre, descripcion, precio, activo, destacado, categoria_id) VALUES
-('c3cc1efa-4388-4e78-b35b-7a04035d22e3', 'Polera Básica de Algodón', 'Polera casual con cuello redondo, 100% algodón orgánico peinado. Ultra suave y fresca.', 25.00, true, false, '5977fad7-63be-49cd-bee5-1d572e849cdd');
+('c3cc1efa-4388-4e78-b35b-7a04035d22e3', 'Polera Básica de Algodón', 'Polera casual con cuello redondo, 100% algodón orgánico peinado. Ultra suave y fresca.', 25.00, true, false, '22222222-2222-4222-a222-222222222201');
 
 INSERT INTO imagen_producto (producto_id, url, principal, orden) VALUES
 ('c3cc1efa-4388-4e78-b35b-7a04035d22e3', '/uploads/casual_tshirt_1789943819927.jpg', true, 1);
@@ -60,7 +69,7 @@ INSERT INTO producto_variante (producto_id, color_id, talla_id, sku, stock, prec
 
 -- 4. CAMISA
 INSERT INTO producto (id, nombre, descripcion, precio, activo, destacado, categoria_id) VALUES
-('8f8b5703-c607-4bbb-bf1f-1a2d3289fc51', 'Camisa de Seda Premium', 'Camisa de botones formal, elaborada 100% en seda de morera. Acabado satinado, ideal para oficina.', 120.00, true, true, '3a3ed9f0-94be-45a7-8699-c007a4ef9795');
+('8f8b5703-c607-4bbb-bf1f-1a2d3289fc51', 'Camisa de Seda Premium', 'Camisa de botones formal, elaborada 100% en seda de morera. Acabado satinado, ideal para oficina.', 120.00, true, true, '33333333-3333-4333-a333-333333333302');
 
 INSERT INTO imagen_producto (producto_id, url, principal, orden) VALUES
 ('8f8b5703-c607-4bbb-bf1f-1a2d3289fc51', '/uploads/silk_shirt_1789943838183.jpg', true, 1);
@@ -80,7 +89,7 @@ INSERT INTO producto_variante (producto_id, color_id, talla_id, sku, stock, prec
 
 -- 6. ABRIGO
 INSERT INTO producto (id, nombre, descripcion, precio, activo, destacado, categoria_id) VALUES
-('7e829857-321d-4d06-9ae5-2d2644e7613e', 'Abrigo de Lana Cruzado', 'Elegante abrigo de lana de doble botonadura con cinturón ajustable. Perfecto para climas fríos.', 190.00, true, true, 'afc1e8b6-47ab-45bc-a0d7-02dcd023ff3b');
+('7e829857-321d-4d06-9ae5-2d2644e7613e', 'Abrigo de Lana Cruzado', 'Elegante abrigo de lana de doble botonadura con cinturón ajustable. Perfecto para climas fríos.', 190.00, true, true, '44444444-4444-4444-a444-444444444402');
 
 INSERT INTO imagen_producto (producto_id, url, principal, orden) VALUES
 ('7e829857-321d-4d06-9ae5-2d2644e7613e', '/uploads/winter_coat_1789943856236.jpg', true, 1);

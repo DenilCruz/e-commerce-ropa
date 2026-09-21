@@ -316,7 +316,7 @@ export const AdminOrdersPage: React.FC = () => {
                         </div>
                       </td>
                       <td className="py-3.5 px-4 font-black text-gray-900">
-                        Bs. {pedido.total.toFixed(2)}
+                        Bs. {Number(pedido.total || 0).toFixed(2)}
                       </td>
                       <td className="py-3.5 px-4">
                         {getStatusBadge(pedido.estado, pedido.pago?.estado)}
@@ -371,7 +371,7 @@ export const AdminOrdersPage: React.FC = () => {
             <div className="space-y-4 text-xs text-gray-600">
               <div className="bg-purple-50 p-4 rounded-xl border border-purple-100 space-y-1.5">
                 <p className="font-bold text-purple-950">Información del Pago a Revertir:</p>
-                <p><strong>Monto:</strong> Bs. {reembolsandoPedido.total.toFixed(2)}</p>
+                <p><strong>Monto:</strong> Bs. {Number(reembolsandoPedido.total || 0).toFixed(2)}</p>
                 <p><strong>Pasarela:</strong> Stripe (ID: {reembolsandoPedido.pago?.idTransaccion})</p>
                 <p><strong>Cliente:</strong> {reembolsandoPedido.usuario?.nombre} ({reembolsandoPedido.usuario?.correo})</p>
               </div>
@@ -482,7 +482,7 @@ export const AdminOrdersPage: React.FC = () => {
                           Talla: {it.talla} · Color: {it.color} · Cant: {it.cantidad}
                         </p>
                       </div>
-                      <span className="font-bold text-gray-900">Bs. {it.subtotal.toFixed(2)}</span>
+                      <span className="font-bold text-gray-900">Bs. {Number(it.subtotal || 0).toFixed(2)}</span>
                     </div>
                   ))}
                 </div>
@@ -492,21 +492,21 @@ export const AdminOrdersPage: React.FC = () => {
               <div className="bg-gray-50 rounded-2xl p-4 space-y-1.5 text-xs border border-gray-200">
                 <div className="flex justify-between text-gray-600">
                   <span>Subtotal</span>
-                  <span>Bs. {pedidoSeleccionado.subtotal.toFixed(2)}</span>
+                  <span>Bs. {Number(pedidoSeleccionado.subtotal || 0).toFixed(2)}</span>
                 </div>
-                {pedidoSeleccionado.descuento > 0 && (
+                {Number(pedidoSeleccionado.descuento || 0) > 0 && (
                   <div className="flex justify-between text-emerald-600 font-semibold">
                     <span>Descuento</span>
-                    <span>- Bs. {pedidoSeleccionado.descuento.toFixed(2)}</span>
+                    <span>- Bs. {Number(pedidoSeleccionado.descuento || 0).toFixed(2)}</span>
                   </div>
                 )}
                 <div className="flex justify-between text-gray-600">
                   <span>Envío</span>
-                  <span>{pedidoSeleccionado.costoEnvio === 0 ? 'Gratis' : `Bs. ${pedidoSeleccionado.costoEnvio.toFixed(2)}`}</span>
+                  <span>{Number(pedidoSeleccionado.costoEnvio || 0) === 0 ? 'Gratis' : `Bs. ${Number(pedidoSeleccionado.costoEnvio || 0).toFixed(2)}`}</span>
                 </div>
                 <div className="flex justify-between text-sm font-black text-gray-900 pt-2 border-t border-gray-300">
                   <span>Total</span>
-                  <span>Bs. {pedidoSeleccionado.total.toFixed(2)}</span>
+                  <span>Bs. {Number(pedidoSeleccionado.total || 0).toFixed(2)}</span>
                 </div>
               </div>
 

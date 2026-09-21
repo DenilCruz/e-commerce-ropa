@@ -40,6 +40,9 @@ export const CatalogPage: React.FC = () => {
   const [paginaActual, setPaginaActual] = useState(1);
   const itemsPorPagina = 8;
 
+  // Árbol interactivo desplegable para visitantes y clientes (HU-33)
+  const [mostrarArbol, setMostrarArbol] = useState(false);
+
   // Sincronizar parámetro URL con estado de categoría (HU-34)
   useEffect(() => {
     const catUrl = searchParams.get('categoria');
@@ -164,6 +167,28 @@ export const CatalogPage: React.FC = () => {
     }
     return [];
   }, [categorias, categoriaSeleccionada]);
+
+  // Conteo de prendas por ID de categoría para visualización del árbol
+  const conteoPorCategoria = useMemo(() => {
+    const conteo: Record<string, number> = {};
+    productos.forEach(p => {
+      const catId = p.categoria?.id || p.categoriaId;
+      if (catId) {
+        conteo[catId] = (conteo[catId] || 0) + 1;
+      }
+    });
+    return conteo;
+  }, [productos]);
+
+  const obtenerTotalCategoria = (cat: Categoria) => {
+    let total = conteoPorCategoria[cat.id] || 0;
+    if (cat.subcategorias) {
+      cat.subcategorias.forEach(sub => {
+        total += conteoPorCategoria[sub.id] || 0;
+      });
+    }
+    return total;
+  };
 
   // PIPELINE DE FILTRADO Y ORDENAMIENTO (HU-23, HU-25, HU-26, HU-29, HU-34)
   const productosProcesados = useMemo(() => {
@@ -311,6 +336,18 @@ export const CatalogPage: React.FC = () => {
         {/* Categorías Principales Pills (HU-34) */}
         <div className="flex gap-2 overflow-x-auto pb-1 scrollbar-hide">
           <button
+            onClick={() => setMostrarArbol(!mostrarArbol)}
+            className={`px-3.5 py-2 rounded-full text-xs font-semibold whitespace-nowrap transition-all flex items-center gap-1.5 border ${
+              mostrarArbol
+                ? 'bg-black text-white border-black shadow-sm'
+                : 'bg-white text-gray-700 border-gray-300 hover:border-black'
+            }`}
+            title="Ver estructura en árbol de categorías"
+          >
+            <FolderTree className="w-3.5 h-3.5" />
+            <span>{mostrarArbol ? 'Ocultar Árbol' : 'Árbol de Categorías'}</span>
+          </button>
+          <button
             onClick={() => handleSeleccionarCategoria('todas')}
             className={`px-4 py-2 rounded-full text-xs font-semibold whitespace-nowrap transition-all ${
               categoriaSeleccionada === 'todas'
@@ -338,6 +375,108 @@ export const CatalogPage: React.FC = () => {
           })}
         </div>
       </div>
+
+      {/* Visualizador Jerárquico del Árbol de Categorías (HU-33) */}
+      {mostrarArbol && (
+        <div className="bg-white rounded-2xl border border-gray-200 p-6 shadow-sm space-y-4 animate-in fade-in zoom-in-95 duration-150">
+          <div className="flex items-center justify-between border-b border-gray-100 pb-3">
+            <div className="flex items-center gap-2">
+              <FolderTree className="w-5 h-5 text-black" />
+              <h2 className="text-sm uppercase tracking-wider font-bold text-gray-900">
+                Árbol de Categorías
+              </h2>
+              <span className="text-xs text-gray-400 hidden sm:inline">
+                — Selecciona una categoría principal o subcategoría para filtrar
+              </span>
+            </div>
+            <button
+              onClick={() => setMostrarArbol(false)}
+              className="text-xs font-semibold text-gray-500 hover:text-black flex items-center gap-1 transition-colors"
+            >
+              <X className="w-4 h-4" /> Cerrar
+            </button>
+          </div>
+
+          <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
+            {/* Opción Todas */}
+            <button
+              onClick={() => handleSeleccionarCategoria('todas')}
+              className={`p-3.5 rounded-xl border text-left transition-all ${
+                categoriaSeleccionada === 'todas'
+                  ? 'border-black bg-gray-50 ring-1 ring-black'
+                  : 'border-gray-200 hover:border-gray-400 bg-white'
+              }`}
+            >
+              <div className="flex items-center justify-between">
+                <span className="font-bold text-sm text-gray-900">Todas las Prendas</span>
+                <span className="text-xs px-2 py-0.5 rounded-full bg-gray-100 font-semibold text-gray-600">
+                  {productos.length}
+                </span>
+              </div>
+              <p className="text-[11px] text-gray-400 mt-1">Ver todo el catálogo completo</p>
+            </button>
+
+            {/* Categorías con sus subcategorías */}
+            {categorias.filter(c => c.activa !== false).map(cat => {
+              const esActiva = categoriaSeleccionada === cat.id;
+              const totalPrendas = obtenerTotalCategoria(cat);
+              const tieneSubcats = cat.subcategorias && cat.subcategorias.length > 0;
+
+              return (
+                <div
+                  key={cat.id}
+                  className={`p-3.5 rounded-xl border transition-all ${
+                    esActiva
+                      ? 'border-black bg-gray-50/70 ring-1 ring-black'
+                      : 'border-gray-200 hover:border-gray-300 bg-white'
+                  }`}
+                >
+                  <div className="flex items-center justify-between">
+                    <button
+                      onClick={() => handleSeleccionarCategoria(cat.id)}
+                      className="font-bold text-sm text-gray-900 hover:text-black flex items-center gap-1.5 text-left flex-1"
+                    >
+                      <Tag className="w-3.5 h-3.5 text-gray-400" />
+                      <span>{cat.nombre}</span>
+                    </button>
+                    <span className="text-xs px-2 py-0.5 rounded-full bg-gray-100 font-semibold text-gray-600">
+                      {totalPrendas}
+                    </span>
+                  </div>
+
+                  {tieneSubcats && (
+                    <ul className="mt-2.5 pt-2.5 border-t border-gray-100 space-y-1.5 pl-1">
+                      {cat.subcategorias!.filter(s => s.activa !== false).map(sub => {
+                        const esSubActiva = categoriaSeleccionada === sub.id;
+                        const countSub = conteoPorCategoria[sub.id] || 0;
+                        return (
+                          <li key={sub.id}>
+                            <button
+                              onClick={() => handleSeleccionarCategoria(sub.id)}
+                              className={`w-full flex items-center justify-between text-xs py-1 px-2 rounded transition-colors text-left ${
+                                esSubActiva
+                                  ? 'bg-black text-white font-semibold'
+                                  : 'text-gray-600 hover:text-black hover:bg-gray-100'
+                              }`}
+                            >
+                              <span className="truncate">↳ {sub.nombre}</span>
+                              {countSub > 0 && (
+                                <span className={`text-[10px] ml-1 font-medium ${esSubActiva ? 'text-gray-200' : 'text-gray-400'}`}>
+                                  {countSub}
+                                </span>
+                              )}
+                            </button>
+                          </li>
+                        );
+                      })}
+                    </ul>
+                  )}
+                </div>
+              );
+            })}
+          </div>
+        </div>
+      )}
 
       {/* Subcategorías Chips (si la categoría seleccionada tiene subcategorías) */}
       {subcategoriasVisibles.length > 0 && (
