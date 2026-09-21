@@ -51,8 +51,9 @@ export const FavoritosScreen: React.FC = () => {
   };
 
   const renderProducto = ({ item }: { item: Producto }) => {
-    const precioMinimo = Math.min(...item.variantes.map(v => Number(v.precio)));
-    const imgPrincipal = item.imagenes.find(img => img.principal)?.url || item.imagenes[0]?.url;
+    const precio = Number(item.precio || 0);
+    const imagenes = item.imagenes || [];
+    const imgPrincipal = imagenes.find(img => img.principal)?.url || imagenes[0]?.url;
 
     return (
       <TouchableOpacity 
@@ -70,7 +71,7 @@ export const FavoritosScreen: React.FC = () => {
           </View>
         </View>
         <Text style={styles.productName} numberOfLines={1}>{item.nombre}</Text>
-        <Text style={styles.price}>${precioMinimo.toFixed(2)}</Text>
+        <Text style={styles.price}>Bs. {precio.toFixed(2)}</Text>
       </TouchableOpacity>
     );
   };

@@ -76,7 +76,12 @@ export const ProductDetailScreen: React.FC = () => {
     );
   }
 
-  const imgPrincipal = producto.imagenes.find(img => img.principal)?.url || producto.imagenes[0]?.url;
+  const imagenes = producto.imagenes || [];
+  const variantes = producto.variantes || [];
+  const imgPrincipal = imagenes.find(img => img.principal)?.url || imagenes[0]?.url;
+  const precioBase = Number(producto.precio || 0);
+  const precioExtra = Number(varianteSeleccionada?.precioExtra || 0);
+  const precioFinal = precioBase + precioExtra;
 
   return (
     <SafeAreaView style={styles.container} edges={['top', 'bottom']}>
@@ -107,14 +112,14 @@ export const ProductDetailScreen: React.FC = () => {
           <View style={styles.titleRow}>
             <Text style={styles.productName}>{producto.nombre}</Text>
             <Text style={styles.price}>
-              ${varianteSeleccionada ? Number(varianteSeleccionada.precio).toFixed(2) : '0.00'}
+              Bs. {precioFinal.toFixed(2)}
             </Text>
           </View>
-          <Text style={styles.categoryLabel}>{producto.categoria.nombre}</Text>
+          <Text style={styles.categoryLabel}>{producto.categoria?.nombre || 'General'}</Text>
           
           <Text style={styles.sectionTitle}>Talla</Text>
           <View style={styles.sizesContainer}>
-            {producto.variantes.map(variante => (
+            {variantes.map(variante => (
               <TouchableOpacity
                 key={variante.id}
                 style={[

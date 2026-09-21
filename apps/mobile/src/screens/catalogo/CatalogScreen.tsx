@@ -92,8 +92,9 @@ export const CatalogScreen: React.FC = () => {
   );
 
   const renderProducto = ({ item }: { item: Producto }) => {
-    const precioMinimo = Math.min(...item.variantes.map(v => Number(v.precio)));
-    const imgPrincipal = item.imagenes.find(img => img.principal)?.url || item.imagenes[0]?.url;
+    const precio = Number(item.precio || 0);
+    const imagenes = item.imagenes || [];
+    const imgPrincipal = imagenes.find(img => img.principal)?.url || imagenes[0]?.url;
 
     return (
       <TouchableOpacity 
@@ -105,7 +106,7 @@ export const CatalogScreen: React.FC = () => {
             <Image 
               source={{ uri: getImageUrl(imgPrincipal) }} 
               style={styles.image} 
-              contentFit="cover"
+              contentFit="cover" 
               transition={200}
             />
           ) : (
@@ -122,8 +123,8 @@ export const CatalogScreen: React.FC = () => {
         </View>
         <Text style={styles.productName} numberOfLines={1}>{item.nombre}</Text>
         <View style={styles.priceRow}>
-          <Text style={styles.categoryLabel}>{item.categoria.nombre}</Text>
-          <Text style={styles.price}>${precioMinimo.toFixed(2)}</Text>
+          <Text style={styles.categoryLabel}>{item.categoria?.nombre || 'General'}</Text>
+          <Text style={styles.price}>Bs. {precio.toFixed(2)}</Text>
         </View>
       </TouchableOpacity>
     );
