@@ -23,8 +23,9 @@ async function bootstrap() {
     }),
   );
 
-  // Servir imágenes públicamente
-  const uploadsFolder = process.cwd().endsWith('apps/api')
+  // Servir imágenes públicamente (Fix multiplataforma para Windows/Linux)
+  const isApiDir = process.cwd().includes('apps/api') || process.cwd().includes('apps\\api');
+  const uploadsFolder = isApiDir
     ? join(process.cwd(), 'uploads')
     : join(process.cwd(), 'apps', 'api', 'uploads');
   app.use('/uploads', express.static(uploadsFolder));
