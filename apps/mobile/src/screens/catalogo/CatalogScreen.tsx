@@ -174,7 +174,7 @@ export const CatalogScreen: React.FC = () => {
   );
 
   const renderProducto = ({ item }: { item: Producto }) => {
-    const precioBase = Number(item.precio || 0);
+    const precio = Number(item.precio || 0);
     const imagenPrincipal =
       item.imagenes?.find((img) => img.esPrincipal || img.principal)?.url || item.imagenes?.[0]?.url;
 
@@ -185,13 +185,16 @@ export const CatalogScreen: React.FC = () => {
         onPress={() => navigation.navigate('ProductDetail', { productId: item.id })}
       >
         <View style={styles.imageContainer}>
-          <Image
-            source={{ uri: getImageUrl(imagenPrincipal) }}
-            style={styles.image}
-            contentFit="cover"
-            transition={200}
-          />
-
+          {imagenPrincipal ? (
+            <Image
+              source={{ uri: getImageUrl(imagenPrincipal) }}
+              style={styles.image}
+              contentFit="cover"
+              transition={200}
+            />
+          ) : (
+            <View style={styles.placeholderImage} />
+          )}
           {item.destacado && (
             <View style={styles.badge}>
               <Text style={styles.badgeText}>DESTACADO</Text>
@@ -210,12 +213,10 @@ export const CatalogScreen: React.FC = () => {
           </Text>
 
           <View style={styles.priceRow}>
-            {item.categoria?.nombre ? (
-              <Text style={styles.categoryLabel} numberOfLines={1}>
-                {item.categoria.nombre}
-              </Text>
-            ) : null}
-            <Text style={styles.price}>${precioBase.toFixed(2)}</Text>
+            <Text style={styles.categoryLabel} numberOfLines={1}>
+              {item.categoria?.nombre || 'General'}
+            </Text>
+            <Text style={styles.price}>Bs. {precio.toFixed(2)}</Text>
           </View>
         </View>
       </TouchableOpacity>
@@ -378,6 +379,11 @@ const styles = StyleSheet.create({
   image: {
     width: '100%',
     height: '100%',
+  },
+  placeholderImage: {
+    width: '100%',
+    height: '100%',
+    backgroundColor: '#f3f4f6',
   },
   badge: {
     position: 'absolute',

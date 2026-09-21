@@ -1,9 +1,9 @@
 import React, { useState } from 'react';
 import { Link } from 'react-router-dom';
+import { Mail, AlertCircle } from 'lucide-react';
 import { Button } from '../../../components/ui/Button';
 import { Input } from '../../../components/ui/Input';
 import { authApi } from '../services/auth.api';
-import { Mail, AlertCircle } from 'lucide-react';
 
 export const ForgotPasswordPage: React.FC = () => {
   const [correo, setCorreo] = useState('');
@@ -32,8 +32,8 @@ export const ForgotPasswordPage: React.FC = () => {
   if (enviado) {
     return (
       <div className="text-center py-4">
-        <div className="w-16 h-16 bg-blue-50 text-blue-600 rounded-full flex items-center justify-center mx-auto mb-4">
-          <Mail className="w-8 h-8" />
+        <div className="w-16 h-16 bg-blue-100 text-blue-600 rounded-full flex items-center justify-center mx-auto mb-4">
+          <Mail className="w-8 h-8 text-blue-600" />
         </div>
         <h2 className="text-2xl font-bold text-gray-900 mb-2">Revisa tu Correo</h2>
         <p className="text-sm text-gray-600 mb-6">{mensaje}</p>

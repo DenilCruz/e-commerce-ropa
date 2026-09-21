@@ -8,6 +8,7 @@ import {
   ActivityIndicator,
   Dimensions,
   FlatList,
+  Alert,
 } from 'react-native';
 import { Image } from 'expo-image';
 import { SafeAreaView } from 'react-native-safe-area-context';
@@ -36,6 +37,10 @@ export const ProductDetailScreen: React.FC = () => {
   const [cargando, setCargando] = useState(true);
   const [varianteSeleccionada, setVarianteSeleccionada] = useState<VarianteProducto | null>(null);
   const [imagenActiva, setImagenActiva] = useState<string | null>(null);
+
+  const [agregando, setAgregando] = useState(false);
+  const [cantidad, setCantidad] = useState(1);
+  const [exitoAgregar, setExitoAgregar] = useState(false);
 
   useEffect(() => {
     const fetchDatos = async () => {
@@ -81,10 +86,26 @@ export const ProductDetailScreen: React.FC = () => {
     return `${assetsURL}/uploads/${url}`;
   };
 
-  const handleAddToCart = () => {
-    if (varianteSeleccionada) {
-      addItem(varianteSeleccionada.id, 1);
-      navigation.navigate('Main', { screen: 'Cart' });
+  const handleAddToCart = async () => {
+    if (!varianteSeleccionada) {
+      Alert.alert('Selección requerida', 'Por favor selecciona una talla antes de agregar al carrito.');
+      return;
+    }
+
+    if (varianteSeleccionada.stock <= 0) {
+      Alert.alert('Agotado', 'Esta variante no tiene stock disponible.');
+      return;
+    }
+
+    setAgregando(true);
+    try {
+      await addItem(varianteSeleccionada.id, cantidad);
+      setExitoAgregar(true);
+      setTimeout(() => setExitoAgregar(false), 3500);
+    } catch (err: any) {
+      Alert.alert('Aviso', err?.message || 'No se pudo agregar al carrito.');
+    } finally {
+      setAgregando(false);
     }
   };
 
@@ -111,7 +132,7 @@ export const ProductDetailScreen: React.FC = () => {
 
   const precioBase = Number(producto.precio || 0);
   const precioExtra = Number(varianteSeleccionada?.precioExtra || 0);
-  const precioTotal = (precioBase + precioExtra).toFixed(2);
+  const precioFinal = precioBase + precioExtra;
   const stockDisponible = varianteSeleccionada?.stock ?? 0;
   const tieneStock = stockDisponible > 0;
 
@@ -158,14 +179,14 @@ export const ProductDetailScreen: React.FC = () => {
         <View style={styles.infoContainer}>
           <View style={styles.titleRow}>
             <Text style={styles.productName}>{producto.nombre}</Text>
-            <Text style={styles.price}>${precioTotal}</Text>
+            <Text style={styles.price}>
+              Bs. {precioFinal.toFixed(2)}
+            </Text>
           </View>
 
-          {producto.categoria && (
-            <Text style={styles.categoryLabel}>{producto.categoria.nombre}</Text>
-          )}
+          <Text style={styles.categoryLabel}>{producto.categoria?.nombre || 'General'}</Text>
 
-          {/* HU-27: Color y Stock disponible */}
+          {/* Color del producto */}
           {varianteSeleccionada?.color && (
             <View style={styles.colorRow}>
               <Text style={styles.colorTitle}>Color:</Text>
@@ -220,7 +241,10 @@ export const ProductDetailScreen: React.FC = () => {
                         esSeleccionada && styles.sizeBtnSelected,
                         sinStock && styles.sizeBtnDisabled,
                       ]}
-                      onPress={() => setVarianteSeleccionada(variante)}
+                      onPress={() => {
+                        setVarianteSeleccionada(variante);
+                        setCantidad(1);
+                      }}
                     >
                       <Text
                         style={[
@@ -234,6 +258,44 @@ export const ProductDetailScreen: React.FC = () => {
                     </TouchableOpacity>
                   );
                 })}
+              </View>
+            </View>
+          )}
+
+          {/* SELECTOR DE CANTIDAD (Nove) */}
+          {varianteSeleccionada && tieneStock && (
+            <View style={styles.quantitySection}>
+              <View style={styles.quantityHeader}>
+                <Text style={styles.sectionTitle}>Cantidad</Text>
+                <Text style={styles.stockLabel}>
+                  {stockDisponible} disponible{stockDisponible !== 1 ? 's' : ''}
+                </Text>
+              </View>
+
+              <View style={styles.quantityRow}>
+                <View style={styles.stepperContainer}>
+                  <TouchableOpacity
+                    style={[styles.stepperButton, cantidad <= 1 && styles.stepperButtonDisabled]}
+                    onPress={() => setCantidad(Math.max(1, cantidad - 1))}
+                    disabled={cantidad <= 1}
+                  >
+                    <Text style={styles.stepperButtonText}>−</Text>
+                  </TouchableOpacity>
+
+                  <Text style={styles.quantityValueText}>{cantidad}</Text>
+
+                  <TouchableOpacity
+                    style={[styles.stepperButton, cantidad >= stockDisponible && styles.stepperButtonDisabled]}
+                    onPress={() => setCantidad(Math.min(stockDisponible, cantidad + 1))}
+                    disabled={cantidad >= stockDisponible}
+                  >
+                    <Text style={styles.stepperButtonText}>+</Text>
+                  </TouchableOpacity>
+                </View>
+
+                <Text style={styles.subtotalPreview}>
+                  Subtotal: <Text style={styles.subtotalPreviewBold}>Bs. {(precioFinal * cantidad).toFixed(2)}</Text>
+                </Text>
               </View>
             </View>
           )}
@@ -271,7 +333,7 @@ export const ProductDetailScreen: React.FC = () => {
                       <Text style={styles.relatedName} numberOfLines={1}>
                         {item.nombre}
                       </Text>
-                      <Text style={styles.relatedPrice}>${Number(item.precio).toFixed(2)}</Text>
+                      <Text style={styles.relatedPrice}>Bs. {Number(item.precio).toFixed(2)}</Text>
                     </TouchableOpacity>
                   );
                 }}
@@ -284,21 +346,50 @@ export const ProductDetailScreen: React.FC = () => {
         </View>
       </ScrollView>
 
-      {/* FOOTER CON BOTÓN AÑADIR A LA CESTA */}
+      {/* SUCCESS BANNER FLOTANTE */}
+      {exitoAgregar && (
+        <View style={styles.successBanner}>
+          <View style={styles.successBannerLeft}>
+            <Ionicons name="checkmark-circle" size={20} color="#065f46" />
+            <Text style={styles.successBannerText}>
+              ¡Añadido! ({cantidad} {cantidad === 1 ? 'unidad' : 'unidades'})
+            </Text>
+          </View>
+          <TouchableOpacity
+            style={styles.viewCartBtn}
+            onPress={() => navigation.navigate('Main', { screen: 'Cart' })}
+          >
+            <Text style={styles.viewCartBtnText}>Ver Carrito →</Text>
+          </TouchableOpacity>
+        </View>
+      )}
+
+      {/* BOTON AÑADIR A LA CESTA */}
       <View style={styles.footer}>
-        <TouchableOpacity
-          style={[styles.addToCartBtn, (!varianteSeleccionada || !tieneStock) && styles.addToCartBtnDisabled]}
-          disabled={!varianteSeleccionada || !tieneStock}
+        <TouchableOpacity 
+          style={[
+            styles.addToCartBtn, 
+            (!varianteSeleccionada || !tieneStock || agregando) && styles.addToCartBtnDisabled,
+            exitoAgregar && styles.addToCartBtnSuccess,
+          ]}
+          disabled={!varianteSeleccionada || !tieneStock || agregando}
           onPress={handleAddToCart}
         >
-          <Ionicons name="cart" size={18} color="#fff" style={{ marginRight: 8 }} />
-          <Text style={styles.addToCartText}>
-            {!varianteSeleccionada
-              ? 'SELECCIONA TALLA'
-              : !tieneStock
-              ? 'AGOTADO TEMPORALMENTE'
-              : 'AÑADIR A LA CESTA'}
-          </Text>
+          {agregando ? (
+            <ActivityIndicator size="small" color="#fff" />
+          ) : exitoAgregar ? (
+            <View style={styles.btnSuccessRow}>
+              <Ionicons name="checkmark" size={18} color="#fff" />
+              <Text style={styles.addToCartText}>¡AÑADIDO A LA CESTA!</Text>
+            </View>
+          ) : (
+            <View style={styles.btnSuccessRow}>
+              <Ionicons name="cart" size={18} color="#fff" />
+              <Text style={styles.addToCartText}>
+                {!varianteSeleccionada ? 'SELECCIONA TALLA' : !tieneStock ? 'AGOTADO TEMPORALMENTE' : 'AÑADIR A LA CESTA'}
+              </Text>
+            </View>
+          )}
         </TouchableOpacity>
       </View>
     </SafeAreaView>
@@ -413,12 +504,104 @@ const styles = StyleSheet.create({
   sizeText: { fontSize: 13, fontWeight: '600', color: '#374151' },
   sizeTextSelected: { color: '#ffffff' },
   sizeTextDisabled: { color: '#d1d5db', textDecorationLine: 'line-through' },
+  
+  quantitySection: {
+    marginBottom: 24,
+  },
+  quantityHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+  },
+  stockLabel: {
+    fontSize: 12,
+    color: '#6b7280',
+  },
+  quantityRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 16,
+  },
+  stepperContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    borderWidth: 1,
+    borderColor: '#d1d5db',
+    borderRadius: 8,
+    overflow: 'hidden',
+    backgroundColor: '#fff',
+  },
+  stepperButton: {
+    width: 38,
+    height: 38,
+    justifyContent: 'center',
+    alignItems: 'center',
+    backgroundColor: '#f9fafb',
+  },
+  stepperButtonDisabled: {
+    opacity: 0.3,
+  },
+  stepperButtonText: {
+    fontSize: 18,
+    fontWeight: '700',
+    color: '#111827',
+  },
+  quantityValueText: {
+    width: 40,
+    textAlign: 'center',
+    fontSize: 15,
+    fontWeight: '700',
+    color: '#111827',
+  },
+  subtotalPreview: {
+    fontSize: 13,
+    color: '#6b7280',
+  },
+  subtotalPreviewBold: {
+    fontWeight: '700',
+    color: '#111827',
+  },
+
   description: { fontSize: 14, color: '#4b5563', lineHeight: 22 },
   relatedContainer: { gap: 12, paddingVertical: 4 },
   relatedCard: { width: 120 },
   relatedImage: { width: 120, height: 150, borderRadius: 8, backgroundColor: '#f3f4f6', marginBottom: 6 },
   relatedName: { fontSize: 12, fontWeight: '600', color: '#111827' },
   relatedPrice: { fontSize: 12, fontWeight: '700', color: '#4b5563' },
+
+  successBanner: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    backgroundColor: '#ecfdf5',
+    borderTopWidth: 1,
+    borderColor: '#a7f3d0',
+    paddingHorizontal: 20,
+    paddingVertical: 12,
+  },
+  successBannerLeft: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+    flex: 1,
+  },
+  successBannerText: {
+    fontSize: 13,
+    fontWeight: '700',
+    color: '#065f46',
+  },
+  viewCartBtn: {
+    backgroundColor: '#059669',
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+    borderRadius: 6,
+  },
+  viewCartBtnText: {
+    color: '#fff',
+    fontSize: 12,
+    fontWeight: '700',
+  },
+
   footer: {
     padding: 16,
     borderTopWidth: 1,
@@ -433,6 +616,14 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
   },
-  addToCartBtnDisabled: { backgroundColor: '#d1d5db' },
+  addToCartBtnSuccess: {
+    backgroundColor: '#059669',
+  },
+  addToCartBtnDisabled: { backgroundColor: '#e5e7eb' },
   addToCartText: { color: '#fff', fontSize: 13, fontWeight: '700', letterSpacing: 1 },
+  btnSuccessRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+  },
 });

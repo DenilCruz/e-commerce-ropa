@@ -6,6 +6,7 @@ import { AuthStack } from './AuthStack';
 import { MainTabs } from './MainTabs';
 import { ProductDetailScreen } from '../screens/producto/ProductDetailScreen';
 import { FavoritosScreen } from '../screens/favoritos/FavoritosScreen';
+import { CheckoutScreen } from '../screens/checkout/CheckoutScreen';
 
 const Stack = createNativeStackNavigator<RootStackParamList>();
 
@@ -17,6 +18,7 @@ export const RootNavigator: React.FC = () => {
         <Stack.Screen name="Auth" component={AuthStack} />
         <Stack.Screen name="ProductDetail" component={ProductDetailScreen} />
         <Stack.Screen name="Favoritos" component={FavoritosScreen} />
+        <Stack.Screen name="Checkout" component={CheckoutScreen} />
       </Stack.Navigator>
     </NavigationContainer>
   );

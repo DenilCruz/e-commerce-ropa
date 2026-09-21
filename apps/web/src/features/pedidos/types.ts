@@ -1,1 +1,1 @@
-export interface PedidosTypes {}
+export * from './types/index';

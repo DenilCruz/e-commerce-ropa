@@ -177,20 +177,15 @@ export const FavoritosScreen: React.FC = () => {
             <Text style={styles.productName} numberOfLines={2}>
               {producto.nombre}
             </Text>
-            {/* HU-78: Quitar de favoritos */}
             <TouchableOpacity
               onPress={() => handleEliminar(producto.id, producto.nombre)}
               hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
             >
-              <Ionicons name="trash-outline" size={18} color="#9ca3af" />
+              <Ionicons name="close" size={18} color="#9ca3af" />
             </TouchableOpacity>
           </View>
 
-          {producto.categoria && (
-            <Text style={styles.categoryLabel}>{producto.categoria.nombre}</Text>
-          )}
-
-          <Text style={styles.price}>${Number(producto.precio || 0).toFixed(2)}</Text>
+          <Text style={styles.price}>Bs. {Number(producto.precio || 0).toFixed(2)}</Text>
 
           {/* HU-79: Selector de talla interactivo */}
           {variantes.length > 0 && (
@@ -300,7 +295,6 @@ export const FavoritosScreen: React.FC = () => {
           keyExtractor={(item) => item.id}
           renderItem={renderItem}
           contentContainerStyle={styles.listContainer}
-          showsVerticalScrollIndicator={false}
         />
       )}
     </SafeAreaView>
@@ -311,59 +305,61 @@ const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: '#f9fafb' },
   header: {
     flexDirection: 'row',
-    justifyContent: 'space-between',
     alignItems: 'center',
+    justifyContent: 'space-between',
     paddingHorizontal: 16,
-    paddingVertical: 14,
+    paddingVertical: 12,
     backgroundColor: '#fff',
     borderBottomWidth: 1,
-    borderBottomColor: '#f3f4f6',
+    borderBottomColor: '#e5e7eb',
   },
   backBtn: { padding: 4 },
-  title: { fontSize: 18, fontWeight: '700', color: '#111827' },
-  center: { flex: 1, justifyContent: 'center', alignItems: 'center', padding: 24 },
-  emptyTitle: { fontSize: 18, fontWeight: '700', color: '#111827', marginTop: 16, marginBottom: 6 },
-  emptySubtitle: { fontSize: 13, color: '#6b7280', textAlign: 'center', marginBottom: 24, maxWidth: 260 },
-  primaryBtn: { backgroundColor: '#111827', paddingVertical: 14, paddingHorizontal: 28, borderRadius: 10 },
+  title: { fontSize: 18, fontWeight: '800', color: '#111827' },
+  center: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+    padding: 32,
+  },
+  emptyTitle: { fontSize: 18, fontWeight: '700', color: '#111827', marginTop: 16, marginBottom: 8 },
+  emptySubtitle: { fontSize: 13, color: '#6b7280', textAlign: 'center', lineHeight: 20, marginBottom: 24 },
+  primaryBtn: {
+    backgroundColor: '#111827',
+    paddingVertical: 12,
+    paddingHorizontal: 24,
+    borderRadius: 8,
+  },
   primaryBtnText: { color: '#fff', fontSize: 14, fontWeight: '700' },
   listContainer: { padding: 16, gap: 14 },
   card: {
     flexDirection: 'row',
     backgroundColor: '#fff',
-    borderRadius: 14,
+    borderRadius: 12,
     borderWidth: 1,
     borderColor: '#e5e7eb',
     overflow: 'hidden',
-    padding: 12,
-    gap: 12,
   },
-  cardImageContainer: {
-    width: 100,
-    aspectRatio: 3 / 4,
-    borderRadius: 10,
-    overflow: 'hidden',
-    backgroundColor: '#f3f4f6',
-  },
+  cardImageContainer: { width: 110, height: 140, backgroundColor: '#f3f4f6' },
   cardImage: { width: '100%', height: '100%' },
-  cardDetails: { flex: 1, justifyContent: 'space-between' },
+  cardDetails: { flex: 1, padding: 12, justifyContent: 'space-between' },
   cardHeaderRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'flex-start' },
   productName: { fontSize: 14, fontWeight: '700', color: '#111827', flex: 1, marginRight: 8 },
-  categoryLabel: { fontSize: 11, color: '#6b7280', textTransform: 'uppercase', marginTop: 2 },
-  price: { fontSize: 15, fontWeight: '800', color: '#000', marginVertical: 4 },
-  sizesRow: { flexDirection: 'row', flexWrap: 'wrap', gap: 6, marginVertical: 6 },
+  price: { fontSize: 15, fontWeight: '800', color: '#111827', marginTop: 2 },
+  sizesRow: { flexDirection: 'row', gap: 6, marginVertical: 6 },
   sizeChip: {
     paddingHorizontal: 8,
     paddingVertical: 3,
-    borderWidth: 1,
-    borderColor: '#e5e7eb',
     borderRadius: 4,
+    borderWidth: 1,
+    borderColor: '#d1d5db',
+    backgroundColor: '#fff',
   },
   sizeChipSelected: { backgroundColor: '#111827', borderColor: '#111827' },
-  sizeChipDisabled: { backgroundColor: '#f3f4f6', borderColor: '#f3f4f6' },
+  sizeChipDisabled: { backgroundColor: '#f3f4f6', borderColor: '#e5e7eb', opacity: 0.5 },
   sizeChipText: { fontSize: 11, fontWeight: '600', color: '#374151' },
   sizeChipTextSelected: { color: '#fff' },
-  sizeChipTextDisabled: { color: '#d1d5db', textDecorationLine: 'line-through' },
-  stockRow: { marginBottom: 8 },
+  sizeChipTextDisabled: { color: '#9ca3af' },
+  stockRow: { marginBottom: 6 },
   stockIn: { fontSize: 11, fontWeight: '600', color: '#16a34a' },
   stockLow: { fontSize: 11, fontWeight: '600', color: '#d97706' },
   stockOut: { fontSize: 11, fontWeight: '600', color: '#dc2626' },
@@ -372,9 +368,9 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
     backgroundColor: '#111827',
-    paddingVertical: 10,
-    borderRadius: 8,
+    paddingVertical: 8,
+    borderRadius: 6,
   },
-  btnDisabled: { backgroundColor: '#d1d5db' },
-  addToCartText: { color: '#fff', fontSize: 12, fontWeight: '700', textTransform: 'uppercase', letterSpacing: 0.5 },
+  btnDisabled: { backgroundColor: '#9ca3af' },
+  addToCartText: { color: '#fff', fontSize: 12, fontWeight: '700' },
 });

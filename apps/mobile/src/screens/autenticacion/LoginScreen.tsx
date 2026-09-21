@@ -95,7 +95,7 @@ export const LoginScreen: React.FC = () => {
             style={styles.verifyLink}
             onPress={() => navigation.navigate('VerifyEmail')}
           >
-            <Text style={styles.verifyText}>✉️ ¿Tienes un código de verificación?</Text>
+            <Text style={styles.verifyText}>¿Tienes un código de verificación?</Text>
           </TouchableOpacity>
 
           <View style={styles.registerRow}>

@@ -3,6 +3,7 @@ import { api } from './api';
 export interface Categoria {
   id: string;
   nombre: string;
+  descripcion?: string;
   slug?: string;
   imagenUrl?: string;
   activa?: boolean;
@@ -11,7 +12,7 @@ export interface Categoria {
 export interface ImagenProducto {
   id: string;
   url: string;
-  principal: boolean;
+  principal?: boolean;
   esPrincipal?: boolean;
 }
 
@@ -23,13 +24,14 @@ export interface Talla {
 export interface Color {
   id: string;
   nombre: string;
-  hex: string;
+  hex?: string;
+  codigoHex?: string;
 }
 
 export interface VarianteProducto {
   id: string;
   sku: string;
-  precio: string | number;
+  precio?: string | number;
   precioExtra?: string | number;
   stock: number;
   talla?: Talla;
@@ -40,11 +42,11 @@ export interface Producto {
   id: string;
   nombre: string;
   descripcion: string;
-  destacado: boolean;
-  precio: string | number;
-  categoria: Categoria;
-  imagenes: ImagenProducto[];
-  variantes: VarianteProducto[];
+  precio: number | string;
+  destacado?: boolean;
+  categoria?: Categoria;
+  imagenes?: ImagenProducto[];
+  variantes?: VarianteProducto[];
 }
 
 export interface FiltrosProductos {
@@ -63,7 +65,11 @@ export const catalogoApi = {
     return response.data;
   },
 
-  obtenerProductos: async (filtros?: FiltrosProductos): Promise<Producto[]> => {
+  obtenerProductos: async (filtros?: FiltrosProductos | string): Promise<Producto[]> => {
+    if (typeof filtros === 'string') {
+      const response = await api.get(`/productos?categoriaId=${encodeURIComponent(filtros)}`);
+      return response.data;
+    }
     const params = new URLSearchParams();
     if (filtros?.categoriaId) params.append('categoriaId', filtros.categoriaId);
     if (filtros?.busqueda) params.append('busqueda', filtros.busqueda);

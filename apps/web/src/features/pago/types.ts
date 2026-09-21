@@ -1,1 +1,1 @@
-export interface PagoTypes {}
+export * from './types/index';

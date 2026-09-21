@@ -1,8 +1,9 @@
-import React from 'react';
-import { Link } from 'react-router-dom';
+import React, { useState } from 'react';
+import { Link, useNavigate } from 'react-router-dom';
+import { ShoppingBag, Check } from 'lucide-react';
 import { Producto } from '../types';
 import { HeartButton } from '../../favoritos/components/HeartButton';
-import { ShoppingBag } from 'lucide-react';
+import { useCartStore } from '../../../store/cart.store';
 
 interface ProductCardProps {
   producto: Producto;
@@ -12,6 +13,11 @@ interface ProductCardProps {
 const ASSETS_URL = (import.meta.env.VITE_API_URL || 'http://localhost:3000/api/v1').replace('/api/v1', '');
 
 export const ProductCard: React.FC<ProductCardProps> = ({ producto }) => {
+  const navigate = useNavigate();
+  const addItem = useCartStore((s) => s.addItem);
+  const [agregando, setAgregando] = useState(false);
+  const [agregadoExito, setAgregadoExito] = useState(false);
+
   // Función para normalizar la URL de la imagen
   const getImageUrl = (url?: string) => {
     if (!url) return 'https://placehold.co/400x500?text=Sin+Imagen';
@@ -21,8 +27,31 @@ export const ProductCard: React.FC<ProductCardProps> = ({ producto }) => {
     return `${ASSETS_URL}/uploads/${url}`;
   };
 
-  const imagenPrincipal = producto.imagenes?.find(img => img.esPrincipal || img.principal) || producto.imagenes?.[0];
-  const urlImagen = getImageUrl(imagenPrincipal?.url);
+  const imagenPrincipal = producto.imagenes?.find((img) => img.esPrincipal || (img as any).principal) || producto.imagenes?.[0];
+  const urlImagen = imagenPrincipal ? getImageUrl(imagenPrincipal.url) : 'https://placehold.co/400x500?text=Sin+Imagen';
+
+  const handleQuickAdd = async (e: React.MouseEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+
+    // Si tiene variantes y hay al menos una con stock
+    if (producto.variantes && producto.variantes.length > 0) {
+      const varianteDisponible = producto.variantes.find((v) => v.stock > 0) || producto.variantes[0];
+      setAgregando(true);
+      try {
+        await addItem(varianteDisponible.id, 1);
+        setAgregadoExito(true);
+        setTimeout(() => setAgregadoExito(false), 2200);
+      } catch (err: any) {
+        // Si requiere seleccionar talla específica o hubo error, navegar al detalle
+        navigate(`/producto/${producto.id}`);
+      } finally {
+        setAgregando(false);
+      }
+    } else {
+      navigate(`/producto/${producto.id}`);
+    }
+  };
 
   return (
     <div className="group bg-white border border-gray-200 rounded-xl overflow-hidden hover:shadow-lg transition-all duration-300 flex flex-col justify-between">
@@ -54,20 +83,36 @@ export const ProductCard: React.FC<ProductCardProps> = ({ producto }) => {
                 {producto.nombre}
               </Link>
             </h3>
-            <p className="text-sm font-bold text-gray-900 whitespace-nowrap">${Number(producto.precio).toFixed(2)}</p>
+            <p className="text-sm font-bold text-gray-900 whitespace-nowrap">Bs. {Number(producto.precio).toFixed(2)}</p>
           </div>
           {producto.categoria && (
             <p className="text-xs text-gray-500 font-medium">{producto.categoria.nombre}</p>
           )}
         </div>
         
-        <Link
-          to={`/producto/${producto.id}`}
-          className="w-full flex items-center justify-center gap-2 bg-white border border-gray-300 text-gray-800 text-xs font-medium uppercase tracking-wider py-2.5 rounded-lg hover:bg-black hover:text-white hover:border-black transition-colors focus:outline-none"
+        <button
+          onClick={handleQuickAdd}
+          disabled={agregando}
+          className={`w-full mt-2 border text-sm font-medium py-2 rounded-lg transition-all focus:outline-none focus:ring-2 focus:ring-black focus:ring-offset-1 flex items-center justify-center gap-1.5 ${
+            agregadoExito
+              ? 'bg-emerald-600 border-emerald-600 text-white'
+              : 'bg-white border-gray-300 text-gray-800 hover:bg-black hover:text-white hover:border-black'
+          }`}
         >
-          <ShoppingBag className="w-3.5 h-3.5" />
-          <span>Ver Opciones</span>
-        </Link>
+          {agregando ? (
+            <div className="w-4 h-4 border-2 border-black border-t-transparent rounded-full animate-spin"></div>
+          ) : agregadoExito ? (
+            <>
+              <span className="font-semibold">¡Añadido!</span>
+              <Check className="w-4 h-4" />
+            </>
+          ) : (
+            <>
+              <span>Añadir al Carrito</span>
+              <ShoppingBag className="w-4 h-4" />
+            </>
+          )}
+        </button>
       </div>
     </div>
   );

@@ -1,5 +1,6 @@
 import React, { useEffect, useState } from 'react';
-import { useParams, Link, useNavigate } from 'react-router-dom';
+import { useParams, Link } from 'react-router-dom';
+import { CheckCircle2, AlertCircle, Check, XCircle, AlertTriangle, Star } from 'lucide-react';
 import { obtenerProductoPorId, obtenerProductosRelacionados } from "../../catalogo/services/catalogo.api";
 import { Producto, VarianteProducto } from "../../catalogo/types";
 import { ProductCard } from '../../catalogo/components/ProductCard';
@@ -8,7 +9,6 @@ import { ResenasSection } from '../../resenas/components/ResenasSection';
 import { resenasApi } from '../../resenas/services/resenas.api';
 import { ResumenResenas } from '../../resenas/types';
 import { useCartStore } from '../../../store/cart.store';
-import { XCircle, AlertTriangle, CheckCircle2, Star } from 'lucide-react';
 
 const ASSETS_URL = (import.meta.env.VITE_API_URL || 'http://localhost:3000/api/v1').replace('/api/v1', '');
 
@@ -66,12 +66,28 @@ export const ProductDetailPage: React.FC = () => {
   };
 
   const { addItem } = useCartStore();
-  const navigateTo = useNavigate();
+  const [cantidad, setCantidad] = useState(1);
+  const [agregando, setAgregando] = useState(false);
+  const [exitoAgregar, setExitoAgregar] = useState(false);
+  const [errorAgregar, setErrorAgregar] = useState<string | null>(null);
 
-  const handleAddToCart = () => {
-    if (varianteSeleccionada) {
-      addItem(varianteSeleccionada.id, 1);
-      navigateTo('/carrito');
+  const handleAddToCart = async () => {
+    if (!varianteSeleccionada) {
+      setErrorAgregar('Por favor selecciona una talla.');
+      return;
+    }
+
+    try {
+      setAgregando(true);
+      setErrorAgregar(null);
+      await addItem(varianteSeleccionada.id, cantidad);
+      setExitoAgregar(true);
+      setTimeout(() => setExitoAgregar(false), 4000);
+    } catch (err: any) {
+      console.error('Error al añadir al carrito:', err);
+      setErrorAgregar(err?.message || 'No se pudo añadir el producto al carrito.');
+    } finally {
+      setAgregando(false);
     }
   };
 
@@ -238,14 +254,100 @@ export const ProductDetailPage: React.FC = () => {
             </div>
           )}
 
+          {/* Selector de Cantidad y Stock */}
+          {varianteSeleccionada && varianteSeleccionada.stock > 0 && (
+            <div className="mb-8">
+              <div className="flex justify-between items-center mb-3">
+                <span className="text-xs uppercase tracking-widest text-gray-500 font-medium">Cantidad</span>
+                <span className="text-xs text-gray-400">
+                  {varianteSeleccionada.stock} disponible{varianteSeleccionada.stock !== 1 ? 's' : ''}
+                </span>
+              </div>
+              <div className="flex items-center gap-3">
+                <div className="flex items-center border border-gray-300 rounded-lg overflow-hidden bg-white">
+                  <button
+                    type="button"
+                    onClick={() => setCantidad(Math.max(1, cantidad - 1))}
+                    disabled={cantidad <= 1}
+                    className="w-10 h-10 flex items-center justify-center text-gray-600 hover:bg-gray-100 disabled:opacity-30 disabled:cursor-not-allowed transition-colors text-lg"
+                  >
+                    −
+                  </button>
+                  <span className="w-12 text-center text-sm font-semibold text-gray-900">
+                    {cantidad}
+                  </span>
+                  <button
+                    type="button"
+                    onClick={() => setCantidad(Math.min(varianteSeleccionada.stock, cantidad + 1))}
+                    disabled={cantidad >= varianteSeleccionada.stock}
+                    className="w-10 h-10 flex items-center justify-center text-gray-600 hover:bg-gray-100 disabled:opacity-30 disabled:cursor-not-allowed transition-colors text-lg"
+                  >
+                    +
+                  </button>
+                </div>
+                <span className="text-xs text-gray-500">
+                  Subtotal: <strong className="text-black">Bs. {(Number(precioFinal) * cantidad).toFixed(2)}</strong>
+                </span>
+              </div>
+            </div>
+          )}
+
+          {/* Success Banner */}
+          {exitoAgregar && (
+            <div className="mb-4 p-4 bg-emerald-50 border border-emerald-200 text-emerald-800 text-xs rounded-xl flex items-center justify-between shadow-sm animate-fadeIn">
+              <div className="flex items-center gap-2">
+                <CheckCircle2 className="w-4 h-4 text-emerald-600 flex-shrink-0" />
+                <span>
+                  <strong>¡Añadido!</strong> Se {cantidad === 1 ? 'agregó 1 prenda' : `agregaron ${cantidad} prendas`} a tu bolsa.
+                </span>
+              </div>
+              <Link 
+                to="/carrito" 
+                className="underline font-bold text-emerald-900 hover:text-black ml-4 whitespace-nowrap"
+              >
+                Ver Carrito →
+              </Link>
+            </div>
+          )}
+
+          {/* Error Banner si falla */}
+          {errorAgregar && (
+            <div className="mb-4 p-3 bg-red-50 border border-red-200 text-red-700 text-xs rounded-lg flex items-center justify-between">
+              <div className="flex items-center gap-2">
+                <AlertCircle className="w-4 h-4 text-red-600 flex-shrink-0" />
+                <span className="font-medium">{errorAgregar}</span>
+              </div>
+              <button 
+                onClick={() => setErrorAgregar(null)} 
+                className="text-red-500 hover:text-red-800 font-bold ml-2 text-sm leading-none"
+              >
+                ✕
+              </button>
+            </div>
+          )}
+
           {/* Botón Añadir Premium */}
           <div className="flex gap-4 mb-12">
             <button 
               onClick={handleAddToCart}
-              disabled={!varianteSeleccionada || varianteSeleccionada.stock === 0}
-              className="flex-1 bg-black text-white py-4 text-xs tracking-widest uppercase font-medium hover:bg-gray-800 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+              disabled={!varianteSeleccionada || varianteSeleccionada.stock === 0 || agregando}
+              className={`flex-1 py-4 text-xs tracking-widest uppercase font-medium transition-all disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2 ${
+                exitoAgregar 
+                  ? 'bg-emerald-600 text-white' 
+                  : 'bg-black text-white hover:bg-gray-800'
+              }`}
             >
-              {!varianteSeleccionada 
+              {agregando ? (
+                <>
+                  <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin"></div>
+                  <span>Agregando...</span>
+                </>
+              ) : exitoAgregar ? (
+                <>
+                  <span>¡Añadido a la Cesta!</span>
+                  <Check className="w-4 h-4" />
+                </>
+              ) : !varianteSeleccionada 
                 ? 'Seleccionar Talla'
                 : varianteSeleccionada.stock === 0 
                   ? 'Agotado' 

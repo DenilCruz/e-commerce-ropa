@@ -1,10 +1,11 @@
 import React, { useState } from 'react';
 import { Link, useNavigate, useLocation } from 'react-router-dom';
+import { AlertCircle } from 'lucide-react';
 import { Button } from '../../../components/ui/Button';
 import { Input } from '../../../components/ui/Input';
 import { authApi } from '../services/auth.api';
 import { useAuthStore } from '../../../store/auth.store';
-import { AlertCircle } from 'lucide-react';
+import { useCartStore } from '../../../store/cart.store';
 
 export const LoginPage: React.FC = () => {
   const navigate = useNavigate();
@@ -26,6 +27,7 @@ export const LoginPage: React.FC = () => {
     try {
       const data = await authApi.login({ correo, contrasena });
       setAuth(data.usuario, data.accessToken, data.refreshToken);
+      useCartStore.getState().sincronizarTrasLogin().catch(console.error);
       navigate(from, { replace: true });
     } catch (err: any) {
       if (!err.response) {
@@ -48,7 +50,7 @@ export const LoginPage: React.FC = () => {
 
       {error && (
         <div className="mb-4 p-3 bg-red-50 border border-red-200 text-red-700 text-sm rounded-lg flex items-center gap-2">
-          <AlertCircle className="w-4 h-4 text-red-500 flex-shrink-0" />
+          <AlertCircle className="w-4 h-4 text-red-600 flex-shrink-0" />
           <span>{error}</span>
         </div>
       )}

@@ -38,7 +38,7 @@ export const MainLayout: React.FC = () => {
   const location = useLocation();
   const { user, isAuthenticated, logout, refreshToken } = useAuthStore();
   const { items: favoritosItems, cargarFavoritos } = useFavoritosStore();
-  const { items: cartItems } = useCartStore();
+  const totalCartItems = useCartStore((s) => s.cart?.totalItems || (s.guestItems?.reduce((acc, i) => acc + i.cantidad, 0) || 0));
 
   const [categorias, setCategorias] = useState<Categoria[]>([]);
   const [dropdownCategoriasAbierto, setDropdownCategoriasAbierto] = useState(false);
@@ -224,9 +224,9 @@ export const MainLayout: React.FC = () => {
               <Link to="/carrito" className="hover:text-black transition-colors flex items-center gap-1.5 relative">
                 <ShoppingCart className="w-4 h-4 text-gray-400" />
                 <span>Carrito</span>
-                {cartItems.length > 0 && (
+                {totalCartItems > 0 && (
                   <span className="bg-black text-white text-[10px] font-bold px-1.5 py-0.2 rounded-full min-w-[18px] text-center leading-tight">
-                    {cartItems.length}
+                    {totalCartItems}
                   </span>
                 )}
               </Link>
@@ -326,9 +326,9 @@ export const MainLayout: React.FC = () => {
                   <ShoppingCart className="w-4 h-4" />
                   <span>Carrito de Compras</span>
                 </div>
-                {cartItems.length > 0 && (
+                {totalCartItems > 0 && (
                   <span className="bg-black text-white text-[10px] font-bold px-2 py-0.5 rounded-full">
-                    {cartItems.length}
+                    {totalCartItems}
                   </span>
                 )}
               </Link>

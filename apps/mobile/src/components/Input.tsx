@@ -5,8 +5,8 @@ import {
   StyleSheet,
   TextInputProps,
   TouchableOpacity,
-  Text,
 } from 'react-native';
+import { Ionicons } from '@expo/vector-icons';
 
 interface CustomInputProps extends TextInputProps {
   isPassword?: boolean;
@@ -28,7 +28,11 @@ export const Input: React.FC<CustomInputProps> = ({ isPassword, secureTextEntry,
           onPress={() => setShowPassword(!showPassword)}
           activeOpacity={0.7}
         >
-          <Text style={styles.eyeIcon}>{showPassword ? '🙈' : '👁️'}</Text>
+          <Ionicons
+            name={showPassword ? 'eye-off-outline' : 'eye-outline'}
+            size={20}
+            color="#6b7280"
+          />
         </TouchableOpacity>
       </View>
     );

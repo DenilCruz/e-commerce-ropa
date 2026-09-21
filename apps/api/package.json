@@ -11,7 +11,8 @@
     "lint": "eslint \"{src,apps,libs,test}/**/*.ts\"",
     "test": "jest",
     "test:watch": "jest --watch",
-    "test:e2e": "jest --config ./test/jest-e2e.json"
+    "test:e2e": "jest --config ./test/jest-e2e.json",
+    "seed:ventas": "npx ts-node -r tsconfig-paths/register src/database/seeds/seed-admin-sales.ts"
   },
   "dependencies": {
     "@ecommerce/shared": "workspace:*",
@@ -36,8 +37,8 @@
     "passport-local": "^1.0.0",
     "pg": "^8.11.3",
     "reflect-metadata": "^0.2.0",
-    "rxjs": "^7.8.1",
     "sharp": "^0.35.4",
+    "stripe": "^22.6.2",
     "typeorm": "^0.3.20"
   },
   "devDependencies": {
