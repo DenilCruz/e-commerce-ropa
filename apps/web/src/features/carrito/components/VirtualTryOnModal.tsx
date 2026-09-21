@@ -7,15 +7,9 @@ import {
   Users,
   Camera,
   RefreshCw,
-  CheckCircle2,
   AlertCircle,
   Download,
   Shirt,
-  Scissors,
-  ArrowRight,
-  Split,
-  ChevronRight,
-  Maximize2,
   Timer,
 } from 'lucide-react';
 import { probadorApi, ModeloBase, ProbarPrendaResponse } from '../services/probador.api';
@@ -50,7 +44,6 @@ export const VirtualTryOnModal: React.FC<VirtualTryOnModalProps> = ({
   const [nombreArchivo, setNombreArchivo] = useState<string | null>(null);
 
   // Cámara web y cronómetro
-  const [camaraActiva, setCamaraActiva] = useState(false);
   const [cuentaRegresiva, setCuentaRegresiva] = useState<number | null>(null);
   const [duracionTimer, setDuracionTimer] = useState<number>(10);
   const [efectoFlash, setEfectoFlash] = useState(false);
@@ -178,7 +171,6 @@ export const VirtualTryOnModal: React.FC<VirtualTryOnModalProps> = ({
         videoRef.current.srcObject = stream;
         videoRef.current.play();
       }
-      setCamaraActiva(true);
     } catch (err: any) {
       setError('No se pudo acceder a la cámara. Por favor permite los permisos de cámara en tu navegador.');
     }
@@ -190,7 +182,6 @@ export const VirtualTryOnModal: React.FC<VirtualTryOnModalProps> = ({
       mediaStreamRef.current.getTracks().forEach((track) => track.stop());
       mediaStreamRef.current = null;
     }
-    setCamaraActiva(false);
   };
 
   const ejecutarCapturaFoto = () => {
@@ -465,23 +456,28 @@ export const VirtualTryOnModal: React.FC<VirtualTryOnModalProps> = ({
               {tabPersona === 'upload' && (
                 <div className="space-y-3">
                   {fotoPersona ? (
-                    <div className="relative rounded-xl overflow-hidden border border-gray-200 bg-gray-100 max-h-56 flex items-center justify-center group">
-                      <img
-                        src={fotoPersona}
-                        alt="Foto seleccionada"
-                        className="w-full h-56 object-cover"
-                      />
-                      <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center gap-2">
-                        <label className="bg-white text-black px-3.5 py-1.5 rounded-xl text-xs font-bold cursor-pointer hover:bg-gray-100 transition">
-                          Cambiar Foto
-                          <input
-                            type="file"
-                            accept="image/*"
-                            onChange={handleFileChange}
-                            className="hidden"
-                          />
-                        </label>
+                    <div>
+                      <div className="relative rounded-xl overflow-hidden border border-gray-200 bg-gray-100 max-h-56 flex items-center justify-center group">
+                        <img
+                          src={fotoPersona}
+                          alt="Foto seleccionada"
+                          className="w-full h-56 object-cover"
+                        />
+                        <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center gap-2">
+                          <label className="bg-white text-black px-3.5 py-1.5 rounded-xl text-xs font-bold cursor-pointer hover:bg-gray-100 transition">
+                            Cambiar Foto
+                            <input
+                              type="file"
+                              accept="image/*"
+                              onChange={handleFileChange}
+                              className="hidden"
+                            />
+                          </label>
+                        </div>
                       </div>
+                      {nombreArchivo && (
+                        <p className="text-[11px] text-gray-500 mt-1 truncate">Archivo: {nombreArchivo}</p>
+                      )}
                     </div>
                   ) : (
                     <label className="border-2 border-dashed border-gray-300 hover:border-indigo-500 hover:bg-indigo-50/30 rounded-2xl p-6 flex flex-col items-center justify-center text-center cursor-pointer transition group">
