@@ -27,6 +27,12 @@ export interface OrdenRespuesta {
   descuento: number;
   costoEnvio: number;
   total: number;
+  envio?: {
+    id: string;
+    numeroTracking: string;
+    estado: string;
+    empresaTransportadora?: string;
+  } | null;
   pago: {
     id: string;
     monto: number;
@@ -58,6 +64,8 @@ export const paymentsApi = {
     telefono?: string;
     notas?: string;
     cuponId?: string;
+    metodoEnvioId?: string;
+    tipoEnvio?: string;
   }): Promise<CrearIntentoResponse> => {
     const res = await api.post<CrearIntentoResponse>('/payments/intent', datos);
     return res.data;
@@ -69,6 +77,8 @@ export const paymentsApi = {
     telefono?: string;
     notas?: string;
     cuponId?: string;
+    metodoEnvioId?: string;
+    tipoEnvio?: string;
   }): Promise<OrdenRespuesta> => {
     const res = await api.post<OrdenRespuesta>('/payments/confirm-card', datos);
     return res.data;
@@ -79,6 +89,8 @@ export const paymentsApi = {
     telefono?: string;
     notas?: string;
     cuponId?: string;
+    metodoEnvioId?: string;
+    tipoEnvio?: string;
   }): Promise<OrdenRespuesta> => {
     const res = await api.post<OrdenRespuesta>('/payments/cash-on-delivery', datos);
     return res.data;

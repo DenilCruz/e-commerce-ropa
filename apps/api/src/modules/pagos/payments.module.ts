@@ -15,10 +15,15 @@ import { CartEntity } from '../carrito/entities/cart.entity';
 import { CartItemEntity } from '../carrito/entities/cart-item.entity';
 import { CouponEntity } from '../cupones/entities/coupon.entity';
 import { UserEntity } from '../usuarios/entities/user.entity';
+import { MailModule } from '../mail/mail.module';
+import { ShippingEntity } from '../envios/entities/shipping.entity';
+import { ShippingMethodEntity } from '../envios/entities/shipping-method.entity';
+import { OrderHistoryEntity } from '../pedidos/entities/order-history.entity';
 
 @Module({
   imports: [
     ConfigModule,
+    MailModule,
     TypeOrmModule.forFeature([
       PaymentEntity,
       PaymentMethodEntity,
@@ -30,6 +35,9 @@ import { UserEntity } from '../usuarios/entities/user.entity';
       CartItemEntity,
       CouponEntity,
       UserEntity,
+      ShippingEntity,
+      ShippingMethodEntity,
+      OrderHistoryEntity,
     ]),
   ],
   controllers: [PaymentsController],

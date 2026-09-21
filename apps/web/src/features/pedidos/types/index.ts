@@ -20,6 +20,27 @@ export interface PedidoPago {
   respuestaPasarela?: any;
 }
 
+export interface PedidoEnvio {
+  id: string;
+  numeroTracking: string;
+  estado: string;
+  empresaTransportadora?: string;
+  direccionTexto?: string;
+  metodoEnvio?: string;
+  fechaEnvio?: string;
+  fechaEntregaEstimada?: string;
+  fechaEntregaReal?: string;
+}
+
+export interface HistorialAuditoria {
+  id: string;
+  estadoAnterior?: string;
+  estadoNuevo: string;
+  comentario?: string;
+  creadoEn: string;
+  autor?: string;
+}
+
 export interface Pedido {
   id: string;
   nro: string;
@@ -36,6 +57,7 @@ export interface Pedido {
     valor: number;
   } | null;
   pago: PedidoPago | null;
+  envio?: PedidoEnvio | null;
   items: PedidoItem[];
   usuario?: {
     id: string;
@@ -43,4 +65,5 @@ export interface Pedido {
     correo: string;
     celular?: string;
   };
+  historial?: HistorialAuditoria[];
 }

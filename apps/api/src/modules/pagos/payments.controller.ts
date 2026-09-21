@@ -63,6 +63,39 @@ export class PaymentsController {
   }
 
   // =========================================================================
+  // STRIPE EMBEDDED CHECKOUT (HU-56: Checkout Embebido Oficial)
+  // =========================================================================
+  @Post('embedded-session')
+  @UseGuards(JwtAuthGuard)
+  @ApiBearerAuth()
+  @HttpCode(HttpStatus.OK)
+  @ApiOperation({
+    summary: 'HU-56: Crear sesión de Stripe Embedded Checkout',
+    description: 'Genera una Checkout Session embebida de Stripe y devuelve el client_secret.',
+  })
+  @ApiResponse({ status: 200, description: 'Sesión embebida creada exitosamente.' })
+  crearSesionEmbebida(
+    @CurrentUser('userId') usuarioId: string,
+    @Body() dto: CrearIntentoPagoDto,
+  ) {
+    return this.paymentsService.crearSesionEmbebida(usuarioId, dto);
+  }
+
+  @Get('session-status/:sessionId')
+  @UseGuards(JwtAuthGuard)
+  @ApiBearerAuth()
+  @ApiOperation({
+    summary: 'HU-57 / HU-58: Consultar estado de sesión embebida y registrar orden',
+    description: 'Verifica si la sesión embebida en Stripe fue completada y genera la orden en BD.',
+  })
+  consultarEstadoSesion(
+    @CurrentUser('userId') usuarioId: string,
+    @Param('sessionId') sessionId: string,
+  ) {
+    return this.paymentsService.consultarEstadoSesion(usuarioId, sessionId);
+  }
+
+  // =========================================================================
   // HU-56 / HU-58: CONFIRMAR PAGO CON TARJETA
   // =========================================================================
   @Post('confirm-card')

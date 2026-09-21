@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { Link } from 'react-router-dom';
 import {
   CreditCard,
@@ -14,20 +14,25 @@ import {
   ChevronRight,
   Printer,
   RotateCcw,
+  Loader2,
+  Navigation,
+  X,
 } from 'lucide-react';
 import { useCartStore } from '../../../store/cart.store';
 import { useAuthStore } from '../../../store/auth.store';
 import { paymentsApi } from '../services/payments.api';
 import { OrdenRespuesta } from '../types';
+import { getImageUrl } from '../../../lib/utils';
 
 declare global {
   interface Window {
     Stripe?: any;
+    L?: any;
   }
 }
 
 const STRIPE_PUBLIC_KEY =
-  import.meta.env.VITE_STRIPE_PUBLIC_KEY ||
+  (import.meta as any).env?.VITE_STRIPE_PUBLIC_KEY ||
   'pk_test_51UHsanC3rRVxMYcMuVMARIsjpwRZHWjLoKv57X7WIu9Lk9Ic101Cz5uPrZo16gYrMOA9NrCkmJ0RBPXEiuAADGTt003eAaVPVh';
 
 export const CheckoutPage: React.FC = () => {
@@ -40,14 +45,31 @@ export const CheckoutPage: React.FC = () => {
   const [telefono, setTelefono] = useState(user?.celular || '');
   const [notas, setNotas] = useState('');
 
+  // Selector interactivo de mapa (Leaflet / OpenStreetMap / GPS)
+  const [coordenadas, setCoordenadas] = useState<{ lat: number; lng: number } | null>(null);
+  const [modalMapaAbierto, setModalMapaAbierto] = useState(false);
+  const [tempCoordenadas, setTempCoordenadas] = useState<{ lat: number; lng: number }>({
+    lat: -17.7833,
+    lng: -63.1821,
+  });
+  const [direccionGeocodificada, setDireccionGeocodificada] = useState('');
+  const [cargandoGeocodificacion, setCargandoGeocodificacion] = useState(false);
+  const [geolocalizando, setGeolocalizando] = useState(false);
+
+  const mapModalRef = useRef<HTMLDivElement>(null);
+  const mapModalInstanceRef = useRef<any>(null);
+  const mapModalMarkerRef = useRef<any>(null);
+
+  // Método de envío: 'ESTANDAR' | 'EXPRESS' (HU-62 & HU-63)
+  const [tipoEnvio, setTipoEnvio] = useState<'ESTANDAR' | 'EXPRESS'>('ESTANDAR');
+
   // Método de pago: 'tarjeta' | 'contra_entrega'
   const [metodoPago, setMetodoPago] = useState<'tarjeta' | 'contra_entrega'>('tarjeta');
 
-  // Datos de tarjeta de crédito/débito
-  const [nombreTitular, setNombreTitular] = useState(user?.nombre ? `${user.nombre} ${user.apellido || ''}`.trim() : '');
-  const [numeroTarjeta, setNumeroTarjeta] = useState('');
-  const [expiracion, setExpiracion] = useState('');
-  const [cvc, setCvc] = useState('');
+  // Estado de Stripe Embedded Checkout
+  const [embeddedSessionId, setEmbeddedSessionId] = useState<string | null>(null);
+  const [cargandoEmbedded, setCargandoEmbedded] = useState(false);
+  const checkoutInstanceRef = useRef<any>(null);
 
   // Estados de proceso
   const [procesando, setProcesando] = useState(false);
@@ -56,46 +78,160 @@ export const CheckoutPage: React.FC = () => {
 
   useEffect(() => {
     cargarCarrito();
+    return () => {
+      if (checkoutInstanceRef.current) {
+        checkoutInstanceRef.current.destroy();
+        checkoutInstanceRef.current = null;
+      }
+    };
   }, []);
+
+  // Inicializar o actualizar mapa interactivo del modal
+  useEffect(() => {
+    if (!modalMapaAbierto) return;
+
+    const timer = setTimeout(() => {
+      if (!mapModalRef.current) return;
+      const L = window.L;
+      if (!L) return;
+
+      if (mapModalInstanceRef.current) {
+        mapModalInstanceRef.current.remove();
+        mapModalInstanceRef.current = null;
+      }
+
+      const initialLat = coordenadas?.lat || tempCoordenadas.lat;
+      const initialLng = coordenadas?.lng || tempCoordenadas.lng;
+
+      const map = L.map(mapModalRef.current).setView([initialLat, initialLng], 14);
+      mapModalInstanceRef.current = map;
+
+      L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+        attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors',
+        maxZoom: 19,
+      }).addTo(map);
+
+      const marker = L.marker([initialLat, initialLng], { draggable: true }).addTo(map);
+      mapModalMarkerRef.current = marker;
+
+      const actualizarPunto = async (newLat: number, newLng: number) => {
+        setTempCoordenadas({ lat: newLat, lng: newLng });
+        marker.setLatLng([newLat, newLng]);
+
+        setCargandoGeocodificacion(true);
+        try {
+          const res = await fetch(
+            `https://nominatim.openstreetmap.org/reverse?format=json&lat=${newLat}&lon=${newLng}&zoom=18&addressdetails=1`,
+            { headers: { 'Accept-Language': 'es' } }
+          );
+          const data = await res.json();
+          if (data && data.display_name) {
+            const road = data.address?.road || data.address?.pedestrian || data.address?.suburb || '';
+            const suburb = data.address?.neighbourhood || data.address?.suburb || '';
+            const town = data.address?.city || data.address?.town || 'Santa Cruz';
+            const textoLimpio = [road, suburb, town].filter(Boolean).join(', ');
+            setDireccionGeocodificada(textoLimpio || data.display_name);
+          }
+        } catch (err) {
+          console.warn('Geocodificación inversa fallida:', err);
+        } finally {
+          setCargandoGeocodificacion(false);
+        }
+      };
+
+      map.on('click', (e: any) => {
+        actualizarPunto(e.latlng.lat, e.latlng.lng);
+      });
+
+      marker.on('dragend', (e: any) => {
+        const pos = e.target.getLatLng();
+        actualizarPunto(pos.lat, pos.lng);
+      });
+
+      actualizarPunto(initialLat, initialLng);
+    }, 150);
+
+    return () => {
+      clearTimeout(timer);
+      if (mapModalInstanceRef.current) {
+        mapModalInstanceRef.current.remove();
+        mapModalInstanceRef.current = null;
+      }
+    };
+  }, [modalMapaAbierto]);
+
+  const abrirSelectorMapa = () => {
+    setModalMapaAbierto(true);
+  };
+
+  const confirmarUbicacionModal = () => {
+    setCoordenadas(tempCoordenadas);
+    if (direccionGeocodificada) {
+      setDireccion(direccionGeocodificada);
+    }
+    setModalMapaAbierto(false);
+  };
+
+  const obtenerUbicacionGPS = () => {
+    if (!navigator.geolocation) {
+      alert('La geolocalización no es compatible con tu navegador.');
+      return;
+    }
+    setGeolocalizando(true);
+    navigator.geolocation.getCurrentPosition(
+      async (pos) => {
+        const lat = pos.coords.latitude;
+        const lng = pos.coords.longitude;
+        const coords = { lat, lng };
+        setCoordenadas(coords);
+        setTempCoordenadas(coords);
+
+        if (mapModalInstanceRef.current && mapModalMarkerRef.current) {
+          mapModalInstanceRef.current.setView([lat, lng], 16);
+          mapModalMarkerRef.current.setLatLng([lat, lng]);
+        }
+
+        try {
+          const res = await fetch(
+            `https://nominatim.openstreetmap.org/reverse?format=json&lat=${lat}&lon=${lng}&zoom=18&addressdetails=1`,
+            { headers: { 'Accept-Language': 'es' } }
+          );
+          const data = await res.json();
+          if (data && data.display_name) {
+            const road = data.address?.road || data.address?.pedestrian || data.address?.suburb || '';
+            const suburb = data.address?.neighbourhood || data.address?.suburb || '';
+            const town = data.address?.city || data.address?.town || 'Santa Cruz';
+            const textoLimpio = [road, suburb, town].filter(Boolean).join(', ');
+            setDireccion(textoLimpio || data.display_name);
+            setDireccionGeocodificada(textoLimpio || data.display_name);
+          }
+        } catch (err) {
+          console.warn('Geocodificación inversa GPS fallida:', err);
+        } finally {
+          setGeolocalizando(false);
+        }
+      },
+      (err) => {
+        setGeolocalizando(false);
+        alert('No se pudo acceder a tu ubicación GPS: ' + err.message);
+      },
+      { enableHighAccuracy: true, timeout: 10000 }
+    );
+  };
 
   const items = cart?.items || [];
   const subtotal = cart?.total || 0;
-  const envio = subtotal >= 200 || subtotal === 0 ? 0 : 15;
-  const totalFinal = Number(Math.max(0, (totalConDescuento || subtotal) + envio).toFixed(2));
+  const esExpress = tipoEnvio === 'EXPRESS';
+  const costoEnvio = esExpress ? 30 : (subtotal >= 200 || subtotal === 0 ? 0 : 15);
+  const totalFinal = Number(Math.max(0, (totalConDescuento || subtotal) + costoEnvio).toFixed(2));
+  const metodoEnvioId = esExpress
+    ? 'e2000000-0000-0000-0000-000000000002'
+    : 'e1000000-0000-0000-0000-000000000001';
 
-  // Formateo inteligente de tarjeta
-  const handleNumeroTarjetaChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const raw = e.target.value.replace(/\D/g, '').slice(0, 16);
-    const formatted = raw.match(/.{1,4}/g)?.join(' ') || raw;
-    setNumeroTarjeta(formatted);
-  };
-
-  const handleExpiracionChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    let raw = e.target.value.replace(/\D/g, '').slice(0, 4);
-    if (raw.length >= 2) {
-      raw = raw.slice(0, 2) + '/' + raw.slice(2);
-    }
-    setExpiracion(raw);
-  };
-
-  const handleCvcChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const raw = e.target.value.replace(/\D/g, '').slice(0, 4);
-    setCvc(raw);
-  };
-
-  // Detección de tipo de tarjeta
-  const getTipoTarjeta = () => {
-    const clean = numeroTarjeta.replace(/\s/g, '');
-    if (clean.startsWith('4')) return 'VISA';
-    if (/^5[1-5]/.test(clean)) return 'MASTERCARD';
-    if (/^3[47]/.test(clean)) return 'AMEX';
-    return 'TARJETA';
-  };
-
-  // HU-56 / HU-58: Procesar Pago con Tarjeta en Stripe
-  const procesarPagoTarjeta = async () => {
+  // HU-56: Inicializar Stripe Embedded Checkout
+  const inicializarEmbeddedCheckout = async () => {
     if (!direccion.trim()) {
-      setErrorPago('Por favor ingresa la dirección de entrega.');
+      setErrorPago('Por favor ingresa primero la dirección de entrega antes de iniciar el pago.');
       return;
     }
     if (!telefono.trim()) {
@@ -103,79 +239,49 @@ export const CheckoutPage: React.FC = () => {
       return;
     }
 
-    const cleanCard = numeroTarjeta.replace(/\s/g, '');
-    if (cleanCard.length < 15) {
-      setErrorPago('Por favor ingresa un número de tarjeta válido (16 dígitos).');
-      return;
-    }
-
-    const [expMonth, expYear] = expiracion.split('/');
-    if (!expMonth || !expYear || Number(expMonth) < 1 || Number(expMonth) > 12) {
-      setErrorPago('Ingresa una fecha de expiración válida (MM/AA).');
-      return;
-    }
-
-    if (cvc.length < 3) {
-      setErrorPago('Ingresa un código CVC válido.');
-      return;
-    }
-
-    setProcesando(true);
+    setCargandoEmbedded(true);
     setErrorPago(null);
 
     try {
-      // 1. Crear PaymentIntent en backend
-      const intentData = await paymentsApi.crearIntento({
-        direccionEnvio: `${direccion}, ${ciudad}`,
-        telefono,
-        notas,
-        cuponId: cupon?.id,
-      });
-
-      // 2. Inicializar Stripe SDK en cliente
-      const stripe = window.Stripe ? window.Stripe(STRIPE_PUBLIC_KEY) : null;
-
-      let paymentIntentId = intentData.paymentIntentId;
-
-      if (stripe) {
-        // Confirmar con Stripe usando tarjeta tokenizada
-        const fullYear = expYear.length === 2 ? `20${expYear}` : expYear;
-        const result = await stripe.confirmCardPayment(intentData.clientSecret, {
-          payment_method: {
-            card: {
-              number: cleanCard,
-              exp_month: parseInt(expMonth, 10),
-              exp_year: parseInt(fullYear, 10),
-              cvc: cvc,
-            },
-            billing_details: {
-              name: nombreTitular || 'Cliente',
-              phone: telefono,
-            },
-          },
-        });
-
-        if (result.error) {
-          throw new Error(result.error.message || 'La tarjeta fue rechazada por Stripe.');
-        }
-        paymentIntentId = result.paymentIntent.id;
+      if (checkoutInstanceRef.current) {
+        checkoutInstanceRef.current.destroy();
+        checkoutInstanceRef.current = null;
       }
 
-      // 3. Confirmar en backend y registrar pedido (HU-58)
-      const orden = await paymentsApi.confirmarTarjeta({
-        paymentIntentId,
+      const res = await paymentsApi.crearSesionEmbebida({
         direccionEnvio: `${direccion}, ${ciudad}`,
         telefono,
         notas,
         cuponId: cupon?.id,
+        metodoEnvioId,
+        tipoEnvio,
+        latitud: coordenadas?.lat,
+        longitud: coordenadas?.lng,
       });
 
-      clearCart();
-      setOrdenCompletada(orden);
+      setEmbeddedSessionId(res.sessionId);
+
+      const stripe = window.Stripe ? window.Stripe(STRIPE_PUBLIC_KEY) : null;
+      if (!stripe) {
+        throw new Error('El SDK de Stripe no está disponible en la página.');
+      }
+
+      const checkout = await stripe.initEmbeddedCheckout({
+        clientSecret: res.clientSecret,
+      });
+
+      checkoutInstanceRef.current = checkout;
+
+      setTimeout(() => {
+        const container = document.getElementById('stripe-embedded-checkout');
+        if (container) {
+          checkout.mount('#stripe-embedded-checkout');
+        }
+      }, 50);
     } catch (err: any) {
-      setErrorPago(err.response?.data?.message || err.message || 'Error al procesar el pago.');
+      setErrorPago(err.response?.data?.message || err.message || 'Error al inicializar Stripe Embedded Checkout.');
     } finally {
-      setProcesando(false);
+      setCargandoEmbedded(false);
     }
   };
 
@@ -199,6 +305,10 @@ export const CheckoutPage: React.FC = () => {
         telefono,
         notas,
         cuponId: cupon?.id,
+        metodoEnvioId,
+        tipoEnvio,
+        latitud: coordenadas?.lat,
+        longitud: coordenadas?.lng,
       });
 
       clearCart();
@@ -213,7 +323,9 @@ export const CheckoutPage: React.FC = () => {
   const handleProcesarCompra = (e: React.FormEvent) => {
     e.preventDefault();
     if (metodoPago === 'tarjeta') {
-      procesarPagoTarjeta();
+      if (!embeddedSessionId) {
+        inicializarEmbeddedCheckout();
+      }
     } else {
       procesarPagoContraEntrega();
     }
@@ -285,6 +397,28 @@ export const CheckoutPage: React.FC = () => {
               </div>
             </div>
 
+            {/* CÓDIGO DE SEGUIMIENTO / GUÍA */}
+            <div className="pt-3 border-t border-gray-200 flex flex-col sm:flex-row justify-between items-start sm:items-center gap-2 bg-indigo-50/70 p-3 rounded-xl border border-indigo-100">
+              <div className="flex items-center gap-2.5">
+                <Truck className="w-5 h-5 text-indigo-600" />
+                <div>
+                  <span className="text-[11px] text-indigo-700 uppercase font-bold tracking-wider block">
+                    Guía de Rastreo Asignada
+                  </span>
+                  <span className="font-mono font-bold text-indigo-950 text-sm">
+                    {ordenCompletada.envio?.numeroTracking || `TRK-${ordenCompletada.nroOrden}`}
+                  </span>
+                </div>
+              </div>
+              <Link
+                to={`/tracking/${ordenCompletada.envio?.numeroTracking || ordenCompletada.nroOrden}`}
+                className="text-xs font-bold text-indigo-600 hover:text-indigo-800 flex items-center gap-1"
+              >
+                <span>Ver Mapa Leaflet</span>
+                <ArrowRight className="w-3.5 h-3.5" />
+              </Link>
+            </div>
+
             {/* LISTA DE PRENDAS COMPRADAS */}
             <div className="pt-3 border-t border-gray-200">
               <span className="text-xs text-gray-500 uppercase font-semibold block mb-3">Prendas Pedidas</span>
@@ -336,10 +470,17 @@ export const CheckoutPage: React.FC = () => {
               <span>Imprimir Comprobante</span>
             </button>
             <Link
+              to={`/tracking/${ordenCompletada.envio?.numeroTracking || ordenCompletada.nroOrden}`}
+              className="w-full sm:w-auto px-6 py-3 bg-indigo-600 text-white rounded-xl font-bold hover:bg-indigo-700 flex items-center justify-center gap-2 text-sm shadow-md transition"
+            >
+              <Truck className="w-4 h-4" />
+              <span>Rastrear Envío en Vivo</span>
+            </Link>
+            <Link
               to="/pedidos"
               className="w-full sm:w-auto px-8 py-3 bg-black text-white rounded-xl font-bold hover:bg-gray-800 flex items-center justify-center gap-2 text-sm shadow-lg transition"
             >
-              <span>Ver Mis Pedidos</span>
+              <span>Mis Pedidos</span>
               <ArrowRight className="w-4 h-4" />
             </Link>
           </div>
@@ -389,20 +530,71 @@ export const CheckoutPage: React.FC = () => {
 
             {/* SECCIÓN 1: DATOS DE ENVÍO */}
             <div className="bg-white rounded-2xl p-6 border border-gray-200 shadow-sm space-y-4">
-              <div className="flex items-center gap-2 pb-3 border-b border-gray-100">
-                <MapPin className="w-5 h-5 text-gray-900" />
-                <h2 className="text-lg font-bold text-gray-900">1. Dirección de Entrega</h2>
+              <div className="flex flex-col sm:flex-row sm:items-center justify-between pb-3 border-b border-gray-100 gap-3">
+                <div className="flex items-center gap-2">
+                  <MapPin className="w-5 h-5 text-gray-900" />
+                  <h2 className="text-lg font-bold text-gray-900">1. Dirección de Entrega</h2>
+                </div>
+
+                {/* BOTONES MAPA Y GPS */}
+                <div className="flex items-center gap-2">
+                  <button
+                    type="button"
+                    onClick={abrirSelectorMapa}
+                    className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-indigo-50 hover:bg-indigo-100 text-indigo-700 text-xs font-bold rounded-xl border border-indigo-200 transition cursor-pointer shadow-sm"
+                  >
+                    <MapPin className="w-3.5 h-3.5 text-indigo-600" />
+                    <span>Seleccionar en el Mapa</span>
+                  </button>
+                  <button
+                    type="button"
+                    onClick={obtenerUbicacionGPS}
+                    disabled={geolocalizando}
+                    className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-emerald-50 hover:bg-emerald-100 text-emerald-800 text-xs font-bold rounded-xl border border-emerald-200 transition cursor-pointer disabled:opacity-50 shadow-sm"
+                  >
+                    {geolocalizando ? (
+                      <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                    ) : (
+                      <Navigation className="w-3.5 h-3.5 text-emerald-600" />
+                    )}
+                    <span>{geolocalizando ? 'Detectando GPS...' : 'Mi GPS'}</span>
+                  </button>
+                </div>
               </div>
+
+              {/* INDICADOR DE UBICACIÓN FIJADA EN MAPA */}
+              {coordenadas && (
+                <div className="p-3 bg-emerald-50/90 border border-emerald-200 rounded-xl flex items-center justify-between text-xs text-emerald-900">
+                  <div className="flex items-center gap-2">
+                    <CheckCircle2 className="w-4 h-4 text-emerald-600 flex-shrink-0" />
+                    <span>
+                      Ubicación fijada en el mapa: <strong>Lat: {coordenadas.lat.toFixed(4)}, Lng: {coordenadas.lng.toFixed(4)}</strong>
+                    </span>
+                  </div>
+                  <button
+                    type="button"
+                    onClick={abrirSelectorMapa}
+                    className="text-indigo-600 font-bold hover:underline cursor-pointer"
+                  >
+                    Cambiar punto
+                  </button>
+                </div>
+              )}
 
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                 <div className="sm:col-span-2">
-                  <label className="block text-xs font-bold text-gray-700 uppercase mb-1">
-                    Dirección Completa *
-                  </label>
+                  <div className="flex justify-between items-center mb-1">
+                    <label className="block text-xs font-bold text-gray-700 uppercase">
+                      Dirección Completa *
+                    </label>
+                    <span className="text-[11px] text-gray-400">
+                      O usa el botón "Seleccionar en el Mapa"
+                    </span>
+                  </div>
                   <input
                     type="text"
                     required
-                    placeholder="Ej. Av. San Martín #450, Edif. Torre Real Depto 3B"
+                    placeholder="Ej. Calle 3 #120, Barrio Equipetrol, Santa Cruz"
                     value={direccion}
                     onChange={(e) => setDireccion(e.target.value)}
                     className="w-full px-3.5 py-2.5 bg-gray-50 border border-gray-300 rounded-xl text-sm focus:bg-white focus:ring-2 focus:ring-black focus:outline-none transition"
@@ -459,12 +651,72 @@ export const CheckoutPage: React.FC = () => {
               </div>
             </div>
 
-            {/* SECCIÓN 2: MÉTODO DE PAGO */}
+            {/* SECCIÓN 2: MÉTODO DE ENVÍO (HU-62 & HU-63) */}
+            <div className="bg-white rounded-2xl p-6 border border-gray-200 shadow-sm space-y-4">
+              <div className="flex items-center justify-between pb-3 border-b border-gray-100">
+                <div className="flex items-center gap-2">
+                  <Truck className="w-5 h-5 text-gray-900" />
+                  <h2 className="text-lg font-bold text-gray-900">2. Método de Envío</h2>
+                </div>
+                {subtotal >= 200 && (
+                  <span className="text-xs bg-emerald-100 text-emerald-800 font-bold px-2.5 py-1 rounded-full">
+                    ¡Califica a Envío Estándar Gratis!
+                  </span>
+                )}
+              </div>
+
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                {/* Opción Estándar */}
+                <button
+                  type="button"
+                  onClick={() => setTipoEnvio('ESTANDAR')}
+                  className={`p-4 rounded-xl border-2 text-left transition flex flex-col justify-between ${
+                    tipoEnvio === 'ESTANDAR'
+                      ? 'border-indigo-600 bg-indigo-50/50 shadow-sm'
+                      : 'border-gray-200 hover:border-gray-300 bg-white'
+                  }`}
+                >
+                  <div className="flex items-center justify-between mb-2">
+                    <span className="text-sm font-bold text-gray-900">Envío Estándar</span>
+                    <span className="font-extrabold text-indigo-600 text-sm">
+                      {subtotal >= 200 ? 'GRATIS' : 'Bs. 15.00'}
+                    </span>
+                  </div>
+                  <p className="text-xs text-gray-500">2 a 3 días hábiles a domicilio</p>
+                </button>
+
+                {/* Opción Express */}
+                <button
+                  type="button"
+                  onClick={() => setTipoEnvio('EXPRESS')}
+                  className={`p-4 rounded-xl border-2 text-left transition flex flex-col justify-between ${
+                    tipoEnvio === 'EXPRESS'
+                      ? 'border-indigo-600 bg-indigo-50/50 shadow-sm'
+                      : 'border-gray-200 hover:border-gray-300 bg-white'
+                  }`}
+                >
+                  <div className="flex items-center justify-between mb-2">
+                    <div className="flex items-center gap-1.5">
+                      <span className="text-sm font-bold text-gray-900">Envío Express 24h</span>
+                      <span className="text-[10px] font-black uppercase bg-amber-100 text-amber-800 px-1.5 py-0.5 rounded">
+                        Rápido
+                      </span>
+                    </div>
+                    <span className="font-extrabold text-indigo-600 text-sm">
+                      Bs. 30.00
+                    </span>
+                  </div>
+                  <p className="text-xs text-gray-500">Entrega prioritaria en 24 horas</p>
+                </button>
+              </div>
+            </div>
+
+            {/* SECCIÓN 3: MÉTODO DE PAGO */}
             <div className="bg-white rounded-2xl p-6 border border-gray-200 shadow-sm space-y-6">
               <div className="flex items-center justify-between pb-3 border-b border-gray-100">
                 <div className="flex items-center gap-2">
                   <Lock className="w-5 h-5 text-gray-900" />
-                  <h2 className="text-lg font-bold text-gray-900">2. Método de Pago Seguro</h2>
+                  <h2 className="text-lg font-bold text-gray-900">3. Método de Pago Seguro</h2>
                 </div>
                 <span className="text-xs bg-emerald-100 text-emerald-800 font-bold px-2.5 py-1 rounded-full flex items-center gap-1">
                   <ShieldCheck className="w-3.5 h-3.5" />
@@ -519,100 +771,76 @@ export const CheckoutPage: React.FC = () => {
 
               {/* CONTENIDO SEGÚN MÉTODO DE PAGO */}
               {metodoPago === 'tarjeta' ? (
-                <div className="space-y-5 pt-2">
-                  {/* PREVIEW DE TARJETA DE CRÉDITO DINÁMICA */}
-                  <div className="relative overflow-hidden rounded-2xl bg-gradient-to-tr from-slate-900 via-slate-800 to-indigo-950 p-6 text-white shadow-xl">
-                    <div className="flex justify-between items-start mb-6">
-                      <div className="w-10 h-8 rounded-md bg-amber-400/80 border border-amber-300/40 relative flex items-center justify-center">
-                        <div className="w-6 h-4 border border-amber-900/30 rounded-sm"></div>
+                <div className="space-y-4 pt-2">
+                  <div className="bg-indigo-50/50 border border-indigo-100 rounded-2xl p-4 flex items-center justify-between gap-3">
+                    <div className="flex items-center gap-3">
+                      <div className="w-10 h-10 rounded-xl bg-indigo-600 text-white flex items-center justify-center font-bold text-sm shadow-md">
+                        <Lock className="w-5 h-5" />
                       </div>
-                      <span className="font-black tracking-widest text-sm text-gray-300">
-                        {getTipoTarjeta()}
-                      </span>
-                    </div>
-
-                    <div className="text-lg sm:text-xl font-mono tracking-widest mb-4">
-                      {numeroTarjeta || '•••• •••• •••• ••••'}
-                    </div>
-
-                    <div className="flex justify-between items-end text-xs">
                       <div>
-                        <span className="text-[10px] text-gray-400 uppercase block">Titular</span>
-                        <span className="font-semibold tracking-wide uppercase">
-                          {nombreTitular || 'NOMBRE TITULAR'}
+                        <h4 className="font-bold text-sm text-gray-900">Stripe Embedded Checkout Oficial</h4>
+                        <p className="text-xs text-gray-500">Formulario seguro incrustado con cifrado bancario de Stripe</p>
+                      </div>
+                    </div>
+                    <span className="text-[10px] font-black uppercase tracking-wider bg-indigo-100 text-indigo-800 px-2.5 py-1 rounded-full">
+                      PCI-DSS Verificado
+                    </span>
+                  </div>
+
+                  {/* CONTENEDOR DE STRIPE EMBEDDED CHECKOUT */}
+                  {!embeddedSessionId ? (
+                    <div className="p-8 bg-gray-50 rounded-2xl border-2 border-dashed border-gray-300 text-center space-y-4">
+                      <div className="w-14 h-14 rounded-2xl bg-indigo-100 text-indigo-600 flex items-center justify-center mx-auto shadow-inner">
+                        <CreditCard className="w-7 h-7" />
+                      </div>
+                      <div>
+                        <h4 className="font-bold text-base text-gray-900">Pasarela de Tarjetas Lista</h4>
+                        <p className="text-xs text-gray-500 max-w-sm mx-auto mt-1">
+                          Acepta tarjetas de débito/crédito (Visa, Mastercard, Amex) y métodos digitales de forma directa.
+                        </p>
+                      </div>
+
+                      <button
+                        type="button"
+                        onClick={inicializarEmbeddedCheckout}
+                        disabled={cargandoEmbedded}
+                        className="px-6 py-3.5 bg-black text-white text-sm font-bold rounded-xl hover:bg-gray-800 transition shadow-lg inline-flex items-center gap-2 cursor-pointer"
+                      >
+                        {cargandoEmbedded ? (
+                          <>
+                            <Loader2 className="w-4 h-4 animate-spin" />
+                            <span>Iniciando Pasarela Stripe...</span>
+                          </>
+                        ) : (
+                          <>
+                            <Lock className="w-4 h-4" />
+                            <span>Abrir Formulario Seguro de Tarjeta</span>
+                          </>
+                        )}
+                      </button>
+                    </div>
+                  ) : (
+                    <div className="space-y-3">
+                      <div className="flex items-center justify-between text-xs text-gray-500 px-1">
+                        <span className="flex items-center gap-1.5 font-semibold text-emerald-700">
+                          <CheckCircle2 className="w-3.5 h-3.5" />
+                          Formulario Seguro de Stripe Activo
                         </span>
+                        <button
+                          type="button"
+                          onClick={inicializarEmbeddedCheckout}
+                          className="text-indigo-600 hover:text-indigo-800 font-bold flex items-center gap-1 hover:underline cursor-pointer"
+                        >
+                          <RotateCcw className="w-3.5 h-3.5" />
+                          <span>Reiniciar formulario</span>
+                        </button>
                       </div>
-                      <div className="text-right">
-                        <span className="text-[10px] text-gray-400 uppercase block">Expira</span>
-                        <span className="font-semibold">{expiracion || 'MM/AA'}</span>
-                      </div>
+                      <div
+                        id="stripe-embedded-checkout"
+                        className="w-full min-h-[420px] bg-white rounded-2xl border border-gray-200 overflow-hidden shadow-sm p-2"
+                      ></div>
                     </div>
-                  </div>
-
-                  {/* FORMULARIO DE TARJETA */}
-                  <div className="space-y-4">
-                    <div>
-                      <label className="block text-xs font-bold text-gray-700 uppercase mb-1">
-                        Nombre en la Tarjeta *
-                      </label>
-                      <input
-                        type="text"
-                        required
-                        placeholder="Ej. JUAN PEREZ"
-                        value={nombreTitular}
-                        onChange={(e) => setNombreTitular(e.target.value.toUpperCase())}
-                        className="w-full px-3.5 py-2.5 bg-gray-50 border border-gray-300 rounded-xl text-sm focus:bg-white focus:ring-2 focus:ring-black focus:outline-none transition uppercase"
-                      />
-                    </div>
-
-                    <div>
-                      <label className="block text-xs font-bold text-gray-700 uppercase mb-1">
-                        Número de Tarjeta (Stripe Test: 4242 4242...) *
-                      </label>
-                      <div className="relative">
-                        <input
-                          type="text"
-                          required
-                          placeholder="4242 •••• •••• 4242"
-                          value={numeroTarjeta}
-                          onChange={handleNumeroTarjetaChange}
-                          className="w-full pl-3.5 pr-12 py-2.5 bg-gray-50 border border-gray-300 rounded-xl text-sm font-mono focus:bg-white focus:ring-2 focus:ring-black focus:outline-none transition"
-                        />
-                        <div className="absolute right-3.5 top-1/2 -translate-y-1/2 text-xs font-bold text-gray-400">
-                          {getTipoTarjeta()}
-                        </div>
-                      </div>
-                    </div>
-
-                    <div className="grid grid-cols-2 gap-4">
-                      <div>
-                        <label className="block text-xs font-bold text-gray-700 uppercase mb-1">
-                          Vencimiento (MM/AA) *
-                        </label>
-                        <input
-                          type="text"
-                          required
-                          placeholder="12/28"
-                          value={expiracion}
-                          onChange={handleExpiracionChange}
-                          className="w-full px-3.5 py-2.5 bg-gray-50 border border-gray-300 rounded-xl text-sm font-mono focus:bg-white focus:ring-2 focus:ring-black focus:outline-none transition text-center"
-                        />
-                      </div>
-                      <div>
-                        <label className="block text-xs font-bold text-gray-700 uppercase mb-1">
-                          CVC / CVV *
-                        </label>
-                        <input
-                          type="password"
-                          required
-                          placeholder="123"
-                          value={cvc}
-                          onChange={handleCvcChange}
-                          className="w-full px-3.5 py-2.5 bg-gray-50 border border-gray-300 rounded-xl text-sm font-mono focus:bg-white focus:ring-2 focus:ring-black focus:outline-none transition text-center"
-                        />
-                      </div>
-                    </div>
-                  </div>
+                  )}
                 </div>
               ) : (
                 /* OPCION: PAGO CONTRA ENTREGA */
@@ -642,19 +870,23 @@ export const CheckoutPage: React.FC = () => {
 
               {/* LISTADO DE ITEMS */}
               <div className="max-h-72 overflow-y-auto space-y-3 divide-y divide-gray-100 pr-1">
-                {items.map((item) => {
-                  const variante = (item as any).variante;
-                  const prod = variante?.producto;
-                  const img = prod?.imagenes?.[0]?.url;
+                {items.map((item: any) => {
+                  const prod = item.producto;
+                  const img = prod?.imagen || prod?.imagenes?.[0]?.url;
+                  const tallaNombre = item.talla?.nombre || item.variante?.talla?.nombre || 'Única';
+                  const colorNombre = item.color?.nombre || item.variante?.color?.nombre || 'Original';
 
                   return (
-                    <div key={item.id} className="pt-3 first:pt-0 flex gap-3 items-center">
+                    <div key={item.id || item.varianteId} className="pt-3 first:pt-0 flex gap-3 items-center">
                       <div className="w-14 h-16 bg-gray-100 rounded-lg overflow-hidden flex-shrink-0 flex items-center justify-center">
                         {img ? (
                           <img
-                            src={img.startsWith('http') ? img : `http://localhost:3000${img}`}
+                            src={getImageUrl(img)}
                             alt={prod?.nombre}
                             className="w-full h-full object-cover"
+                            onError={(e) => {
+                              (e.target as HTMLImageElement).src = 'https://placehold.co/400x500?text=Prenda';
+                            }}
                           />
                         ) : (
                           <ShoppingBag className="w-6 h-6 text-gray-400" />
@@ -663,13 +895,13 @@ export const CheckoutPage: React.FC = () => {
                       <div className="flex-1 min-w-0">
                         <p className="font-semibold text-sm text-gray-900 truncate">{prod?.nombre}</p>
                         <p className="text-xs text-gray-500">
-                          Talla: {variante?.talla?.nombre || 'Única'} · Color: {variante?.color?.nombre || 'Original'}
+                          Talla: {tallaNombre} · Color: {colorNombre}
                         </p>
                         <p className="text-xs text-gray-500 font-medium">Cant: {item.cantidad}</p>
                       </div>
                       <div className="text-right">
                         <p className="text-sm font-bold text-gray-900">
-                          Bs. {(Number(item.precioUnitario || prod?.precio || 0) * item.cantidad).toFixed(2)}
+                          Bs. {(Number(item.precioUnitario || prod?.precioBase || 0) * item.cantidad).toFixed(2)}
                         </p>
                       </div>
                     </div>
@@ -694,7 +926,7 @@ export const CheckoutPage: React.FC = () => {
                 <div className="flex justify-between text-gray-600 items-center">
                   <span>Envío a domicilio</span>
                   <span className="font-semibold text-gray-900">
-                    {envio === 0 ? <span className="text-emerald-600 uppercase font-bold text-xs">Gratis</span> : `Bs. ${envio.toFixed(2)}`}
+                    {costoEnvio === 0 ? <span className="text-emerald-600 uppercase font-bold text-xs">Gratis</span> : `Bs. ${costoEnvio.toFixed(2)}`}
                   </span>
                 </div>
 
@@ -710,27 +942,39 @@ export const CheckoutPage: React.FC = () => {
               </div>
 
               {/* BOTÓN SUBMIT DE PAGO */}
-              <button
-                type="submit"
-                disabled={procesando || items.length === 0}
-                className="w-full bg-black text-white hover:bg-gray-800 disabled:opacity-50 font-bold py-4 px-6 rounded-xl text-center shadow-lg transition transform hover:-translate-y-0.5 flex items-center justify-center gap-2 cursor-pointer"
-              >
-                {procesando ? (
-                  <div className="flex items-center gap-2">
-                    <div className="w-5 h-5 border-2 border-white border-t-transparent rounded-full animate-spin"></div>
-                    <span>Procesando {metodoPago === 'tarjeta' ? 'con Stripe...' : 'pedido...'}</span>
+              {metodoPago === 'tarjeta' && embeddedSessionId ? (
+                <div className="p-4 bg-indigo-50 border border-indigo-100 rounded-xl text-center space-y-1 text-xs text-indigo-800">
+                  <div className="font-bold flex items-center justify-center gap-1.5">
+                    <Lock className="w-3.5 h-3.5" />
+                    <span>Completa el pago en el formulario seguro de Stripe</span>
                   </div>
-                ) : (
-                  <>
-                    <span>
-                      {metodoPago === 'tarjeta'
-                        ? `Pagar Bs. ${totalFinal.toFixed(2)} con Stripe`
-                        : `Confirmar Pedido (Bs. ${totalFinal.toFixed(2)})`}
-                    </span>
-                    <Lock className="w-4 h-4" />
-                  </>
-                )}
-              </button>
+                  <p className="text-[11px] text-indigo-600">
+                    Haz clic en el botón oficial "Pagar" dentro del formulario de Stripe arriba.
+                  </p>
+                </div>
+              ) : (
+                <button
+                  type="submit"
+                  disabled={procesando || items.length === 0 || cargandoEmbedded}
+                  className="w-full bg-black text-white hover:bg-gray-800 disabled:opacity-50 font-bold py-4 px-6 rounded-xl text-center shadow-lg transition transform hover:-translate-y-0.5 flex items-center justify-center gap-2 cursor-pointer"
+                >
+                  {procesando || cargandoEmbedded ? (
+                    <div className="flex items-center gap-2">
+                      <div className="w-5 h-5 border-2 border-white border-t-transparent rounded-full animate-spin"></div>
+                      <span>Procesando...</span>
+                    </div>
+                  ) : (
+                    <>
+                      <span>
+                        {metodoPago === 'tarjeta'
+                          ? `Abrir Pasarela de Pago (Bs. ${totalFinal.toFixed(2)})`
+                          : `Confirmar Pedido en Efectivo (Bs. ${totalFinal.toFixed(2)})`}
+                      </span>
+                      <Lock className="w-4 h-4" />
+                    </>
+                  )}
+                </button>
+              )}
 
               <div className="flex items-center justify-center gap-4 text-xs text-gray-500 pt-1">
                 <span className="flex items-center gap-1">
@@ -745,6 +989,90 @@ export const CheckoutPage: React.FC = () => {
             </div>
           </div>
         </form>
+      )}
+
+      {/* MODAL DE SELECTOR INTERACTIVO DE MAPA (LEAFLET / OPENSTREETMAP) */}
+      {modalMapaAbierto && (
+        <div className="fixed inset-0 z-50 bg-black/60 backdrop-blur-sm flex items-center justify-center p-4">
+          <div className="bg-white w-full max-w-2xl rounded-3xl overflow-hidden shadow-2xl border border-gray-100 flex flex-col max-h-[90vh] animate-in fade-in zoom-in-95 duration-200">
+            {/* CABECERA DEL MODAL */}
+            <div className="p-5 border-b border-gray-100 flex items-center justify-between bg-gray-50/80">
+              <div className="flex items-center gap-2.5">
+                <div className="w-9 h-9 rounded-xl bg-indigo-600 text-white flex items-center justify-center shadow-sm">
+                  <MapPin className="w-5 h-5" />
+                </div>
+                <div>
+                  <h3 className="font-black text-base text-gray-900">Seleccionar Punto en el Mapa</h3>
+                  <p className="text-xs text-gray-500">Haz clic o arrastra el marcador 📍 hasta la puerta de tu casa</p>
+                </div>
+              </div>
+              <button
+                type="button"
+                onClick={() => setModalMapaAbierto(false)}
+                className="w-8 h-8 rounded-full bg-gray-200 hover:bg-gray-300 text-gray-700 flex items-center justify-center transition cursor-pointer"
+              >
+                <X className="w-4 h-4" />
+              </button>
+            </div>
+
+            {/* CONTENEDOR DEL MAPA LEAFLET */}
+            <div className="relative flex-1 min-h-[360px] bg-gray-100">
+              <div ref={mapModalRef} className="w-full h-full min-h-[360px] z-0" />
+
+              {/* BOTÓN FLOTANTE GPS */}
+              <button
+                type="button"
+                onClick={obtenerUbicacionGPS}
+                disabled={geolocalizando}
+                className="absolute top-3 right-3 z-10 bg-white/95 backdrop-blur-sm px-3.5 py-2 rounded-xl shadow-lg border border-gray-200 text-xs font-bold text-gray-800 hover:bg-white flex items-center gap-1.5 transition cursor-pointer"
+              >
+                {geolocalizando ? (
+                  <Loader2 className="w-3.5 h-3.5 animate-spin text-indigo-600" />
+                ) : (
+                  <Navigation className="w-3.5 h-3.5 text-indigo-600" />
+                )}
+                <span>{geolocalizando ? 'Obteniendo GPS...' : 'Usar mi GPS'}</span>
+              </button>
+            </div>
+
+            {/* PIE DEL MODAL: DIRECCIÓN DETECTADA Y CONFIRMACIÓN */}
+            <div className="p-5 bg-gray-50 border-t border-gray-100 space-y-3">
+              <div className="text-xs">
+                <span className="font-bold text-gray-500 uppercase block mb-1">
+                  Dirección Detectada Automáticamente:
+                </span>
+                <div className="p-3 bg-white border border-gray-200 rounded-xl font-medium text-gray-800 flex items-center gap-2 min-h-[42px] shadow-sm">
+                  {cargandoGeocodificacion ? (
+                    <>
+                      <Loader2 className="w-4 h-4 animate-spin text-indigo-600 flex-shrink-0" />
+                      <span className="text-gray-400">Identificando nombre de calle y zona...</span>
+                    </>
+                  ) : (
+                    <span>{direccionGeocodificada || 'Haz clic en el mapa para ubicar tu dirección exacta...'}</span>
+                  )}
+                </div>
+              </div>
+
+              <div className="flex justify-end items-center gap-3 pt-1">
+                <button
+                  type="button"
+                  onClick={() => setModalMapaAbierto(false)}
+                  className="px-4 py-2.5 rounded-xl border border-gray-300 text-xs font-bold text-gray-700 hover:bg-gray-100 transition cursor-pointer"
+                >
+                  Cancelar
+                </button>
+                <button
+                  type="button"
+                  onClick={confirmarUbicacionModal}
+                  className="px-5 py-2.5 rounded-xl bg-indigo-600 hover:bg-indigo-700 text-white text-xs font-bold transition shadow-md flex items-center gap-1.5 cursor-pointer"
+                >
+                  <CheckCircle2 className="w-4 h-4" />
+                  <span>Confirmar esta Ubicación</span>
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
       )}
     </div>
   );

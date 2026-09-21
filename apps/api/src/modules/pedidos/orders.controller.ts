@@ -28,14 +28,14 @@ export class OrdersController {
   constructor(private readonly ordersService: OrdersService) {}
 
   // =========================================================================
-  // HU-57: MIS PEDIDOS (CLIENTE)
+  // HU-49: MIS PEDIDOS (CLIENTE)
   // =========================================================================
   @Get('my-orders')
   @UseGuards(JwtAuthGuard)
   @ApiBearerAuth()
   @ApiOperation({
-    summary: 'HU-57: Obtener historial de pedidos del usuario autenticado',
-    description: 'Devuelve todas las órdenes de compra con estado de pedido y pago.',
+    summary: 'HU-49: Obtener historial de pedidos del usuario autenticado',
+    description: 'Devuelve todas las órdenes de compra con estado de pedido, pago y envío.',
   })
   @ApiResponse({ status: 200, description: 'Listado de órdenes del cliente.' })
   obtenerMisPedidos(@CurrentUser('userId') usuarioId: string) {
@@ -43,13 +43,32 @@ export class OrdersController {
   }
 
   // =========================================================================
-  // LISTAR TODOS LOS PEDIDOS (ADMIN)
+  // HU-51: CANCELAR PEDIDO SI AÚN NO FUE ENVIADO (CLIENTE)
+  // =========================================================================
+  @Put(':id/cancel')
+  @UseGuards(JwtAuthGuard)
+  @ApiBearerAuth()
+  @ApiOperation({
+    summary: 'HU-51: Cancelar un pedido si aún no fue enviado',
+    description: 'Permite al cliente cancelar pedidos pendientes o pagados antes del despacho, restaurando stock.',
+  })
+  @ApiParam({ name: 'id', description: 'ID de la orden a cancelar' })
+  cancelarPedidoCliente(
+    @Param('id') id: string,
+    @CurrentUser('userId') usuarioId: string,
+    @Body('motivo') motivo?: string,
+  ) {
+    return this.ordersService.cancelarPedidoCliente(usuarioId, id, motivo);
+  }
+
+  // =========================================================================
+  // HU-53: LISTAR TODOS LOS PEDIDOS (ADMIN)
   // =========================================================================
   @Get('admin/all')
   @UseGuards(JwtAuthGuard, RolesGuard)
   @Roles('ADMIN', 'SUPERADMIN')
   @ApiBearerAuth()
-  @ApiOperation({ summary: 'Listar todos los pedidos para el panel admin' })
+  @ApiOperation({ summary: 'HU-53: Listar todos los pedidos con filtros para el panel admin' })
   @ApiQuery({ name: 'estado', required: false, description: 'Filtrar por estado' })
   @ApiQuery({ name: 'busqueda', required: false, description: 'Buscar por Nro o cliente' })
   @ApiQuery({ name: 'fechaInicio', required: false, description: 'Fecha inicio YYYY-MM-DD' })
@@ -69,27 +88,41 @@ export class OrdersController {
   }
 
   // =========================================================================
-  // ACTUALIZAR ESTADO DE PEDIDO (ADMIN)
+  // HU-54 & HU-55: ACTUALIZAR ESTADO DE PEDIDO (ADMIN)
   // =========================================================================
   @Put('admin/:id/status')
   @UseGuards(JwtAuthGuard, RolesGuard)
   @Roles('ADMIN', 'SUPERADMIN')
   @ApiBearerAuth()
-  @ApiOperation({ summary: 'Actualizar estado de una orden (Admin)' })
+  @ApiOperation({ summary: 'HU-54: Actualizar estado de una orden y registrar auditoría (Admin)' })
   actualizarEstadoAdmin(
     @Param('id') id: string,
     @Body('estado') nuevoEstado: string,
+    @Body('comentario') comentario: string,
+    @CurrentUser('userId') adminId: string,
   ) {
-    return this.ordersService.actualizarEstadoAdmin(id, nuevoEstado);
+    return this.ordersService.actualizarEstadoAdmin(id, nuevoEstado, comentario, adminId);
   }
 
   // =========================================================================
-  // DETALLE DE PEDIDO
+  // HU-55: OBTENER HISTORIAL DE CAMBIOS DE ESTADO (AUDITORÍA)
+  // =========================================================================
+  @Get(':id/history')
+  @UseGuards(JwtAuthGuard)
+  @ApiBearerAuth()
+  @ApiOperation({ summary: 'HU-55: Obtener historial de auditoría de un pedido' })
+  @ApiParam({ name: 'id', description: 'ID de la orden' })
+  obtenerHistorial(@Param('id') id: string) {
+    return this.ordersService.obtenerHistorial(id);
+  }
+
+  // =========================================================================
+  // HU-50: DETALLE DE PEDIDO
   // =========================================================================
   @Get(':id')
   @UseGuards(JwtAuthGuard)
   @ApiBearerAuth()
-  @ApiOperation({ summary: 'Obtener detalle de un pedido por ID' })
+  @ApiOperation({ summary: 'HU-50: Obtener detalle y estado de un pedido por ID' })
   @ApiParam({ name: 'id', description: 'ID de la orden' })
   obtenerDetalle(
     @Param('id') id: string,

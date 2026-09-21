@@ -2,19 +2,25 @@ import { api } from '../../../services/api';
 import { Pedido } from '../types';
 
 export const ordersApi = {
-  // HU-57: Obtener mis pedidos (Cliente)
+  // HU-49: Obtener mis pedidos (Cliente)
   obtenerMisPedidos: async (): Promise<Pedido[]> => {
     const res = await api.get<Pedido[]>('/orders/my-orders');
     return res.data;
   },
 
-  // Obtener detalle de pedido por ID
+  // HU-50: Obtener detalle de pedido por ID
   obtenerDetalle: async (id: string): Promise<Pedido> => {
     const res = await api.get<Pedido>(`/orders/${id}`);
     return res.data;
   },
 
-  // Listar todos los pedidos (Admin)
+  // HU-51: Cancelar pedido si aún no fue enviado
+  cancelarPedido: async (id: string, motivo?: string): Promise<Pedido> => {
+    const res = await api.put<Pedido>(`/orders/${id}/cancel`, { motivo });
+    return res.data;
+  },
+
+  // HU-53: Listar todos los pedidos (Admin)
   obtenerTodosAdmin: async (filtros?: {
     estado?: string;
     busqueda?: string;
@@ -25,9 +31,16 @@ export const ordersApi = {
     return res.data;
   },
 
-  // Actualizar estado de pedido (Admin)
-  actualizarEstadoAdmin: async (id: string, nuevoEstado: string): Promise<Pedido> => {
-    const res = await api.put<Pedido>(`/orders/admin/${id}/status`, { estado: nuevoEstado });
+  // HU-54 & HU-55: Actualizar estado de pedido y comentario de auditoría (Admin)
+  actualizarEstadoAdmin: async (
+    id: string,
+    nuevoEstado: string,
+    comentario?: string,
+  ): Promise<Pedido> => {
+    const res = await api.put<Pedido>(`/orders/admin/${id}/status`, {
+      estado: nuevoEstado,
+      comentario,
+    });
     return res.data;
   },
 };

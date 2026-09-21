@@ -37,13 +37,18 @@ export const CheckoutScreen: React.FC = () => {
   const [cvc, setCvc] = useState('');
 
   // Estados
+  const [tipoEnvio, setTipoEnvio] = useState<'ESTANDAR' | 'EXPRESS'>('ESTANDAR');
   const [procesando, setProcesando] = useState(false);
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
   const [ordenCompletada, setOrdenCompletada] = useState<OrdenRespuesta | null>(null);
 
   const subtotal = cart?.total || 0;
-  const envio = subtotal >= 200 || subtotal === 0 ? 0 : 15;
-  const totalFinal = Number(Math.max(0, (totalConDescuento || subtotal) + envio).toFixed(2));
+  const esExpress = tipoEnvio === 'EXPRESS';
+  const costoEnvio = esExpress ? 30 : (subtotal >= 200 || subtotal === 0 ? 0 : 15);
+  const totalFinal = Number(Math.max(0, (totalConDescuento || subtotal) + costoEnvio).toFixed(2));
+  const metodoEnvioId = esExpress
+    ? 'e2000000-0000-0000-0000-000000000002'
+    : 'e1000000-0000-0000-0000-000000000001';
 
   const formatCardNumber = (text: string) => {
     const raw = text.replace(/\D/g, '').slice(0, 16);
@@ -93,6 +98,8 @@ export const CheckoutScreen: React.FC = () => {
         telefono,
         notas,
         cuponId: cupon?.id,
+        metodoEnvioId,
+        tipoEnvio,
       });
 
       // 2. Tokenizar y confirmar con Stripe o backend
@@ -103,6 +110,8 @@ export const CheckoutScreen: React.FC = () => {
         telefono,
         notas,
         cuponId: cupon?.id,
+        metodoEnvioId,
+        tipoEnvio,
       });
 
       clearCart();
@@ -121,7 +130,7 @@ export const CheckoutScreen: React.FC = () => {
       return;
     }
     if (!telefono.trim()) {
-      setErrorMsg('Ingresa tu teléfono de contacto.');
+      setErrorMsg('Ingresa un teléfono de contacto.');
       return;
     }
 
@@ -134,6 +143,8 @@ export const CheckoutScreen: React.FC = () => {
         telefono,
         notas,
         cuponId: cupon?.id,
+        metodoEnvioId,
+        tipoEnvio,
       });
 
       clearCart();
@@ -201,6 +212,25 @@ export const CheckoutScreen: React.FC = () => {
                 <Text style={[styles.receiptValue, { fontSize: 11, color: '#6366f1' }]}>
                   {ordenCompletada.pago.idTransaccion}
                 </Text>
+              </View>
+            )}
+
+            {ordenCompletada.envio && (
+              <View style={styles.receiptShippingBox}>
+                <View style={{ flex: 1 }}>
+                  <Text style={styles.receiptShippingLabel}>Guía de Seguimiento (HU-64)</Text>
+                  <Text style={styles.receiptShippingCode}>{ordenCompletada.envio.numeroTracking}</Text>
+                </View>
+                <TouchableOpacity
+                  style={styles.receiptTrackBtn}
+                  onPress={() =>
+                    navigation.navigate('Tracking', {
+                      codigo: ordenCompletada.envio?.numeroTracking,
+                    })
+                  }
+                >
+                  <Text style={styles.receiptTrackBtnText}>Rastrear</Text>
+                </TouchableOpacity>
               </View>
             )}
 
@@ -316,11 +346,58 @@ export const CheckoutScreen: React.FC = () => {
           </View>
         </View>
 
-        {/* SECCIÓN 2: MÉTODO DE PAGO */}
+        {/* SECCIÓN 2: MÉTODO DE ENVÍO (HU-62 & HU-63) */}
+        <View style={styles.card}>
+          <View style={styles.cardHeader}>
+            <Ionicons name="car-outline" size={20} color="#0f172a" />
+            <Text style={styles.cardTitle}>2. Método de Envío</Text>
+          </View>
+
+          <View style={{ gap: 8, marginTop: 4 }}>
+            {/* Opción Estándar */}
+            <TouchableOpacity
+              style={[
+                styles.shippingOption,
+                tipoEnvio === 'ESTANDAR' && styles.shippingOptionActive,
+              ]}
+              onPress={() => setTipoEnvio('ESTANDAR')}
+            >
+              <View style={{ flex: 1 }}>
+                <Text style={styles.shippingTitle}>Envío Estándar Nacional</Text>
+                <Text style={styles.shippingDesc}>2 a 3 días hábiles a domicilio</Text>
+              </View>
+              <Text style={styles.shippingPrice}>
+                {subtotal >= 200 ? 'GRATIS' : 'Bs. 15.00'}
+              </Text>
+            </TouchableOpacity>
+
+            {/* Opción Express */}
+            <TouchableOpacity
+              style={[
+                styles.shippingOption,
+                tipoEnvio === 'EXPRESS' && styles.shippingOptionActive,
+              ]}
+              onPress={() => setTipoEnvio('EXPRESS')}
+            >
+              <View style={{ flex: 1 }}>
+                <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
+                  <Text style={styles.shippingTitle}>Envío Express 24h</Text>
+                  <View style={styles.fastBadge}>
+                    <Text style={styles.fastBadgeText}>Rápido</Text>
+                  </View>
+                </View>
+                <Text style={styles.shippingDesc}>Entrega prioritaria en 24 horas</Text>
+              </View>
+              <Text style={styles.shippingPrice}>Bs. 30.00</Text>
+            </TouchableOpacity>
+          </View>
+        </View>
+
+        {/* SECCIÓN 3: MÉTODO DE PAGO */}
         <View style={styles.card}>
           <View style={styles.cardHeader}>
             <Ionicons name="shield-checkmark-outline" size={20} color="#0f172a" />
-            <Text style={styles.cardTitle}>2. Método de Pago</Text>
+            <Text style={styles.cardTitle}>3. Método de Pago</Text>
           </View>
 
           {/* SELECTOR */}
@@ -449,7 +526,7 @@ export const CheckoutScreen: React.FC = () => {
           )}
           <View style={styles.summaryRow}>
             <Text style={styles.summaryLabel}>Envío</Text>
-            <Text style={styles.summaryVal}>{envio === 0 ? 'Gratis' : `Bs. ${envio.toFixed(2)}`}</Text>
+            <Text style={styles.summaryVal}>{costoEnvio === 0 ? 'Gratis' : `Bs. ${costoEnvio.toFixed(2)}`}</Text>
           </View>
           <View style={[styles.summaryRow, { borderTopWidth: 1, borderTopColor: '#f1f5f9', paddingTop: 10, marginTop: 6 }]}>
             <Text style={styles.summaryTotalLabel}>Total a Pagar</Text>
@@ -650,4 +727,62 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   secondaryBtnText: { color: '#0f172a', fontSize: 14, fontWeight: '700' },
+  shippingOption: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    padding: 12,
+    borderRadius: 12,
+    borderWidth: 1.5,
+    borderColor: '#e2e8f0',
+    backgroundColor: '#fff',
+  },
+  shippingOptionActive: {
+    borderColor: '#4f46e5',
+    backgroundColor: '#eef2ff',
+  },
+  shippingTitle: { fontSize: 13, fontWeight: '700', color: '#0f172a' },
+  shippingDesc: { fontSize: 11, color: '#64748b', marginTop: 2 },
+  shippingPrice: { fontSize: 13, fontWeight: '800', color: '#4f46e5' },
+  fastBadge: {
+    backgroundColor: '#fef3c7',
+    paddingHorizontal: 6,
+    paddingVertical: 2,
+    borderRadius: 4,
+  },
+  fastBadgeText: {
+    color: '#92400e',
+    fontSize: 9,
+    fontWeight: '800',
+    textTransform: 'uppercase',
+  },
+  receiptShippingBox: {
+    backgroundColor: '#eef2ff',
+    padding: 12,
+    borderRadius: 12,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    marginVertical: 4,
+  },
+  receiptShippingLabel: {
+    fontSize: 10,
+    color: '#6366f1',
+    textTransform: 'uppercase',
+    fontWeight: '700',
+  },
+  receiptShippingCode: {
+    fontSize: 13,
+    fontWeight: '900',
+    color: '#1e1b4b',
+    fontFamily: 'monospace',
+    marginTop: 2,
+  },
+  receiptTrackBtn: {
+    backgroundColor: '#4f46e5',
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+    borderRadius: 8,
+  },
+  receiptTrackBtnText: { color: '#fff', fontSize: 11, fontWeight: '700' },
 });
