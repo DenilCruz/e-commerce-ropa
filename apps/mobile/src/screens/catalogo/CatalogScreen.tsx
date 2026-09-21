@@ -1,4 +1,4 @@
-import React, { useEffect, useState, useCallback } from 'react';
+import React, { useEffect, useState, useCallback, useMemo } from 'react';
 import {
   View,
   Text,
@@ -13,7 +13,7 @@ import {
 import { Image } from 'expo-image';
 import { HeartButton } from '../../components/HeartButton';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { useNavigation } from '@react-navigation/native';
+import { useNavigation, useRoute } from '@react-navigation/native';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { Ionicons } from '@expo/vector-icons';
 import { RootStackParamList } from '../../navigation/types';
@@ -35,13 +35,21 @@ const OPCIONES_ORDEN = [
 
 export const CatalogScreen: React.FC = () => {
   const navigation = useNavigation<NavigationProp>();
+  const route = useRoute<any>();
   const [productos, setProductos] = useState<Producto[]>([]);
   const [categorias, setCategorias] = useState<Categoria[]>([]);
-  const [categoriaSeleccionada, setCategoriaSeleccionada] = useState<string>('');
+  const [categoriaSeleccionada, setCategoriaSeleccionada] = useState<string>(route.params?.categoriaId || '');
   const [busqueda, setBusqueda] = useState<string>('');
   const [ordenSeleccionado, setOrdenSeleccionado] = useState<FiltrosProductos['ordenarPor']>('novedad');
   const [cargando, setCargando] = useState(true);
   const [refrescando, setRefrescando] = useState(false);
+
+  // Escuchar parámetros de navegación (ej: al tocar una categoría en Inicio)
+  useEffect(() => {
+    if (route.params?.categoriaId !== undefined) {
+      setCategoriaSeleccionada(route.params.categoriaId);
+    }
+  }, [route.params?.categoriaId]);
 
   // Cargar categorías iniciales
   useEffect(() => {
@@ -87,6 +95,20 @@ export const CatalogScreen: React.FC = () => {
     setRefrescando(true);
     fetchProductos();
   };
+
+  // Filtro de seguridad en memoria para categorías y subcategorías (HU-34)
+  const productosFiltrados = useMemo(() => {
+    return productos.filter((p) => {
+      if (categoriaSeleccionada) {
+        const catId = p.categoria?.id || (p as any).categoriaId;
+        const padreId = (p.categoria as any)?.padre_id;
+        if (catId !== categoriaSeleccionada && padreId !== categoriaSeleccionada) {
+          return false;
+        }
+      }
+      return true;
+    });
+  }, [productos, categoriaSeleccionada]);
 
   const getImageUrl = (url?: string) => {
     if (!url) return 'https://placehold.co/400x500?text=Sin+Imagen';
@@ -234,7 +256,7 @@ export const CatalogScreen: React.FC = () => {
         </View>
       ) : (
         <FlatList
-          data={productos}
+          data={productosFiltrados}
           keyExtractor={(item) => item.id}
           renderItem={renderProducto}
           numColumns={numColumns}

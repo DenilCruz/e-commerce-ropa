@@ -16,7 +16,7 @@ export type AuthStackParamList = {
 
 export type MainTabParamList = {
   Home: undefined;
-  Catalog: undefined;
+  Catalog: { categoriaId?: string } | undefined;
   Cart: undefined;
   Orders: undefined;
   Profile: undefined;

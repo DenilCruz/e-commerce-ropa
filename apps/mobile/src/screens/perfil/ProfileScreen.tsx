@@ -9,6 +9,7 @@ import {
   Modal,
   TextInput,
   ActivityIndicator,
+  Linking,
 } from 'react-native';
 import { Image } from 'expo-image';
 import { useNavigation } from '@react-navigation/native';
@@ -314,6 +315,67 @@ export const ProfileScreen: React.FC = () => {
           </TouchableOpacity>
         </View>
       </View>
+
+      {/* SECCIÓN ADMINISTRADOR (Si el usuario tiene rol ADMIN) */}
+      {user.rol?.toUpperCase() === 'ADMIN' && (
+        <View style={styles.section}>
+          <Text style={styles.sectionTitle}>Administración del Sistema</Text>
+          <View style={styles.adminCard}>
+            <View style={styles.adminHeader}>
+              <View style={styles.adminIconWrap}>
+                <Ionicons name="shield-checkmark" size={20} color="#f59e0b" />
+              </View>
+              <View style={{ flex: 1 }}>
+                <Text style={styles.adminTitle}>Panel de Control Admin</Text>
+                <Text style={styles.adminSubtitle}>Acceso total a reportes, inventario y usuarios</Text>
+              </View>
+            </View>
+
+            <TouchableOpacity
+              style={styles.adminPrimaryBtn}
+              onPress={() => Linking.openURL('http://192.168.0.5:5173/admin')}
+            >
+              <Ionicons name="desktop-outline" size={16} color="#fff" style={{ marginRight: 8 }} />
+              <Text style={styles.adminPrimaryBtnText}>Abrir Dashboard Admin (Web)</Text>
+              <Ionicons name="open-outline" size={16} color="#94a3b8" style={{ marginLeft: 'auto' }} />
+            </TouchableOpacity>
+
+            <View style={styles.adminShortcutsRow}>
+              <TouchableOpacity
+                style={styles.adminShortcut}
+                onPress={() => Linking.openURL('http://192.168.0.5:5173/admin/usuarios')}
+              >
+                <Ionicons name="people-outline" size={18} color="#111827" />
+                <Text style={styles.adminShortcutText}>Usuarios</Text>
+              </TouchableOpacity>
+
+              <TouchableOpacity
+                style={styles.adminShortcut}
+                onPress={() => Linking.openURL('http://192.168.0.5:5173/admin/inventario')}
+              >
+                <Ionicons name="cube-outline" size={18} color="#111827" />
+                <Text style={styles.adminShortcutText}>Inventario</Text>
+              </TouchableOpacity>
+
+              <TouchableOpacity
+                style={styles.adminShortcut}
+                onPress={() => Linking.openURL('http://192.168.0.5:5173/admin/categorias')}
+              >
+                <Ionicons name="grid-outline" size={18} color="#111827" />
+                <Text style={styles.adminShortcutText}>Categorías</Text>
+              </TouchableOpacity>
+
+              <TouchableOpacity
+                style={styles.adminShortcut}
+                onPress={() => Linking.openURL('http://192.168.0.5:5173/admin/reportes')}
+              >
+                <Ionicons name="stats-chart-outline" size={18} color="#111827" />
+                <Text style={styles.adminShortcutText}>Reportes</Text>
+              </TouchableOpacity>
+            </View>
+          </View>
+        </View>
+      )}
 
       {/* ACCESOS DIRECTOS */}
       <View style={styles.section}>
@@ -843,4 +905,66 @@ const styles = StyleSheet.create({
   modalCancelText: { fontSize: 13, color: '#6b7280', fontWeight: '500' },
   modalSaveBtn: { backgroundColor: '#111827', paddingVertical: 10, paddingHorizontal: 20, borderRadius: 8 },
   modalSaveText: { fontSize: 13, color: '#fff', fontWeight: '700' },
+  adminCard: {
+    backgroundColor: '#0f172a',
+    borderRadius: 16,
+    padding: 16,
+    gap: 12,
+  },
+  adminHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 12,
+  },
+  adminIconWrap: {
+    width: 38,
+    height: 38,
+    borderRadius: 10,
+    backgroundColor: 'rgba(245, 158, 11, 0.15)',
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  adminTitle: {
+    fontSize: 15,
+    fontWeight: '800',
+    color: '#ffffff',
+  },
+  adminSubtitle: {
+    fontSize: 11,
+    color: '#94a3b8',
+    marginTop: 1,
+  },
+  adminPrimaryBtn: {
+    backgroundColor: '#1e293b',
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingVertical: 12,
+    paddingHorizontal: 14,
+    borderRadius: 10,
+    borderWidth: 1,
+    borderColor: '#334155',
+  },
+  adminPrimaryBtnText: {
+    color: '#ffffff',
+    fontSize: 13,
+    fontWeight: '700',
+  },
+  adminShortcutsRow: {
+    flexDirection: 'row',
+    gap: 8,
+  },
+  adminShortcut: {
+    flex: 1,
+    backgroundColor: '#ffffff',
+    paddingVertical: 10,
+    borderRadius: 10,
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 4,
+  },
+  adminShortcutText: {
+    fontSize: 10,
+    fontWeight: '700',
+    color: '#0f172a',
+  },
 });

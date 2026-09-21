@@ -14,9 +14,13 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { useNavigation } from '@react-navigation/native';
 import { Ionicons } from '@expo/vector-icons';
 import { ordersApi, Pedido } from '../../services/orders.api';
+import { useAuthStore } from '../../store/auth.store';
 
 export const OrdersScreen: React.FC = () => {
   const navigation = useNavigation<any>();
+  const user = useAuthStore((s) => s.user);
+  const isAuthenticated = useAuthStore((s) => s.isAuthenticated);
+
   const [pedidos, setPedidos] = useState<Pedido[]>([]);
   const [cargando, setCargando] = useState(true);
   const [refrescando, setRefrescando] = useState(false);
@@ -24,15 +28,27 @@ export const OrdersScreen: React.FC = () => {
   const [pedidoSeleccionado, setPedidoSeleccionado] = useState<Pedido | null>(null);
 
   useEffect(() => {
-    cargarPedidos();
-  }, []);
+    if (isAuthenticated && user) {
+      cargarPedidos();
+    } else {
+      setCargando(false);
+    }
+  }, [isAuthenticated, user]);
 
   const cargarPedidos = async () => {
+    if (!isAuthenticated || !user) {
+      setCargando(false);
+      setRefrescando(false);
+      return;
+    }
     try {
       const data = await ordersApi.obtenerMisPedidos();
-      setPedidos(data);
-    } catch (err) {
-      console.error('Error cargando pedidos en mobile:', err);
+      setPedidos(data || []);
+    } catch (err: any) {
+      if (err?.response?.status !== 401) {
+        console.warn('Error cargando pedidos en mobile:', err?.message || err);
+      }
+      setPedidos([]);
     } finally {
       setCargando(false);
       setRefrescando(false);
@@ -80,6 +96,30 @@ export const OrdersScreen: React.FC = () => {
       </View>
     );
   };
+
+  if (!isAuthenticated || !user) {
+    return (
+      <SafeAreaView style={styles.container} edges={['top']}>
+        <View style={styles.header}>
+          <Text style={styles.title}>Mis Pedidos</Text>
+          <Text style={styles.subtitle}>Historial de compras y estado de pagos</Text>
+        </View>
+        <View style={styles.centerContainer}>
+          <Ionicons name="receipt-outline" size={64} color="#d1d5db" />
+          <Text style={styles.emptyTitle}>Inicia sesión</Text>
+          <Text style={styles.emptySubtitle}>
+            Para ver tu historial de pedidos y estado de compras, por favor ingresa con tu cuenta.
+          </Text>
+          <TouchableOpacity
+            style={styles.shopBtn}
+            onPress={() => navigation.navigate('Profile')}
+          >
+            <Text style={styles.shopBtnText}>Iniciar Sesión / Mi Perfil</Text>
+          </TouchableOpacity>
+        </View>
+      </SafeAreaView>
+    );
+  }
 
   return (
     <SafeAreaView style={styles.container} edges={['top']}>

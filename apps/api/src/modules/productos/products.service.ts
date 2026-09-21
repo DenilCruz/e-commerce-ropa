@@ -40,11 +40,34 @@ export class ProductosService {
     return await this.repositorioColor.find();
   }
 
-  async obtenerTodos(): Promise<ProductEntity[]> {
-    return await this.repositorioProducto.find({
-      relations: ['categoria', 'marca', 'variantes', 'variantes.talla', 'variantes.color', 'imagenes'],
-      order: { creadoEn: 'DESC' }
-    });
+  async obtenerTodos(categoriaId?: string, busqueda?: string, ordenarPor?: string): Promise<ProductEntity[]> {
+    const qb = this.repositorioProducto.createQueryBuilder('producto')
+      .leftJoinAndSelect('producto.categoria', 'categoria')
+      .leftJoinAndSelect('producto.marca', 'marca')
+      .leftJoinAndSelect('producto.variantes', 'variantes')
+      .leftJoinAndSelect('variantes.talla', 'talla')
+      .leftJoinAndSelect('variantes.color', 'color')
+      .leftJoinAndSelect('producto.imagenes', 'imagenes');
+
+    if (categoriaId && categoriaId !== 'todas') {
+      qb.andWhere('(producto.categoriaId = :categoriaId OR categoria.padre_id = :categoriaId)', { categoriaId });
+    }
+
+    if (busqueda && busqueda.trim()) {
+      qb.andWhere('(LOWER(producto.nombre) LIKE LOWER(:busqueda) OR LOWER(producto.descripcion) LIKE LOWER(:busqueda))', {
+        busqueda: `%${busqueda.trim()}%`,
+      });
+    }
+
+    if (ordenarPor === 'precio_asc') {
+      qb.orderBy('producto.precio', 'ASC');
+    } else if (ordenarPor === 'precio_desc') {
+      qb.orderBy('producto.precio', 'DESC');
+    } else {
+      qb.orderBy('producto.creadoEn', 'DESC');
+    }
+
+    return await qb.getMany();
   }
 
   async obtenerPorId(id: string): Promise<ProductEntity> {

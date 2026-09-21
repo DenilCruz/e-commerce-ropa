@@ -125,7 +125,7 @@ export const HomeScreen: React.FC = () => {
                   <TouchableOpacity
                     key={cat.id}
                     style={styles.categoryCard}
-                    onPress={() => navigation.navigate('Catalog')}
+                    onPress={() => navigation.navigate('Catalog', { categoriaId: cat.id })}
                   >
                     <View style={styles.categoryCircle}>
                       <Ionicons name="shirt-outline" size={22} color="#111827" />

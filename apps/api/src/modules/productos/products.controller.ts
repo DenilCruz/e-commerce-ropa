@@ -1,4 +1,4 @@
-import { Controller, Get, Post, Body, Param, Put, Delete, HttpCode, HttpStatus, ParseUUIDPipe } from '@nestjs/common';
+import { Controller, Get, Post, Body, Param, Put, Delete, HttpCode, HttpStatus, ParseUUIDPipe, Query } from '@nestjs/common';
 import { ApiTags, ApiOperation, ApiResponse, ApiParam } from '@nestjs/swagger';
 import { ProductosService } from './products.service';
 import { CrearProductoDto } from './dto/crear-producto.dto';
@@ -37,10 +37,14 @@ export class ProductosController {
   }
 
   @Get()
-  @ApiOperation({ summary: 'Obtener el catálogo completo de productos con sus relaciones' })
+  @ApiOperation({ summary: 'Obtener el catálogo completo de productos con sus relaciones y filtros' })
   @ApiResponse({ status: 200, description: 'Catálogo retornado exitosamente.' })
-  obtenerTodos() {
-    return this.servicioProductos.obtenerTodos();
+  obtenerTodos(
+    @Query('categoriaId') categoriaId?: string,
+    @Query('busqueda') busqueda?: string,
+    @Query('ordenarPor') ordenarPor?: string,
+  ) {
+    return this.servicioProductos.obtenerTodos(categoriaId, busqueda, ordenarPor);
   }
 
   @Get(':id')
