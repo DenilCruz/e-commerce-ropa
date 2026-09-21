@@ -20,6 +20,9 @@ importers:
       '@ecommerce/shared':
         specifier: workspace:*
         version: link:../../packages/shared
+      '@gradio/client':
+        specifier: ^2.7.0
+        version: 2.7.0
       '@nestjs-modules/mailer':
         specifier: ^1.11.2
         version: 1.11.2(@nestjs/common@10.4.22(class-transformer@0.5.1)(class-validator@0.14.4)(reflect-metadata@0.2.2)(rxjs@7.8.2))(@nestjs/core@10.4.22(@nestjs/common@10.4.22(class-transformer@0.5.1)(class-validator@0.14.4)(reflect-metadata@0.2.2)(rxjs@7.8.2))(@nestjs/platform-express@10.4.22)(reflect-metadata@0.2.2)(rxjs@7.8.2))(nodemailer@10.0.10)
@@ -1117,6 +1120,10 @@ packages:
   '@expo/xcpretty@4.4.5':
     resolution: {integrity: sha512-J3eL4n4h5QTwfD0SIz8OIk6/+sOL/hFZAMacgCM07UNlxBQfJipEpIC2AQxvGkbYeStByJ0TVhQAJo+DeNgaSQ==}
     hasBin: true
+
+  '@gradio/client@2.7.0':
+    resolution: {integrity: sha512-nH0mi4gcS9YBgDMGKLLwDEUqAP9uapzC77t2LZ9JURTYn3UxWqgPwiKSHLuZ8/3hLWUtPTjlOmvU+VqT9Gtxtw==}
+    engines: {node: '>=18.0.0'}
 
   '@hapi/hoek@9.3.0':
     resolution: {integrity: sha512-/c6rf4UJlmHlC9b5BaNvzAcFv7HZ2QHaV0D4/HNlBdvFnvQq8RI4kYdhyPCl7Xj+oWvTWQ8ujhqS53LIgAe6KQ==}
@@ -3312,6 +3319,9 @@ packages:
     peerDependenciesMeta:
       picomatch:
         optional: true
+
+  fetch-event-stream@0.1.6:
+    resolution: {integrity: sha512-GREtJ5HNikdU2AXtZ6E/5bk+aslMU6ie5mPG6H9nvsdDkkHQ6m5lHwmmmDTOBexok9hApQ7EprsXCdmz9ZC68w==}
 
   fetch-nodeshim@0.4.10:
     resolution: {integrity: sha512-m6I8ALe4L4XpdETy7MJZWs6L1IVMbjs99bwbpIKphxX+0CTns4IKDWJY0LWfr4YsFjfg+z1TjzTMU8lKl8rG0w==}
@@ -7282,6 +7292,10 @@ snapshots:
       chalk: 4.1.2
       js-yaml: 4.3.2
 
+  '@gradio/client@2.7.0':
+    dependencies:
+      fetch-event-stream: 0.1.6
+
   '@hapi/hoek@9.3.0': {}
 
   '@hapi/topo@5.1.0':
@@ -9856,6 +9870,8 @@ snapshots:
   fdir@6.5.0(picomatch@4.0.7):
     optionalDependencies:
       picomatch: 4.0.7
+
+  fetch-event-stream@0.1.6: {}
 
   fetch-nodeshim@0.4.10: {}
 

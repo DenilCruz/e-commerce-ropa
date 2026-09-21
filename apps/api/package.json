@@ -16,6 +16,7 @@
   },
   "dependencies": {
     "@ecommerce/shared": "workspace:*",
+    "@gradio/client": "^2.7.0",
     "@nestjs-modules/mailer": "^1.11.2",
     "@nestjs/common": "^10.0.0",
     "@nestjs/config": "^3.2.0",

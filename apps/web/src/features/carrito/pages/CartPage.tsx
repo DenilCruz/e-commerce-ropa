@@ -13,11 +13,13 @@ import {
   Lock,
   ShieldCheck,
   Zap,
+  Sparkles,
 } from 'lucide-react';
 import { useCartStore } from '../../../store/cart.store';
 import { useAuthStore } from '../../../store/auth.store';
 import { cuponesApi } from '../../cupones/services/cupones.api';
 import { Cupon } from '../../cupones/types';
+import { VirtualTryOnModal } from '../components/VirtualTryOnModal';
 
 export const CartPage: React.FC = () => {
   const navigate = useNavigate();
@@ -43,6 +45,17 @@ export const CartPage: React.FC = () => {
   const [mensajeCupon, setMensajeCupon] = useState<{ tipo: 'exito' | 'error'; texto: string } | null>(null);
   const [cuponesDisponibles, setCuponesDisponibles] = useState<Cupon[]>([]);
   const [mostrarCupones, setMostrarCupones] = useState(false);
+
+  // Estados del Probador Virtual con IA
+  const [modalProbadorAbierto, setModalProbadorAbierto] = useState(false);
+  const [prendaParaProbar, setPrendaParaProbar] = useState<{
+    id?: string;
+    nombre: string;
+    imagen: string | null;
+    talla?: string;
+    color?: string;
+    categoria?: 'tops' | 'bottoms' | 'dresses';
+  } | null>(null);
 
   useEffect(() => {
     cargarCarrito();
@@ -162,6 +175,45 @@ export const CartPage: React.FC = () => {
         <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 items-start">
           {/* LISTA DE PRODUCTOS (COLUMNA IZQUIERDA - 7 o 8 COLS) */}
           <div className="lg:col-span-7 xl:col-span-8 space-y-4">
+            {/* BANNER PROBADOR VIRTUAL CON IA */}
+            <div className="bg-gradient-to-r from-gray-950 via-indigo-950 to-purple-950 text-white p-4 sm:p-5 rounded-2xl shadow-md flex flex-col sm:flex-row sm:items-center justify-between gap-4 border border-indigo-900/50">
+              <div className="flex items-center gap-3.5">
+                <div className="w-10 h-10 rounded-xl bg-indigo-500/20 border border-indigo-400/30 flex items-center justify-center shrink-0">
+                  <Sparkles className="w-5 h-5 text-indigo-300 animate-pulse" />
+                </div>
+                <div>
+                  <h3 className="font-black text-sm text-white flex items-center gap-2">
+                    Probador Virtual con IA disponible
+                    <span className="bg-indigo-500 text-[10px] font-bold px-2 py-0.5 rounded-full">Nuevo</span>
+                  </h3>
+                  <p className="text-xs text-indigo-200/80 mt-0.5">
+                    ¿Dudas de cómo te quedará alguna prenda? Pruébatela virtualmente antes de comprar.
+                  </p>
+                </div>
+              </div>
+              {items.length > 0 && (
+                <button
+                  type="button"
+                  onClick={() => {
+                    const first = items[0];
+                    setPrendaParaProbar({
+                      id: first.producto?.id,
+                      nombre: first.producto?.nombre || 'Prenda',
+                      imagen: first.producto?.imagen || null,
+                      talla: first.talla?.nombre,
+                      color: first.color?.nombre,
+                      categoria: 'tops',
+                    });
+                    setModalProbadorAbierto(true);
+                  }}
+                  className="px-4 py-2 bg-white hover:bg-gray-100 text-black text-xs font-black rounded-xl transition shrink-0 flex items-center justify-center gap-2 shadow-sm cursor-pointer"
+                >
+                  <Sparkles className="w-3.5 h-3.5 text-indigo-600" />
+                  <span>Probar Prenda</span>
+                </button>
+              )}
+            </div>
+
             <div className="bg-white rounded-2xl border border-gray-200 shadow-sm divide-y divide-gray-100 overflow-hidden">
               {items.map((item) => {
                 const itemIdOrVar = item.id || item.varianteId;
@@ -214,8 +266,31 @@ export const CartPage: React.FC = () => {
                           )}
                         </div>
 
-                        <div className="mt-2 text-sm font-semibold text-gray-900">
-                          Bs. {precio.toFixed(2)} <span className="text-xs font-normal text-gray-500">c/u</span>
+                        <div className="flex flex-wrap items-center gap-2 mt-2">
+                          <div className="text-sm font-semibold text-gray-900">
+                            Bs. {precio.toFixed(2)} <span className="text-xs font-normal text-gray-500">c/u</span>
+                          </div>
+
+                          {/* BOTÓN PROBAR EN MÍ */}
+                          <button
+                            type="button"
+                            onClick={() => {
+                              setPrendaParaProbar({
+                                id: item.producto?.id,
+                                nombre: item.producto?.nombre || 'Prenda',
+                                imagen: item.producto?.imagen || null,
+                                talla: item.talla?.nombre,
+                                color: item.color?.nombre,
+                                categoria: 'tops',
+                              });
+                              setModalProbadorAbierto(true);
+                            }}
+                            className="inline-flex items-center gap-1.5 px-2.5 py-1 bg-gradient-to-r from-indigo-50 to-purple-50 hover:from-indigo-100 hover:to-purple-100 border border-indigo-200/80 rounded-xl text-[11px] font-bold text-indigo-900 transition shadow-2xs group cursor-pointer"
+                            title="Ver cómo te queda esta prenda con IA"
+                          >
+                            <Sparkles className="w-3.5 h-3.5 text-indigo-600 group-hover:scale-110 transition-transform" />
+                            <span>Probar en mí (IA)</span>
+                          </button>
                         </div>
                       </div>
                     </div>
@@ -487,6 +562,13 @@ export const CartPage: React.FC = () => {
           </div>
         </div>
       )}
+
+      {/* MODAL PROBADOR VIRTUAL */}
+      <VirtualTryOnModal
+        abierto={modalProbadorAbierto}
+        onCerrar={() => setModalProbadorAbierto(false)}
+        prenda={prendaParaProbar}
+      />
     </div>
   );
 };
