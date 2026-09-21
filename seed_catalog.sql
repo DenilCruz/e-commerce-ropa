@@ -89,3 +89,16 @@ INSERT INTO producto_variante (producto_id, color_id, talla_id, sku, stock, prec
 ('7e829857-321d-4d06-9ae5-2d2644e7613e', '3f1e8fae-d806-4c5c-a248-f3d4d2b3aa26', '44f26fd1-367f-49c6-83ac-65a42e41d12b', 'ABR-LAN-L', 5, 0);
 
 COMMIT;
+
+-- Insertar administrador genérico si no existe
+INSERT INTO usuario (id, rol_id, nombre, apellido, correo, contrasena, email_verificado, activo)
+VALUES (
+  uuid_generate_v4(),
+  (SELECT id FROM rol WHERE nombre = 'ADMIN' LIMIT 1),
+  'Admin',
+  'General',
+  'admin@elmagnifico.com',
+  crypt('Admin123!', gen_salt('bf')),
+  true,
+  true
+) ON CONFLICT (correo) DO NOTHING;
