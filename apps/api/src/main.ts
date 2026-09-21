@@ -29,6 +29,7 @@ async function bootstrap() {
     ? join(process.cwd(), 'uploads')
     : join(process.cwd(), 'apps', 'api', 'uploads');
   app.use('/uploads', express.static(uploadsFolder));
+  app.use(express.static(uploadsFolder));
 
   // Swagger Configuration
   const config = new DocumentBuilder()

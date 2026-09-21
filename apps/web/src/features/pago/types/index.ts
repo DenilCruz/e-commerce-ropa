@@ -52,6 +52,12 @@ export interface OrdenRespuesta {
   costoEnvio: number;
   total: number;
   pago: PagoDetalle | null;
+  envio?: {
+    id: string;
+    numeroTracking: string;
+    estado: string;
+    empresaTransportadora?: string;
+  } | null;
   items: OrdenItemPago[];
   usuario?: {
     id: string;

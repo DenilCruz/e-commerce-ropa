@@ -9,6 +9,7 @@ import {
   ActivityIndicator,
   RefreshControl,
   Modal,
+  Alert,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useNavigation } from '@react-navigation/native';
@@ -60,10 +61,46 @@ export const OrdersScreen: React.FC = () => {
     cargarPedidos();
   };
 
+  const handleCancelar = (pedido: Pedido) => {
+    Alert.alert(
+      'Cancelar Pedido',
+      `¿Estás seguro de que deseas cancelar el pedido ${pedido.nro}? Las prendas se reincorporarán al stock.`,
+      [
+        { text: 'No', style: 'cancel' },
+        {
+          text: 'Sí, Cancelar',
+          style: 'destructive',
+          onPress: async () => {
+            try {
+              await ordersApi.cancelarPedido(pedido.id, 'Cancelado desde la aplicación móvil');
+              Alert.alert('Éxito', 'El pedido fue cancelado satisfactoriamente.');
+              if (pedidoSeleccionado?.id === pedido.id) setPedidoSeleccionado(null);
+              cargarPedidos();
+            } catch (err: any) {
+              Alert.alert('Error', err.response?.data?.message || 'No se pudo cancelar el pedido.');
+            }
+          },
+        },
+      ],
+    );
+  };
+
+  const puedeCancelar = (p: Pedido) => {
+    const permitidos = ['PENDIENTE', 'PAGADO'];
+    if (!permitidos.includes(p.estado)) return false;
+    if (p.envio && ['EN_CAMINO', 'EN_REPARTO', 'ENTREGADO'].includes(p.envio.estado)) {
+      return false;
+    }
+    return true;
+  };
+
   const pedidosFiltrados = pedidos.filter((p) => {
     if (filtroEstado === 'TODOS') return true;
     if (filtroEstado === 'PAGADO') return p.estado === 'PAGADO' || p.pago?.estado === 'APROBADO';
     if (filtroEstado === 'PENDIENTE') return p.estado === 'PENDIENTE' || p.pago?.estado === 'PENDIENTE';
+    if (filtroEstado === 'ENVIADO') return p.estado === 'ENVIADO' || p.envio?.estado === 'EN_CAMINO';
+    if (filtroEstado === 'ENTREGADO') return p.estado === 'ENTREGADO' || p.envio?.estado === 'ENTREGADO';
+    if (filtroEstado === 'CANCELADO') return p.estado === 'CANCELADO';
     if (filtroEstado === 'REEMBOLSADO') return p.estado === 'REEMBOLSADO' || p.pago?.estado === 'REEMBOLSADO';
     return true;
   });
@@ -73,6 +110,20 @@ export const OrdersScreen: React.FC = () => {
       return (
         <View style={[styles.badge, { backgroundColor: '#f3e8ff' }]}>
           <Text style={[styles.badgeText, { color: '#6b21a8' }]}>Reembolsado</Text>
+        </View>
+      );
+    }
+    if (estado === 'ENTREGADO') {
+      return (
+        <View style={[styles.badge, { backgroundColor: '#dcfce7' }]}>
+          <Text style={[styles.badgeText, { color: '#15803d' }]}>Entregado</Text>
+        </View>
+      );
+    }
+    if (estado === 'ENVIADO') {
+      return (
+        <View style={[styles.badge, { backgroundColor: '#dbeafe' }]}>
+          <Text style={[styles.badgeText, { color: '#1d4ed8' }]}>En Camino</Text>
         </View>
       );
     }
@@ -87,6 +138,13 @@ export const OrdersScreen: React.FC = () => {
       return (
         <View style={[styles.badge, { backgroundColor: '#fef3c7' }]}>
           <Text style={[styles.badgeText, { color: '#92400e' }]}>Pendiente</Text>
+        </View>
+      );
+    }
+    if (estado === 'CANCELADO') {
+      return (
+        <View style={[styles.badge, { backgroundColor: '#fee2e2' }]}>
+          <Text style={[styles.badgeText, { color: '#b91c1c' }]}>Cancelado</Text>
         </View>
       );
     }
@@ -125,20 +183,29 @@ export const OrdersScreen: React.FC = () => {
     <SafeAreaView style={styles.container} edges={['top']}>
       {/* HEADER */}
       <View style={styles.header}>
-        <Text style={styles.title}>Mis Pedidos</Text>
-        <Text style={styles.subtitle}>Historial de compras y estado de pagos</Text>
+        <View>
+          <Text style={styles.title}>Mis Pedidos</Text>
+          <Text style={styles.subtitle}>Historial de compras y rastreo de envíos</Text>
+        </View>
+        <TouchableOpacity
+          style={styles.trackingHeaderBtn}
+          onPress={() => navigation.navigate('Tracking')}
+        >
+          <Ionicons name="navigate-outline" size={18} color="#4f46e5" />
+          <Text style={styles.trackingHeaderBtnText}>Rastrear</Text>
+        </TouchableOpacity>
       </View>
 
       {/* TABS DE FILTRO */}
       <View style={styles.tabContainer}>
-        {['TODOS', 'PAGADO', 'PENDIENTE', 'REEMBOLSADO'].map((tab) => (
+        {['TODOS', 'PAGADO', 'PENDIENTE', 'ENVIADO', 'ENTREGADO', 'CANCELADO'].map((tab) => (
           <TouchableOpacity
             key={tab}
             style={[styles.tab, filtroEstado === tab && styles.tabActive]}
             onPress={() => setFiltroEstado(tab)}
           >
             <Text style={[styles.tabText, filtroEstado === tab && styles.tabTextActive]}>
-              {tab === 'TODOS' ? 'Todos' : tab === 'PAGADO' ? 'Pagados' : tab === 'PENDIENTE' ? 'Pendientes' : 'Reembolsados'}
+              {tab}
             </Text>
           </TouchableOpacity>
         ))}
@@ -146,81 +213,96 @@ export const OrdersScreen: React.FC = () => {
 
       {/* LISTA */}
       {cargando ? (
-        <View style={styles.centerContainer}>
-          <ActivityIndicator size="large" color="#000" />
-          <Text style={styles.loadingText}>Cargando pedidos...</Text>
+        <View style={styles.centerBox}>
+          <ActivityIndicator size="large" color="#0f172a" />
+          <Text style={styles.loadingText}>Cargando tus compras...</Text>
         </View>
       ) : pedidosFiltrados.length === 0 ? (
-        <View style={styles.centerContainer}>
-          <Ionicons name="receipt-outline" size={54} color="#cbd5e1" />
-          <Text style={styles.emptyTitle}>No tienes pedidos</Text>
-          <Text style={styles.emptySubtitle}>
-            {filtroEstado === 'TODOS'
-              ? 'Tus compras realizadas aparecerán listadas aquí.'
-              : `No se encontraron pedidos con estado ${filtroEstado}.`}
-          </Text>
-          <TouchableOpacity
-            style={styles.shopBtn}
-            onPress={() => navigation.navigate('Catalog')}
-          >
-            <Text style={styles.shopBtnText}>Explorar Catálogo</Text>
-          </TouchableOpacity>
+        <View style={styles.centerBox}>
+          <Ionicons name="bag-handle-outline" size={48} color="#cbd5e1" />
+          <Text style={styles.emptyTitle}>No tienes pedidos aquí</Text>
+          <Text style={styles.emptyDesc}>Realiza una compra en nuestro catálogo</Text>
         </View>
       ) : (
         <FlatList
           data={pedidosFiltrados}
           keyExtractor={(item) => item.id}
           refreshControl={<RefreshControl refreshing={refrescando} onRefresh={handleRefresh} />}
-          contentContainerStyle={styles.listContent}
+          contentContainerStyle={{ padding: 16, gap: 12, paddingBottom: 40 }}
           renderItem={({ item }) => (
-            <TouchableOpacity
-              style={styles.orderCard}
-              activeOpacity={0.7}
-              onPress={() => setPedidoSeleccionado(item)}
-            >
-              <View style={styles.cardTop}>
-                <View>
-                  <Text style={styles.orderNro}>{item.nro}</Text>
-                  <Text style={styles.orderDate}>
-                    {new Date(item.fecha).toLocaleDateString('es-BO', {
-                      day: '2-digit',
-                      month: 'short',
-                      year: 'numeric',
-                    })}
+            <View style={styles.card}>
+              <TouchableOpacity onPress={() => setPedidoSeleccionado(item)}>
+                <View style={styles.cardTop}>
+                  <View>
+                    <Text style={styles.orderNro}>{item.nro}</Text>
+                    <Text style={styles.orderDate}>
+                      {new Date(item.fecha).toLocaleDateString()} · {new Date(item.fecha).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                    </Text>
+                  </View>
+                  {getStatusBadge(item.estado, item.pago?.estado)}
+                </View>
+
+                <View style={styles.divider} />
+
+                <View style={styles.cardMid}>
+                  <Text style={styles.itemCountText}>
+                    {item.items?.length || 0} {item.items?.length === 1 ? 'prenda' : 'prendas'}
+                  </Text>
+                  <Text style={styles.methodText}>
+                    {item.pago?.metodoPago || 'Tarjeta Stripe'}
                   </Text>
                 </View>
-                {getStatusBadge(item.estado, item.pago?.estado)}
-              </View>
 
-              <View style={styles.divider} />
+                <View style={styles.cardBottom}>
+                  <Text style={styles.totalLabel}>Total:</Text>
+                  <Text style={styles.totalAmount}>Bs. {item.total.toFixed(2)}</Text>
+                </View>
+              </TouchableOpacity>
 
-              <View style={styles.cardMid}>
-                <Text style={styles.itemCountText}>
-                  {item.items?.length || 0} {item.items?.length === 1 ? 'prenda' : 'prendas'}
-                </Text>
-                <Text style={styles.methodText}>
-                  {item.pago?.metodoPago || 'Tarjeta Stripe'}
-                </Text>
-              </View>
+              {/* BOTONES DE ACCIÓN RÁPIDA (HU-51 & HU-64) */}
+              <View style={styles.cardActions}>
+                {puedeCancelar(item) && (
+                  <TouchableOpacity
+                    style={styles.cancelBtn}
+                    onPress={() => handleCancelar(item)}
+                  >
+                    <Ionicons name="close-circle-outline" size={14} color="#ef4444" />
+                    <Text style={styles.cancelBtnText}>Cancelar</Text>
+                  </TouchableOpacity>
+                )}
 
-              <View style={styles.cardBottom}>
-                <Text style={styles.totalLabel}>Total:</Text>
-                <Text style={styles.totalAmount}>Bs. {item.total.toFixed(2)}</Text>
-                <Ionicons name="chevron-forward" size={16} color="#94a3b8" style={{ marginLeft: 'auto' }} />
+                <TouchableOpacity
+                  style={styles.trackBtn}
+                  onPress={() =>
+                    navigation.navigate('Tracking', {
+                      codigo: item.envio?.numeroTracking || item.nro,
+                    })
+                  }
+                >
+                  <Ionicons name="locate-outline" size={14} color="#4f46e5" />
+                  <Text style={styles.trackBtnText}>Rastrear Envío</Text>
+                </TouchableOpacity>
+
+                <TouchableOpacity
+                  style={styles.detailBtn}
+                  onPress={() => setPedidoSeleccionado(item)}
+                >
+                  <Text style={styles.detailBtnText}>Ver Detalle</Text>
+                </TouchableOpacity>
               </View>
-            </TouchableOpacity>
+            </View>
           )}
         />
       )}
 
-      {/* MODAL DETALLE DE ORDEN */}
+      {/* MODAL DETALLE DE ORDEN (HU-50 & HU-55) */}
       {pedidoSeleccionado && (
         <Modal visible animationType="slide" transparent>
           <View style={styles.modalBackdrop}>
             <View style={styles.modalCard}>
               <View style={styles.modalHeader}>
                 <View>
-                  <Text style={styles.modalSub}>Comprobante de Orden</Text>
+                  <Text style={styles.modalSub}>Comprobante y Envío</Text>
                   <Text style={styles.modalTitle}>{pedidoSeleccionado.nro}</Text>
                 </View>
                 <TouchableOpacity
@@ -231,11 +313,36 @@ export const OrdersScreen: React.FC = () => {
                 </TouchableOpacity>
               </View>
 
-              <ScrollView style={{ maxHeight: 380 }} contentContainerStyle={{ gap: 10 }}>
+              <ScrollView style={{ maxHeight: 420 }} contentContainerStyle={{ gap: 10 }}>
                 <View style={styles.statusRow}>
-                  <Text style={styles.label}>Estado del Pago:</Text>
+                  <Text style={styles.label}>Estado del Pedido:</Text>
                   {getStatusBadge(pedidoSeleccionado.estado, pedidoSeleccionado.pago?.estado)}
                 </View>
+
+                {/* BANNER DE ENVÍO */}
+                {pedidoSeleccionado.envio && (
+                  <View style={styles.shippingModalBox}>
+                    <View style={{ flex: 1 }}>
+                      <Text style={styles.shippingModalLabel}>Transporte / Guía</Text>
+                      <Text style={styles.shippingModalCode}>
+                        {pedidoSeleccionado.envio.numeroTracking}
+                      </Text>
+                      <Text style={styles.shippingModalMeta}>
+                        {pedidoSeleccionado.envio.empresaTransportadora || 'Courier Local'}
+                      </Text>
+                    </View>
+                    <TouchableOpacity
+                      style={styles.shippingModalBtn}
+                      onPress={() => {
+                        const code = pedidoSeleccionado.envio?.numeroTracking || pedidoSeleccionado.nro;
+                        setPedidoSeleccionado(null);
+                        navigation.navigate('Tracking', { codigo: code });
+                      }}
+                    >
+                      <Text style={styles.shippingModalBtnText}>Mapa Satelital</Text>
+                    </TouchableOpacity>
+                  </View>
+                )}
 
                 <View style={styles.divider} />
 
@@ -255,24 +362,45 @@ export const OrdersScreen: React.FC = () => {
                 <View style={styles.divider} />
 
                 <View style={styles.totalRow}>
-                  <Text style={styles.totalLabelBold}>Total Pagado:</Text>
+                  <Text style={styles.totalLabelBold}>Total:</Text>
                   <Text style={styles.totalValueBold}>Bs. {pedidoSeleccionado.total.toFixed(2)}</Text>
                 </View>
 
-                {pedidoSeleccionado.pago?.idTransaccion && (
-                  <View style={styles.txBox}>
-                    <Text style={styles.txLabel}>Ref. Transacción Stripe:</Text>
-                    <Text style={styles.txValue}>{pedidoSeleccionado.pago.idTransaccion}</Text>
+                {/* HISTORIAL DE AUDITORÍA (HU-55) */}
+                {pedidoSeleccionado.historial && pedidoSeleccionado.historial.length > 0 && (
+                  <View style={styles.historyBox}>
+                    <Text style={styles.historyTitle}>Historial de Estado (HU-55)</Text>
+                    {pedidoSeleccionado.historial.map((h, i) => (
+                      <View key={h.id || i} style={styles.historyItem}>
+                        <Text style={styles.historyState}>
+                          {h.estadoAnterior ? `${h.estadoAnterior} → ${h.estadoNuevo}` : h.estadoNuevo}
+                        </Text>
+                        {h.comentario && <Text style={styles.historyComment}>"{h.comentario}"</Text>}
+                        <Text style={styles.historyTime}>
+                          {new Date(h.creadoEn).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })} · {h.autor || 'Sistema'}
+                        </Text>
+                      </View>
+                    ))}
                   </View>
                 )}
               </ScrollView>
 
-              <TouchableOpacity
-                style={styles.modalCloseBtn}
-                onPress={() => setPedidoSeleccionado(null)}
-              >
-                <Text style={styles.modalCloseBtnText}>Cerrar</Text>
-              </TouchableOpacity>
+              <View style={styles.modalFooter}>
+                {puedeCancelar(pedidoSeleccionado) && (
+                  <TouchableOpacity
+                    style={styles.cancelModalBtn}
+                    onPress={() => handleCancelar(pedidoSeleccionado)}
+                  >
+                    <Text style={styles.cancelModalBtnText}>Cancelar Pedido</Text>
+                  </TouchableOpacity>
+                )}
+                <TouchableOpacity
+                  style={styles.modalCloseBtn}
+                  onPress={() => setPedidoSeleccionado(null)}
+                >
+                  <Text style={styles.modalCloseBtnText}>Cerrar</Text>
+                </TouchableOpacity>
+              </View>
             </View>
           </View>
         </Modal>
@@ -288,16 +416,33 @@ const styles = StyleSheet.create({
     paddingVertical: 14,
     backgroundColor: '#fff',
     borderBottomWidth: 1,
-    borderBottomColor: '#f1f5f9',
+    borderBottomColor: '#e2e8f0',
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
   },
   title: { fontSize: 22, fontWeight: '900', color: '#0f172a' },
   subtitle: { fontSize: 12, color: '#64748b', marginTop: 2 },
+  trackingHeaderBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+    backgroundColor: '#eef2ff',
+    paddingHorizontal: 10,
+    paddingVertical: 6,
+    borderRadius: 8,
+  },
+  trackingHeaderBtnText: {
+    fontSize: 12,
+    fontWeight: '700',
+    color: '#4f46e5',
+  },
   tabContainer: {
     flexDirection: 'row',
     paddingHorizontal: 16,
     paddingVertical: 10,
-    gap: 8,
     backgroundColor: '#fff',
+    gap: 8,
     borderBottomWidth: 1,
     borderBottomColor: '#f1f5f9',
   },
@@ -307,47 +452,99 @@ const styles = StyleSheet.create({
     borderRadius: 8,
     backgroundColor: '#f1f5f9',
   },
-  tabActive: { backgroundColor: '#000' },
+  tabActive: { backgroundColor: '#0f172a' },
   tabText: { fontSize: 11, fontWeight: '700', color: '#64748b' },
   tabTextActive: { color: '#fff' },
-  centerContainer: {
+  centerBox: {
     flex: 1,
     justifyContent: 'center',
     alignItems: 'center',
-    paddingHorizontal: 32,
+    padding: 30,
+    marginTop: 40,
   },
-  loadingText: { marginTop: 12, fontSize: 13, color: '#64748b', fontWeight: '500' },
-  emptyTitle: { fontSize: 18, fontWeight: '800', color: '#0f172a', marginTop: 12 },
-  emptySubtitle: { fontSize: 13, color: '#64748b', textAlign: 'center', marginTop: 4, marginBottom: 20 },
-  shopBtn: {
-    backgroundColor: '#000',
-    paddingHorizontal: 20,
-    paddingVertical: 12,
-    borderRadius: 12,
-  },
-  shopBtnText: { color: '#fff', fontSize: 13, fontWeight: '700' },
-  listContent: { padding: 16, gap: 12 },
-  orderCard: {
+  loadingText: { marginTop: 10, color: '#64748b', fontSize: 13 },
+  emptyTitle: { fontSize: 16, fontWeight: '800', color: '#0f172a', marginTop: 12 },
+  emptyDesc: { fontSize: 12, color: '#94a3b8', marginTop: 4 },
+  card: {
     backgroundColor: '#fff',
     borderRadius: 16,
     padding: 16,
     borderWidth: 1,
     borderColor: '#e2e8f0',
-    gap: 8,
+    shadowColor: '#000',
+    shadowOpacity: 0.04,
+    shadowRadius: 6,
+    elevation: 1,
   },
-  cardTop: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' },
-  orderNro: { fontSize: 15, fontWeight: '900', color: '#0f172a' },
-  orderDate: { fontSize: 11, color: '#64748b', marginTop: 1 },
-  divider: { height: 1, backgroundColor: '#f1f5f9', marginVertical: 4 },
+  cardTop: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'flex-start',
+  },
+  orderNro: { fontSize: 16, fontWeight: '900', color: '#0f172a' },
+  orderDate: { fontSize: 11, color: '#94a3b8', marginTop: 2 },
+  divider: { height: 1, backgroundColor: '#f1f5f9', marginVertical: 10 },
   cardMid: { flexDirection: 'row', justifyContent: 'space-between' },
   itemCountText: { fontSize: 12, color: '#475569', fontWeight: '600' },
-  methodText: { fontSize: 12, color: '#6366f1', fontWeight: '700' },
-  cardBottom: { flexDirection: 'row', alignItems: 'center', marginTop: 4 },
-  totalLabel: { fontSize: 12, color: '#64748b', fontWeight: '600', marginRight: 4 },
+  methodText: { fontSize: 12, color: '#64748b' },
+  cardBottom: {
+    flexDirection: 'row',
+    alignItems: 'baseline',
+    marginTop: 8,
+  },
+  totalLabel: { fontSize: 12, color: '#64748b', marginRight: 6 },
   totalAmount: { fontSize: 16, fontWeight: '900', color: '#0f172a' },
-  badge: { paddingHorizontal: 8, paddingVertical: 4, borderRadius: 12 },
+  cardActions: {
+    flexDirection: 'row',
+    justifyContent: 'flex-end',
+    alignItems: 'center',
+    gap: 8,
+    marginTop: 12,
+    paddingTop: 10,
+    borderTopWidth: 1,
+    borderTopColor: '#f8fafc',
+  },
+  cancelBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 3,
+    paddingHorizontal: 8,
+    paddingVertical: 5,
+    borderRadius: 6,
+    backgroundColor: '#fef2f2',
+  },
+  cancelBtnText: {
+    fontSize: 11,
+    fontWeight: '700',
+    color: '#ef4444',
+  },
+  trackBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+    paddingHorizontal: 10,
+    paddingVertical: 5,
+    borderRadius: 6,
+    backgroundColor: '#eef2ff',
+  },
+  trackBtnText: {
+    fontSize: 11,
+    fontWeight: '700',
+    color: '#4f46e5',
+  },
+  detailBtn: {
+    paddingHorizontal: 10,
+    paddingVertical: 5,
+    borderRadius: 6,
+    backgroundColor: '#f1f5f9',
+  },
+  detailBtnText: {
+    fontSize: 11,
+    fontWeight: '700',
+    color: '#334155',
+  },
+  badge: { paddingHorizontal: 8, paddingVertical: 4, borderRadius: 6 },
   badgeText: { fontSize: 10, fontWeight: '800', textTransform: 'uppercase' },
-  // MODAL
   modalBackdrop: {
     flex: 1,
     backgroundColor: 'rgba(0,0,0,0.5)',
@@ -358,31 +555,79 @@ const styles = StyleSheet.create({
     borderTopLeftRadius: 24,
     borderTopRightRadius: 24,
     padding: 20,
-    gap: 12,
+    maxHeight: '85%',
   },
-  modalHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' },
-  modalSub: { fontSize: 11, color: '#64748b', fontWeight: '700', textTransform: 'uppercase' },
+  modalHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: 12,
+  },
+  modalSub: { fontSize: 11, color: '#64748b', textTransform: 'uppercase', fontWeight: '700' },
   modalTitle: { fontSize: 20, fontWeight: '900', color: '#0f172a' },
-  closeBtn: { padding: 6, backgroundColor: '#f1f5f9', borderRadius: 20 },
+  closeBtn: { padding: 6 },
   statusRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' },
-  label: { fontSize: 12, color: '#64748b', fontWeight: '600' },
+  label: { fontSize: 13, color: '#64748b', fontWeight: '600' },
+  shippingModalBox: {
+    backgroundColor: '#eef2ff',
+    padding: 12,
+    borderRadius: 12,
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginVertical: 4,
+  },
+  shippingModalLabel: { fontSize: 10, color: '#6366f1', textTransform: 'uppercase', fontWeight: '700' },
+  shippingModalCode: { fontSize: 14, fontWeight: '900', color: '#1e1b4b', fontFamily: 'monospace' },
+  shippingModalMeta: { fontSize: 11, color: '#4338ca' },
+  shippingModalBtn: {
+    backgroundColor: '#4f46e5',
+    paddingHorizontal: 10,
+    paddingVertical: 6,
+    borderRadius: 8,
+  },
+  shippingModalBtnText: { color: '#ffffff', fontSize: 11, fontWeight: '700' },
   sectionTitle: { fontSize: 12, fontWeight: '800', color: '#0f172a', textTransform: 'uppercase' },
-  itemRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', paddingVertical: 4 },
+  itemRow: { flexDirection: 'row', justifyContent: 'space-between', paddingVertical: 4 },
   itemName: { fontSize: 13, fontWeight: '700', color: '#0f172a' },
   itemSub: { fontSize: 11, color: '#64748b' },
   itemPrice: { fontSize: 13, fontWeight: '800', color: '#0f172a' },
-  totalRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' },
+  totalRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'baseline' },
   totalLabelBold: { fontSize: 14, fontWeight: '800', color: '#0f172a' },
   totalValueBold: { fontSize: 18, fontWeight: '900', color: '#0f172a' },
-  txBox: { backgroundColor: '#eef2ff', padding: 10, borderRadius: 10, marginTop: 6 },
-  txLabel: { fontSize: 10, fontWeight: '700', color: '#4338ca', textTransform: 'uppercase' },
-  txValue: { fontSize: 11, fontFamily: 'monospace', color: '#3730a3', marginTop: 2 },
+  historyBox: {
+    backgroundColor: '#f8fafc',
+    padding: 12,
+    borderRadius: 12,
+    marginTop: 8,
+  },
+  historyTitle: { fontSize: 11, fontWeight: '800', color: '#475569', textTransform: 'uppercase', marginBottom: 6 },
+  historyItem: { marginBottom: 6 },
+  historyState: { fontSize: 11, fontWeight: '700', color: '#0f172a' },
+  historyComment: { fontSize: 10, color: '#64748b', fontStyle: 'italic' },
+  historyTime: { fontSize: 9, color: '#94a3b8' },
+  modalFooter: {
+    flexDirection: 'row',
+    gap: 8,
+    marginTop: 14,
+  },
+  cancelModalBtn: {
+    flex: 1,
+    paddingVertical: 12,
+    borderRadius: 12,
+    borderWidth: 1,
+    borderColor: '#fca5a5',
+    backgroundColor: '#fef2f2',
+    alignItems: 'center',
+  },
+  cancelModalBtnText: { color: '#ef4444', fontWeight: '700', fontSize: 13 },
   modalCloseBtn: {
-    backgroundColor: '#000',
-    paddingVertical: 14,
+    flex: 1,
+    backgroundColor: '#0f172a',
+    paddingVertical: 12,
     borderRadius: 12,
     alignItems: 'center',
-    marginTop: 10,
   },
-  modalCloseBtnText: { color: '#fff', fontSize: 14, fontWeight: '700' },
+  modalCloseBtnText: { color: '#fff', fontWeight: '800', fontSize: 13 },
 });
+export default OrdersScreen;

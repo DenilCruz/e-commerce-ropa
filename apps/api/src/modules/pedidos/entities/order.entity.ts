@@ -77,4 +77,10 @@ export class OrderEntity {
 
   @OneToOne(() => PaymentEntity, (pago) => pago.notaventa)
   pago: PaymentEntity;
+
+  @OneToOne('ShippingEntity', (envio: any) => envio.notaventa)
+  envio: any;
+
+  @OneToMany('OrderHistoryEntity', (hist: any) => hist.notaventa, { cascade: true })
+  historial: any[];
 }

@@ -4,6 +4,7 @@ export type RootStackParamList = {
   ProductDetail: { productId: string };
   Checkout: undefined;
   Favoritos: undefined;
+  Tracking: { codigo?: string } | undefined;
 };
 
 export type AuthStackParamList = {

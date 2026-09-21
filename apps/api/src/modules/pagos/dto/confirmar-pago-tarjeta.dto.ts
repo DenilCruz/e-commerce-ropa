@@ -26,4 +26,14 @@ export class ConfirmarPagoTarjetaDto {
   @IsOptional()
   @IsUUID('4')
   cuponId?: string;
+
+  @ApiPropertyOptional({ description: 'ID del método de envío seleccionado' })
+  @IsOptional()
+  @IsString()
+  metodoEnvioId?: string;
+
+  @ApiPropertyOptional({ description: 'Tipo de envío: ESTANDAR o EXPRESS' })
+  @IsOptional()
+  @IsString()
+  tipoEnvio?: string;
 }

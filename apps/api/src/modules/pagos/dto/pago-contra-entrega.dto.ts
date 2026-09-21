@@ -21,4 +21,22 @@ export class PagoContraEntregaDto {
   @IsOptional()
   @IsUUID('4')
   cuponId?: string;
+
+  @ApiPropertyOptional({ description: 'ID del método de envío seleccionado' })
+  @IsOptional()
+  @IsString()
+  metodoEnvioId?: string;
+
+  @ApiPropertyOptional({ description: 'Tipo de envío: ESTANDAR o EXPRESS' })
+  @IsOptional()
+  @IsString()
+  tipoEnvio?: string;
+
+  @ApiPropertyOptional({ description: 'Coordenada Latitud de entrega' })
+  @IsOptional()
+  latitud?: number;
+
+  @ApiPropertyOptional({ description: 'Coordenada Longitud de entrega' })
+  @IsOptional()
+  longitud?: number;
 }

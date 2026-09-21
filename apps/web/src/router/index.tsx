@@ -17,6 +17,7 @@ import { CatalogPage } from '../features/catalogo/pages/CatalogPage';
 import { ProductDetailPage } from '../features/detalleproducto/pages/ProductDetailPage';
 import { CartPage } from '../features/carrito/pages/CartPage';
 import { CheckoutPage } from '../features/pago/pages/CheckoutPage';
+import { CheckoutReturnPage } from '../features/pago/pages/CheckoutReturnPage';
 import { OrdersPage } from '../features/pedidos/pages/OrdersPage';
 import { ProfilePage } from '../features/perfil/pages/ProfilePage';
 import { FavoritosPage } from '../features/favoritos/pages/FavoritosPage';
@@ -32,6 +33,8 @@ import { AdminUsersPage } from '../features/admin/usuarios/AdminUsersPage';
 import { AdminCategoriesPage } from '../features/admin/categorias/AdminCategoriesPage';
 import { AdminFilesPage } from '../features/admin/archivos/pages/AdminFilesPage';
 import { AdminReviewsPage } from '../features/admin/resenas/pages/AdminReviewsPage';
+import { AdminShippingPage } from '../features/admin/envios/pages/AdminShippingPage';
+import { TrackingPage } from '../features/envios/pages/TrackingPage';
 
 export const AppRouter: React.FC = () => {
   return (
@@ -42,10 +45,13 @@ export const AppRouter: React.FC = () => {
         <Route path="/catalogo" element={<CatalogPage />} />
         <Route path="/producto/:id" element={<ProductDetailPage />} />
         <Route path="/carrito" element={<CartPage />} />
+        <Route path="/tracking" element={<TrackingPage />} />
+        <Route path="/tracking/:codigo" element={<TrackingPage />} />
 
         {/* Rutas Protegidas Cliente */}
         <Route element={<ProtectedRoute />}>
           <Route path="/checkout" element={<CheckoutPage />} />
+          <Route path="/checkout/return" element={<CheckoutReturnPage />} />
           <Route path="/pago" element={<Navigate to="/checkout" replace />} />
           <Route path="/pedidos" element={<OrdersPage />} />
           <Route path="/perfil" element={<ProfilePage />} />
@@ -73,6 +79,7 @@ export const AppRouter: React.FC = () => {
           <Route path="inventario" element={<AdminInventoryPage />} />
           <Route path="cupones" element={<AdminCouponsPage />} />
           <Route path="pedidos" element={<AdminOrdersPage />} />
+          <Route path="envios" element={<AdminShippingPage />} />
           <Route path="usuarios" element={<AdminUsersPage />} />
           <Route path="archivos" element={<AdminFilesPage />} />
           <Route path="resenas" element={<AdminReviewsPage />} />

@@ -14,7 +14,7 @@ import {
 } from 'lucide-react';
 import { ordersApi } from '../../pedidos/services/orders.api';
 import { paymentsApi } from '../../pago/services/payments.api';
-import { Pedido } from '../../pedidos/types';
+import { Pedido, PedidoItem, HistorialAuditoria } from '../../pedidos/types';
 
 export const AdminOrdersPage: React.FC = () => {
   const [pedidos, setPedidos] = useState<Pedido[]>([]);
@@ -78,13 +78,19 @@ export const AdminOrdersPage: React.FC = () => {
     }
   };
 
-  // Actualizar estado logístico de orden
+  // Actualizar estado logístico de orden (HU-54 y HU-55)
   const handleCambiarEstado = async (id: string, nuevoEstado: string) => {
     try {
-      await ordersApi.actualizarEstadoAdmin(id, nuevoEstado);
+      const comentario =
+        window.prompt(
+          `Ingrese un comentario u observación para registrar en el historial de auditoría (HU-55) al cambiar a "${nuevoEstado}":`,
+          `Actualizado por administrador a ${nuevoEstado}`,
+        ) || undefined;
+
+      await ordersApi.actualizarEstadoAdmin(id, nuevoEstado, comentario);
       cargarPedidos();
       if (pedidoSeleccionado && pedidoSeleccionado.id === id) {
-        setPedidoSeleccionado((prev) => (prev ? { ...prev, estado: nuevoEstado as any } : null));
+        setPedidoSeleccionado((prev: Pedido | null) => (prev ? { ...prev, estado: nuevoEstado as any } : null));
       }
     } catch (err: any) {
       alert(err.response?.data?.message || 'Error al actualizar estado.');
@@ -95,6 +101,9 @@ export const AdminOrdersPage: React.FC = () => {
   const totalPagados = pedidos.filter((p) => p.estado === 'PAGADO' || p.pago?.estado === 'APROBADO').length;
   const totalPendientes = pedidos.filter((p) => p.estado === 'PENDIENTE' || p.pago?.estado === 'PENDIENTE').length;
   const totalReembolsados = pedidos.filter((p) => p.estado === 'REEMBOLSADO' || p.pago?.estado === 'REEMBOLSADO').length;
+  const totalRecaudado = pedidos
+    .filter((p) => p.estado === 'PAGADO' || p.pago?.estado === 'APROBADO')
+    .reduce((acc, p) => acc + (Number(p.total) || 0), 0);
 
   const getStatusBadge = (estado: string, estadoPago?: string) => {
     if (estado === 'REEMBOLSADO' || estadoPago === 'REEMBOLSADO') {
@@ -143,7 +152,7 @@ export const AdminOrdersPage: React.FC = () => {
         <div>
           <h1 className="text-2xl font-black text-gray-900">Gestión de Pedidos y Pagos</h1>
           <p className="text-sm text-gray-500">
-            Control de órdenes de compra, validación de pasarela Stripe y procesamiento de reembolsos.
+            Control de órdenes de compra, validación de pasarela Stripe y procesamiento de reembolsos. Total recaudado: <strong className="text-emerald-700 font-bold">Bs. {totalRecaudado.toFixed(2)}</strong>
           </p>
         </div>
 
@@ -474,7 +483,7 @@ export const AdminOrdersPage: React.FC = () => {
               <div className="space-y-3">
                 <h3 className="text-xs font-bold text-gray-500 uppercase tracking-wider">Prendas</h3>
                 <div className="divide-y divide-gray-100 border border-gray-200 rounded-xl overflow-hidden">
-                  {pedidoSeleccionado.items?.map((it) => (
+                  {pedidoSeleccionado.items?.map((it: PedidoItem) => (
                     <div key={it.id} className="p-3 flex justify-between items-center text-xs bg-white">
                       <div>
                         <p className="font-bold text-gray-900">{it.nombre}</p>
@@ -509,6 +518,54 @@ export const AdminOrdersPage: React.FC = () => {
                   <span>Bs. {pedidoSeleccionado.total.toFixed(2)}</span>
                 </div>
               </div>
+
+              {/* GUÍA DE ENVÍO Y RASTREO (HU-64) */}
+              {pedidoSeleccionado.envio && (
+                <div className="p-4 bg-indigo-50/70 border border-indigo-200 rounded-2xl flex justify-between items-center text-xs">
+                  <div>
+                    <div className="flex items-center gap-1.5 font-bold text-indigo-900">
+                      <Truck className="w-4 h-4 text-indigo-600" />
+                      <span>{pedidoSeleccionado.envio.empresaTransportadora || 'Courier Asociado'}</span>
+                    </div>
+                    <p className="font-mono text-indigo-700 mt-0.5">
+                      Guía: <strong>{pedidoSeleccionado.envio.numeroTracking}</strong> ({pedidoSeleccionado.envio.estado})
+                    </p>
+                  </div>
+                  <a
+                    href={`/tracking/${pedidoSeleccionado.envio.numeroTracking}`}
+                    target="_blank"
+                    rel="noreferrer"
+                    className="px-3 py-1.5 bg-indigo-600 text-white rounded-lg font-bold hover:bg-indigo-700 transition"
+                  >
+                    Ver en Mapa
+                  </a>
+                </div>
+              )}
+
+              {/* HISTORIAL DE AUDITORÍA (HU-55) */}
+              {pedidoSeleccionado.historial && pedidoSeleccionado.historial.length > 0 && (
+                <div className="space-y-2 pt-2">
+                  <span className="font-bold text-gray-900 uppercase text-xs block">
+                    Historial de Auditoría y Cambios de Estado (HU-55):
+                  </span>
+                  <div className="bg-gray-50 p-3.5 rounded-2xl border border-gray-200 space-y-2.5">
+                    {pedidoSeleccionado.historial.map((h: HistorialAuditoria, idx: number) => (
+                      <div key={h.id || idx} className="text-xs border-b border-gray-200/60 pb-2 last:border-b-0 last:pb-0">
+                        <div className="flex justify-between items-center font-bold text-gray-800">
+                          <span className="text-indigo-700">
+                            {h.estadoAnterior ? `${h.estadoAnterior} → ${h.estadoNuevo}` : h.estadoNuevo}
+                          </span>
+                          <span className="text-gray-400 font-normal">
+                            {new Date(h.creadoEn).toLocaleString('es-BO')}
+                          </span>
+                        </div>
+                        {h.comentario && <p className="text-gray-600 italic mt-0.5">"{h.comentario}"</p>}
+                        <span className="text-[10px] text-gray-400 block mt-0.5">Autor: {h.autor || 'Sistema'}</span>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
 
               {/* PASARELA STRIPE */}
               {pedidoSeleccionado.pago?.idTransaccion && (
