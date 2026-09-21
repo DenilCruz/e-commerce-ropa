@@ -3,6 +3,7 @@ export type RootStackParamList = {
   Main: undefined;
   ProductDetail: { productId: string };
   Checkout: undefined;
+  Favoritos: undefined;
 };
 
 export type AuthStackParamList = {

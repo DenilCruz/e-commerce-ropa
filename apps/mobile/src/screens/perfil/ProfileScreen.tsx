@@ -92,6 +92,14 @@ export const ProfileScreen: React.FC = () => {
       <View style={styles.section}>
         <Text style={styles.sectionTitle}>Mi Cuenta</Text>
         <View style={styles.card}>
+          <TouchableOpacity 
+            style={styles.infoRow}
+            onPress={() => navigation.navigate('Favoritos')}
+          >
+            <Text style={[styles.infoLabel, { color: '#000', fontWeight: 'bold' }]}>Mis Favoritos</Text>
+            <Text style={styles.infoValue}>›</Text>
+          </TouchableOpacity>
+          <View style={styles.divider} />
           <View style={styles.infoRow}>
             <Text style={styles.infoLabel}>Teléfono / Celular</Text>
             <Text style={styles.infoValue}>{user.celular || 'No registrado'}</Text>

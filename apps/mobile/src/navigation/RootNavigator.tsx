@@ -4,6 +4,8 @@ import { createNativeStackNavigator } from '@react-navigation/native-stack';
 import { RootStackParamList } from './types';
 import { AuthStack } from './AuthStack';
 import { MainTabs } from './MainTabs';
+import { ProductDetailScreen } from '../screens/producto/ProductDetailScreen';
+import { FavoritosScreen } from '../screens/favoritos/FavoritosScreen';
 
 const Stack = createNativeStackNavigator<RootStackParamList>();
 
@@ -13,6 +15,8 @@ export const RootNavigator: React.FC = () => {
       <Stack.Navigator screenOptions={{ headerShown: false }}>
         <Stack.Screen name="Main" component={MainTabs} />
         <Stack.Screen name="Auth" component={AuthStack} />
+        <Stack.Screen name="ProductDetail" component={ProductDetailScreen} />
+        <Stack.Screen name="Favoritos" component={FavoritosScreen} />
       </Stack.Navigator>
     </NavigationContainer>
   );
