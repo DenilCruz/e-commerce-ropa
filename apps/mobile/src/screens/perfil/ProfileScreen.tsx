@@ -7,6 +7,7 @@ import {
   ScrollView,
   Alert,
 } from 'react-native';
+import { Ionicons } from '@expo/vector-icons';
 import { useNavigation } from '@react-navigation/native';
 import { useAuthStore } from '../../store/auth.store';
 import { authService } from '../../services/auth.service';
@@ -40,7 +41,7 @@ export const ProfileScreen: React.FC = () => {
     return (
       <View style={styles.centerContainer}>
         <View style={styles.avatarPlaceholder}>
-          <Text style={styles.avatarText}>👤</Text>
+          <Ionicons name="person-outline" size={36} color="#9ca3af" />
         </View>
         <Text style={styles.title}>No has iniciado sesión</Text>
         <Text style={styles.description}>
@@ -83,7 +84,7 @@ export const ProfileScreen: React.FC = () => {
                 user.emailVerificado ? styles.verifiedText : styles.unverifiedText,
               ]}
             >
-              {user.emailVerificado ? '✓ Email Verificado' : '⏳ Email Pendiente'}
+              {user.emailVerificado ? 'Email Verificado' : 'Email Pendiente'}
             </Text>
           </View>
         </View>

@@ -1,11 +1,13 @@
 import React from 'react';
 import { Outlet, Link, useNavigate } from 'react-router-dom';
 import { useAuthStore } from '../store/auth.store';
+import { useCartStore } from '../store/cart.store';
 import { authApi } from '../features/autenticacion/services/auth.api';
 
 export const MainLayout: React.FC = () => {
   const navigate = useNavigate();
   const { user, isAuthenticated, logout, refreshToken } = useAuthStore();
+  const totalItems = useCartStore((s) => s.cart?.totalItems || 0);
 
   const handleLogout = async () => {
     try {
@@ -29,9 +31,16 @@ export const MainLayout: React.FC = () => {
             <span>El Magnífico</span>
           </Link>
 
-          <nav className="hidden md:flex gap-5 text-sm font-medium text-gray-600">
+          <nav className="hidden md:flex gap-5 text-sm font-medium text-gray-600 items-center">
             <Link to="/catalogo" className="hover:text-black transition-colors">Catálogo</Link>
-            <Link to="/carrito" className="hover:text-black transition-colors">Carrito</Link>
+            <Link to="/carrito" className="hover:text-black transition-colors flex items-center gap-1.5">
+              <span>Carrito</span>
+              {totalItems > 0 && (
+                <span className="bg-black text-white text-[10px] font-bold px-1.5 py-0.5 rounded-full min-w-[18px] text-center">
+                  {totalItems}
+                </span>
+              )}
+            </Link>
             {isAuthenticated && (
               <>
                 <Link to="/favoritos" className="hover:text-black transition-colors">Favoritos</Link>

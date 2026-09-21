@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { Link, useSearchParams, useNavigate } from 'react-router-dom';
+import { CheckCircle2, AlertCircle } from 'lucide-react';
 import { Button } from '../../../components/ui/Button';
 import { Input } from '../../../components/ui/Input';
 import { authApi } from '../services/auth.api';
@@ -60,8 +61,8 @@ export const ResetPasswordPage: React.FC = () => {
   if (exito) {
     return (
       <div className="text-center py-4">
-        <div className="w-16 h-16 bg-green-100 text-green-600 rounded-full flex items-center justify-center mx-auto mb-4 text-2xl">
-          🎉
+        <div className="w-16 h-16 bg-emerald-100 text-emerald-600 rounded-full flex items-center justify-center mx-auto mb-4">
+          <CheckCircle2 className="w-8 h-8 text-emerald-600" />
         </div>
         <h2 className="text-2xl font-bold text-gray-900 mb-2">¡Contraseña Restablecida!</h2>
         <p className="text-sm text-gray-600 mb-6">
@@ -78,13 +79,13 @@ export const ResetPasswordPage: React.FC = () => {
   return (
     <div>
       <div className="text-center mb-6">
-        <h2 className="text-2xl font-bold text-gray-900 tracking-tight">Nueva Contraseña 🔑</h2>
+        <h2 className="text-2xl font-bold text-gray-900 tracking-tight">Nueva Contraseña</h2>
         <p className="text-sm text-gray-500 mt-1">Elige una contraseña nueva y segura para tu cuenta</p>
       </div>
 
       {error && (
         <div className="mb-4 p-3 bg-red-50 border border-red-200 text-red-700 text-sm rounded-lg flex items-center gap-2">
-          <span>⚠️</span>
+          <AlertCircle className="w-4 h-4 text-red-600 flex-shrink-0" />
           <span>{error}</span>
         </div>
       )}

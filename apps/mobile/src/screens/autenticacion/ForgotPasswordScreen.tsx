@@ -32,7 +32,7 @@ export const ForgotPasswordScreen: React.FC = () => {
     try {
       const res = await authService.recuperarPassword(correo.trim());
       Alert.alert(
-        'Solicitud Enviada ✉️',
+        'Solicitud Enviada',
         res.message || 'Si el correo está registrado, recibirás un enlace/token para restablecer tu contraseña.',
         [
           {
@@ -56,7 +56,7 @@ export const ForgotPasswordScreen: React.FC = () => {
   return (
     <ScrollView contentContainerStyle={styles.scrollContent} keyboardShouldPersistTaps="handled">
       <View style={styles.header}>
-        <Text style={styles.title}>Recuperar Clave 🔐</Text>
+        <Text style={styles.title}>Recuperar Clave</Text>
         <Text style={styles.subtitle}>
           Te enviaremos un código de seguridad para restablecer tu contraseña
         </Text>

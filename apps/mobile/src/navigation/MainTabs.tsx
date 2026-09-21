@@ -8,9 +8,13 @@ import { CartScreen } from '../screens/carrito/CartScreen';
 import { OrdersScreen } from '../screens/pedidos/OrdersScreen';
 import { ProfileScreen } from '../screens/perfil/ProfileScreen';
 
+import { useCartStore } from '../store/cart.store';
+
 const Tab = createBottomTabNavigator<MainTabParamList>();
 
 export const MainTabs: React.FC = () => {
+  const totalItems = useCartStore((s) => s.cart?.totalItems || 0);
+
   return (
     <Tab.Navigator
       screenOptions={({ route }) => ({
@@ -42,7 +46,15 @@ export const MainTabs: React.FC = () => {
     >
       <Tab.Screen name="Home" component={HomeScreen} options={{ title: 'Inicio' }} />
       <Tab.Screen name="Catalog" component={CatalogScreen} options={{ title: 'Catálogo' }} />
-      <Tab.Screen name="Cart" component={CartScreen} options={{ title: 'Carrito' }} />
+      <Tab.Screen
+        name="Cart"
+        component={CartScreen}
+        options={{
+          title: 'Carrito',
+          tabBarBadge: totalItems > 0 ? totalItems : undefined,
+          tabBarBadgeStyle: { backgroundColor: '#000', color: '#fff', fontSize: 10 },
+        }}
+      />
       <Tab.Screen name="Orders" component={OrdersScreen} options={{ title: 'Pedidos' }} />
       <Tab.Screen name="Profile" component={ProfileScreen} options={{ title: 'Perfil' }} />
     </Tab.Navigator>

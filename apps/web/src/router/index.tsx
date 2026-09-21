@@ -22,8 +22,11 @@ import { ProfilePage } from '../features/perfil/pages/ProfilePage';
 import { FavoritosPage } from '../features/favoritos/pages/FavoritosPage';
 
 import { AdminDashboardPage } from '../features/admin/dashboard/AdminDashboardPage';
+import { AdminReportsPage } from '../features/admin/reportes/AdminReportsPage';
+import { AdminDynamicReportsPage } from '../features/admin/reportes/AdminDynamicReportsPage';
 import { AdminProductsPage } from '../features/admin/productos/AdminProductsPage';
 import { AdminInventoryPage } from '../features/admin/inventario/pages/AdminInventoryPage';
+import { AdminCouponsPage } from '../features/admin/cupones/pages/AdminCouponsPage';
 import { AdminOrdersPage } from '../features/admin/pedidos/AdminOrdersPage';
 import { AdminUsersPage } from '../features/admin/usuarios/AdminUsersPage';
 
@@ -40,6 +43,7 @@ export const AppRouter: React.FC = () => {
         {/* Rutas Protegidas Cliente */}
         <Route element={<ProtectedRoute />}>
           <Route path="/checkout" element={<CheckoutPage />} />
+          <Route path="/pago" element={<Navigate to="/checkout" replace />} />
           <Route path="/pedidos" element={<OrdersPage />} />
           <Route path="/perfil" element={<ProfilePage />} />
           <Route path="/favoritos" element={<FavoritosPage />} />
@@ -59,8 +63,11 @@ export const AppRouter: React.FC = () => {
       <Route path="/admin" element={<AdminRoute />}>
         <Route element={<AdminLayout />}>
           <Route index element={<AdminDashboardPage />} />
+          <Route path="reportes" element={<AdminReportsPage />} />
+          <Route path="reportes-dinamicos" element={<AdminDynamicReportsPage />} />
           <Route path="productos" element={<AdminProductsPage />} />
           <Route path="inventario" element={<AdminInventoryPage />} />
+          <Route path="cupones" element={<AdminCouponsPage />} />
           <Route path="pedidos" element={<AdminOrdersPage />} />
           <Route path="usuarios" element={<AdminUsersPage />} />
         </Route>

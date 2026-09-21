@@ -41,7 +41,7 @@ export const VerifyEmailScreen: React.FC = () => {
       }
 
       Alert.alert(
-        '¡Cuenta Verificada! ✨',
+        '¡Cuenta Verificada!',
         res.message || 'Tu correo electrónico ha sido verificado con éxito.',
         [
           {
@@ -62,7 +62,7 @@ export const VerifyEmailScreen: React.FC = () => {
   return (
     <ScrollView contentContainerStyle={styles.scrollContent} keyboardShouldPersistTaps="handled">
       <View style={styles.header}>
-        <Text style={styles.title}>Verificar Correo ✉️</Text>
+        <Text style={styles.title}>Verificar Correo</Text>
         <Text style={styles.subtitle}>
           Ingresa el código que te enviamos para activar todas las funciones de tu cuenta
         </Text>

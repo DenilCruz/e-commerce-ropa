@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from 'react';
-import { View, Text, StyleSheet, ScrollView, TouchableOpacity, ActivityIndicator, Dimensions } from 'react-native';
+import { View, Text, StyleSheet, ScrollView, TouchableOpacity, ActivityIndicator, Dimensions, Alert } from 'react-native';
 import { Image } from 'expo-image';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useRoute, useNavigation, RouteProp } from '@react-navigation/native';
@@ -31,7 +31,7 @@ export const ProductDetailScreen: React.FC = () => {
       try {
         const prod = await catalogoApi.obtenerProductoPorId(productId);
         setProducto(prod);
-        if (prod.variantes.length > 0) {
+        if (prod?.variantes && prod.variantes.length > 0) {
           setVarianteSeleccionada(prod.variantes[0]);
         }
       } catch (err) {
@@ -53,10 +53,25 @@ export const ProductDetailScreen: React.FC = () => {
     return `${assetsURL}/uploads/${url}`;
   };
 
-  const handleAddToCart = () => {
-    if (varianteSeleccionada) {
-      addItem(varianteSeleccionada.id, 1);
-      navigation.navigate('Main', { screen: 'Cart' });
+  const [agregando, setAgregando] = useState(false);
+  const [cantidad, setCantidad] = useState(1);
+  const [exitoAgregar, setExitoAgregar] = useState(false);
+
+  const handleAddToCart = async () => {
+    if (!varianteSeleccionada) {
+      Alert.alert('Selección requerida', 'Por favor selecciona una talla antes de agregar al carrito.');
+      return;
+    }
+
+    setAgregando(true);
+    try {
+      await addItem(varianteSeleccionada.id, cantidad);
+      setExitoAgregar(true);
+      setTimeout(() => setExitoAgregar(false), 3500);
+    } catch (err: any) {
+      Alert.alert('Aviso', err?.message || 'No se pudo agregar al carrito.');
+    } finally {
+      setAgregando(false);
     }
   };
 
@@ -141,6 +156,44 @@ export const ProductDetailScreen: React.FC = () => {
             ))}
           </View>
 
+          {/* SELECTOR DE CANTIDAD */}
+          {varianteSeleccionada && varianteSeleccionada.stock > 0 && (
+            <View style={styles.quantitySection}>
+              <View style={styles.quantityHeader}>
+                <Text style={styles.sectionTitle}>Cantidad</Text>
+                <Text style={styles.stockLabel}>
+                  {varianteSeleccionada.stock} disponible{varianteSeleccionada.stock !== 1 ? 's' : ''}
+                </Text>
+              </View>
+
+              <View style={styles.quantityRow}>
+                <View style={styles.stepperContainer}>
+                  <TouchableOpacity
+                    style={[styles.stepperButton, cantidad <= 1 && styles.stepperButtonDisabled]}
+                    onPress={() => setCantidad(Math.max(1, cantidad - 1))}
+                    disabled={cantidad <= 1}
+                  >
+                    <Text style={styles.stepperButtonText}>−</Text>
+                  </TouchableOpacity>
+
+                  <Text style={styles.quantityValueText}>{cantidad}</Text>
+
+                  <TouchableOpacity
+                    style={[styles.stepperButton, cantidad >= varianteSeleccionada.stock && styles.stepperButtonDisabled]}
+                    onPress={() => setCantidad(Math.min(varianteSeleccionada.stock, cantidad + 1))}
+                    disabled={cantidad >= varianteSeleccionada.stock}
+                  >
+                    <Text style={styles.stepperButtonText}>+</Text>
+                  </TouchableOpacity>
+                </View>
+
+                <Text style={styles.subtotalPreview}>
+                  Subtotal: <Text style={styles.subtotalPreviewBold}>Bs. {(precioFinal * cantidad).toFixed(2)}</Text>
+                </Text>
+              </View>
+            </View>
+          )}
+
           <Text style={styles.sectionTitle}>Descripción</Text>
           <Text style={styles.description}>{producto.descripcion}</Text>
           
@@ -150,16 +203,47 @@ export const ProductDetailScreen: React.FC = () => {
         </View>
       </ScrollView>
 
+      {/* SUCCESS BANNER FLOTANTE */}
+      {exitoAgregar && (
+        <View style={styles.successBanner}>
+          <View style={styles.successBannerLeft}>
+            <Ionicons name="checkmark-circle" size={20} color="#065f46" />
+            <Text style={styles.successBannerText}>
+              ¡Añadido! ({cantidad} {cantidad === 1 ? 'unidad' : 'unidades'})
+            </Text>
+          </View>
+          <TouchableOpacity
+            style={styles.viewCartBtn}
+            onPress={() => navigation.navigate('Main', { screen: 'Cart' })}
+          >
+            <Text style={styles.viewCartBtnText}>Ver Carrito →</Text>
+          </TouchableOpacity>
+        </View>
+      )}
+
       {/* BOTON AÑADIR A LA CESTA */}
       <View style={styles.footer}>
         <TouchableOpacity 
-          style={[styles.addToCartBtn, (!varianteSeleccionada || varianteSeleccionada.stock === 0) && styles.addToCartBtnDisabled]}
-          disabled={!varianteSeleccionada || varianteSeleccionada.stock === 0}
+          style={[
+            styles.addToCartBtn, 
+            (!varianteSeleccionada || varianteSeleccionada.stock === 0 || agregando) && styles.addToCartBtnDisabled,
+            exitoAgregar && styles.addToCartBtnSuccess,
+          ]}
+          disabled={!varianteSeleccionada || varianteSeleccionada.stock === 0 || agregando}
           onPress={handleAddToCart}
         >
-          <Text style={styles.addToCartText}>
-            {!varianteSeleccionada ? 'SELECCIONA TALLA' : varianteSeleccionada.stock === 0 ? 'AGOTADO' : 'AÑADIR A LA CESTA'}
-          </Text>
+          {agregando ? (
+            <ActivityIndicator size="small" color="#fff" />
+          ) : exitoAgregar ? (
+            <View style={styles.btnSuccessRow}>
+              <Ionicons name="checkmark" size={18} color="#fff" />
+              <Text style={styles.addToCartText}>¡AÑADIDO A LA CESTA!</Text>
+            </View>
+          ) : (
+            <Text style={styles.addToCartText}>
+              {!varianteSeleccionada ? 'SELECCIONA TALLA' : varianteSeleccionada.stock === 0 ? 'AGOTADO' : 'AÑADIR A LA CESTA'}
+            </Text>
+          )}
         </TouchableOpacity>
       </View>
     </SafeAreaView>
@@ -203,7 +287,7 @@ const styles = StyleSheet.create({
   price: { fontSize: 20, fontWeight: '700', color: '#000' },
   categoryLabel: { fontSize: 13, color: '#6b7280', textTransform: 'uppercase', letterSpacing: 1, marginBottom: 24 },
   sectionTitle: { fontSize: 13, fontWeight: '700', color: '#111827', textTransform: 'uppercase', letterSpacing: 1, marginBottom: 12 },
-  sizesContainer: { flexDirection: 'row', flexWrap: 'wrap', gap: 12, marginBottom: 32 },
+  sizesContainer: { flexDirection: 'row', flexWrap: 'wrap', gap: 12, marginBottom: 24 },
   sizeBtn: {
     paddingVertical: 12,
     paddingHorizontal: 20,
@@ -216,6 +300,64 @@ const styles = StyleSheet.create({
   sizeText: { fontSize: 14, fontWeight: '600', color: '#374151' },
   sizeTextSelected: { color: '#ffffff' },
   sizeTextDisabled: { color: '#d1d5db' },
+
+  quantitySection: {
+    marginBottom: 28,
+  },
+  quantityHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+  },
+  stockLabel: {
+    fontSize: 12,
+    color: '#6b7280',
+  },
+  quantityRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 16,
+  },
+  stepperContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    borderWidth: 1,
+    borderColor: '#d1d5db',
+    borderRadius: 8,
+    overflow: 'hidden',
+    backgroundColor: '#fff',
+  },
+  stepperButton: {
+    width: 38,
+    height: 38,
+    justifyContent: 'center',
+    alignItems: 'center',
+    backgroundColor: '#f9fafb',
+  },
+  stepperButtonDisabled: {
+    opacity: 0.3,
+  },
+  stepperButtonText: {
+    fontSize: 18,
+    fontWeight: '700',
+    color: '#111827',
+  },
+  quantityValueText: {
+    width: 40,
+    textAlign: 'center',
+    fontSize: 15,
+    fontWeight: '700',
+    color: '#111827',
+  },
+  subtotalPreview: {
+    fontSize: 13,
+    color: '#6b7280',
+  },
+  subtotalPreviewBold: {
+    fontWeight: '700',
+    color: '#111827',
+  },
+
   description: { fontSize: 15, color: '#4b5563', lineHeight: 24, marginBottom: 32 },
   reviewsPlaceholder: {
     padding: 20,
@@ -225,6 +367,40 @@ const styles = StyleSheet.create({
     marginBottom: 40,
   },
   reviewsText: { fontSize: 14, color: '#6b7280' },
+
+  successBanner: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    backgroundColor: '#ecfdf5',
+    borderTopWidth: 1,
+    borderColor: '#a7f3d0',
+    paddingHorizontal: 20,
+    paddingVertical: 12,
+  },
+  successBannerLeft: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+    flex: 1,
+  },
+  successBannerText: {
+    fontSize: 13,
+    fontWeight: '700',
+    color: '#065f46',
+  },
+  viewCartBtn: {
+    backgroundColor: '#059669',
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+    borderRadius: 6,
+  },
+  viewCartBtnText: {
+    color: '#fff',
+    fontSize: 12,
+    fontWeight: '700',
+  },
+
   footer: {
     padding: 20,
     borderTopWidth: 1,
@@ -236,7 +412,16 @@ const styles = StyleSheet.create({
     paddingVertical: 18,
     borderRadius: 4,
     alignItems: 'center',
+    justifyContent: 'center',
+  },
+  addToCartBtnSuccess: {
+    backgroundColor: '#059669',
   },
   addToCartBtnDisabled: { backgroundColor: '#e5e7eb' },
   addToCartText: { color: '#fff', fontSize: 14, fontWeight: '700', letterSpacing: 1 },
+  btnSuccessRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+  },
 });

@@ -103,22 +103,22 @@ export class MailService implements OnModuleInit {
       <body>
         <div class="container">
           <div class="header">
-            <h1>¡Te damos la Bienvenida! ✨</h1>
+            <h1>¡Te damos la Bienvenida!</h1>
             <p>A la experiencia de moda en El Magnífico</p>
           </div>
           <div class="content">
-            <div class="greeting">¡Hola, ${dto.nombre}! 👋</div>
+            <div class="greeting">¡Hola, ${dto.nombre}!</div>
             <p>Estamos muy felices de que te unas a nuestra comunidad. En <strong>El Magnífico</strong> nos apasiona brindarte las mejores tendencias en ropa, la máxima calidad y una experiencia de compra rápida y segura.</p>
             
             <div class="perks">
-              <div class="perk-item"><span class="perk-icon">🚀</span> <strong>Envíos rápidos</strong> a todo el país con seguimiento en tiempo real.</div>
-              <div class="perk-item"><span class="perk-icon">🎟️</span> <strong>Cupones y promociones exclusivas</strong> para miembros registrados.</div>
-              <div class="perk-item"><span class="perk-icon">🔒</span> <strong>Pagos 100% seguros</strong> con QR Simple y pasarelas verificadas.</div>
-              <div class="perk-item"><span class="perk-icon">📱</span> <strong>Sincronización total</strong> entre nuestra web y app móvil.</div>
+              <div class="perk-item"><strong>Envíos rápidos:</strong> A todo el país con seguimiento en tiempo real.</div>
+              <div class="perk-item"><strong>Cupones y promociones exclusivas:</strong> Para miembros registrados.</div>
+              <div class="perk-item"><strong>Pagos 100% seguros:</strong> Con QR Simple y pasarelas verificadas.</div>
+              <div class="perk-item"><strong>Sincronización total:</strong> Entre nuestra web y app móvil.</div>
             </div>
 
             <div class="btn-container">
-              <a href="${catalogoUrl}" class="btn">Explorar Colecciones 🛍️</a>
+              <a href="${catalogoUrl}" class="btn">Explorar Colecciones</a>
             </div>
 
             <p style="font-size: 14px; color: #64748b;">Si tienes alguna pregunta o requieres asistencia con tu cuenta, nuestro equipo de soporte está siempre listo para ayudarte.</p>
@@ -132,7 +132,7 @@ export class MailService implements OnModuleInit {
       </html>
     `;
 
-    const subject = `🎉 ¡Bienvenido/a a El Magnífico, ${dto.nombre}!`;
+    const subject = `¡Bienvenido/a a El Magnífico, ${dto.nombre}!`;
     const text = `Hola ${dto.nombre}, te damos la bienvenida a El Magnífico. Explora nuestras colecciones en: ${catalogoUrl}`;
 
     if (encolar) {
@@ -198,7 +198,7 @@ export class MailService implements OnModuleInit {
       </html>
     `;
 
-    const subject = '🔐 Restablecer contraseña - El Magnífico';
+    const subject = 'Restablecer contraseña - El Magnífico';
     const text = `Hola ${nombre}, solicitaste restablecer tu contraseña. Ingresa a: ${enlaceRecuperacion} o usa el token: ${token}`;
 
     if (encolar) {
@@ -264,11 +264,11 @@ export class MailService implements OnModuleInit {
       <body>
         <div class="container">
           <div class="header">
-            <h1>¡Gracias por tu compra! 🎉</h1>
+            <h1>¡Gracias por tu compra!</h1>
             <p style="margin: 5px 0 0 0; opacity: 0.9;">Tu pedido ha sido confirmado y está en preparación.</p>
           </div>
           <div class="content">
-            <h2>Hola, ${datos.nombreCliente} 👋</h2>
+            <h2>Hola, ${datos.nombreCliente}</h2>
             <p>Hemos recibido tu pedido exitosamente. A continuación encontrarás el resumen detallado de tu compra:</p>
             
             <div style="text-align: center;">
@@ -338,7 +338,7 @@ export class MailService implements OnModuleInit {
       </html>
     `;
 
-    const subject = `🛍️ Confirmación de Pedido #${datos.nroPedido} - El Magnífico`;
+    const subject = `Confirmación de Pedido #${datos.nroPedido} - El Magnífico`;
     const text = `Hola ${datos.nombreCliente}, confirmamos tu pedido #${datos.nroPedido} por un total de Bs. ${Number(datos.total).toFixed(2)}.`;
 
     if (encolar) {
@@ -389,7 +389,7 @@ export class MailService implements OnModuleInit {
             <h1>El Magnífico — E-Commerce</h1>
           </div>
           <div class="content">
-            <h2>¡Hola, ${nombre}! 👋</h2>
+            <h2>¡Hola, ${nombre}!</h2>
             <p>Gracias por unirte a nuestra tienda. Para activar tu cuenta y asegurar tus compras, por favor confirma tu dirección de correo electrónico.</p>
             <div class="btn-container">
               <a href="${enlaceVerificacion}" class="btn">Verificar mi Correo</a>
@@ -407,7 +407,7 @@ export class MailService implements OnModuleInit {
       </html>
     `;
 
-    const subject = '✨ Confirma tu correo electrónico - El Magnífico';
+    const subject = 'Confirma tu correo electrónico - El Magnífico';
     const text = `Hola ${nombre}, verifica tu cuenta en El Magnífico ingresando a este enlace: ${enlaceVerificacion} o usando el token: ${token}`;
 
     if (encolar) {

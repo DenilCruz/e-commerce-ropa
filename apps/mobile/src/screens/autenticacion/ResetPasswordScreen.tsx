@@ -47,7 +47,7 @@ export const ResetPasswordScreen: React.FC = () => {
     try {
       const res = await authService.restablecerPassword(token.trim(), nuevaContrasena);
       Alert.alert(
-        '¡Contraseña Actualizada! 🎉',
+        '¡Contraseña Actualizada!',
         res.message || 'Tu contraseña ha sido restablecida. Inicia sesión con tu nueva contraseña.',
         [
           {
@@ -68,7 +68,7 @@ export const ResetPasswordScreen: React.FC = () => {
   return (
     <ScrollView contentContainerStyle={styles.scrollContent} keyboardShouldPersistTaps="handled">
       <View style={styles.header}>
-        <Text style={styles.title}>Nueva Contraseña 🔑</Text>
+        <Text style={styles.title}>Nueva Contraseña</Text>
         <Text style={styles.subtitle}>Ingresa el código que recibiste y tu nueva contraseña</Text>
       </View>
 

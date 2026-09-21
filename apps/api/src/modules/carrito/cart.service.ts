@@ -218,7 +218,8 @@ export class CartService {
     let totalGeneral = 0;
     let totalItems = 0;
 
-    for (const itemDto of dto.items) {
+    const items = dto?.items || [];
+    for (const itemDto of items) {
       try {
         const variante = await this.resolverVariante(itemDto);
         const precioBase = Number(variante.producto?.precio || 0);

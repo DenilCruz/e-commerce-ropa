@@ -51,7 +51,7 @@ export const RegisterScreen: React.FC = () => {
       });
 
       Alert.alert(
-        '¡Registro Exitoso! ✨',
+        '¡Registro Exitoso!',
         res.message || 'Se ha enviado un correo con el enlace de verificación para activar tu cuenta.',
         [
           {
@@ -76,7 +76,7 @@ export const RegisterScreen: React.FC = () => {
   return (
     <ScrollView contentContainerStyle={styles.scrollContent} keyboardShouldPersistTaps="handled">
       <View style={styles.header}>
-        <Text style={styles.title}>Crear Cuenta 🛍️</Text>
+        <Text style={styles.title}>Crear Cuenta</Text>
         <Text style={styles.subtitle}>Únete a El Magnífico y compra con beneficios</Text>
       </View>
 
