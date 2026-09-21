@@ -3,6 +3,7 @@ import { Link } from 'react-router-dom';
 import { Button } from '../../../components/ui/Button';
 import { Input } from '../../../components/ui/Input';
 import { authApi } from '../services/auth.api';
+import { Sparkles, Mail, AlertCircle } from 'lucide-react';
 
 export const RegisterPage: React.FC = () => {
   const [formData, setFormData] = useState({
@@ -79,8 +80,8 @@ export const RegisterPage: React.FC = () => {
   if (registroExitoso) {
     return (
       <div className="text-center py-4">
-        <div className="w-16 h-16 bg-green-100 text-green-600 rounded-full flex items-center justify-center mx-auto mb-4 text-2xl">
-          ✨
+        <div className="w-16 h-16 bg-emerald-100 text-emerald-600 rounded-full flex items-center justify-center mx-auto mb-4">
+          <Sparkles className="w-8 h-8" />
         </div>
         <h2 className="text-2xl font-bold text-gray-900 mb-2">¡Registro Exitoso!</h2>
         <p className="text-sm text-gray-600 mb-6">
@@ -88,7 +89,10 @@ export const RegisterPage: React.FC = () => {
         </p>
 
         <div className="p-4 bg-blue-50 border border-blue-200 rounded-lg text-left text-xs text-blue-800 mb-6 space-y-1">
-          <p className="font-semibold">📬 Revisa tu bandeja de entrada:</p>
+          <p className="font-semibold flex items-center gap-1.5">
+            <Mail className="w-4 h-4 text-blue-600" />
+            <span>Revisa tu bandeja de entrada:</span>
+          </p>
           <p>Enviamos el correo a <strong>{formData.correo}</strong>.</p>
           <p className="text-blue-600">
             ¿Pruebas en desarrollo? Puedes verificar los logs de envío en{' '}
@@ -113,14 +117,14 @@ export const RegisterPage: React.FC = () => {
   return (
     <div>
       <div className="text-center mb-6">
-        <h2 className="text-2xl font-bold text-gray-900 tracking-tight">Crea tu cuenta 🛍️</h2>
+        <h2 className="text-2xl font-bold text-gray-900 tracking-tight">Crea tu cuenta</h2>
         <p className="text-sm text-gray-500 mt-1">Regístrate para comprar y gestionar tus pedidos</p>
       </div>
 
       {errores.length > 0 && (
         <div className="mb-4 p-3.5 bg-red-50 border border-red-200 text-red-700 text-sm rounded-lg">
           <div className="font-semibold flex items-center gap-1.5 mb-1 text-red-800">
-            <span>⚠️</span>
+            <AlertCircle className="w-4 h-4 text-red-600 flex-shrink-0" />
             <span>Por favor corrige los siguientes campos:</span>
           </div>
           <ul className="list-disc list-inside space-y-1 text-xs text-red-700">

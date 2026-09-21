@@ -1,62 +1,100 @@
-import React, { useEffect, useState } from 'react';
-import { View, Text, StyleSheet, FlatList, TouchableOpacity, ActivityIndicator, Dimensions } from 'react-native';
+import React, { useEffect, useState, useCallback } from 'react';
+import {
+  View,
+  Text,
+  StyleSheet,
+  FlatList,
+  TouchableOpacity,
+  ActivityIndicator,
+  Dimensions,
+  TextInput,
+  RefreshControl,
+} from 'react-native';
 import { Image } from 'expo-image';
 import { HeartButton } from '../../components/HeartButton';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useNavigation } from '@react-navigation/native';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
+import { Ionicons } from '@expo/vector-icons';
 import { RootStackParamList } from '../../navigation/types';
-import { catalogoApi, Producto, Categoria } from '../../services/catalogo.api';
+import { catalogoApi, Producto, Categoria, FiltrosProductos } from '../../services/catalogo.api';
 import { api } from '../../services/api';
 
 const { width } = Dimensions.get('window');
 const numColumns = 2;
-const cardWidth = (width - 60) / 2; // 20 padding left, 20 padding right, 20 gap
+const cardWidth = (width - 48) / 2;
 
 type NavigationProp = NativeStackNavigationProp<RootStackParamList, 'Main'>;
+
+const OPCIONES_ORDEN = [
+  { id: 'novedad', label: 'Novedades' },
+  { id: 'precio_asc', label: 'Menor Precio' },
+  { id: 'precio_desc', label: 'Mayor Precio' },
+  { id: 'popularidad', label: 'Popularidad' },
+] as const;
 
 export const CatalogScreen: React.FC = () => {
   const navigation = useNavigation<NavigationProp>();
   const [productos, setProductos] = useState<Producto[]>([]);
   const [categorias, setCategorias] = useState<Categoria[]>([]);
   const [categoriaSeleccionada, setCategoriaSeleccionada] = useState<string>('');
+  const [busqueda, setBusqueda] = useState<string>('');
+  const [ordenSeleccionado, setOrdenSeleccionado] = useState<FiltrosProductos['ordenarPor']>('novedad');
   const [cargando, setCargando] = useState(true);
+  const [refrescando, setRefrescando] = useState(false);
 
+  // Cargar categorías iniciales
   useEffect(() => {
     const fetchCategorias = async () => {
       try {
         const cats = await catalogoApi.obtenerCategorias();
-        setCategorias(cats);
+        setCategorias(cats.filter((c) => c.activa !== false));
       } catch (err) {
-        console.error(err);
+        console.error('Error cargando categorías en móvil:', err);
       }
     };
     fetchCategorias();
   }, []);
 
-  useEffect(() => {
-    const fetchProductos = async () => {
-      setCargando(true);
-      try {
-        const prods = await catalogoApi.obtenerProductos(categoriaSeleccionada || undefined);
-        setProductos(prods);
-      } catch (err) {
-        console.error(err);
-      } finally {
-        setCargando(false);
-      }
-    };
-    fetchProductos();
-  }, [categoriaSeleccionada]);
+  // Cargar productos con filtros
+  const fetchProductos = useCallback(async () => {
+    try {
+      const filtros: FiltrosProductos = {
+        categoriaId: categoriaSeleccionada || undefined,
+        busqueda: busqueda.trim() || undefined,
+        ordenarPor: ordenSeleccionado,
+      };
+      const prods = await catalogoApi.obtenerProductos(filtros);
+      setProductos(prods);
+    } catch (err) {
+      console.error('Error al obtener productos:', err);
+    } finally {
+      setCargando(false);
+      setRefrescando(false);
+    }
+  }, [categoriaSeleccionada, busqueda, ordenSeleccionado]);
 
-  const getImageUrl = (url: string) => {
-    if (!url) return '';
+  useEffect(() => {
+    setCargando(true);
+    const delayDebounceFn = setTimeout(() => {
+      fetchProductos();
+    }, 300);
+
+    return () => clearTimeout(delayDebounceFn);
+  }, [fetchProductos]);
+
+  const onRefresh = () => {
+    setRefrescando(true);
+    fetchProductos();
+  };
+
+  const getImageUrl = (url?: string) => {
+    if (!url) return 'https://placehold.co/400x500?text=Sin+Imagen';
     if (url.startsWith('http')) return url;
-    
-    // Extraer base URL
+
     const baseURL = api.defaults.baseURL || 'http://localhost:3000/api/v1';
     const assetsURL = baseURL.replace('/api/v1', '');
-    
+
     if (url.startsWith('/uploads')) return `${assetsURL}${url}`;
     if (url.startsWith('/')) return `${assetsURL}/uploads${url}`;
     return `${assetsURL}/uploads/${url}`;
@@ -65,19 +103,38 @@ export const CatalogScreen: React.FC = () => {
   const renderHeader = () => (
     <View style={styles.header}>
       <Text style={styles.title}>Catálogo de Ropa</Text>
-      <Text style={styles.subtitle}>Explora nuestra colección y encuentra tu estilo.</Text>
-      
+      <Text style={styles.subtitle}>Encuentra las mejores prendas y estilos</Text>
+
+      {/* HU-26: Barra de Búsqueda por Nombre */}
+      <View style={styles.searchBar}>
+        <Ionicons name="search-outline" size={18} color="#9ca3af" style={styles.searchIcon} />
+        <TextInput
+          style={styles.searchInput}
+          placeholder="Buscar por nombre o prenda..."
+          placeholderTextColor="#9ca3af"
+          value={busqueda}
+          onChangeText={setBusqueda}
+          returnKeyType="search"
+        />
+        {busqueda.length > 0 && (
+          <TouchableOpacity onPress={() => setBusqueda('')} hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}>
+            <Ionicons name="close-circle" size={18} color="#9ca3af" />
+          </TouchableOpacity>
+        )}
+      </View>
+
+      {/* HU-34: Categorías */}
       <FlatList
         horizontal
         showsHorizontalScrollIndicator={false}
-        data={[{ id: '', nombre: 'Todas', slug: 'todas' }, ...categorias]}
-        keyExtractor={item => item.id || 'todas'}
+        data={[{ id: '', nombre: 'Todas' }, ...categorias]}
+        keyExtractor={(item) => item.id || 'todas'}
         style={styles.categoriesList}
         contentContainerStyle={styles.categoriesContainer}
         renderItem={({ item }) => {
           const isSelected = item.id === categoriaSeleccionada;
           return (
-            <TouchableOpacity 
+            <TouchableOpacity
               style={[styles.categoryChip, isSelected && styles.categoryChipSelected]}
               onPress={() => setCategoriaSeleccionada(item.id)}
             >
@@ -88,42 +145,78 @@ export const CatalogScreen: React.FC = () => {
           );
         }}
       />
+
+      {/* HU-29: Selector de Ordenamiento */}
+      <View style={styles.sortRow}>
+        <Ionicons name="funnel-outline" size={14} color="#6b7280" />
+        <FlatList
+          horizontal
+          showsHorizontalScrollIndicator={false}
+          data={OPCIONES_ORDEN}
+          keyExtractor={(item) => item.id}
+          contentContainerStyle={styles.sortContainer}
+          renderItem={({ item }) => {
+            const isSelected = item.id === ordenSeleccionado;
+            return (
+              <TouchableOpacity
+                style={[styles.sortChip, isSelected && styles.sortChipSelected]}
+                onPress={() => setOrdenSeleccionado(item.id)}
+              >
+                <Text style={[styles.sortText, isSelected && styles.sortTextSelected]}>
+                  {item.label}
+                </Text>
+              </TouchableOpacity>
+            );
+          }}
+        />
+      </View>
     </View>
   );
 
   const renderProducto = ({ item }: { item: Producto }) => {
-    const precioMinimo = Math.min(...item.variantes.map(v => Number(v.precio)));
-    const imgPrincipal = item.imagenes.find(img => img.principal)?.url || item.imagenes[0]?.url;
+    const precioBase = Number(item.precio || 0);
+    const imagenPrincipal =
+      item.imagenes?.find((img) => img.esPrincipal || img.principal)?.url || item.imagenes?.[0]?.url;
 
     return (
-      <TouchableOpacity 
+      <TouchableOpacity
         style={styles.card}
+        activeOpacity={0.88}
         onPress={() => navigation.navigate('ProductDetail', { productId: item.id })}
       >
         <View style={styles.imageContainer}>
-          {imgPrincipal ? (
-            <Image 
-              source={{ uri: getImageUrl(imgPrincipal) }} 
-              style={styles.image} 
-              contentFit="cover"
-              transition={200}
-            />
-          ) : (
-            <View style={styles.placeholderImage} />
-          )}
+          <Image
+            source={{ uri: getImageUrl(imagenPrincipal) }}
+            style={styles.image}
+            contentFit="cover"
+            transition={200}
+          />
+
           {item.destacado && (
             <View style={styles.badge}>
               <Text style={styles.badgeText}>DESTACADO</Text>
             </View>
           )}
+
+          {/* HU-76: Botón flotante para guardar en favoritos */}
           <View style={styles.heartContainer}>
-            <HeartButton productoId={item.id} size={20} />
+            <HeartButton productoId={item.id} size={18} />
           </View>
         </View>
-        <Text style={styles.productName} numberOfLines={1}>{item.nombre}</Text>
-        <View style={styles.priceRow}>
-          <Text style={styles.categoryLabel}>{item.categoria.nombre}</Text>
-          <Text style={styles.price}>${precioMinimo.toFixed(2)}</Text>
+
+        <View style={styles.cardInfo}>
+          <Text style={styles.productName} numberOfLines={1}>
+            {item.nombre}
+          </Text>
+
+          <View style={styles.priceRow}>
+            {item.categoria?.nombre ? (
+              <Text style={styles.categoryLabel} numberOfLines={1}>
+                {item.categoria.nombre}
+              </Text>
+            ) : null}
+            <Text style={styles.price}>${precioBase.toFixed(2)}</Text>
+          </View>
         </View>
       </TouchableOpacity>
     );
@@ -132,21 +225,30 @@ export const CatalogScreen: React.FC = () => {
   return (
     <SafeAreaView style={styles.container} edges={['top']}>
       {renderHeader()}
+
       {cargando ? (
         <View style={styles.loaderContainer}>
           <ActivityIndicator size="large" color="#000" />
+          <Text style={styles.loaderText}>Buscando prendas...</Text>
         </View>
       ) : (
         <FlatList
           data={productos}
-          keyExtractor={item => item.id}
+          keyExtractor={(item) => item.id}
           renderItem={renderProducto}
           numColumns={numColumns}
           contentContainerStyle={styles.gridContainer}
           columnWrapperStyle={styles.columnWrapper}
           showsVerticalScrollIndicator={false}
+          refreshControl={<RefreshControl refreshing={refrescando} onRefresh={onRefresh} />}
           ListEmptyComponent={
-            <Text style={styles.emptyText}>No se encontraron productos.</Text>
+            <View style={styles.emptyContainer}>
+              <Ionicons name="shirt-outline" size={48} color="#d1d5db" />
+              <Text style={styles.emptyTitle}>Sin resultados</Text>
+              <Text style={styles.emptySubtitle}>
+                No se encontraron productos que coincidan con los filtros seleccionados.
+              </Text>
+            </View>
           }
         />
       )}
@@ -160,100 +262,148 @@ const styles = StyleSheet.create({
     backgroundColor: '#ffffff',
   },
   header: {
-    paddingHorizontal: 20,
-    paddingTop: 20,
-    paddingBottom: 10,
+    paddingHorizontal: 16,
+    paddingTop: 12,
+    paddingBottom: 8,
+    borderBottomWidth: 1,
+    borderBottomColor: '#f3f4f6',
   },
   title: {
-    fontSize: 28,
-    fontWeight: '900',
-    color: '#000',
+    fontSize: 24,
+    fontWeight: '800',
+    color: '#111827',
     letterSpacing: -0.5,
   },
   subtitle: {
-    fontSize: 14,
+    fontSize: 13,
     color: '#6b7280',
-    marginTop: 4,
-    marginBottom: 20,
+    marginTop: 2,
+    marginBottom: 12,
+  },
+  searchBar: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: '#f3f4f6',
+    borderRadius: 12,
+    paddingHorizontal: 12,
+    height: 42,
+    marginBottom: 12,
+  },
+  searchIcon: {
+    marginRight: 8,
+  },
+  searchInput: {
+    flex: 1,
+    fontSize: 14,
+    color: '#111827',
   },
   categoriesList: {
     flexGrow: 0,
+    marginBottom: 10,
   },
   categoriesContainer: {
-    paddingRight: 20,
     gap: 8,
   },
   categoryChip: {
-    paddingHorizontal: 16,
-    paddingVertical: 8,
+    paddingHorizontal: 14,
+    paddingVertical: 7,
     borderRadius: 20,
     backgroundColor: '#f3f4f6',
   },
   categoryChipSelected: {
-    backgroundColor: '#000',
+    backgroundColor: '#111827',
   },
   categoryText: {
-    fontSize: 13,
+    fontSize: 12,
     color: '#4b5563',
     fontWeight: '500',
   },
   categoryTextSelected: {
-    color: '#fff',
+    color: '#ffffff',
+    fontWeight: '700',
   },
-  loaderContainer: {
-    flex: 1,
-    justifyContent: 'center',
+  sortRow: {
+    flexDirection: 'row',
     alignItems: 'center',
+    gap: 6,
+    paddingVertical: 4,
+  },
+  sortContainer: {
+    gap: 6,
+    paddingLeft: 4,
+  },
+  sortChip: {
+    paddingHorizontal: 10,
+    paddingVertical: 4,
+    borderRadius: 6,
+    borderWidth: 1,
+    borderColor: '#e5e7eb',
+    backgroundColor: '#fff',
+  },
+  sortChipSelected: {
+    backgroundColor: '#111827',
+    borderColor: '#111827',
+  },
+  sortText: {
+    fontSize: 11,
+    color: '#6b7280',
+    fontWeight: '500',
+  },
+  sortTextSelected: {
+    color: '#fff',
+    fontWeight: '700',
   },
   gridContainer: {
-    padding: 20,
-    paddingTop: 10,
+    padding: 16,
+    paddingBottom: 32,
   },
   columnWrapper: {
     justifyContent: 'space-between',
-    marginBottom: 20,
+    marginBottom: 16,
   },
   card: {
     width: cardWidth,
+    backgroundColor: '#fff',
+    borderRadius: 12,
+    borderWidth: 1,
+    borderColor: '#e5e7eb',
+    overflow: 'hidden',
   },
   imageContainer: {
     width: '100%',
     aspectRatio: 3 / 4,
     backgroundColor: '#f3f4f6',
-    borderRadius: 8,
-    overflow: 'hidden',
-    marginBottom: 10,
+    position: 'relative',
   },
   image: {
     width: '100%',
     height: '100%',
   },
-  placeholderImage: {
-    flex: 1,
-    backgroundColor: '#e5e7eb',
-  },
   badge: {
     position: 'absolute',
     top: 8,
     left: 8,
-    backgroundColor: '#000',
+    backgroundColor: 'rgba(0,0,0,0.85)',
     paddingHorizontal: 6,
-    paddingVertical: 2,
+    paddingVertical: 3,
     borderRadius: 4,
   },
   badgeText: {
     color: '#fff',
     fontSize: 9,
-    fontWeight: 'bold',
-    letterSpacing: 1,
+    fontWeight: '800',
+    letterSpacing: 0.5,
   },
   heartContainer: {
     position: 'absolute',
     top: 8,
     right: 8,
   },
+  cardInfo: {
+    padding: 10,
+  },
   productName: {
-    fontSize: 14,
+    fontSize: 13,
     fontWeight: '600',
     color: '#111827',
     marginBottom: 4,
@@ -264,17 +414,43 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   categoryLabel: {
-    fontSize: 12,
-    color: '#9ca3af',
+    fontSize: 11,
+    color: '#6b7280',
+    flex: 1,
+    marginRight: 6,
   },
   price: {
-    fontSize: 14,
-    fontWeight: 'bold',
-    color: '#000',
+    fontSize: 13,
+    fontWeight: '700',
+    color: '#111827',
   },
-  emptyText: {
-    textAlign: 'center',
+  loaderContainer: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+    padding: 40,
+  },
+  loaderText: {
+    marginTop: 10,
+    fontSize: 13,
     color: '#6b7280',
-    marginTop: 40,
-  }
+  },
+  emptyContainer: {
+    paddingVertical: 60,
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingHorizontal: 20,
+  },
+  emptyTitle: {
+    fontSize: 16,
+    fontWeight: '700',
+    color: '#111827',
+    marginTop: 12,
+    marginBottom: 4,
+  },
+  emptySubtitle: {
+    fontSize: 13,
+    color: '#6b7280',
+    textAlign: 'center',
+  },
 });

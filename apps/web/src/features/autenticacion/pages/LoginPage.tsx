@@ -4,6 +4,7 @@ import { Button } from '../../../components/ui/Button';
 import { Input } from '../../../components/ui/Input';
 import { authApi } from '../services/auth.api';
 import { useAuthStore } from '../../../store/auth.store';
+import { AlertCircle } from 'lucide-react';
 
 export const LoginPage: React.FC = () => {
   const navigate = useNavigate();
@@ -41,13 +42,13 @@ export const LoginPage: React.FC = () => {
   return (
     <div>
       <div className="text-center mb-6">
-        <h2 className="text-2xl font-bold text-gray-900 tracking-tight">¡Bienvenido de nuevo! 👋</h2>
+        <h2 className="text-2xl font-bold text-gray-900 tracking-tight">¡Bienvenido de nuevo!</h2>
         <p className="text-sm text-gray-500 mt-1">Ingresa a tu cuenta para continuar con tus compras</p>
       </div>
 
       {error && (
         <div className="mb-4 p-3 bg-red-50 border border-red-200 text-red-700 text-sm rounded-lg flex items-center gap-2">
-          <span>⚠️</span>
+          <AlertCircle className="w-4 h-4 text-red-500 flex-shrink-0" />
           <span>{error}</span>
         </div>
       )}

@@ -1,16 +1,21 @@
 import React, { useEffect, useState } from 'react';
 import { useParams, Link, useNavigate } from 'react-router-dom';
-import { obtenerProductoPorId } from "../../catalogo/services/catalogo.api";
+import { obtenerProductoPorId, obtenerProductosRelacionados } from "../../catalogo/services/catalogo.api";
 import { Producto, VarianteProducto } from "../../catalogo/types";
+import { ProductCard } from '../../catalogo/components/ProductCard';
 import { HeartButton } from '../../favoritos/components/HeartButton';
 import { ResenasSection } from '../../resenas/components/ResenasSection';
+import { resenasApi } from '../../resenas/services/resenas.api';
+import { ResumenResenas } from '../../resenas/types';
 import { useCartStore } from '../../../store/cart.store';
+import { XCircle, AlertTriangle, CheckCircle2, Star } from 'lucide-react';
 
 const ASSETS_URL = (import.meta.env.VITE_API_URL || 'http://localhost:3000/api/v1').replace('/api/v1', '');
 
 export const ProductDetailPage: React.FC = () => {
   const { id } = useParams<{ id: string }>();
   const [producto, setProducto] = useState<Producto | null>(null);
+  const [relacionados, setRelacionados] = useState<Producto[]>([]);
   const [cargando, setCargando] = useState(true);
   
   const [varianteSeleccionada, setVarianteSeleccionada] = useState<VarianteProducto | null>(null);
@@ -18,14 +23,21 @@ export const ProductDetailPage: React.FC = () => {
   
   // Para los acordeones de información extra
   const [seccionAbierta, setSeccionAbierta] = useState<string>('descripcion');
+  const [resumenResenas, setResumenResenas] = useState<ResumenResenas>({ promedio: 0, total: 0 });
 
   useEffect(() => {
     const cargarProducto = async () => {
       try {
         setCargando(true);
         if (!id) return;
-        const data = await obtenerProductoPorId(id);
+        const [data, rels, resumenOpiniones] = await Promise.all([
+          obtenerProductoPorId(id),
+          obtenerProductosRelacionados(id).catch(() => []),
+          resenasApi.obtenerResumen(id).catch(() => ({ promedio: 0, total: 0 })),
+        ]);
         setProducto(data);
+        setRelacionados(rels);
+        setResumenResenas(resumenOpiniones);
         
         if (data.variantes && data.variantes.length > 0) {
           setVarianteSeleccionada(data.variantes[0]);
@@ -42,6 +54,7 @@ export const ProductDetailPage: React.FC = () => {
       }
     };
     cargarProducto();
+    window.scrollTo({ top: 0, behavior: 'smooth' });
   }, [id]);
 
   const getImageUrl = (url: string) => {
@@ -81,8 +94,8 @@ export const ProductDetailPage: React.FC = () => {
     );
   }
 
-  const precioBase = parseFloat(producto.precio);
-  const precioExtra = varianteSeleccionada ? parseFloat(varianteSeleccionada.precioExtra || '0') : 0;
+  const precioBase = Number(producto.precio);
+  const precioExtra = varianteSeleccionada ? Number(varianteSeleccionada.precioExtra || 0) : 0;
   const precioFinal = (precioBase + precioExtra).toFixed(2);
 
   return (
@@ -137,6 +150,23 @@ export const ProductDetailPage: React.FC = () => {
             <p className="text-xl font-normal text-black">
               ${precioFinal}
             </p>
+
+            {/* Promedio de Estrellas y Reseñas (HU-70) */}
+            <div className="flex items-center gap-3 mt-3">
+              <div className="flex items-center gap-1">
+                <Star className="w-4 h-4 fill-amber-400 text-amber-400" />
+                <span className="text-xs font-bold text-gray-900">
+                  {Number(resumenResenas.promedio).toFixed(1)}
+                </span>
+              </div>
+              <span className="text-xs text-gray-300">·</span>
+              <a
+                href="#seccion-resenas"
+                className="text-xs text-gray-500 hover:text-black underline transition-colors"
+              >
+                {resumenResenas.total} {resumenResenas.total === 1 ? 'opinión verificada' : 'opiniones verificadas'}
+              </a>
+            </div>
           </div>
 
           {/* Selector de Tallas Minimalista */}
@@ -169,6 +199,41 @@ export const ProductDetailPage: React.FC = () => {
                     </button>
                   );
                 })}
+              </div>
+
+              {/* HU-27: Color y Stock disponible en tiempo real */}
+              <div className="mt-4 flex flex-col gap-2">
+                {varianteSeleccionada?.color && (
+                  <div className="flex items-center gap-2 text-xs text-gray-600">
+                    <span className="font-medium text-gray-900">Color:</span>
+                    <span className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-md bg-gray-100 font-medium text-gray-800">
+                      {varianteSeleccionada.color.hex && (
+                        <span className="w-2.5 h-2.5 rounded-full border border-gray-300" style={{ backgroundColor: varianteSeleccionada.color.hex }} />
+                      )}
+                      {varianteSeleccionada.color.nombre}
+                    </span>
+                  </div>
+                )}
+
+                <div className="flex items-center gap-2">
+                  {varianteSeleccionada ? (
+                    varianteSeleccionada.stock === 0 ? (
+                      <span className="text-xs font-semibold text-red-600 bg-red-50 border border-red-200 px-3 py-1 rounded-md inline-flex items-center gap-1.5">
+                        <XCircle className="w-3.5 h-3.5" /> Agotado temporalmente en esta talla
+                      </span>
+                    ) : varianteSeleccionada.stock <= 5 ? (
+                      <span className="text-xs font-semibold text-amber-700 bg-amber-50 border border-amber-200 px-3 py-1 rounded-md inline-flex items-center gap-1.5">
+                        <AlertTriangle className="w-3.5 h-3.5 text-amber-600" /> ¡Últimas {varianteSeleccionada.stock} unidades en stock!
+                      </span>
+                    ) : (
+                      <span className="text-xs font-semibold text-emerald-700 bg-emerald-50 border border-emerald-200 px-3 py-1 rounded-md inline-flex items-center gap-1.5">
+                        <CheckCircle2 className="w-3.5 h-3.5 text-emerald-600" /> En stock ({varianteSeleccionada.stock} disponibles)
+                      </span>
+                    )
+                  ) : (
+                    <span className="text-xs text-gray-400 italic">Selecciona una talla para verificar stock</span>
+                  )}
+                </div>
               </div>
             </div>
           )}
@@ -254,6 +319,21 @@ export const ProductDetailPage: React.FC = () => {
 
         </div>
       </div>
+
+      {/* HU-28: Productos Relacionados */}
+      {relacionados.length > 0 && (
+        <div className="px-6 py-12 border-t border-gray-100">
+          <div className="mb-8">
+            <h2 className="text-xl font-bold tracking-tight text-gray-900">También te podría gustar</h2>
+            <p className="text-xs text-gray-500 mt-1">Prendas similares de la colección {producto.categoria?.nombre || ''}</p>
+          </div>
+          <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-6">
+            {relacionados.map(rel => (
+              <ProductCard key={rel.id} producto={rel} />
+            ))}
+          </div>
+        </div>
+      )}
 
       {/* Sección de Reseñas */}
       <div className="px-6">

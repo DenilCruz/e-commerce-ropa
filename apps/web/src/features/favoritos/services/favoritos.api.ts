@@ -1,5 +1,10 @@
 import { api } from '../../../services/api';
-import { Favorito, AgregarFavoritoPayload } from '../types';
+import {
+  Favorito,
+  AgregarFavoritoPayload,
+  MoverFavoritoAlCarritoPayload,
+  MoverFavoritoRespuesta,
+} from '../types';
 
 export const favoritosApi = {
   obtenerPorUsuario: async (usuarioId: string): Promise<Favorito[]> => {
@@ -14,5 +19,17 @@ export const favoritosApi = {
 
   eliminar: async (usuarioId: string, productoId: string): Promise<void> => {
     await api.delete(`/favoritos/usuario/${usuarioId}/producto/${productoId}`);
-  }
+  },
+
+  limpiarTodos: async (usuarioId: string): Promise<{ eliminados: number; mensaje: string }> => {
+    const response = await api.delete(`/favoritos/usuario/${usuarioId}`);
+    return response.data;
+  },
+
+  moverAlCarrito: async (
+    payload: MoverFavoritoAlCarritoPayload,
+  ): Promise<MoverFavoritoRespuesta> => {
+    const response = await api.post('/favoritos/mover-al-carrito', payload);
+    return response.data;
+  },
 };

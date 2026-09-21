@@ -3,9 +3,10 @@ import { ApiTags, ApiOperation, ApiResponse, ApiParam } from '@nestjs/swagger';
 import { ProductosService } from './products.service';
 import { CrearProductoDto } from './dto/crear-producto.dto';
 import { ActualizarProductoDto } from './dto/actualizar-producto.dto';
+import { CrearColorDto } from './dto/crear-color.dto';
 
 @ApiTags('Productos')
-@Controller('productos')
+@Controller(['productos', 'catalogo/productos'])
 export class ProductosController {
   constructor(private readonly servicioProductos: ProductosService) {}
 
@@ -14,6 +15,25 @@ export class ProductosController {
   @ApiResponse({ status: 201, description: 'Producto creado exitosamente.' })
   crear(@Body() datos: CrearProductoDto) {
     return this.servicioProductos.crear(datos);
+  }
+
+  @Get('tallas')
+  @ApiOperation({ summary: 'Obtener todas las tallas disponibles' })
+  obtenerTallas() {
+    return this.servicioProductos.obtenerTallas();
+  }
+
+  
+  @Post('colores')
+  @ApiOperation({ summary: 'Crear un nuevo color en la base de datos' })
+  crearColor(@Body() datos: CrearColorDto) {
+    return this.servicioProductos.crearColor(datos);
+  }
+
+  @Get('colores')
+  @ApiOperation({ summary: 'Obtener todos los colores disponibles' })
+  obtenerColores() {
+    return this.servicioProductos.obtenerColores();
   }
 
   @Get()
@@ -30,6 +50,13 @@ export class ProductosController {
   @ApiResponse({ status: 404, description: 'Producto no encontrado.' })
   obtenerPorId(@Param('id', ParseUUIDPipe) id: string) {
     return this.servicioProductos.obtenerPorId(id);
+  }
+
+  @Get(':id/relacionados')
+  @ApiOperation({ summary: 'Obtener productos relacionados de la misma categoría (HU-28)' })
+  @ApiParam({ name: 'id', description: 'ID (UUID) del producto' })
+  obtenerRelacionados(@Param('id', ParseUUIDPipe) id: string) {
+    return this.servicioProductos.obtenerRelacionados(id);
   }
 
   @Put(':id')
@@ -49,6 +76,13 @@ export class ProductosController {
   @ApiParam({ name: 'id', description: 'ID (UUID) del producto' })
   desactivar(@Param('id', ParseUUIDPipe) id: string) {
     return this.servicioProductos.desactivar(id);
+  }
+
+  @Put(':id/toggle')
+  @ApiOperation({ summary: 'Alternar estado activo/inactivo de un producto sin borrarlo' })
+  @ApiParam({ name: 'id', description: 'ID (UUID) del producto' })
+  toggleEstado(@Param('id', ParseUUIDPipe) id: string) {
+    return this.servicioProductos.toggleActivo(id);
   }
 
   @Delete(':id')

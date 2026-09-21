@@ -12,3 +12,18 @@ export interface AgregarFavoritoPayload {
   productoId: string;
   usuarioId: string;
 }
+
+export interface MoverFavoritoAlCarritoPayload {
+  usuarioId: string;
+  productoId: string;
+  varianteId?: string;
+  cantidad?: number;
+  eliminarDeFavoritos?: boolean;
+}
+
+export interface MoverFavoritoRespuesta {
+  exito: boolean;
+  mensaje: string;
+  varianteId: string;
+  carrito: any;
+}

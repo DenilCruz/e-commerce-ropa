@@ -26,4 +26,9 @@ export class CrearCategoriaDto {
   @IsInt()
   @IsOptional()
   orden?: number;
+
+  @ApiPropertyOptional({ description: 'URL o ruta de la imagen de la categoría' })
+  @IsString()
+  @IsOptional()
+  imagen?: string;
 }

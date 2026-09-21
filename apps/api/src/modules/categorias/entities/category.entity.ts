@@ -20,6 +20,9 @@ export class CategoriaEntity {
   @Column({ type: 'int', default: 0 })
   orden: number;
 
+  @Column({ type: 'varchar', length: 500, nullable: true })
+  imagen: string;
+
   @CreateDateColumn({ name: 'creado_en' })
   creado_en: Date;
 

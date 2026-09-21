@@ -8,12 +8,8 @@ const getBaseUrl = (): string => {
     return envUrl;
   }
 
-  // En Android físico o emulador, localhost apunta al dispositivo en lugar de la PC
-  if (Platform.OS === 'android') {
-    return 'http://192.168.100.22:3000/api/v1';
-  }
-
-  return envUrl || 'http://localhost:3000/api/v1';
+  // En dispositivo físico o emulador, apuntar a la IP de la máquina de desarrollo
+  return envUrl || 'http://192.168.0.5:3000/api/v1';
 };
 
 export const api = axios.create({

@@ -26,6 +26,9 @@ import { AdminProductsPage } from '../features/admin/productos/AdminProductsPage
 import { AdminInventoryPage } from '../features/admin/inventario/pages/AdminInventoryPage';
 import { AdminOrdersPage } from '../features/admin/pedidos/AdminOrdersPage';
 import { AdminUsersPage } from '../features/admin/usuarios/AdminUsersPage';
+import { AdminCategoriesPage } from '../features/admin/categorias/AdminCategoriesPage';
+import { AdminFilesPage } from '../features/admin/archivos/pages/AdminFilesPage';
+import { AdminReviewsPage } from '../features/admin/resenas/pages/AdminReviewsPage';
 
 export const AppRouter: React.FC = () => {
   return (
@@ -60,9 +63,12 @@ export const AppRouter: React.FC = () => {
         <Route element={<AdminLayout />}>
           <Route index element={<AdminDashboardPage />} />
           <Route path="productos" element={<AdminProductsPage />} />
+          <Route path="categorias" element={<AdminCategoriesPage />} />
           <Route path="inventario" element={<AdminInventoryPage />} />
           <Route path="pedidos" element={<AdminOrdersPage />} />
           <Route path="usuarios" element={<AdminUsersPage />} />
+          <Route path="archivos" element={<AdminFilesPage />} />
+          <Route path="resenas" element={<AdminReviewsPage />} />
         </Route>
       </Route>
     </Routes>

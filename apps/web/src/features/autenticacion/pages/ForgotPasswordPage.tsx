@@ -3,6 +3,7 @@ import { Link } from 'react-router-dom';
 import { Button } from '../../../components/ui/Button';
 import { Input } from '../../../components/ui/Input';
 import { authApi } from '../services/auth.api';
+import { Mail, AlertCircle } from 'lucide-react';
 
 export const ForgotPasswordPage: React.FC = () => {
   const [correo, setCorreo] = useState('');
@@ -31,8 +32,8 @@ export const ForgotPasswordPage: React.FC = () => {
   if (enviado) {
     return (
       <div className="text-center py-4">
-        <div className="w-16 h-16 bg-blue-100 text-blue-600 rounded-full flex items-center justify-center mx-auto mb-4 text-2xl">
-          ✉️
+        <div className="w-16 h-16 bg-blue-50 text-blue-600 rounded-full flex items-center justify-center mx-auto mb-4">
+          <Mail className="w-8 h-8" />
         </div>
         <h2 className="text-2xl font-bold text-gray-900 mb-2">Revisa tu Correo</h2>
         <p className="text-sm text-gray-600 mb-6">{mensaje}</p>
@@ -62,7 +63,7 @@ export const ForgotPasswordPage: React.FC = () => {
   return (
     <div>
       <div className="text-center mb-6">
-        <h2 className="text-2xl font-bold text-gray-900 tracking-tight">Recuperar Contraseña 🔐</h2>
+        <h2 className="text-2xl font-bold text-gray-900 tracking-tight">Recuperar Contraseña</h2>
         <p className="text-sm text-gray-500 mt-1">
           Ingresa tu correo y te enviaremos un enlace para restablecer tu contraseña
         </p>
@@ -70,7 +71,7 @@ export const ForgotPasswordPage: React.FC = () => {
 
       {error && (
         <div className="mb-4 p-3 bg-red-50 border border-red-200 text-red-700 text-sm rounded-lg flex items-center gap-2">
-          <span>⚠️</span>
+          <AlertCircle className="w-4 h-4 text-red-600 flex-shrink-0" />
           <span>{error}</span>
         </div>
       )}

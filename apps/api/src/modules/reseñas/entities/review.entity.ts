@@ -13,6 +13,9 @@ export class ReviewEntity {
   @Column({ type: 'uuid', name: 'producto_id' })
   productoId: string;
 
+  @Column({ type: 'uuid', name: 'notaventa_id', nullable: true })
+  notaventaId?: string;
+
   @Column({ type: 'int' })
   calificacion: number;
 

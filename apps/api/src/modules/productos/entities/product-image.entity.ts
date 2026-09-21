@@ -18,6 +18,9 @@ export class ProductImageEntity {
   @Column({ type: 'varchar', length: 500 })
   url: string;
 
+  @Column({ type: 'varchar', length: 255, nullable: true, name: 'public_id' })
+  publicId?: string;
+
   @Column({ type: 'int', default: 0 })
   orden: number;
 

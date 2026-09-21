@@ -4,6 +4,7 @@ import { Button } from '../../../components/ui/Button';
 import { Input } from '../../../components/ui/Input';
 import { authApi } from '../services/auth.api';
 import { useAuthStore } from '../../../store/auth.store';
+import { CheckCircle2, AlertCircle } from 'lucide-react';
 
 export const VerifyEmailPage: React.FC = () => {
   const [searchParams] = useSearchParams();
@@ -68,8 +69,8 @@ export const VerifyEmailPage: React.FC = () => {
   if (verificado) {
     return (
       <div className="text-center py-4">
-        <div className="w-16 h-16 bg-green-100 text-green-600 rounded-full flex items-center justify-center mx-auto mb-4 text-2xl">
-          ✨
+        <div className="w-16 h-16 bg-emerald-100 text-emerald-600 rounded-full flex items-center justify-center mx-auto mb-4">
+          <CheckCircle2 className="w-8 h-8" />
         </div>
         <h2 className="text-2xl font-bold text-gray-900 mb-2">¡Correo Verificado!</h2>
         <p className="text-sm text-gray-600 mb-6">
@@ -95,7 +96,7 @@ export const VerifyEmailPage: React.FC = () => {
   return (
     <div>
       <div className="text-center mb-6">
-        <h2 className="text-2xl font-bold text-gray-900 tracking-tight">Verificación de Correo ✉️</h2>
+        <h2 className="text-2xl font-bold text-gray-900 tracking-tight">Verificación de Correo</h2>
         <p className="text-sm text-gray-500 mt-1">
           Ingresa el código recibido en tu correo electrónico para activar tu cuenta
         </p>
@@ -103,7 +104,7 @@ export const VerifyEmailPage: React.FC = () => {
 
       {error && (
         <div className="mb-4 p-3 bg-red-50 border border-red-200 text-red-700 text-sm rounded-lg flex items-center gap-2">
-          <span>⚠️</span>
+          <AlertCircle className="w-4 h-4 text-red-600 flex-shrink-0" />
           <span>{error}</span>
         </div>
       )}

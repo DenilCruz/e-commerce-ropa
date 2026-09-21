@@ -15,3 +15,8 @@ export const obtenerProductoPorId = async (id: string): Promise<Producto> => {
   const response = await api.get(`/productos/${id}`);
   return response.data;
 };
+
+export const obtenerProductosRelacionados = async (id: string): Promise<Producto[]> => {
+  const response = await api.get(`/productos/${id}/relacionados`);
+  return response.data;
+};
