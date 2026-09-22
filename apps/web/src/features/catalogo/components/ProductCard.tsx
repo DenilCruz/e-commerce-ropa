@@ -4,6 +4,7 @@ import { ShoppingBag, Check } from 'lucide-react';
 import { Producto } from '../types';
 import { HeartButton } from '../../favoritos/components/HeartButton';
 import { useCartStore } from '../../../store/cart.store';
+import { toast } from 'sonner';
 
 interface ProductCardProps {
   producto: Producto;
@@ -39,6 +40,7 @@ export const ProductCard: React.FC<ProductCardProps> = ({ producto }) => {
         await addItem(varianteDisponible.id, 1);
         setAgregadoExito(true);
         setTimeout(() => setAgregadoExito(false), 2000);
+        toast.success(`"${producto.nombre}" se agregó a tu bolsa de compras.`);
       } catch {
         navigate(`/producto/${producto.id}`);
       } finally {

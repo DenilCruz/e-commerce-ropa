@@ -141,7 +141,6 @@ export const useCartStore = create<CartStoreState>()(
             set({ guestItems });
             await get().cargarCarrito();
           }
-          set({ isDrawerOpen: true });
         } catch (err: any) {
           const msg = err?.response?.data?.message || 'No se pudo agregar el producto al carrito.';
           set({ error: msg, cargando: false });

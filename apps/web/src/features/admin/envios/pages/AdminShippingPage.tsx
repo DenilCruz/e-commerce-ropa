@@ -7,7 +7,10 @@ import {
   RefreshCw,
   ExternalLink,
   X,
+  Trash2,
+  MapPin,
 } from 'lucide-react';
+import { toast } from 'sonner';
 import { shippingApi, MetodoEnvio, ActualizarEstadoEnvioDto } from '../../../envios/services/shipping.api';
 import { Link } from 'react-router-dom';
 
@@ -98,10 +101,11 @@ export const AdminShippingPage: React.FC = () => {
         notas,
       };
       await shippingApi.actualizarEstadoAdmin(selectedEnvio.id, dto);
+      toast.success('Estado de despacho y guía actualizados correctamente');
       setModalOpen(false);
       await cargarEnvios();
     } catch (err: any) {
-      alert(err.response?.data?.message || 'Error al actualizar el despacho.');
+      toast.error(err.response?.data?.message || 'Error al actualizar el despacho.');
     } finally {
       setSavingStatus(false);
     }
@@ -126,6 +130,17 @@ export const AdminShippingPage: React.FC = () => {
     setMetodoModalOpen(true);
   };
 
+  const handleEliminarMetodo = async (id: string, nombre: string) => {
+    if (!window.confirm(`¿Deseas desactivar la zona o método de envío "${nombre}"?`)) return;
+    try {
+      await shippingApi.eliminarMetodoAdmin(id);
+      toast.success(`Método "${nombre}" desactivado con éxito.`);
+      await cargarMetodos();
+    } catch (err: any) {
+      toast.error(err.response?.data?.message || 'Error al desactivar el método de envío.');
+    }
+  };
+
   const guardarMetodo = async (e: React.FormEvent) => {
     e.preventDefault();
     try {
@@ -138,6 +153,7 @@ export const AdminShippingPage: React.FC = () => {
           tiempoEstimado: formTiempo,
           activo: formActivo,
         });
+        toast.success(`Zona/Tarifa "${formNombre}" actualizada con éxito.`);
       } else {
         await shippingApi.crearMetodoAdmin({
           nombre: formNombre,
@@ -146,11 +162,12 @@ export const AdminShippingPage: React.FC = () => {
           tiempoEstimado: formTiempo,
           activo: formActivo,
         });
+        toast.success(`Nueva zona de envío "${formNombre}" creada exitosamente.`);
       }
       setMetodoModalOpen(false);
       await cargarMetodos();
     } catch (err: any) {
-      alert(err.response?.data?.message || 'Error al guardar método de envío.');
+      toast.error(err.response?.data?.message || 'Error al guardar método de envío.');
     } finally {
       setSavingMetodo(false);
     }
@@ -180,7 +197,7 @@ export const AdminShippingPage: React.FC = () => {
                 : 'text-slate-600 hover:text-slate-900'
             }`}
           >
-            Despachos y Guías
+            Despachos y Guías (HU-65)
           </button>
           <button
             onClick={() => setActiveTab('metodos')}
@@ -190,7 +207,7 @@ export const AdminShippingPage: React.FC = () => {
                 : 'text-slate-600 hover:text-slate-900'
             }`}
           >
-            Métodos y Costos
+            Zonas y Costos de Envío (HU-61)
           </button>
         </div>
       </div>
@@ -325,56 +342,83 @@ export const AdminShippingPage: React.FC = () => {
       {/* TAB 2: MÉTODOS Y COSTOS (HU-61) */}
       {activeTab === 'metodos' && (
         <div className="bg-white rounded-2xl shadow-sm border border-slate-200 overflow-hidden">
-          <div className="p-6 border-b border-slate-200 flex justify-between items-center">
+          <div className="p-6 border-b border-slate-200 flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
             <div>
-              <h2 className="text-lg font-bold text-slate-900">Métodos y Tarifas de Entrega</h2>
-              <p className="text-xs text-slate-500">
-                Configura los costos que pagarán los clientes antes del checkout (HU-61).
+              <h2 className="text-lg font-bold text-slate-900 flex items-center gap-2">
+                <MapPin className="w-5 h-5 text-indigo-600" />
+                Zonas y Tarifas de Entrega (HU-61)
+              </h2>
+              <p className="text-xs text-slate-500 mt-1">
+                Define las zonas geográficas, modalidades de despacho y costos de envío que se aplicarán automáticamente a los pedidos de los clientes.
               </p>
             </div>
             <button
               onClick={() => abrirModalMetodo()}
-              className="inline-flex items-center gap-2 px-4 py-2 bg-indigo-600 hover:bg-indigo-700 text-white text-sm font-semibold rounded-xl shadow transition"
+              className="inline-flex items-center gap-2 px-4 py-2.5 bg-black hover:bg-gray-800 text-white text-sm font-semibold rounded-xl shadow-sm transition"
             >
               <Plus className="w-4 h-4" />
-              Nuevo Método
+              Nueva Zona / Tarifa
             </button>
           </div>
 
           <div className="divide-y divide-slate-100">
             {loadingMetodos ? (
-              <div className="text-center py-10 text-slate-400">Cargando métodos de envío...</div>
+              <div className="text-center py-10 text-slate-400">Cargando zonas de envío...</div>
+            ) : metodos.length === 0 ? (
+              <div className="text-center py-12 text-slate-500">
+                <MapPin className="w-8 h-8 text-slate-300 mx-auto mb-2" />
+                No hay zonas de envío configuradas. Haz clic en <strong>Nueva Zona / Tarifa</strong> para comenzar.
+              </div>
             ) : metodos.map((m) => (
-              <div key={m.id} className="p-6 flex justify-between items-center">
-                <div>
+              <div key={m.id} className="p-6 flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 hover:bg-slate-50/50 transition">
+                <div className="space-y-1 max-w-xl">
                   <div className="flex items-center gap-3">
+                    <span className="p-2 bg-indigo-50 text-indigo-700 rounded-lg">
+                      <MapPin className="w-4 h-4" />
+                    </span>
                     <span className="text-base font-bold text-slate-900">{m.nombre}</span>
                     <span
-                      className={`text-xs px-2 py-0.5 rounded-full font-semibold ${
-                        m.activo ? 'bg-green-100 text-green-800' : 'bg-slate-100 text-slate-500'
+                      className={`text-[11px] px-2.5 py-0.5 rounded-full font-bold uppercase tracking-wider ${
+                        m.activo ? 'bg-emerald-50 text-emerald-700 border border-emerald-200' : 'bg-slate-100 text-slate-500 border border-slate-200'
                       }`}
                     >
-                      {m.activo ? 'Activo' : 'Inactivo'}
+                      {m.activo ? '● Activo' : '○ Inactivo'}
                     </span>
                   </div>
-                  <div className="text-sm text-slate-500 mt-1">{m.descripcion}</div>
-                  <div className="text-xs text-slate-400 mt-1">Plazo: {m.tiempoEstimado}</div>
+                  <p className="text-sm text-slate-600 pl-10">{m.descripcion || 'Sin descripción de cobertura'}</p>
+                  <p className="text-xs text-slate-400 pl-10 flex items-center gap-1">
+                    <span>⏱️ Plazo estimado:</span>
+                    <strong className="text-slate-700 font-medium">{m.tiempoEstimado || '24 a 48 horas'}</strong>
+                  </p>
                 </div>
 
-                <div className="flex items-center gap-6">
+                <div className="flex items-center gap-4 self-end sm:self-center">
                   <div className="text-right">
-                    <div className="text-xs text-slate-400 uppercase font-medium">Tarifa</div>
-                    <div className="text-xl font-extrabold text-indigo-600">
-                      ${Number(m.costo).toFixed(2)}
+                    <div className="text-[10px] text-slate-400 uppercase font-bold tracking-wider">Costo de Envío</div>
+                    <div className="text-xl font-black text-slate-900">
+                      ${Number(m.costo).toFixed(2)}{' '}
+                      <span className="text-xs text-slate-400 font-normal">USD</span>
                     </div>
                   </div>
 
-                  <button
-                    onClick={() => abrirModalMetodo(m)}
-                    className="p-2 text-slate-500 hover:text-indigo-600 border border-slate-200 rounded-lg hover:bg-slate-50 transition"
-                  >
-                    <Edit2 className="w-4 h-4" />
-                  </button>
+                  <div className="flex items-center gap-1.5">
+                    <button
+                      onClick={() => abrirModalMetodo(m)}
+                      className="p-2 text-slate-600 hover:text-indigo-600 border border-slate-200 rounded-lg hover:bg-white transition"
+                      title="Editar tarifa o plazo"
+                    >
+                      <Edit2 className="w-4 h-4" />
+                    </button>
+                    {m.activo && (
+                      <button
+                        onClick={() => handleEliminarMetodo(m.id, m.nombre)}
+                        className="p-2 text-slate-400 hover:text-red-600 border border-slate-200 rounded-lg hover:bg-red-50 transition"
+                        title="Desactivar método"
+                      >
+                        <Trash2 className="w-4 h-4" />
+                      </button>
+                    )}
+                  </div>
                 </div>
               </div>
             ))}
@@ -489,34 +533,38 @@ export const AdminShippingPage: React.FC = () => {
               <X className="w-5 h-5" />
             </button>
 
-            <h3 className="text-lg font-bold text-slate-900 mb-4">
-              {metodoEditando ? 'Modificar Tarifa de Envío' : 'Nuevo Método de Envío'}
+            <h3 className="text-lg font-bold text-slate-900 mb-1 flex items-center gap-2">
+              <MapPin className="w-5 h-5 text-indigo-600" />
+              {metodoEditando ? 'Modificar Zona y Tarifa de Envío' : 'Nueva Zona y Tarifa de Envío'}
             </h3>
+            <p className="text-xs text-slate-500 mb-4">
+              HU-61: Define la zona o modalidad y la tarifa que abonará el cliente durante el pedido.
+            </p>
 
             <form onSubmit={guardarMetodo} className="space-y-4">
               <div>
                 <label className="block text-xs font-semibold text-slate-700 uppercase mb-1">
-                  Nombre del Método
+                  Nombre de la Zona o Modalidad
                 </label>
                 <input
                   type="text"
                   required
                   value={formNombre}
                   onChange={(e) => setFormNombre(e.target.value)}
-                  placeholder="Envío Estándar, Express 24h..."
+                  placeholder="Ej: Santa Cruz Urbano, Nacional - La Paz / Cbba, Express 24h"
                   className="w-full px-3 py-2 border border-slate-300 rounded-xl text-sm focus:ring-2 focus:ring-indigo-500 focus:outline-none"
                 />
               </div>
 
               <div>
                 <label className="block text-xs font-semibold text-slate-700 uppercase mb-1">
-                  Descripción
+                  Cobertura y Descripción
                 </label>
                 <input
                   type="text"
                   value={formDescripcion}
                   onChange={(e) => setFormDescripcion(e.target.value)}
-                  placeholder="Cobertura urbana y nacional..."
+                  placeholder="Ej: Entrega a domicilio hasta el 4to anillo, Resto del país..."
                   className="w-full px-3 py-2 border border-slate-300 rounded-xl text-sm focus:ring-2 focus:ring-indigo-500 focus:outline-none"
                 />
               </div>
@@ -524,7 +572,7 @@ export const AdminShippingPage: React.FC = () => {
               <div className="grid grid-cols-2 gap-4">
                 <div>
                   <label className="block text-xs font-semibold text-slate-700 uppercase mb-1">
-                    Costo ($)
+                    Tarifa de Envío ($ USD)
                   </label>
                   <input
                     type="number"
@@ -533,18 +581,18 @@ export const AdminShippingPage: React.FC = () => {
                     required
                     value={formCosto}
                     onChange={(e) => setFormCosto(Number(e.target.value))}
-                    className="w-full px-3 py-2 border border-slate-300 rounded-xl text-sm focus:ring-2 focus:ring-indigo-500 focus:outline-none"
+                    className="w-full px-3 py-2 border border-slate-300 rounded-xl text-sm font-bold text-slate-900 focus:ring-2 focus:ring-indigo-500 focus:outline-none"
                   />
                 </div>
                 <div>
                   <label className="block text-xs font-semibold text-slate-700 uppercase mb-1">
-                    Tiempo Estimado
+                    Plazo Estimado
                   </label>
                   <input
                     type="text"
                     value={formTiempo}
                     onChange={(e) => setFormTiempo(e.target.value)}
-                    placeholder="24h, 2 a 3 días..."
+                    placeholder="Ej: 24 horas, 2 a 3 días hábiles"
                     className="w-full px-3 py-2 border border-slate-300 rounded-xl text-sm focus:ring-2 focus:ring-indigo-500 focus:outline-none"
                   />
                 </div>
@@ -558,8 +606,8 @@ export const AdminShippingPage: React.FC = () => {
                   onChange={(e) => setFormActivo(e.target.checked)}
                   className="w-4 h-4 text-indigo-600 rounded border-slate-300 focus:ring-indigo-500"
                 />
-                <label htmlFor="metodoActivo" className="text-sm font-medium text-slate-700">
-                  Método habilitado para clientes
+                <label htmlFor="metodoActivo" className="text-sm font-medium text-slate-700 cursor-pointer">
+                  Zona / Método habilitado para clientes en Checkout
                 </label>
               </div>
 

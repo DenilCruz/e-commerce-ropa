@@ -159,11 +159,27 @@ export const CartDrawer: React.FC = () => {
                           </button>
                         </div>
 
-                        {/* Variantes (Talla y Color) */}
-                        <div className="mt-1 flex items-center gap-2 text-[11px] text-stone-500 uppercase tracking-wider">
-                          {item.talla?.nombre && <span>Talla: <strong className="text-stone-700">{item.talla.nombre}</strong></span>}
-                          {item.talla?.nombre && item.color?.nombre && <span>·</span>}
-                          {item.color?.nombre && <span>Color: <strong className="text-stone-700">{item.color.nombre}</strong></span>}
+                        {/* Variantes (Talla y Color) y botón Probar con IA */}
+                        <div className="mt-1 flex items-center justify-between gap-2">
+                          <div className="flex items-center gap-2 text-[11px] text-stone-500 uppercase tracking-wider">
+                            {item.talla?.nombre && <span>Talla: <strong className="text-stone-700">{item.talla.nombre}</strong></span>}
+                            {item.talla?.nombre && item.color?.nombre && <span>·</span>}
+                            {item.color?.nombre && <span>Color: <strong className="text-stone-700">{item.color.nombre}</strong></span>}
+                          </div>
+                          {prodId && (
+                            <button
+                              type="button"
+                              onClick={() => {
+                                closeDrawer();
+                                navigate(`/probador?producto=${prodId}`);
+                              }}
+                              className="inline-flex items-center gap-1 text-[10px] text-[#9B7B54] hover:text-stone-900 transition-colors uppercase tracking-wider font-semibold"
+                              title={`Probar "${nombrePrenda}" con IA`}
+                            >
+                              <Sparkles className="w-3 h-3" />
+                              <span>Probar</span>
+                            </button>
+                          )}
                         </div>
                       </div>
 
@@ -213,9 +229,10 @@ export const CartDrawer: React.FC = () => {
               <button
                 onClick={() => {
                   closeDrawer();
-                  navigate('/probador');
+                  const targetId = items[0]?.producto?.id || items[0]?.productoId;
+                  navigate(targetId ? `/probador?producto=${targetId}` : '/probador');
                 }}
-                className="px-2.5 py-1 text-[11px] uppercase tracking-wider bg-stone-900 text-white hover:bg-stone-800 transition-colors shrink-0"
+                className="px-2.5 py-1 text-[11px] uppercase tracking-wider bg-stone-900 text-white hover:bg-stone-800 transition-colors shrink-0 font-medium cursor-pointer"
               >
                 Probar
               </button>

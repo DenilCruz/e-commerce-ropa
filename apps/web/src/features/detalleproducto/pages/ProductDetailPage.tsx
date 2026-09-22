@@ -18,6 +18,7 @@ import { resenasApi } from '../../resenas/services/resenas.api';
 import { ResumenResenas } from '../../resenas/types';
 import { useCartStore } from '../../../store/cart.store';
 import { VirtualTryOnModal } from '../../carrito/components/VirtualTryOnModal';
+import { toast } from 'sonner';
 
 const ASSETS_URL = (import.meta.env.VITE_API_URL || 'http://localhost:3000/api/v1').replace('/api/v1', '');
 
@@ -82,7 +83,7 @@ export const ProductDetailPage: React.FC = () => {
     return `${ASSETS_URL}/uploads/${url}`;
   };
 
-  const { addItem, openDrawer } = useCartStore();
+  const { addItem } = useCartStore();
   const [cantidad, setCantidad] = useState(1);
   const [agregando, setAgregando] = useState(false);
   const [exitoAgregar, setExitoAgregar] = useState(false);
@@ -100,7 +101,7 @@ export const ProductDetailPage: React.FC = () => {
       await addItem(varianteSeleccionada.id, cantidad);
       setExitoAgregar(true);
       setTimeout(() => setExitoAgregar(false), 3000);
-      openDrawer();
+      toast.success(`"${producto?.nombre}" se añadió a tu bolsa de compras.`);
     } catch (err: any) {
       console.error('Error al añadir a la bolsa:', err);
       setErrorAgregar(err?.message || 'No se pudo añadir la prenda a tu bolsa.');

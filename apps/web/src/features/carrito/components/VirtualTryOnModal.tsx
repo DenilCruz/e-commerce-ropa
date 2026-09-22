@@ -61,6 +61,7 @@ export const VirtualTryOnModal: React.FC<VirtualTryOnModalProps> = ({
   const [modoVista, setModoVista] = useState<'split' | 'resultado' | 'original'>('split');
   const [sliderPos, setSliderPos] = useState(50);
 
+
   // Cargar modelos base predefinidos al abrir
   useEffect(() => {
     if (abierto) {
@@ -326,7 +327,7 @@ export const VirtualTryOnModal: React.FC<VirtualTryOnModalProps> = ({
     <div className="fixed inset-0 z-50 bg-black/75 backdrop-blur-md flex items-center justify-center p-3 sm:p-6 overflow-y-auto animate-in fade-in duration-200">
       <div className="bg-white w-full max-w-5xl rounded-3xl overflow-hidden shadow-2xl border border-gray-100 flex flex-col max-h-[92vh] my-auto">
         {/* HEADER DEL MODAL */}
-        <div className="px-6 py-4 border-b border-gray-100 flex items-center justify-between bg-gradient-to-r from-gray-950 via-gray-900 to-black text-white shrink-0">
+        <div className="px-6 py-4 border-b border-gray-100 flex flex-col sm:flex-row sm:items-center justify-between gap-4 bg-gradient-to-r from-gray-950 via-gray-900 to-black text-white shrink-0">
           <div className="flex items-center gap-3">
             <div className="w-10 h-10 rounded-2xl bg-gradient-to-tr from-indigo-500 to-purple-600 flex items-center justify-center shadow-lg shadow-indigo-500/30">
               <Sparkles className="w-5 h-5 text-white animate-pulse" />
@@ -336,25 +337,28 @@ export const VirtualTryOnModal: React.FC<VirtualTryOnModalProps> = ({
                 <h2 className="text-base sm:text-lg font-black tracking-tight text-white">
                   Probador Virtual con IA
                 </h2>
-                <span className="bg-white/15 text-indigo-200 text-[10px] font-bold px-2 py-0.5 rounded-full border border-white/20">
-                  IDM-VTON IA
+                <span className="bg-white/15 text-emerald-300 text-[10px] font-bold px-2 py-0.5 rounded-full border border-white/20">
+                  Modo Foto IA
                 </span>
               </div>
               <p className="text-xs text-gray-300">
-                Pruébate prendas de tu carrito con Inteligencia Artificial fotorrealista
+                Pruébate prendas con Inteligencia Artificial fotorrealista
               </p>
             </div>
           </div>
 
-          <button
-            onClick={handleCerrar}
-            className="w-9 h-9 rounded-full bg-white/10 hover:bg-white/20 text-gray-300 hover:text-white flex items-center justify-center transition cursor-pointer"
-          >
-            <X className="w-5 h-5" />
-          </button>
+          {/* BOTÓN DE CIERRE */}
+          <div className="flex items-center gap-2 self-start sm:self-center">
+            <button
+              onClick={handleCerrar}
+              className="w-9 h-9 rounded-full bg-white/10 hover:bg-white/20 text-gray-300 hover:text-white flex items-center justify-center transition cursor-pointer"
+            >
+              <X className="w-5 h-5" />
+            </button>
+          </div>
         </div>
 
-        {/* CUERPO PRINCIPAL (2 COLUMNAS) */}
+        {/* CUERPO PRINCIPAL MODO FOTO IA (2 COLUMNAS) */}
         <div className="flex-1 overflow-y-auto p-6 grid grid-cols-1 lg:grid-cols-12 gap-6 bg-gray-50/50">
           {/* COLUMNA IZQUIERDA: CONFIGURACIÓN Y ENTRADAS (5 COLS) */}
           <div className="lg:col-span-5 space-y-5">

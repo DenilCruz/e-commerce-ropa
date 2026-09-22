@@ -125,7 +125,7 @@ export const AdminProductsPage: React.FC = () => {
 
     // Validación si es nuevo producto (HU-21 requiere imágenes)
     if (!editingProduct && imagenesFiles.length === 0) {
-      return toast.error('Debe subir al menos una imagen en formato .webp');
+      return toast.error('Debe subir al menos una imagen para el producto (JPG, PNG o WebP)');
     }
 
     if (!editingProduct && variantes.some(v => !v.sku)) {
@@ -206,10 +206,10 @@ export const AdminProductsPage: React.FC = () => {
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     if (e.target.files) {
       const files = Array.from(e.target.files);
-      const invalidFiles = files.filter(f => !f.name.toLowerCase().endsWith('.webp') && f.type !== 'image/webp');
+      const invalidFiles = files.filter(f => !f.type.startsWith('image/'));
       
       if (invalidFiles.length > 0) {
-        toast.error(`Formato no permitido: "${invalidFiles[0].name}". Solo se admiten imágenes en formato WebP (.webp).`);
+        toast.error(`El archivo "${invalidFiles[0].name}" no es una imagen válida. Selecciona archivos de imagen (JPG, PNG, WebP).`);
         e.target.value = '';
         setImagenesFiles([]);
         return;
@@ -262,7 +262,7 @@ export const AdminProductsPage: React.FC = () => {
               <th className="px-6 py-3.5 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">Nombre</th>
               <th className="px-6 py-3.5 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">Categoría</th>
               <th className="px-6 py-3.5 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">Precio</th>
-              <th className="px-6 py-3.5 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">Variantes</th>
+              <th className="px-6 py-3.5 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">Variantes y Stock (HU-20)</th>
               <th className="px-6 py-3.5 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">Estado</th>
               <th className="px-6 py-3.5 text-right text-xs font-semibold text-gray-500 uppercase tracking-wider">Acciones</th>
             </tr>
@@ -283,7 +283,27 @@ export const AdminProductsPage: React.FC = () => {
                 <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">{p.nombre}</td>
                 <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">{p.categoria?.nombre || '-'}</td>
                 <td className="px-6 py-4 whitespace-nowrap text-sm font-semibold text-gray-900">${p.precio}</td>
-                <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">{p.variantes?.length || 0}</td>
+                <td className="px-6 py-4 text-sm text-gray-700">
+                  <div className="flex flex-wrap gap-1 max-w-xs">
+                    {p.variantes && p.variantes.length > 0 ? (
+                      p.variantes.map(v => (
+                        <span 
+                          key={v.id} 
+                          className="inline-flex items-center gap-1 text-[11px] bg-gray-100 text-gray-800 px-2 py-0.5 rounded border border-gray-200"
+                          title={`SKU: ${v.sku} | Stock: ${v.stock} unidades`}
+                        >
+                          <span className="font-semibold text-gray-900">{v.talla?.nombre || 'Única'}</span>
+                          {v.color?.nombre && <span className="text-gray-500">/ {v.color.nombre}</span>}
+                          <span className="bg-emerald-50 border border-emerald-200 text-emerald-800 px-1 rounded font-mono font-bold text-[10px]">
+                            {v.stock}u
+                          </span>
+                        </span>
+                      ))
+                    ) : (
+                      <span className="text-gray-400 text-xs italic">Sin variantes</span>
+                    )}
+                  </div>
+                </td>
                 
                 {/* Activar/Desactivar */}
                 <td className="px-6 py-4 whitespace-nowrap text-sm">
@@ -419,81 +439,200 @@ export const AdminProductsPage: React.FC = () => {
                   </div>
                 </div>
 
-                {/* BLOQUE 2: IMAGENES (Exclusivo WebP) */}
+                {/* BLOQUE 2: IMAGENES (HU-21: Múltiples imágenes) */}
                 <div className="bg-gray-50 p-4 rounded-lg border border-gray-200 space-y-4">
                   <div className="flex justify-between items-center">
                     <h3 className="font-bold text-gray-800 uppercase text-xs tracking-wider">
-                      2. Imágenes (Exclusivo WebP) {editingProduct && <span className="text-gray-400 font-normal normal-case">(Opcional si deseas cambiar fotos)</span>}
+                      2. Galería de Imágenes (HU-21) {editingProduct && <span className="text-gray-400 font-normal normal-case">(Opcional para actualizar fotos)</span>}
                     </h3>
-                    <span className="text-[11px] font-semibold bg-emerald-100 text-emerald-800 px-2 py-0.5 rounded">Recomendado .webp</span>
+                    <span className="text-[11px] font-semibold bg-blue-100 text-blue-800 px-2 py-0.5 rounded">Múltiples fotos (JPG, PNG, WebP)</span>
                   </div>
-                  <input type="file" multiple accept=".webp,image/webp" onChange={handleFileChange} required={!editingProduct}
-                    className="w-full border border-dashed border-gray-400 rounded-md p-4 bg-white cursor-pointer"
+                  
+                  <input 
+                    type="file" 
+                    multiple 
+                    accept="image/*,.jpg,.jpeg,.png,.webp,.avif" 
+                    onChange={handleFileChange} 
+                    required={!editingProduct && (!editingProduct?.imagenes || editingProduct.imagenes.length === 0)}
+                    className="w-full border border-dashed border-gray-300 hover:border-black rounded-md p-4 bg-white cursor-pointer transition"
                   />
                   <p className="text-xs text-gray-500">
-                    Solo se admiten archivos <strong>.webp</strong> para garantizar tiempos de carga ultrarrápidos y máxima calidad gráfica.
+                    💡 <strong>Consejo HU-21:</strong> Puedes seleccionar varias fotos a la vez manteniendo presionado <code>Ctrl</code> o <code>Shift</code> al hacer clic en tus archivos. La primera imagen seleccionada será la <strong>portada principal</strong> de catálogo.
                   </p>
+
+                  {/* Previsualización en tiempo real de nuevas fotos seleccionadas */}
                   {imagenesFiles.length > 0 && (
-                    <p className="text-sm text-emerald-600 font-medium flex items-center">
-                      <Check className="w-4 h-4 mr-1 text-emerald-600" />
-                      {imagenesFiles.length} imagen(es) .webp seleccionadas correctamente.
-                    </p>
+                    <div className="space-y-2 pt-2 border-t border-gray-200">
+                      <p className="text-xs font-bold text-emerald-700 flex items-center gap-1.5">
+                        <Check className="w-4 h-4 text-emerald-600" />
+                        {imagenesFiles.length} {imagenesFiles.length === 1 ? 'imagen lista' : 'imágenes listas'} para subir:
+                      </p>
+                      <div className="grid grid-cols-3 sm:grid-cols-6 gap-2">
+                        {imagenesFiles.map((file, idx) => (
+                          <div key={idx} className="relative rounded-lg overflow-hidden border border-gray-300 bg-white aspect-square shadow-sm">
+                            <img 
+                              src={URL.createObjectURL(file)} 
+                              alt={`preview-${idx}`} 
+                              className="w-full h-full object-cover" 
+                            />
+                            <span className={`absolute bottom-1 left-1 text-[9px] px-1.5 py-0.5 rounded font-bold shadow ${
+                              idx === 0 ? 'bg-black text-white' : 'bg-white/90 text-gray-800'
+                            }`}>
+                              {idx === 0 ? '★ Portada' : `#${idx + 1}`}
+                            </span>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+
+                  {/* Fotos actuales cuando se está editando */}
+                  {editingProduct && editingProduct.imagenes && editingProduct.imagenes.length > 0 && imagenesFiles.length === 0 && (
+                    <div className="space-y-2 pt-2 border-t border-gray-200">
+                      <p className="text-xs font-semibold text-gray-600">Fotos actuales en el catálogo ({editingProduct.imagenes.length}):</p>
+                      <div className="grid grid-cols-3 sm:grid-cols-6 gap-2">
+                        {editingProduct.imagenes.map((img, idx) => (
+                          <div key={idx} className="relative rounded-lg overflow-hidden border border-gray-200 aspect-square">
+                            <img src={getImageUrl(img.url)} alt="Foto actual" className="w-full h-full object-cover" />
+                            {img.principal && (
+                              <span className="absolute bottom-1 left-1 bg-emerald-600 text-white text-[9px] px-1.5 py-0.5 rounded font-bold">
+                                Principal
+                              </span>
+                            )}
+                          </div>
+                        ))}
+                      </div>
+                    </div>
                   )}
                 </div>
 
-                {/* BLOQUE 3: VARIANTES (Solo en creación o visualización) */}
-                {!editingProduct && (
-                  <div className="bg-gray-50 p-4 rounded-lg border border-gray-200 space-y-4">
-                    <div className="flex justify-between items-center">
-                      <h3 className="font-bold text-gray-800 uppercase text-xs tracking-wider">3. Variantes (Tallas y Colores)</h3>
-                      <button type="button" onClick={addVariante} className="text-sm text-blue-600 hover:underline font-medium">+ Agregar Variante</button>
+                {/* BLOQUE 3: VARIANTES CON STOCK INDEPENDIENTE (HU-20) */}
+                <div className="bg-gray-50 p-4 rounded-lg border border-gray-200 space-y-4">
+                  <div className="flex justify-between items-center">
+                    <div>
+                      <h3 className="font-bold text-gray-800 uppercase text-xs tracking-wider">
+                        3. Variantes con Stock Independiente (HU-20)
+                      </h3>
+                      <p className="text-[11px] text-gray-500 mt-0.5">
+                        Define combinaciones de talla y color, cada una con su stock propio e independiente.
+                      </p>
                     </div>
-                    
-                    {variantes.map((v, i) => (
-                      <div key={i} className="flex gap-2 items-end border-b border-gray-200 pb-4 mb-4">
-                        <div className="flex-1">
-                          <label className="block text-xs font-medium text-gray-700 mb-1">Talla</label>
-                          <select value={v.tallaId} onChange={e => updateVariante(i, 'tallaId', e.target.value)} className="w-full border border-gray-300 rounded-md p-2 text-sm bg-white">
-                            <option value="">Ninguna</option>
-                            {tallas.map(t => <option key={t.id} value={t.id}>{t.nombre}</option>)}
-                          </select>
-                        </div>
-                        <div className="flex-1">
-                          <label className="block text-xs font-medium text-gray-700 mb-1">Color</label>
-                          {isCreatingColor ? (
-                            <div className="flex gap-1">
-                              <input type="text" value={nuevoColor} onChange={e => setNuevoColor(e.target.value)} className="w-full border border-gray-300 rounded-md p-1 text-sm" placeholder="Ej: Azul Noche" />
-                              <button type="button" onClick={() => handleCrearColor(i)} className="bg-black text-white px-2 rounded text-xs">OK</button>
-                              <button type="button" onClick={() => setIsCreatingColor(false)} className="bg-gray-200 text-black px-2 rounded text-xs">X</button>
+                    {!editingProduct && (
+                      <button 
+                        type="button" 
+                        onClick={addVariante} 
+                        className="text-xs bg-black text-white px-3 py-1.5 rounded-lg hover:bg-gray-800 font-semibold transition flex items-center gap-1 shadow-sm"
+                      >
+                        <Plus className="w-3.5 h-3.5" />
+                        <span>Agregar Variante</span>
+                      </button>
+                    )}
+                  </div>
+
+                  {editingProduct ? (
+                    <div className="space-y-3">
+                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                        {editingProduct.variantes && editingProduct.variantes.length > 0 ? (
+                          editingProduct.variantes.map(v => (
+                            <div key={v.id} className="p-3 bg-white rounded-lg border border-gray-200 flex justify-between items-center text-xs">
+                              <div>
+                                <div className="font-bold text-gray-900 flex items-center gap-1.5">
+                                  <span>{v.talla?.nombre || 'Talla Única'}</span>
+                                  <span className="text-gray-400">•</span>
+                                  <span>{v.color?.nombre || 'Color Estándar'}</span>
+                                </div>
+                                <div className="text-gray-400 font-mono text-[10px] mt-0.5">SKU: {v.sku}</div>
+                              </div>
+                              <div className="text-right">
+                                <span className="text-xs font-bold text-emerald-700 bg-emerald-50 px-2 py-0.5 rounded border border-emerald-200">
+                                  Stock: {v.stock} u.
+                                </span>
+                              </div>
                             </div>
-                          ) : (
-                            <select value={v.colorId} onChange={e => {
-                              if(e.target.value === 'NEW') setIsCreatingColor(true);
-                              else updateVariante(i, 'colorId', e.target.value);
-                            }} className="w-full border border-gray-300 rounded-md p-2 text-sm bg-white">
-                              <option value="">Ninguno</option>
-                              {colores.map(c => <option key={c.id} value={c.id}>{c.nombre}</option>)}
-                              <option value="NEW" className="font-bold text-blue-600">+ Añadir Nuevo Color</option>
-                            </select>
-                          )}
-                        </div>
-                        <div className="flex-1">
-                          <label className="block text-xs font-medium text-gray-700 mb-1">SKU (Único)</label>
-                          <input type="text" required value={v.sku} onChange={e => updateVariante(i, 'sku', e.target.value)} className="w-full border border-gray-300 rounded-md p-2 text-sm" placeholder="EJ: SH-01" />
-                        </div>
-                        <div className="w-20">
-                          <label className="block text-xs font-medium text-gray-700 mb-1">Stock</label>
-                          <input type="number" required min="0" value={v.stock} onChange={e => updateVariante(i, 'stock', e.target.value)} className="w-full border border-gray-300 rounded-md p-2 text-sm" />
-                        </div>
-                        {variantes.length > 1 && (
-                          <button type="button" onClick={() => removeVariante(i)} className="p-2 bg-red-100 text-red-600 rounded-md hover:bg-red-200">
-                            &times;
-                          </button>
+                          ))
+                        ) : (
+                          <div className="text-xs text-gray-400 italic col-span-2">Sin variantes configuradas.</div>
                         )}
                       </div>
-                    ))}
-                  </div>
-                )}
+                      <div className="pt-1">
+                        <a 
+                          href="/admin/inventario" 
+                          target="_blank" 
+                          rel="noreferrer"
+                          className="text-xs text-blue-600 hover:text-blue-800 font-semibold underline inline-flex items-center gap-1"
+                        >
+                          Ir al Módulo de Inventario para ajustar stock de variantes ↗
+                        </a>
+                      </div>
+                    </div>
+                  ) : (
+                    /* Modo Creación de Nuevo Producto (HU-20) */
+                    <div className="space-y-3">
+                      {variantes.map((v, i) => (
+                        <div key={i} className="flex flex-wrap sm:flex-nowrap gap-2 items-end bg-white p-3 rounded-lg border border-gray-200">
+                          <div className="flex-1 min-w-[120px]">
+                            <label className="block text-xs font-semibold text-gray-700 mb-1">Talla</label>
+                            <select value={v.tallaId} onChange={e => updateVariante(i, 'tallaId', e.target.value)} className="w-full border border-gray-300 rounded-md p-2 text-sm bg-white">
+                              <option value="">Ninguna / Única</option>
+                              {tallas.map(t => <option key={t.id} value={t.id}>{t.nombre}</option>)}
+                            </select>
+                          </div>
+                          <div className="flex-1 min-w-[140px]">
+                            <label className="block text-xs font-semibold text-gray-700 mb-1">Color</label>
+                            {isCreatingColor ? (
+                              <div className="flex gap-1">
+                                <input type="text" value={nuevoColor} onChange={e => setNuevoColor(e.target.value)} className="w-full border border-gray-300 rounded-md p-1.5 text-sm" placeholder="Ej: Azul Marino" />
+                                <button type="button" onClick={() => handleCrearColor(i)} className="bg-black text-white px-2 rounded text-xs font-bold">OK</button>
+                                <button type="button" onClick={() => setIsCreatingColor(false)} className="bg-gray-200 text-black px-2 rounded text-xs">✕</button>
+                              </div>
+                            ) : (
+                              <select value={v.colorId} onChange={e => {
+                                if(e.target.value === 'NEW') setIsCreatingColor(true);
+                                else updateVariante(i, 'colorId', e.target.value);
+                              }} className="w-full border border-gray-300 rounded-md p-2 text-sm bg-white">
+                                <option value="">Ninguno / Neutro</option>
+                                {colores.map(c => <option key={c.id} value={c.id}>{c.nombre}</option>)}
+                                <option value="NEW" className="font-bold text-blue-600">+ Añadir Nuevo Color</option>
+                              </select>
+                            )}
+                          </div>
+                          <div className="flex-1 min-w-[120px]">
+                            <label className="block text-xs font-semibold text-gray-700 mb-1">SKU Único</label>
+                            <input 
+                              type="text" 
+                              required 
+                              value={v.sku} 
+                              onChange={e => updateVariante(i, 'sku', e.target.value)} 
+                              className="w-full border border-gray-300 rounded-md p-2 text-sm uppercase font-mono" 
+                              placeholder="EJ: PRD-NEG-M" 
+                            />
+                          </div>
+                          <div className="w-28">
+                            <label className="block text-xs font-semibold text-gray-700 mb-1">Stock Indep.</label>
+                            <input 
+                              type="number" 
+                              required 
+                              min="0" 
+                              value={v.stock} 
+                              onChange={e => updateVariante(i, 'stock', e.target.value)} 
+                              className="w-full border border-gray-300 rounded-md p-2 text-sm font-bold text-emerald-700" 
+                            />
+                          </div>
+                          {variantes.length > 1 && (
+                            <button 
+                              type="button" 
+                              onClick={() => removeVariante(i)} 
+                              className="p-2 bg-red-50 hover:bg-red-100 text-red-600 rounded-md transition text-sm font-bold h-[38px] flex items-center justify-center"
+                              title="Eliminar esta variante"
+                            >
+                              ✕
+                            </button>
+                          )}
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                </div>
 
               </form>
             </div>

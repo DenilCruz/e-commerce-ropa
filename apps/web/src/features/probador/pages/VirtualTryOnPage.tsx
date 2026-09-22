@@ -29,7 +29,9 @@ export const VirtualTryOnPage: React.FC = () => {
       .then((prods) => {
         setProductos(prods);
         if (productoIdParam) {
-          const encontrado = prods.find((p) => p.id === productoIdParam);
+          const encontrado = prods.find(
+            (p) => p.id === productoIdParam || p.variantes?.some((v) => v.id === productoIdParam)
+          );
           if (encontrado) {
             setProductoSeleccionado(encontrado);
             setModalAbierto(true);
