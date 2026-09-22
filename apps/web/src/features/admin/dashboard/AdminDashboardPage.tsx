@@ -136,7 +136,7 @@ export const AdminDashboardPage: React.FC = () => {
             </div>
           </div>
           <div className="text-3xl font-black tracking-tight text-gray-900 mb-1">
-            Bs. {metricas.ventasHoy.monto.toLocaleString('es-BO', { minimumFractionDigits: 2 })}
+            ${metricas.ventasHoy.monto.toLocaleString('en-US', { minimumFractionDigits: 2 })}
           </div>
           <div className="text-xs text-gray-500 flex items-center gap-1.5">
             <span className="font-semibold text-gray-800">{metricas.ventasHoy.cantidad}</span> pedidos registrados hoy
@@ -152,7 +152,7 @@ export const AdminDashboardPage: React.FC = () => {
             </div>
           </div>
           <div className="text-3xl font-black tracking-tight text-gray-900 mb-1">
-            Bs. {metricas.ventasMes.monto.toLocaleString('es-BO', { minimumFractionDigits: 2 })}
+            ${metricas.ventasMes.monto.toLocaleString('en-US', { minimumFractionDigits: 2 })}
           </div>
           <div className="flex items-center gap-2 text-xs">
             {metricas.ventasMes.crecimientoVsMesAnterior !== undefined && (
@@ -180,7 +180,7 @@ export const AdminDashboardPage: React.FC = () => {
             </div>
           </div>
           <div className="text-3xl font-black tracking-tight text-gray-900 mb-1">
-            Bs. {metricas.ticketPromedio.toLocaleString('es-BO', { minimumFractionDigits: 2 })}
+            ${metricas.ticketPromedio.toLocaleString('en-US', { minimumFractionDigits: 2 })}
           </div>
           <div className="text-xs text-gray-500">
             Promedio por transacción en el mes
@@ -217,7 +217,7 @@ export const AdminDashboardPage: React.FC = () => {
             <div className="text-right bg-gray-50 px-3 py-1.5 rounded-lg border border-gray-200">
               <span className="text-xs text-gray-500 font-medium">{hoveredDia.dia}: </span>
               <strong className="text-sm font-bold text-gray-900">
-                Bs. {hoveredDia.total.toFixed(2)}
+                ${hoveredDia.total.toFixed(2)}
               </strong>
               <span className="text-xs text-gray-400 ml-1">({hoveredDia.pedidos} pedidos)</span>
             </div>
@@ -242,7 +242,7 @@ export const AdminDashboardPage: React.FC = () => {
                 {/* Tooltip flotante */}
                 <div className="absolute bottom-full mb-2 hidden group-hover:flex flex-col items-center pointer-events-none z-20">
                   <div className="bg-gray-900 text-white text-[10px] px-2.5 py-1 rounded shadow-lg whitespace-nowrap">
-                    <div className="font-bold">Bs. {dia.total.toFixed(2)}</div>
+                    <div className="font-bold">${dia.total.toFixed(2)}</div>
                     <div className="text-gray-300 text-[9px]">{dia.dia} · {dia.pedidos} ord.</div>
                   </div>
                   <div className="w-2 h-2 bg-gray-900 rotate-45 -mt-1"></div>
@@ -315,7 +315,7 @@ export const AdminDashboardPage: React.FC = () => {
                           {p.unidadesVendidas} <span className="text-xs font-normal text-gray-500">uds</span>
                         </div>
                         <div className="text-[11px] text-emerald-600 font-semibold">
-                          Bs. {p.ingresosGenerados.toFixed(2)}
+                          ${p.ingresosGenerados.toFixed(2)}
                         </div>
                       </div>
                     </div>

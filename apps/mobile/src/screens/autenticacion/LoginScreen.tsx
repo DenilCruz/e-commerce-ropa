@@ -55,8 +55,8 @@ export const LoginScreen: React.FC = () => {
   return (
     <ScrollView contentContainerStyle={styles.scrollContent} keyboardShouldPersistTaps="handled">
       <View style={styles.header}>
-        <Text style={styles.brandTitle}>EL MAGNÍFICO</Text>
-        <Text style={styles.subtitle}>Inicia sesión para continuar</Text>
+        <Text style={styles.brandTitle}>AURA</Text>
+        <Text style={styles.subtitle}>Elegancia sutil, presencia absoluta.</Text>
       </View>
 
       <View style={styles.form}>
@@ -122,10 +122,10 @@ const styles = StyleSheet.create({
     marginBottom: 32,
   },
   brandTitle: {
-    fontSize: 26,
+    fontSize: 28,
     fontWeight: '900',
-    color: '#111827',
-    letterSpacing: 1,
+    color: '#161513',
+    letterSpacing: 4,
   },
   subtitle: {
     fontSize: 14,

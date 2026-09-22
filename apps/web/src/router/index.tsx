@@ -13,8 +13,10 @@ import { ForgotPasswordPage } from '../features/autenticacion/pages/ForgotPasswo
 import { ResetPasswordPage } from '../features/autenticacion/pages/ResetPasswordPage';
 import { VerifyEmailPage } from '../features/autenticacion/pages/VerifyEmailPage';
 
+import { HomePage } from '../features/home/pages/HomePage';
 import { CatalogPage } from '../features/catalogo/pages/CatalogPage';
 import { ProductDetailPage } from '../features/detalleproducto/pages/ProductDetailPage';
+import { VirtualTryOnPage } from '../features/probador/pages/VirtualTryOnPage';
 import { CartPage } from '../features/carrito/pages/CartPage';
 import { CheckoutPage } from '../features/pago/pages/CheckoutPage';
 import { CheckoutReturnPage } from '../features/pago/pages/CheckoutReturnPage';
@@ -41,9 +43,11 @@ export const AppRouter: React.FC = () => {
     <Routes>
       {/* Tienda Pública */}
       <Route element={<MainLayout />}>
-        <Route path="/" element={<Navigate to="/catalogo" replace />} />
+        <Route path="/" element={<HomePage />} />
         <Route path="/catalogo" element={<CatalogPage />} />
+        <Route path="/catalogo/:id" element={<ProductDetailPage />} />
         <Route path="/producto/:id" element={<ProductDetailPage />} />
+        <Route path="/probador" element={<VirtualTryOnPage />} />
         <Route path="/carrito" element={<CartPage />} />
         <Route path="/tracking" element={<TrackingPage />} />
         <Route path="/tracking/:codigo" element={<TrackingPage />} />

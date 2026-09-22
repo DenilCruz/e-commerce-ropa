@@ -77,7 +77,7 @@ export const RegisterScreen: React.FC = () => {
     <ScrollView contentContainerStyle={styles.scrollContent} keyboardShouldPersistTaps="handled">
       <View style={styles.header}>
         <Text style={styles.title}>Crear Cuenta</Text>
-        <Text style={styles.subtitle}>Únete a El Magnífico y compra con beneficios</Text>
+        <Text style={styles.subtitle}>Únete a AURA y descubre el lujo silencioso</Text>
       </View>
 
       <View style={styles.form}>

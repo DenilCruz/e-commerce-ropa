@@ -185,12 +185,12 @@ export const AdminCouponsPage: React.FC = () => {
                           </span>
                         ) : (
                           <span className="text-emerald-700 bg-emerald-50 px-2 py-0.5 rounded font-mono">
-                            Bs. {c.valor} OFF
+                            ${c.valor} OFF
                           </span>
                         )}
                       </td>
                       <td className="py-3.5 px-4 text-gray-600">
-                        {Number(c.montoMinimo) > 0 ? `Bs. ${Number(c.montoMinimo).toFixed(2)}` : 'Sin mínimo'}
+                        {Number(c.montoMinimo) > 0 ? `$${Number(c.montoMinimo).toFixed(2)}` : 'Sin mínimo'}
                       </td>
                       <td className="py-3.5 px-4 text-gray-600">
                         {c.usosActuales} / {c.usosMaximos ?? '∞'}
@@ -282,7 +282,7 @@ export const AdminCouponsPage: React.FC = () => {
                     className="w-full px-3 py-2 border border-gray-300 rounded-xl focus:ring-2 focus:ring-purple-600 focus:outline-none bg-white"
                   >
                     <option value="PORCENTAJE">Porcentaje (%)</option>
-                    <option value="MONTO_FIJO">Monto Fijo (Bs.)</option>
+                    <option value="MONTO_FIJO">Monto Fijo ($)</option>
                   </select>
                 </div>
 
@@ -302,7 +302,7 @@ export const AdminCouponsPage: React.FC = () => {
 
               <div className="grid grid-cols-2 gap-3">
                 <div>
-                  <label className="block font-semibold text-gray-700 mb-1">Monto Mínimo (Bs.)</label>
+                  <label className="block font-semibold text-gray-700 mb-1">Monto Mínimo ($)</label>
                   <input
                     type="number"
                     min="0"

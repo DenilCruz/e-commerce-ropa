@@ -281,21 +281,28 @@ export const CatalogPage: React.FC = () => {
   return (
     <div className="space-y-8 pb-16">
       
-      {/* Título Principal */}
-      <div className="border-b border-gray-200 pb-6">
-        <h1 className="text-3xl font-black tracking-tight text-gray-900">Catálogo de Ropa</h1>
-        <p className="text-sm text-gray-500 mt-1">Explora nuestra colección femenina y encuentra tu estilo ideal.</p>
+      {/* Título Principal AURA */}
+      <div className="border-b border-[#E7E1D7] pb-6">
+        <p className="text-[11px] uppercase tracking-luxury text-[#9B7B54] font-semibold mb-1">
+          Colección Permanente
+        </p>
+        <h1 className="font-serif text-3xl sm:text-4xl text-stone-900 font-normal">
+          Colección AURA
+        </h1>
+        <p className="text-xs text-stone-500 font-light mt-1 max-w-xl">
+          Prendas atemporales confeccionadas con materias primas nobles y sastrería de alta precisión.
+        </p>
         
         {/* Badge de filtro de categoría activa si existe (HU-34) */}
         {categoriaActivaObj && (
-          <div className="mt-3 flex items-center gap-2">
-            <span className="text-xs text-gray-400">Filtrando por categoría:</span>
-            <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-semibold bg-black text-white">
+          <div className="mt-4 flex items-center gap-2">
+            <span className="text-xs text-stone-500 uppercase tracking-wider">Filtrando por:</span>
+            <span className="inline-flex items-center gap-1.5 px-3 py-1 text-xs uppercase tracking-luxury font-medium bg-stone-900 text-white rounded-xs">
               <FolderTree className="w-3.5 h-3.5" />
               {categoriaActivaObj.nombre}
               <button
                 onClick={() => handleSeleccionarCategoria('todas')}
-                className="hover:text-gray-300 p-0.5"
+                className="hover:text-[#EAE2D5] p-0.5"
                 title="Quitar filtro de categoría"
               >
                 <X className="w-3 h-3" />
@@ -309,7 +316,7 @@ export const CatalogPage: React.FC = () => {
       <div className="flex flex-col md:flex-row gap-4 justify-between items-stretch md:items-center">
         {/* Input Buscador (HU-26) */}
         <div className="relative flex-1 max-w-md">
-          <Search className="w-4 h-4 text-gray-400 absolute left-3.5 top-3.5" />
+          <Search className="w-4 h-4 text-stone-400 absolute left-3.5 top-3.5" />
           <input
             type="text"
             value={busqueda}
@@ -317,8 +324,8 @@ export const CatalogPage: React.FC = () => {
               setBusqueda(e.target.value);
               resetearPagina();
             }}
-            placeholder="Buscar prenda por nombre..."
-            className="w-full pl-10 pr-10 py-2.5 bg-gray-50 border border-gray-200 rounded-full text-sm focus:bg-white focus:outline-none focus:border-black transition-all"
+            placeholder="Buscar por nombre o tejido..."
+            className="w-full pl-10 pr-10 py-2.5 bg-white border border-[#D5CCC0] rounded-none text-xs focus:bg-[#FAF8F5] focus:outline-none focus:border-stone-900 transition-all font-sans placeholder:text-stone-400"
           />
           {busqueda && (
             <button
@@ -326,7 +333,7 @@ export const CatalogPage: React.FC = () => {
                 setBusqueda('');
                 resetearPagina();
               }}
-              className="absolute right-3.5 top-3 text-gray-400 hover:text-black transition-colors"
+              className="absolute right-3.5 top-3 text-stone-400 hover:text-stone-900 transition-colors"
             >
               <X className="w-4 h-4" />
             </button>
@@ -334,13 +341,13 @@ export const CatalogPage: React.FC = () => {
         </div>
 
         {/* Categorías Principales Pills (HU-34) */}
-        <div className="flex gap-2 overflow-x-auto pb-1 scrollbar-hide">
+        <div className="flex gap-2 overflow-x-auto pb-1 no-scrollbar">
           <button
             onClick={() => setMostrarArbol(!mostrarArbol)}
-            className={`px-3.5 py-2 rounded-full text-xs font-semibold whitespace-nowrap transition-all flex items-center gap-1.5 border ${
+            className={`px-4 py-2 text-xs uppercase tracking-luxury font-medium whitespace-nowrap transition-all flex items-center gap-1.5 border ${
               mostrarArbol
-                ? 'bg-black text-white border-black shadow-sm'
-                : 'bg-white text-gray-700 border-gray-300 hover:border-black'
+                ? 'bg-stone-900 text-white border-stone-900'
+                : 'bg-white text-stone-700 border-[#D5CCC0] hover:border-stone-900'
             }`}
             title="Ver estructura en árbol de categorías"
           >
@@ -349,24 +356,24 @@ export const CatalogPage: React.FC = () => {
           </button>
           <button
             onClick={() => handleSeleccionarCategoria('todas')}
-            className={`px-4 py-2 rounded-full text-xs font-semibold whitespace-nowrap transition-all ${
+            className={`px-3.5 py-2 text-xs uppercase tracking-luxury font-medium whitespace-nowrap transition-all border ${
               categoriaSeleccionada === 'todas'
-                ? 'bg-black text-white shadow-sm'
-                : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
+                ? 'bg-stone-900 text-white border-stone-900'
+                : 'bg-white text-stone-700 border-[#D5CCC0] hover:border-stone-900'
             }`}
           >
             Todas
           </button>
-          {categorias.filter(c => c.activa !== false).map(cat => {
+          {categorias.filter(c => c.activa !== false && !c.padre_id).map(cat => {
             const esActiva = categoriaSeleccionada === cat.id;
             return (
               <button
                 key={cat.id}
                 onClick={() => handleSeleccionarCategoria(cat.id)}
-                className={`px-4 py-2 rounded-full text-xs font-semibold whitespace-nowrap transition-all flex items-center gap-1.5 ${
+                className={`px-3.5 py-2 text-xs uppercase tracking-luxury font-medium whitespace-nowrap transition-all flex items-center gap-1.5 border ${
                   esActiva
-                    ? 'bg-black text-white shadow-sm'
-                    : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
+                    ? 'bg-stone-900 text-white border-stone-900'
+                    : 'bg-white text-stone-700 border-[#D5CCC0] hover:border-stone-900'
                 }`}
               >
                 <span>{cat.nombre}</span>
@@ -378,22 +385,22 @@ export const CatalogPage: React.FC = () => {
 
       {/* Visualizador Jerárquico del Árbol de Categorías (HU-33) */}
       {mostrarArbol && (
-        <div className="bg-white rounded-2xl border border-gray-200 p-6 shadow-sm space-y-4 animate-in fade-in zoom-in-95 duration-150">
-          <div className="flex items-center justify-between border-b border-gray-100 pb-3">
+        <div className="bg-white border border-[#E7E1D7] p-6 shadow-sm space-y-4 animate-in fade-in zoom-in-95 duration-150">
+          <div className="flex items-center justify-between border-b border-[#E7E1D7] pb-3">
             <div className="flex items-center gap-2">
-              <FolderTree className="w-5 h-5 text-black" />
-              <h2 className="text-sm uppercase tracking-wider font-bold text-gray-900">
-                Árbol de Categorías
+              <FolderTree className="w-4 h-4 text-stone-900" />
+              <h2 className="text-xs uppercase tracking-luxury font-bold text-stone-900">
+                Árbol de Categorías Atelier
               </h2>
-              <span className="text-xs text-gray-400 hidden sm:inline">
-                — Selecciona una categoría principal o subcategoría para filtrar
+              <span className="text-xs text-stone-400 hidden sm:inline">
+                — Selecciona una categoría principal o subcategoría para explorar
               </span>
             </div>
             <button
               onClick={() => setMostrarArbol(false)}
-              className="text-xs font-semibold text-gray-500 hover:text-black flex items-center gap-1 transition-colors"
+              className="text-xs uppercase tracking-luxury font-medium text-stone-500 hover:text-stone-900 flex items-center gap-1 transition-colors"
             >
-              <X className="w-4 h-4" /> Cerrar
+              <X className="w-3.5 h-3.5" /> Cerrar
             </button>
           </div>
 
@@ -401,23 +408,23 @@ export const CatalogPage: React.FC = () => {
             {/* Opción Todas */}
             <button
               onClick={() => handleSeleccionarCategoria('todas')}
-              className={`p-3.5 rounded-xl border text-left transition-all ${
+              className={`p-3.5 border text-left transition-all ${
                 categoriaSeleccionada === 'todas'
-                  ? 'border-black bg-gray-50 ring-1 ring-black'
-                  : 'border-gray-200 hover:border-gray-400 bg-white'
+                  ? 'border-stone-900 bg-[#FAF8F5]'
+                  : 'border-[#E7E1D7] hover:border-stone-400 bg-white'
               }`}
             >
               <div className="flex items-center justify-between">
-                <span className="font-bold text-sm text-gray-900">Todas las Prendas</span>
-                <span className="text-xs px-2 py-0.5 rounded-full bg-gray-100 font-semibold text-gray-600">
+                <span className="font-serif text-sm text-stone-900">Todas las Prendas</span>
+                <span className="text-[10px] px-2 py-0.5 bg-[#FAF8F5] border border-[#E7E1D7] font-medium text-stone-600 uppercase tracking-luxury">
                   {productos.length}
                 </span>
               </div>
-              <p className="text-[11px] text-gray-400 mt-1">Ver todo el catálogo completo</p>
+              <p className="text-[11px] text-stone-400 mt-1">Colección completa 21 piezas</p>
             </button>
 
             {/* Categorías con sus subcategorías */}
-            {categorias.filter(c => c.activa !== false).map(cat => {
+            {categorias.filter(c => c.activa !== false && !c.padre_id).map(cat => {
               const esActiva = categoriaSeleccionada === cat.id;
               const totalPrendas = obtenerTotalCategoria(cat);
               const tieneSubcats = cat.subcategorias && cat.subcategorias.length > 0;
@@ -425,10 +432,10 @@ export const CatalogPage: React.FC = () => {
               return (
                 <div
                   key={cat.id}
-                  className={`p-3.5 rounded-xl border transition-all ${
+                  className={`p-3.5 border transition-all ${
                     esActiva
-                      ? 'border-black bg-gray-50/70 ring-1 ring-black'
-                      : 'border-gray-200 hover:border-gray-300 bg-white'
+                      ? 'border-stone-900 bg-[#FAF8F5]'
+                      : 'border-[#E7E1D7] hover:border-stone-400 bg-white'
                   }`}
                 >
                   <div className="flex items-center justify-between">
@@ -480,18 +487,18 @@ export const CatalogPage: React.FC = () => {
 
       {/* Subcategorías Chips (si la categoría seleccionada tiene subcategorías) */}
       {subcategoriasVisibles.length > 0 && (
-        <div className="flex items-center gap-2 overflow-x-auto bg-gray-50/80 p-3 rounded-xl border border-gray-200">
-          <span className="text-xs font-semibold text-gray-500 uppercase tracking-wider whitespace-nowrap flex items-center gap-1">
-            <Tag className="w-3.5 h-3.5" /> Subcategorías:
+        <div className="flex items-center gap-2 overflow-x-auto bg-[#FAF8F5] p-3 border border-[#E7E1D7]">
+          <span className="text-[11px] font-medium text-stone-500 uppercase tracking-luxury whitespace-nowrap flex items-center gap-1.5">
+            <Tag className="w-3 h-3 text-[#9B7B54]" /> Subcategorías:
           </span>
           {subcategoriasVisibles.map(sub => (
             <button
               key={sub.id}
               onClick={() => handleSeleccionarCategoria(sub.id)}
-              className={`text-xs px-3 py-1 rounded-full whitespace-nowrap font-medium transition-colors ${
+              className={`text-[11px] px-3 py-1 uppercase tracking-luxury whitespace-nowrap font-medium transition-colors border ${
                 categoriaSeleccionada === sub.id
-                  ? 'bg-purple-600 text-white font-semibold'
-                  : 'bg-white text-gray-700 border border-gray-200 hover:border-black'
+                  ? 'bg-stone-900 text-white border-stone-900'
+                  : 'bg-white text-stone-700 border-[#D5CCC0] hover:border-stone-900'
               }`}
             >
               {sub.nombre}
@@ -501,24 +508,24 @@ export const CatalogPage: React.FC = () => {
       )}
 
       {/* BARRA DE FILTROS SECUNDARIOS Y ORDENAMIENTO (HU-25 y HU-29) */}
-      <div className="p-4 bg-gray-50 rounded-2xl border border-gray-200 flex flex-wrap gap-4 items-center justify-between">
+      <div className="p-4 bg-[#FAF8F5] border border-[#E7E1D7] flex flex-wrap gap-4 items-center justify-between">
         <div className="flex flex-wrap items-center gap-3">
           
-          <div className="flex items-center gap-1.5 text-xs text-gray-500 font-semibold uppercase tracking-wider pr-2 border-r border-gray-200">
-            <SlidersHorizontal className="w-3.5 h-3.5 text-gray-600" />
+          <div className="flex items-center gap-1.5 text-xs text-stone-500 font-medium uppercase tracking-luxury pr-3 border-r border-[#D5CCC0]">
+            <SlidersHorizontal className="w-3.5 h-3.5 text-stone-700" />
             <span>Filtros</span>
           </div>
 
           {/* Filtro por Talla (HU-25) */}
           <div className="flex items-center gap-1.5">
-            <span className="text-xs font-medium text-gray-500">Talla:</span>
+            <span className="text-xs font-medium text-stone-500">Talla:</span>
             <select
               value={tallaSeleccionada}
               onChange={e => {
                 setTallaSeleccionada(e.target.value);
                 resetearPagina();
               }}
-              className="bg-white border border-gray-300 text-xs rounded-lg px-3 py-1.5 font-medium outline-none focus:border-black cursor-pointer"
+              className="bg-white border border-[#D5CCC0] text-xs px-3 py-1.5 font-medium outline-none focus:border-stone-900 cursor-pointer"
             >
               <option value="todas">Todas</option>
               {tallasDisponibles.map(t => (
@@ -529,14 +536,14 @@ export const CatalogPage: React.FC = () => {
 
           {/* Filtro por Color (HU-25) */}
           <div className="flex items-center gap-1.5">
-            <span className="text-xs font-medium text-gray-500">Color:</span>
+            <span className="text-xs font-medium text-stone-500">Color:</span>
             <select
               value={colorSeleccionado}
               onChange={e => {
                 setColorSeleccionado(e.target.value);
                 resetearPagina();
               }}
-              className="bg-white border border-gray-300 text-xs rounded-lg px-3 py-1.5 font-medium outline-none focus:border-black cursor-pointer"
+              className="bg-white border border-[#D5CCC0] text-xs px-3 py-1.5 font-medium outline-none focus:border-stone-900 cursor-pointer"
             >
               <option value="todos">Todos</option>
               {coloresDisponibles.map(c => (
@@ -546,9 +553,9 @@ export const CatalogPage: React.FC = () => {
           </div>
 
           {/* Filtro por Precio Máximo (HU-25) */}
-          <div className="flex items-center gap-2 pl-2 border-l border-gray-200">
-            <span className="text-xs font-medium text-gray-500">Hasta:</span>
-            <span className="text-xs font-bold text-gray-900">${precioMaximoFiltro}</span>
+          <div className="flex items-center gap-2 pl-3 border-l border-[#D5CCC0]">
+            <span className="text-xs font-medium text-stone-500">Hasta:</span>
+            <span className="text-xs font-semibold text-stone-900">${precioMaximoFiltro}</span>
             <input
               type="range"
               min={10}
@@ -559,7 +566,7 @@ export const CatalogPage: React.FC = () => {
                 setPrecioMaximoFiltro(Number(e.target.value));
                 resetearPagina();
               }}
-              className="w-24 accent-black cursor-pointer"
+              className="w-24 accent-stone-900 cursor-pointer"
             />
           </div>
 
@@ -567,7 +574,7 @@ export const CatalogPage: React.FC = () => {
           {hayFiltrosActivos && (
             <button
               onClick={handleLimpiarFiltros}
-              className="inline-flex items-center gap-1 text-xs text-red-600 hover:text-red-700 font-semibold underline ml-2"
+              className="inline-flex items-center gap-1 text-xs text-rose-700 hover:text-rose-900 font-medium underline ml-2"
             >
               <X className="w-3.5 h-3.5" />
               Limpiar filtros
@@ -577,20 +584,20 @@ export const CatalogPage: React.FC = () => {
 
         {/* HU-29: Selector de Ordenamiento */}
         <div className="flex items-center gap-2">
-          <ArrowUpDown className="w-3.5 h-3.5 text-gray-400" />
-          <span className="text-xs font-medium text-gray-500">Ordenar por:</span>
+          <ArrowUpDown className="w-3.5 h-3.5 text-stone-400" />
+          <span className="text-xs font-medium text-stone-500">Ordenar por:</span>
           <select
             value={ordenarPor}
             onChange={e => {
               setOrdenarPor(e.target.value as any);
               resetearPagina();
             }}
-            className="bg-white border border-gray-300 text-xs rounded-lg px-3 py-1.5 font-medium outline-none focus:border-black cursor-pointer"
+            className="bg-white border border-[#D5CCC0] text-xs px-3 py-1.5 font-medium outline-none focus:border-stone-900 cursor-pointer"
           >
             <option value="reciente">Más recientes</option>
             <option value="precio_asc">Precio: Menor a Mayor</option>
             <option value="precio_desc">Precio: Mayor a Menor</option>
-            <option value="popularidad">Popularidad (Destacados)</option>
+            <option value="popularidad">Popularidad (Atelier Picks)</option>
           </select>
         </div>
       </div>

@@ -180,7 +180,7 @@ export const ProductDetailScreen: React.FC = () => {
           <View style={styles.titleRow}>
             <Text style={styles.productName}>{producto.nombre}</Text>
             <Text style={styles.price}>
-              Bs. {precioFinal.toFixed(2)}
+              ${precioFinal.toFixed(2)}
             </Text>
           </View>
 
@@ -294,7 +294,7 @@ export const ProductDetailScreen: React.FC = () => {
                 </View>
 
                 <Text style={styles.subtotalPreview}>
-                  Subtotal: <Text style={styles.subtotalPreviewBold}>Bs. {(precioFinal * cantidad).toFixed(2)}</Text>
+                  Subtotal: <Text style={styles.subtotalPreviewBold}>${(precioFinal * cantidad).toFixed(2)}</Text>
                 </Text>
               </View>
             </View>
@@ -333,7 +333,7 @@ export const ProductDetailScreen: React.FC = () => {
                       <Text style={styles.relatedName} numberOfLines={1}>
                         {item.nombre}
                       </Text>
-                      <Text style={styles.relatedPrice}>Bs. {Number(item.precio).toFixed(2)}</Text>
+                      <Text style={styles.relatedPrice}>${Number(item.precio).toFixed(2)}</Text>
                     </TouchableOpacity>
                   );
                 }}

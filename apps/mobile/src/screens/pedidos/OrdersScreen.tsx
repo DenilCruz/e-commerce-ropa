@@ -255,7 +255,7 @@ export const OrdersScreen: React.FC = () => {
 
                 <View style={styles.cardBottom}>
                   <Text style={styles.totalLabel}>Total:</Text>
-                  <Text style={styles.totalAmount}>Bs. {item.total.toFixed(2)}</Text>
+                  <Text style={styles.totalAmount}>${item.total.toFixed(2)}</Text>
                 </View>
               </TouchableOpacity>
 
@@ -355,7 +355,7 @@ export const OrdersScreen: React.FC = () => {
                         Talla: {it.talla} · Color: {it.color} · Cant: {it.cantidad}
                       </Text>
                     </View>
-                    <Text style={styles.itemPrice}>Bs. {it.subtotal.toFixed(2)}</Text>
+                    <Text style={styles.itemPrice}>${it.subtotal.toFixed(2)}</Text>
                   </View>
                 ))}
 
@@ -363,7 +363,7 @@ export const OrdersScreen: React.FC = () => {
 
                 <View style={styles.totalRow}>
                   <Text style={styles.totalLabelBold}>Total:</Text>
-                  <Text style={styles.totalValueBold}>Bs. {pedidoSeleccionado.total.toFixed(2)}</Text>
+                  <Text style={styles.totalValueBold}>${pedidoSeleccionado.total.toFixed(2)}</Text>
                 </View>
 
                 {/* HISTORIAL DE AUDITORÍA (HU-55) */}

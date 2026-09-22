@@ -245,7 +245,7 @@ export const CheckoutScreen: React.FC = () => {
                     {it.talla} / {it.color} · Cant: {it.cantidad}
                   </Text>
                 </View>
-                <Text style={styles.receiptItemPrice}>Bs. {it.subtotal.toFixed(2)}</Text>
+                <Text style={styles.receiptItemPrice}>${it.subtotal.toFixed(2)}</Text>
               </View>
             ))}
 
@@ -253,7 +253,7 @@ export const CheckoutScreen: React.FC = () => {
 
             <View style={styles.receiptRow}>
               <Text style={styles.receiptLabel}>Total</Text>
-              <Text style={styles.receiptTotal}>Bs. {ordenCompletada.total.toFixed(2)}</Text>
+              <Text style={styles.receiptTotal}>${ordenCompletada.total.toFixed(2)}</Text>
             </View>
           </View>
 
@@ -367,7 +367,7 @@ export const CheckoutScreen: React.FC = () => {
                 <Text style={styles.shippingDesc}>2 a 3 días hábiles a domicilio</Text>
               </View>
               <Text style={styles.shippingPrice}>
-                {subtotal >= 200 ? 'GRATIS' : 'Bs. 15.00'}
+                {subtotal >= 200 ? 'GRATIS' : '$15.00'}
               </Text>
             </TouchableOpacity>
 
@@ -388,7 +388,7 @@ export const CheckoutScreen: React.FC = () => {
                 </View>
                 <Text style={styles.shippingDesc}>Entrega prioritaria en 24 horas</Text>
               </View>
-              <Text style={styles.shippingPrice}>Bs. 30.00</Text>
+              <Text style={styles.shippingPrice}>$30.00</Text>
             </TouchableOpacity>
           </View>
         </View>
@@ -516,21 +516,21 @@ export const CheckoutScreen: React.FC = () => {
           <Text style={styles.cardTitle}>Resumen del Pedido</Text>
           <View style={styles.summaryRow}>
             <Text style={styles.summaryLabel}>Subtotal</Text>
-            <Text style={styles.summaryVal}>Bs. {subtotal.toFixed(2)}</Text>
+            <Text style={styles.summaryVal}>${subtotal.toFixed(2)}</Text>
           </View>
           {descuento > 0 && (
             <View style={styles.summaryRow}>
               <Text style={[styles.summaryLabel, { color: '#059669' }]}>Descuento cupón</Text>
-              <Text style={[styles.summaryVal, { color: '#059669' }]}>- Bs. {descuento.toFixed(2)}</Text>
+              <Text style={[styles.summaryVal, { color: '#059669' }]}>- ${descuento.toFixed(2)}</Text>
             </View>
           )}
           <View style={styles.summaryRow}>
             <Text style={styles.summaryLabel}>Envío</Text>
-            <Text style={styles.summaryVal}>{costoEnvio === 0 ? 'Gratis' : `Bs. ${costoEnvio.toFixed(2)}`}</Text>
+            <Text style={styles.summaryVal}>{costoEnvio === 0 ? 'Gratis' : `$${costoEnvio.toFixed(2)}`}</Text>
           </View>
           <View style={[styles.summaryRow, { borderTopWidth: 1, borderTopColor: '#f1f5f9', paddingTop: 10, marginTop: 6 }]}>
             <Text style={styles.summaryTotalLabel}>Total a Pagar</Text>
-            <Text style={styles.summaryTotalVal}>Bs. {totalFinal.toFixed(2)}</Text>
+            <Text style={styles.summaryTotalVal}>${totalFinal.toFixed(2)}</Text>
           </View>
         </View>
 
@@ -546,8 +546,8 @@ export const CheckoutScreen: React.FC = () => {
             <>
               <Text style={styles.payBtnText}>
                 {metodoPago === 'tarjeta'
-                  ? `Pagar Bs. ${totalFinal.toFixed(2)} con Stripe`
-                  : `Confirmar Pedido (Bs. ${totalFinal.toFixed(2)})`}
+                  ? `Pagar $${totalFinal.toFixed(2)} con Stripe`
+                  : `Confirmar Pedido ($${totalFinal.toFixed(2)})`}
               </Text>
               <Ionicons name="lock-closed" size={18} color="#fff" />
             </>

@@ -2,19 +2,17 @@ import React, { useState, useEffect, useRef } from 'react';
 import { Outlet, Link, useNavigate, useLocation } from 'react-router-dom';
 import { 
   ShoppingBag, 
-  ShoppingCart, 
   Heart, 
   Package, 
   User, 
   ShieldCheck, 
   LogOut, 
-  FolderTree, 
   ChevronDown, 
   ChevronRight, 
   Menu, 
   X, 
-  Tag, 
-  Sparkles 
+  Sparkles,
+  Layers
 } from 'lucide-react';
 import { useAuthStore } from '../store/auth.store';
 import { useFavoritosStore } from '../features/favoritos/store/favoritos.store';
@@ -22,6 +20,7 @@ import { useCartStore } from '../store/cart.store';
 import { authApi } from '../features/autenticacion/services/auth.api';
 import { obtenerCategorias } from '../features/catalogo/services/catalogo.api';
 import { Categoria } from '../features/catalogo/types';
+import { CartDrawer } from '../components/cart/CartDrawer';
 
 const ASSETS_URL = (import.meta.env.VITE_API_URL || 'http://localhost:3000/api/v1').replace('/api/v1', '');
 
@@ -39,6 +38,7 @@ export const MainLayout: React.FC = () => {
   const { user, isAuthenticated, logout, refreshToken } = useAuthStore();
   const { items: favoritosItems, cargarFavoritos } = useFavoritosStore();
   const totalCartItems = useCartStore((s) => s.cart?.totalItems || (s.guestItems?.reduce((acc, i) => acc + i.cantidad, 0) || 0));
+  const openDrawer = useCartStore((s) => s.openDrawer);
 
   const [categorias, setCategorias] = useState<Categoria[]>([]);
   const [dropdownCategoriasAbierto, setDropdownCategoriasAbierto] = useState(false);
@@ -74,7 +74,6 @@ export const MainLayout: React.FC = () => {
     const fetchCats = async () => {
       try {
         const data = await obtenerCategorias();
-        // Filtrar solo categorías activas
         const activas = data.filter(c => c.activa !== false);
         setCategorias(activas);
       } catch (err) {
@@ -118,30 +117,25 @@ export const MainLayout: React.FC = () => {
   };
 
   return (
-    <div className="min-h-screen flex flex-col bg-gray-50 text-gray-900">
-      {/* Barra superior de anuncios */}
-      <div className="bg-black text-white text-[11px] font-medium py-1.5 px-4 text-center tracking-wider uppercase flex items-center justify-center gap-2">
-        <Sparkles className="w-3.5 h-3.5 text-amber-400" />
-        <span>Nueva Colección Exclusiva · Envíos a todo el país</span>
-      </div>
-
-      {/* HEADER PRINCIPAL */}
-      <header className="bg-white border-b border-gray-200 px-4 sm:px-8 py-3.5 sticky top-0 z-40 shadow-xs">
+    <div className="min-h-screen flex flex-col bg-[#FAF8F5] text-stone-900 font-sans selection:bg-[#E7E1D7] selection:text-stone-900">
+      {/* HEADER PRINCIPAL AURA */}
+      <header className="bg-white/80 backdrop-blur-md border-b border-[#E7E1D7] px-4 sm:px-8 py-3.5 sticky top-0 z-40 transition-colors">
         <div className="max-w-7xl mx-auto flex items-center justify-between gap-4">
           
           {/* LOGO & NAVEGACIÓN DESKTOP */}
-          <div className="flex items-center gap-8">
-            <Link to="/" className="text-xl font-black tracking-tight text-gray-900 flex items-center gap-2.5 group">
-              <span className="bg-black text-white px-2 py-1 rounded text-xs font-black group-hover:scale-105 transition-transform">
-                EM
+          <div className="flex items-center gap-10">
+            <Link to="/" className="group flex items-center gap-2">
+              <span className="font-serif text-2xl tracking-[0.25em] font-normal uppercase text-stone-900 group-hover:text-[#9B7B54] transition-colors">
+                AURA
               </span>
-              <span className="tracking-tighter">El Magnífico</span>
             </Link>
 
-            <nav className="hidden lg:flex items-center gap-6 text-sm font-medium text-gray-600">
-              <Link to="/catalogo" className="hover:text-black transition-colors flex items-center gap-1.5">
-                <ShoppingBag className="w-4 h-4 text-gray-400" />
-                <span>Catálogo</span>
+            <nav className="hidden lg:flex items-center gap-7 text-xs uppercase tracking-widest font-medium text-stone-600">
+              <Link 
+                to="/catalogo" 
+                className="hover:text-stone-900 transition-colors py-1"
+              >
+                Colección
               </Link>
 
               {/* DROPDOWN ÁRBOL DE CATEGORÍAS */}
@@ -154,80 +148,78 @@ export const MainLayout: React.FC = () => {
                 <button
                   type="button"
                   onClick={() => setDropdownCategoriasAbierto(!dropdownCategoriasAbierto)}
-                  className={`flex items-center gap-1.5 py-1.5 px-2.5 rounded-lg transition-colors ${
-                    dropdownCategoriasAbierto ? 'bg-gray-100 text-black font-semibold' : 'hover:text-black'
+                  className={`flex items-center gap-1 py-1 transition-colors uppercase tracking-widest ${
+                    dropdownCategoriasAbierto ? 'text-stone-900 font-semibold' : 'hover:text-stone-900'
                   }`}
                 >
-                  <FolderTree className="w-4 h-4 text-gray-400" />
                   <span>Categorías</span>
-                  <ChevronDown className={`w-3.5 h-3.5 text-gray-400 transition-transform duration-200 ${
-                    dropdownCategoriasAbierto ? 'rotate-180 text-black' : ''
+                  <ChevronDown className={`w-3 h-3 text-stone-400 transition-transform duration-200 ${
+                    dropdownCategoriasAbierto ? 'rotate-180 text-stone-900' : ''
                   }`} />
                 </button>
 
                 {/* MEGA-MENÚ DESPLEGABLE CON EL ÁRBOL */}
                 {dropdownCategoriasAbierto && (
-                  <div className="absolute left-0 mt-2 w-[540px] bg-white rounded-2xl shadow-xl border border-gray-200 p-6 z-50 animate-in fade-in zoom-in-95 duration-150">
-                    <div className="flex items-center justify-between pb-3 mb-4 border-b border-gray-100">
+                  <div className="absolute left-0 mt-3 w-[560px] bg-[#FAF8F5] rounded-none shadow-xl border border-[#E7E1D7] p-7 z-50 animate-in fade-in duration-150">
+                    <div className="flex items-center justify-between pb-3 mb-5 border-b border-[#E7E1D7]">
                       <div>
-                        <h3 className="text-xs uppercase tracking-wider font-bold text-gray-900 flex items-center gap-2">
-                          <FolderTree className="w-4 h-4 text-black" />
-                          Árbol de Categorías
+                        <h3 className="font-serif text-base tracking-widest uppercase text-stone-900">
+                          Catálogo Editorial
                         </h3>
-                        <p className="text-[11px] text-gray-400 mt-0.5">Explora nuestras colecciones y prendas</p>
+                        <p className="text-[11px] text-stone-500 font-sans tracking-normal mt-0.5">Explora cortes de atelier y tejidos nobles</p>
                       </div>
                       <Link
                         to="/catalogo"
                         onClick={() => setDropdownCategoriasAbierto(false)}
-                        className="text-xs text-black font-semibold hover:underline"
+                        className="text-xs text-stone-900 font-sans uppercase tracking-widest font-semibold hover:text-[#9B7B54] transition-colors"
                       >
-                        Ver todo el catálogo →
+                        Ver todo →
                       </Link>
                     </div>
 
                     {categorias.length === 0 ? (
-                      <p className="text-xs text-gray-400 py-4 text-center">No hay categorías disponibles</p>
+                      <p className="text-xs text-stone-400 py-4 text-center">No hay categorías disponibles</p>
                     ) : (
                       <div className="grid grid-cols-2 gap-6 max-h-[420px] overflow-y-auto pr-2">
                         {categorias.map(cat => {
                           const tieneSubcats = cat.subcategorias && cat.subcategorias.length > 0;
 
                           return (
-                            <div key={cat.id} className="space-y-2">
+                            <div key={cat.id} className="space-y-1.5">
                               {/* Categoría Principal */}
                               <Link
                                 to={`/catalogo?categoria=${cat.id}`}
                                 onClick={() => setDropdownCategoriasAbierto(false)}
-                                className="group/item flex items-center justify-between p-2 rounded-lg hover:bg-gray-50 transition-colors"
+                                className="group/item flex items-center justify-between p-1.5 rounded-sm hover:bg-[#F2ECE1] transition-colors"
                               >
                                 <div className="flex items-center gap-2.5">
                                   {cat.imagen ? (
                                     <img
                                       src={getImageUrl(cat.imagen)}
                                       alt={cat.nombre}
-                                      className="w-7 h-7 object-cover rounded-md border border-gray-200"
+                                      className="w-7 h-9 object-cover rounded-xs border border-[#E7E1D7]"
                                     />
                                   ) : (
-                                    <div className="w-7 h-7 rounded-md bg-gray-100 flex items-center justify-center text-gray-600">
-                                      <Tag className="w-3.5 h-3.5" />
+                                    <div className="w-7 h-9 rounded-xs bg-[#EAE2D5] flex items-center justify-center text-stone-600">
+                                      <Layers className="w-3.5 h-3.5" />
                                     </div>
                                   )}
-                                  <span className="font-semibold text-gray-900 group-hover/item:text-black text-sm">
+                                  <span className="font-serif text-sm text-stone-900 group-hover/item:text-[#9B7B54] transition-colors">
                                     {cat.nombre}
                                   </span>
                                 </div>
-                                <ChevronRight className="w-3.5 h-3.5 text-gray-300 group-hover/item:text-black group-hover/item:translate-x-0.5 transition-all" />
+                                <ChevronRight className="w-3 h-3 text-stone-400 group-hover/item:text-stone-900 group-hover/item:translate-x-0.5 transition-all" />
                               </Link>
 
                               {/* Subcategorías Anidadas */}
                               {tieneSubcats && (
-                                <ul className="pl-9 space-y-1 border-l-2 border-gray-100 ml-3.5">
+                                <ul className="pl-6 space-y-1 border-l border-[#E7E1D7] ml-3.5">
                                   {cat.subcategorias!.filter(s => s.activa !== false).map(sub => (
                                     <li key={sub.id}>
                                       <Link
                                         to={`/catalogo?categoria=${sub.id}`}
                                         onClick={() => setDropdownCategoriasAbierto(false)}
-                                        className="text-xs text-gray-500 hover:text-black hover:font-semibold py-1 px-2 rounded block transition-colors"
+                                        className="text-[11px] text-stone-500 hover:text-stone-900 py-0.5 px-2 block transition-colors tracking-wide"
                                       >
                                         ↳ {sub.nombre}
                                       </Link>
@@ -244,83 +236,106 @@ export const MainLayout: React.FC = () => {
                 )}
               </div>
 
-              <Link to="/carrito" className="hover:text-black transition-colors flex items-center gap-1.5 relative">
-                <ShoppingCart className="w-4 h-4 text-gray-400" />
-                <span>Carrito</span>
-                {totalCartItems > 0 && (
-                  <span className="bg-black text-white text-[10px] font-bold px-1.5 py-0.2 rounded-full min-w-[18px] text-center leading-tight">
-                    {totalCartItems}
-                  </span>
-                )}
+              {/* PROBADOR VIRTUAL IA */}
+              <Link 
+                to="/probador" 
+                className="hover:text-stone-900 transition-colors flex items-center gap-1.5 py-1 text-[#9B7B54] font-semibold"
+              >
+                <Sparkles className="w-3.5 h-3.5" />
+                <span>Probador Virtual IA</span>
               </Link>
-
-              {isAuthenticated && (
-                <>
-                  <Link to="/favoritos" className="hover:text-black transition-colors flex items-center gap-1.5 relative">
-                    <Heart className="w-4 h-4 text-rose-500 fill-rose-500" />
-                    <span>Favoritos</span>
-                    {favoritosItems.length > 0 && (
-                      <span className="bg-rose-500 text-white text-[10px] font-bold px-1.5 py-0.2 rounded-full min-w-[18px] text-center leading-tight">
-                        {favoritosItems.length}
-                      </span>
-                    )}
-                  </Link>
-                  <Link to="/pedidos" className="hover:text-black transition-colors flex items-center gap-1.5">
-                    <Package className="w-4 h-4 text-gray-400" />
-                    <span>Mis Pedidos</span>
-                  </Link>
-                </>
-              )}
-
-              {user?.rol === 'ADMIN' && (
-                <Link to="/admin" className="text-purple-600 font-semibold hover:text-purple-800 flex items-center gap-1.5">
-                  <ShieldCheck className="w-4 h-4 text-purple-600" />
-                  <span>Panel Admin</span>
-                </Link>
-              )}
             </nav>
           </div>
 
-          {/* ACCIONES DERECHA (USUARIO / SESIÓN) */}
-          <div className="flex items-center gap-3">
+          {/* ACCIONES DERECHA (USUARIO / BOLSA) */}
+          <div className="flex items-center gap-4">
+            {/* FAVORITOS */}
+            {isAuthenticated && (
+              <Link 
+                to="/favoritos" 
+                className="text-stone-600 hover:text-stone-900 transition-colors relative p-1"
+                title="Lista de Deseos"
+              >
+                <Heart className="w-4 h-4 text-stone-700" />
+                {favoritosItems.length > 0 && (
+                  <span className="absolute -top-1 -right-1 bg-stone-900 text-white text-[9px] font-medium px-1 rounded-full min-w-[14px] text-center leading-tight">
+                    {favoritosItems.length}
+                  </span>
+                )}
+              </Link>
+            )}
+
+            {/* BOLSA / CART DRAWER TRIGGER */}
+            <button
+              onClick={openDrawer}
+              className="text-stone-700 hover:text-stone-900 transition-colors relative p-1.5 flex items-center gap-1 group"
+              title="Abrir bolsa de compras"
+              aria-label="Bolsa de compras"
+            >
+              <ShoppingBag className="w-4 h-4 text-stone-800 group-hover:scale-105 transition-transform" />
+              <span className="hidden sm:inline text-xs uppercase tracking-widest font-medium text-stone-700">
+                Bolsa
+              </span>
+              {totalCartItems > 0 && (
+                <span className="bg-stone-900 text-white text-[10px] font-sans font-medium px-1.5 py-0.2 rounded-full min-w-[16px] text-center leading-tight ml-0.5">
+                  {totalCartItems}
+                </span>
+              )}
+            </button>
+
+            {/* USUARIO / SESIÓN */}
             {isAuthenticated && user ? (
-              <div className="flex items-center gap-3">
+              <div className="flex items-center gap-3 pl-2 border-l border-[#E7E1D7]">
                 <Link
                   to="/perfil"
-                  className="flex items-center gap-2 text-sm text-gray-700 bg-gray-100 hover:bg-gray-200 px-3 py-1.5 rounded-full transition-colors"
+                  className="flex items-center gap-2 text-xs text-stone-700 hover:text-stone-900 transition-colors py-1"
                 >
-                  <span className="w-6 h-6 rounded-full bg-black text-white flex items-center justify-center text-xs font-bold">
+                  <span className="w-6 h-6 rounded-full bg-[#EAE2D5] text-stone-800 flex items-center justify-center text-[10px] font-semibold border border-[#D5CCC0]">
                     {user.nombre?.charAt(0).toUpperCase() || 'U'}
                   </span>
-                  <span className="font-medium hidden sm:inline">{user.nombre}</span>
-                  {user.rol && (
-                    <span className="text-[10px] uppercase tracking-wider bg-gray-200 px-1.5 py-0.5 rounded font-semibold text-gray-600">
-                      {user.rol}
-                    </span>
-                  )}
+                  <span className="font-medium hidden md:inline tracking-wide">{user.nombre}</span>
                 </Link>
+
+                <Link
+                  to="/pedidos"
+                  className="text-stone-600 hover:text-stone-900 transition-colors p-1"
+                  title="Mis Pedidos"
+                >
+                  <Package className="w-4 h-4" />
+                </Link>
+
+                {user?.rol === 'ADMIN' && (
+                  <Link 
+                    to="/admin" 
+                    className="text-xs uppercase tracking-widest text-[#9B7B54] font-semibold hover:text-stone-900 flex items-center gap-1"
+                    title="Panel de Administración"
+                  >
+                    <ShieldCheck className="w-3.5 h-3.5" />
+                    <span className="hidden lg:inline">Admin</span>
+                  </Link>
+                )}
+
                 <button
                   onClick={handleLogout}
-                  className="flex items-center gap-1 text-xs text-red-600 hover:text-red-800 font-medium px-2.5 py-1.5 rounded-lg border border-red-200 hover:bg-red-50 transition-colors"
+                  className="text-stone-400 hover:text-stone-800 transition-colors p-1"
                   title="Cerrar Sesión"
                 >
                   <LogOut className="w-3.5 h-3.5" />
-                  <span className="hidden sm:inline">Salir</span>
                 </button>
               </div>
             ) : (
-              <div className="flex items-center gap-2">
+              <div className="flex items-center gap-3 text-xs uppercase tracking-widest pl-2 border-l border-[#E7E1D7]">
                 <Link
                   to="/login"
-                  className="text-xs sm:text-sm font-medium text-gray-700 hover:text-black px-3 py-1.5 rounded-lg transition-colors"
+                  className="text-stone-700 hover:text-stone-900 transition-colors py-1 font-medium"
                 >
-                  Iniciar Sesión
+                  Ingresar
                 </Link>
                 <Link
                   to="/registro"
-                  className="text-xs sm:text-sm font-medium bg-black text-white hover:bg-gray-800 px-3.5 py-1.5 rounded-lg shadow-sm transition-all"
+                  className="bg-stone-900 text-white hover:bg-stone-800 px-3 py-1.5 transition-colors font-medium hidden sm:inline-block"
                 >
-                  Registrarse
+                  Crear Cuenta
                 </Link>
               </div>
             )}
@@ -328,69 +343,80 @@ export const MainLayout: React.FC = () => {
             {/* BOTÓN MENÚ MÓVIL */}
             <button
               onClick={() => setMenuMovilAbierto(!menuMovilAbierto)}
-              className="lg:hidden p-2 rounded-lg text-gray-600 hover:text-black hover:bg-gray-100 transition-colors"
+              className="lg:hidden p-1.5 text-stone-700 hover:text-stone-900 hover:bg-[#F2ECE1] transition-colors"
               aria-label="Abrir Menú"
             >
-              {menuMovilAbierto ? <X className="w-6 h-6" /> : <Menu className="w-6 h-6" />}
+              {menuMovilAbierto ? <X className="w-5 h-5" /> : <Menu className="w-5 h-5" />}
             </button>
           </div>
         </div>
 
-        {/* MENÚ MÓVIL DESPLEGABLE (HU-33 Responsive) */}
+        {/* MENÚ MÓVIL DESPLEGABLE */}
         {menuMovilAbierto && (
-          <div className="lg:hidden border-t border-gray-200 mt-3 pt-4 space-y-4 animate-in slide-in-from-top duration-150">
-            <nav className="flex flex-col space-y-2 text-sm font-medium">
-              <Link to="/catalogo" className="p-2 rounded-lg hover:bg-gray-100 flex items-center gap-2">
+          <div className="lg:hidden border-t border-[#E7E1D7] mt-3 pt-4 space-y-4 animate-in slide-in-from-top duration-150 bg-[#FAF8F5]">
+            <nav className="flex flex-col space-y-1 text-xs uppercase tracking-wider font-medium">
+              <Link to="/catalogo" className="p-2 hover:bg-[#F2ECE1] flex items-center gap-2">
                 <ShoppingBag className="w-4 h-4" />
-                Catálogo Completo
+                Colección Completa
               </Link>
-              <Link to="/carrito" className="p-2 rounded-lg hover:bg-gray-100 flex items-center justify-between">
+              <Link to="/probador" className="p-2 hover:bg-[#F2ECE1] flex items-center gap-2 text-[#9B7B54]">
+                <Sparkles className="w-4 h-4" />
+                Probador Virtual IA
+              </Link>
+              <button
+                onClick={() => {
+                  setMenuMovilAbierto(false);
+                  openDrawer();
+                }}
+                className="p-2 hover:bg-[#F2ECE1] flex items-center justify-between w-full text-left uppercase tracking-wider"
+              >
                 <div className="flex items-center gap-2">
-                  <ShoppingCart className="w-4 h-4" />
-                  <span>Carrito de Compras</span>
+                  <ShoppingBag className="w-4 h-4" />
+                  <span>Bolsa de Compras</span>
                 </div>
                 {totalCartItems > 0 && (
-                  <span className="bg-black text-white text-[10px] font-bold px-2 py-0.5 rounded-full">
+                  <span className="bg-stone-900 text-white text-[10px] font-sans font-medium px-2 py-0.5 rounded-full">
                     {totalCartItems}
                   </span>
                 )}
-              </Link>
+              </button>
+
               {isAuthenticated && (
                 <>
-                  <Link to="/favoritos" className="p-2 rounded-lg hover:bg-gray-100 flex items-center justify-between">
+                  <Link to="/favoritos" className="p-2 hover:bg-[#F2ECE1] flex items-center justify-between">
                     <div className="flex items-center gap-2">
-                      <Heart className="w-4 h-4 text-rose-500 fill-rose-500" />
-                      <span>Favoritos</span>
+                      <Heart className="w-4 h-4" />
+                      <span>Lista de Deseos</span>
                     </div>
                     {favoritosItems.length > 0 && (
-                      <span className="bg-rose-500 text-white text-[10px] font-bold px-2 py-0.5 rounded-full">
+                      <span className="bg-stone-900 text-white text-[10px] font-sans font-medium px-2 py-0.5 rounded-full">
                         {favoritosItems.length}
                       </span>
                     )}
                   </Link>
-                  <Link to="/pedidos" className="p-2 rounded-lg hover:bg-gray-100 flex items-center gap-2">
+                  <Link to="/pedidos" className="p-2 hover:bg-[#F2ECE1] flex items-center gap-2">
                     <Package className="w-4 h-4" />
                     Mis Pedidos
                   </Link>
-                  <Link to="/perfil" className="p-2 rounded-lg hover:bg-gray-100 flex items-center gap-2">
+                  <Link to="/perfil" className="p-2 hover:bg-[#F2ECE1] flex items-center gap-2">
                     <User className="w-4 h-4" />
                     Mi Perfil
                   </Link>
                 </>
               )}
+
               {user?.rol === 'ADMIN' && (
-                <Link to="/admin" className="p-2 rounded-lg bg-purple-50 text-purple-700 font-semibold flex items-center gap-2">
+                <Link to="/admin" className="p-2 bg-[#F2ECE1] text-[#9B7B54] font-semibold flex items-center gap-2">
                   <ShieldCheck className="w-4 h-4" />
-                  Panel Admin
+                  Panel de Administración
                 </Link>
               )}
             </nav>
 
             {/* Árbol de Categorías en Móvil */}
-            <div className="border-t border-gray-200 pt-3">
-              <p className="text-xs font-bold uppercase tracking-wider text-gray-500 mb-2 flex items-center gap-1.5">
-                <FolderTree className="w-4 h-4 text-black" />
-                Árbol de Categorías
+            <div className="border-t border-[#E7E1D7] pt-3">
+              <p className="text-[10px] font-bold uppercase tracking-widest text-stone-500 mb-2">
+                Categorías de Colección
               </p>
               <div className="space-y-1">
                 {categorias.map(cat => {
@@ -398,31 +424,31 @@ export const MainLayout: React.FC = () => {
                   const expandida = categoriaMovilExpandida === cat.id;
 
                   return (
-                    <div key={cat.id} className="rounded-lg bg-gray-50 overflow-hidden">
-                      <div className="flex items-center justify-between p-2.5">
+                    <div key={cat.id} className="border-b border-[#E7E1D7]/50">
+                      <div className="flex items-center justify-between p-2">
                         <Link
                           to={`/catalogo?categoria=${cat.id}`}
-                          className="font-medium text-sm text-gray-900 hover:text-black flex-1"
+                          className="font-serif text-sm text-stone-800 hover:text-stone-900 flex-1"
                         >
                           {cat.nombre}
                         </Link>
                         {tieneSubcats && (
                           <button
                             onClick={() => setCategoriaMovilExpandida(expandida ? null : cat.id)}
-                            className="p-1 text-gray-400 hover:text-black"
+                            className="p-1 text-stone-400 hover:text-stone-800"
                           >
-                            <ChevronDown className={`w-4 h-4 transition-transform ${expandida ? 'rotate-180' : ''}`} />
+                            <ChevronDown className={`w-3.5 h-3.5 transition-transform ${expandida ? 'rotate-180' : ''}`} />
                           </button>
                         )}
                       </div>
 
                       {tieneSubcats && expandida && (
-                        <div className="bg-gray-100/70 px-4 py-2 space-y-1.5 border-t border-gray-200">
+                        <div className="bg-[#F2ECE1]/60 px-4 py-2 space-y-1">
                           {cat.subcategorias!.filter(s => s.activa !== false).map(sub => (
                             <Link
                               key={sub.id}
                               to={`/catalogo?categoria=${sub.id}`}
-                              className="block text-xs text-gray-600 hover:text-black py-1"
+                              className="block text-xs text-stone-600 hover:text-stone-900 py-1"
                             >
                               ↳ {sub.nombre}
                             </Link>
@@ -443,13 +469,70 @@ export const MainLayout: React.FC = () => {
         <Outlet />
       </main>
 
-      {/* FOOTER */}
-      <footer className="bg-gray-900 text-gray-400 text-center py-8 text-sm border-t border-gray-800">
-        <div className="max-w-7xl mx-auto px-4 space-y-2">
-          <p className="font-semibold text-gray-300">El Magnífico — E-Commerce de Ropa</p>
-          <p className="text-xs text-gray-500">
-            © {new Date().getFullYear()} Todos los derechos reservados. Diseñado para ofrecer la mejor experiencia de compra.
-          </p>
+      {/* SLIDE-OVER CART DRAWER */}
+      <CartDrawer />
+
+      {/* FOOTER AURA */}
+      <footer className="bg-[#161513] text-[#FAF8F5] pt-16 pb-12 border-t border-stone-800">
+        <div className="max-w-7xl mx-auto px-6 sm:px-8">
+          <div className="grid grid-cols-1 md:grid-cols-4 gap-10 pb-12 border-b border-stone-800">
+            {/* Marca y Manifiesto */}
+            <div className="space-y-4 md:col-span-1">
+              <h3 className="font-serif text-2xl tracking-[0.25em] uppercase text-white font-normal">
+                AURA
+              </h3>
+              <p className="font-serif italic text-stone-400 text-sm leading-relaxed">
+                "Elegancia sutil, presencia absoluta."
+              </p>
+              <p className="text-xs text-stone-400 leading-relaxed font-sans">
+                Atelier dedicado a siluetas atemporales confeccionadas con materias primas de la más alta distinción.
+              </p>
+            </div>
+
+            {/* Enlaces de Colección */}
+            <div className="space-y-3">
+              <h4 className="text-xs uppercase tracking-widest text-stone-400 font-medium">Colecciones</h4>
+              <ul className="space-y-2 text-xs text-stone-300 font-light">
+                <li><Link to="/catalogo?categoria=264efe79-ded7-4cfa-a0b0-110b822944c5" className="hover:text-white transition-colors">Vestidos de Seda</Link></li>
+                <li><Link to="/catalogo?categoria=afc1e8b6-47ab-45bc-a0d7-02dcd023ff3b" className="hover:text-white transition-colors">Sastrería & Abrigos</Link></li>
+                <li><Link to="/catalogo?categoria=3a3ed9f0-94be-45a7-8699-c007a4ef9795" className="hover:text-white transition-colors">Camisería Fina</Link></li>
+                <li><Link to="/catalogo?categoria=583d0937-40b2-4070-96b3-4685fdb92bc2" className="hover:text-white transition-colors">Pantalones Wide-Leg</Link></li>
+              </ul>
+            </div>
+
+            {/* Experiencia & Atelier */}
+            <div className="space-y-3">
+              <h4 className="text-xs uppercase tracking-widest text-stone-400 font-medium">Experiencia Atelier</h4>
+              <ul className="space-y-2 text-xs text-stone-300 font-light">
+                <li><Link to="/probador" className="hover:text-white transition-colors flex items-center gap-1.5 text-[#9B7B54] font-medium"><Sparkles className="w-3 h-3" /> Probador Virtual IA</Link></li>
+                <li><span className="text-stone-400">Guía de Cuidados de Tejidos</span></li>
+                <li><span className="text-stone-400">Sastrería a Medida</span></li>
+                <li><span className="text-stone-400">Servicio de Concierge</span></li>
+              </ul>
+            </div>
+
+            {/* Servicio al Cliente & Moneda */}
+            <div className="space-y-3">
+              <h4 className="text-xs uppercase tracking-widest text-stone-400 font-medium">Atelier & Divisa</h4>
+              <p className="text-xs text-stone-400 leading-relaxed font-light">
+                Precios expresados en Dólares Estadounidenses ($ USD). Envíos y entregas aseguradas en empaque atelier.
+              </p>
+              <div className="pt-2">
+                <span className="inline-block px-2.5 py-1 text-[10px] tracking-widest uppercase border border-stone-700 text-stone-300">
+                  USD ($) · Global Checkout
+                </span>
+              </div>
+            </div>
+          </div>
+
+          <div className="pt-8 flex flex-col sm:flex-row items-center justify-between gap-4 text-xs text-stone-400">
+            <p>© {new Date().getFullYear()} AURA Atelier. Todos los derechos reservados.</p>
+            <div className="flex gap-6 tracking-wide">
+              <span>Términos de Privacidad</span>
+              <span>·</span>
+              <span>Políticas de Atelier</span>
+            </div>
+          </div>
         </div>
       </footer>
     </div>

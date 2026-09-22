@@ -185,7 +185,7 @@ export const TrackingScreen: React.FC = () => {
               <RNView key={it.id} style={styles.orderItem}>
                 <RNText style={styles.orderItemName}>{it.nombre}</RNText>
                 <RNText style={styles.orderItemPrice}>
-                  Bs. {Number(it.subtotal).toFixed(2)}
+                  ${Number(it.subtotal).toFixed(2)}
                 </RNText>
               </RNView>
             ))}

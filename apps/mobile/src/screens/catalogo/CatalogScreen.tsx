@@ -279,7 +279,7 @@ export const CatalogScreen: React.FC = () => {
             <Text style={styles.categoryLabel} numberOfLines={1}>
               {item.categoria?.nombre || 'General'}
             </Text>
-            <Text style={styles.price}>Bs. {precio.toFixed(2)}</Text>
+            <Text style={styles.price}>${precio.toFixed(2)}</Text>
           </View>
         </View>
       </TouchableOpacity>

@@ -449,7 +449,7 @@ export const TrackingPage: React.FC = () => {
                         <span className="text-xs text-slate-500 block">Cantidad: {item.cantidad}</span>
                       </div>
                       <div className="font-bold text-slate-900">
-                        Bs. {Number(item.subtotal).toFixed(2)}
+                        ${Number(item.subtotal).toFixed(2)}
                       </div>
                     </div>
                   ))}
@@ -458,7 +458,7 @@ export const TrackingPage: React.FC = () => {
                 <div className="mt-4 pt-4 border-t border-slate-200 flex justify-between items-center">
                   <span className="font-bold text-slate-700">Total de la Compra:</span>
                   <span className="text-lg font-extrabold text-indigo-600">
-                    Bs. {Number(trackingData.orden.total).toFixed(2)}
+                    ${Number(trackingData.orden.total).toFixed(2)}
                   </span>
                 </div>
               </div>

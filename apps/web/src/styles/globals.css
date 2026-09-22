@@ -2,6 +2,56 @@
 @tailwind components;
 @tailwind utilities;
 
-body {
-  font-family: system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, sans-serif;
+@layer base {
+  :root {
+    --bg-canvas: #FAF8F5;
+    --bg-card: #FFFFFF;
+    --border-hairline: #E7E1D7;
+    --noir: #161513;
+  }
+
+  body {
+    font-family: 'Plus Jakarta Sans', system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+    background-color: var(--bg-canvas);
+    color: #1C1917;
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+  }
+
+  h1, h2, h3, .font-serif {
+    font-family: 'Playfair Display', 'Cormorant Garamond', Georgia, serif;
+  }
+}
+
+/* Scrollbar refinada estilo atelier */
+::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
+}
+::-webkit-scrollbar-track {
+  background: #FAF8F5;
+}
+::-webkit-scrollbar-thumb {
+  background: #D8CFC4;
+  border-radius: 9999px;
+}
+::-webkit-scrollbar-thumb:hover {
+  background: #B3A796;
+}
+
+/* Animaciones suaves para el Hero dinámico */
+@keyframes kenburns-slow {
+  0% {
+    transform: scale(1);
+  }
+  50% {
+    transform: scale(1.035);
+  }
+  100% {
+    transform: scale(1);
+  }
+}
+
+.animate-kenburns {
+  animation: kenburns-slow 9s ease-in-out infinite alternate;
 }

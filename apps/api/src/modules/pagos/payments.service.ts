@@ -118,7 +118,7 @@ export class PaymentsService {
         amount: amountInCents,
         currency: 'bob',
         payment_method_types: ['card'],
-        description: `Compra El Magnífico - Cliente ${usuario?.correo || usuarioId}`,
+        description: `Compra AURA - Cliente ${usuario?.correo || usuarioId}`,
         metadata: {
           usuarioId,
           cuponId: cupon ? cupon.id : '',
@@ -184,8 +184,8 @@ export class PaymentsService {
             price_data: {
               currency: 'bob',
               product_data: {
-                name: `Compra El Magnífico (${cart.items.length} ${cart.items.length === 1 ? 'producto' : 'productos'})`,
-                description: `Subtotal Bs. ${subtotal.toFixed(2)}${descuento > 0 ? ` | Descuento: -Bs. ${descuento.toFixed(2)}` : ''}${envio > 0 ? ` | Envío: Bs. ${envio.toFixed(2)}` : ' | Envío: GRATIS'}`,
+                name: `Colección AURA (${cart.items.length} ${cart.items.length === 1 ? 'prenda' : 'prendas'})`,
+                description: `Subtotal $${subtotal.toFixed(2)}${descuento > 0 ? ` | Descuento: -$${descuento.toFixed(2)}` : ''}${envio > 0 ? ` | Envío: $${envio.toFixed(2)}` : ' | Envío: GRATIS'}`,
               },
               unit_amount: Math.round(totalFinal * 100),
             },

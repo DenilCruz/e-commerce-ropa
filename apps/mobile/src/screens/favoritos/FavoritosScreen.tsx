@@ -185,7 +185,7 @@ export const FavoritosScreen: React.FC = () => {
             </TouchableOpacity>
           </View>
 
-          <Text style={styles.price}>Bs. {Number(producto.precio || 0).toFixed(2)}</Text>
+          <Text style={styles.price}>${Number(producto.precio || 0).toFixed(2)}</Text>
 
           {/* HU-79: Selector de talla interactivo */}
           {variantes.length > 0 && (

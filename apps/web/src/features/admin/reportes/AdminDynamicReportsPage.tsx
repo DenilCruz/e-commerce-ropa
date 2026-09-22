@@ -21,6 +21,7 @@ export const AdminDynamicReportsPage: React.FC = () => {
   const [cargando, setCargando] = useState<boolean>(false);
   const [resultado, setResultado] = useState<ReporteDinamicoResultado | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const [mostrarSql, setMostrarSql] = useState<boolean>(false);
 
   // Estados de Reconocimiento de Voz (Web Speech API)
   const [escuchando, setEscuchando] = useState<boolean>(false);
@@ -221,7 +222,7 @@ export const AdminDynamicReportsPage: React.FC = () => {
                   colLower.includes('monto')) &&
                 typeof val === 'number'
               ) {
-                displayVal = `Bs. ${val.toFixed(2)}`;
+                displayVal = `$${val.toFixed(2)}`;
               }
               return `<td style="padding: 8px 10px; border-bottom: 1px solid #e2e8f0; font-size: 12px; color: #1e293b;">${displayVal}</td>`;
             })
@@ -266,7 +267,7 @@ export const AdminDynamicReportsPage: React.FC = () => {
       <body>
         <div class="header">
           <div>
-            <div class="logo"><span>EM</span> El Magnífico E-Commerce</div>
+            <div class="logo"><span>A</span> AURA Atelier</div>
             <div style="font-size: 13px; color: #475569; margin-top: 4px; font-weight: 600;">Reporte Dinámico de Datos</div>
           </div>
           <div class="meta">
@@ -292,7 +293,7 @@ export const AdminDynamicReportsPage: React.FC = () => {
         </table>
 
         <div class="footer">
-          Documento oficial emitido por el Sistema de Administración de El Magnífico.
+          Documento oficial emitido por el Sistema de Administración de AURA.
         </div>
 
         <script>
@@ -308,8 +309,11 @@ export const AdminDynamicReportsPage: React.FC = () => {
 
   // Sugerencias de voz
   const sugerencias = [
+    'Stock actual de vestidos',
+    'Stock de pantalones azules',
     'Top 5 productos más vendidos y sus ingresos totales',
     'Prendas con stock agotado o menor al stock mínimo',
+    'Total de stock por categoría',
     'Ventas agrupadas por categoría de ropa',
     'Clientes con mayor monto acumulado en compras',
     'Resumen de pedidos según su estado actual',
@@ -335,7 +339,7 @@ export const AdminDynamicReportsPage: React.FC = () => {
         colLower.includes('gastado')) &&
       typeof val === 'number'
     ) {
-      return <span className="font-bold text-gray-900">Bs. {val.toFixed(2)}</span>;
+      return <span className="font-bold text-gray-900">${val.toFixed(2)}</span>;
     }
 
     // Fechas
@@ -557,15 +561,48 @@ export const AdminDynamicReportsPage: React.FC = () => {
 
           {/* TABLA DINÁMICA DE RESULTADOS (SIN COLUMNAS ID) */}
           <div className="bg-white rounded-xl border border-gray-200 shadow-sm overflow-hidden">
-            <div className="p-4 border-b border-gray-100 flex items-center justify-between text-xs text-gray-500">
-              <span className="text-[11px] text-gray-400">
-                Consulta ejecutada: <span className="font-mono text-gray-700 font-semibold">{resultado.promptOriginal}</span>
-              </span>
+            <div className="p-4 border-b border-gray-100 flex flex-col sm:flex-row sm:items-center justify-between gap-3 text-xs">
+              <div className="space-y-1">
+                <div className="text-[11px] text-gray-500 flex items-center gap-1.5 flex-wrap">
+                  <Mic className="w-3.5 h-3.5 text-gray-400 shrink-0" />
+                  <span>Instrucción solicitada:</span>
+                  <span className="font-semibold text-gray-900 bg-gray-100 px-2 py-0.5 rounded">
+                    "{resultado.promptOriginal}"
+                  </span>
+                </div>
+                {resultado.descripcion && (
+                  <div className="text-xs text-indigo-700 font-medium flex items-center gap-1.5">
+                    <Sparkles className="w-3.5 h-3.5 text-amber-500 shrink-0" />
+                    <span>{resultado.descripcion}</span>
+                  </div>
+                )}
+              </div>
+
+              {resultado.sql && (
+                <button
+                  onClick={() => setMostrarSql(!mostrarSql)}
+                  className="px-2.5 py-1 text-[11px] font-mono text-gray-600 hover:text-black bg-gray-100 hover:bg-gray-200 rounded border border-gray-200 transition-all self-start sm:self-auto shrink-0"
+                >
+                  {mostrarSql ? 'Ocultar SQL' : 'Ver SQL'}
+                </button>
+              )}
             </div>
 
+            {mostrarSql && resultado.sql && (
+              <div className="bg-gray-900 p-3 text-[11px] font-mono text-emerald-400 border-b border-gray-800 overflow-x-auto">
+                <span className="text-gray-500 select-none">SQL &gt; </span>
+                {resultado.sql}
+              </div>
+            )}
+
             {resultado.filas.length === 0 ? (
-              <div className="py-16 text-center text-gray-400 text-xs">
-                La consulta se ejecutó con éxito pero no devolvió ningún registro.
+              <div className="py-16 px-4 text-center space-y-2">
+                <div className="text-gray-500 text-xs font-medium">
+                  La consulta se ejecutó con éxito pero no devolvió ningún registro con los filtros solicitados.
+                </div>
+                <div className="text-[11px] text-gray-400">
+                  Prueba seleccionando una de las consultas sugeridas arriba o ajusta los términos de búsqueda.
+                </div>
               </div>
             ) : (
               <div className="overflow-x-auto max-h-[520px]">

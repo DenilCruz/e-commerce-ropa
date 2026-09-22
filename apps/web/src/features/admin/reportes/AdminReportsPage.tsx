@@ -335,7 +335,7 @@ export const AdminReportsPage: React.FC = () => {
               Total Facturado
             </span>
             <div className="text-2xl font-black text-gray-900 mt-1">
-              Bs. {reporte.resumen.totalFacturado.toLocaleString('es-BO', { minimumFractionDigits: 2 })}
+              ${reporte.resumen.totalFacturado.toLocaleString('en-US', { minimumFractionDigits: 2 })}
             </div>
             <span className="text-[11px] text-gray-500">
               {reporte.resumen.totalPedidos} órdenes registradas
@@ -347,7 +347,7 @@ export const AdminReportsPage: React.FC = () => {
               Ticket Promedio
             </span>
             <div className="text-2xl font-black text-purple-700 mt-1">
-              Bs. {reporte.resumen.ticketMedio.toLocaleString('es-BO', { minimumFractionDigits: 2 })}
+              ${reporte.resumen.ticketMedio.toLocaleString('en-US', { minimumFractionDigits: 2 })}
             </div>
             <span className="text-[11px] text-gray-500">
               Promedio por pedido en el período
@@ -359,7 +359,7 @@ export const AdminReportsPage: React.FC = () => {
               Descuentos Otorgados
             </span>
             <div className="text-2xl font-black text-emerald-600 mt-1">
-              - Bs. {reporte.resumen.totalDescuentos.toLocaleString('es-BO', { minimumFractionDigits: 2 })}
+              - ${reporte.resumen.totalDescuentos.toLocaleString('en-US', { minimumFractionDigits: 2 })}
             </div>
             <span className="text-[11px] text-gray-500">
               Por cupones y promociones
@@ -371,7 +371,7 @@ export const AdminReportsPage: React.FC = () => {
               Recaudación de Envíos
             </span>
             <div className="text-2xl font-black text-blue-600 mt-1">
-              Bs. {reporte.resumen.totalEnvios.toLocaleString('es-BO', { minimumFractionDigits: 2 })}
+              ${reporte.resumen.totalEnvios.toLocaleString('en-US', { minimumFractionDigits: 2 })}
             </div>
             <span className="text-[11px] text-gray-500">
               Costos logísticos cobrados
@@ -444,17 +444,17 @@ export const AdminReportsPage: React.FC = () => {
                         </span>
                       </td>
                       <td className="py-3.5 px-4 text-right text-gray-600 font-medium">
-                        Bs. {p.subtotal.toFixed(2)}
+                        ${p.subtotal.toFixed(2)}
                       </td>
                       <td className="py-3.5 px-4 text-right font-medium">
                         {p.descuento > 0 ? (
-                          <span className="text-emerald-600">- Bs. {p.descuento.toFixed(2)}</span>
+                          <span className="text-emerald-600">- ${p.descuento.toFixed(2)}</span>
                         ) : (
                           <span className="text-gray-300">-</span>
                         )}
                       </td>
                       <td className="py-3.5 px-4 text-right font-black text-gray-900">
-                        Bs. {p.total.toFixed(2)}
+                        ${p.total.toFixed(2)}
                       </td>
                       <td className="py-3.5 px-4 text-center">
                         <span
@@ -557,11 +557,11 @@ export const AdminReportsPage: React.FC = () => {
                     <div>
                       <div className="font-bold text-gray-900">{item.nombreProducto}</div>
                       <div className="text-[11px] text-gray-500">
-                        {item.talla ? `Talla: ${item.talla}` : ''} {item.color ? `· Color: ${item.color}` : ''} · Cant: {item.cantidad} x Bs. {item.precio.toFixed(2)}
+                        {item.talla ? `Talla: ${item.talla}` : ''} {item.color ? `· Color: ${item.color}` : ''} · Cant: {item.cantidad} x ${item.precio.toFixed(2)}
                       </div>
                     </div>
                     <div className="font-bold text-gray-900">
-                      Bs. {item.subtotal.toFixed(2)}
+                      ${item.subtotal.toFixed(2)}
                     </div>
                   </div>
                 ))}
@@ -569,17 +569,17 @@ export const AdminReportsPage: React.FC = () => {
             </div>
 
             <div className="border-t border-gray-100 pt-4 space-y-1.5 text-xs text-right">
-              <div className="text-gray-500">Subtotal: Bs. {pedidoDetalle.subtotal.toFixed(2)}</div>
+              <div className="text-gray-500">Subtotal: ${pedidoDetalle.subtotal.toFixed(2)}</div>
               {pedidoDetalle.descuento > 0 && (
                 <div className="text-emerald-600 font-semibold">
-                  Descuento: - Bs. {pedidoDetalle.descuento.toFixed(2)}
+                  Descuento: - ${pedidoDetalle.descuento.toFixed(2)}
                 </div>
               )}
               {pedidoDetalle.costoEnvio > 0 && (
-                <div className="text-gray-500">Envío: Bs. {pedidoDetalle.costoEnvio.toFixed(2)}</div>
+                <div className="text-gray-500">Envío: ${pedidoDetalle.costoEnvio.toFixed(2)}</div>
               )}
               <div className="text-base font-black text-gray-900 pt-1">
-                Total: Bs. {pedidoDetalle.total.toFixed(2)}
+                Total: ${pedidoDetalle.total.toFixed(2)}
               </div>
             </div>
 

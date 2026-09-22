@@ -104,16 +104,16 @@ export class MailService implements OnModuleInit {
         <div class="container">
           <div class="header">
             <h1>¡Te damos la Bienvenida!</h1>
-            <p>A la experiencia de moda en El Magnífico</p>
+            <p>A la experiencia de alta costura en AURA</p>
           </div>
           <div class="content">
             <div class="greeting">¡Hola, ${dto.nombre}!</div>
-            <p>Estamos muy felices de que te unas a nuestra comunidad. En <strong>El Magnífico</strong> nos apasiona brindarte las mejores tendencias en ropa, la máxima calidad y una experiencia de compra rápida y segura.</p>
+            <p>Estamos muy felices de que te unas a nuestra comunidad. En <strong>AURA</strong> nos apasiona brindarte piezas atemporales de la más alta calidad, discreción y elegancia sutil.</p>
             
             <div class="perks">
               <div class="perk-item"><strong>Envíos rápidos:</strong> A todo el país con seguimiento en tiempo real.</div>
-              <div class="perk-item"><strong>Cupones y promociones exclusivas:</strong> Para miembros registrados.</div>
-              <div class="perk-item"><strong>Pagos 100% seguros:</strong> Con QR Simple y pasarelas verificadas.</div>
+              <div class="perk-item"><strong>Cupones y promociones exclusivas:</strong> Para miembros de la casa.</div>
+              <div class="perk-item"><strong>Pagos 100% seguros:</strong> Con Stripe y transacciones cifradas.</div>
               <div class="perk-item"><strong>Sincronización total:</strong> Entre nuestra web y app móvil.</div>
             </div>
 
@@ -124,7 +124,7 @@ export class MailService implements OnModuleInit {
             <p style="font-size: 14px; color: #64748b;">Si tienes alguna pregunta o requieres asistencia con tu cuenta, nuestro equipo de soporte está siempre listo para ayudarte.</p>
           </div>
           <div class="footer">
-            <p>© ${new Date().getFullYear()} El Magnífico E-Commerce. Todos los derechos reservados.</p>
+            <p>© ${new Date().getFullYear()} AURA. Todos los derechos reservados.</p>
             <p><small>Monitorea este envío en <a href="https://mailtrap.io/sending/email_logs" target="_blank" style="color: #4f46e5;">Mailtrap Logs</a></small></p>
           </div>
         </div>
@@ -132,8 +132,8 @@ export class MailService implements OnModuleInit {
       </html>
     `;
 
-    const subject = `¡Bienvenido/a a El Magnífico, ${dto.nombre}!`;
-    const text = `Hola ${dto.nombre}, te damos la bienvenida a El Magnífico. Explora nuestras colecciones en: ${catalogoUrl}`;
+    const subject = `¡Bienvenido/a a AURA, ${dto.nombre}!`;
+    const text = `Hola ${dto.nombre}, te damos la bienvenida a AURA. Explora nuestras colecciones en: ${catalogoUrl}`;
 
     if (encolar) {
       return this.mailQueueService.encolar({
@@ -179,7 +179,7 @@ export class MailService implements OnModuleInit {
           </div>
           <div class="content">
             <h2>Estimado/a ${nombre},</h2>
-            <p>Hemos recibido una solicitud para restablecer la contraseña de tu cuenta en <strong>El Magnífico</strong>.</p>
+            <p>Hemos recibido una solicitud para restablecer la contraseña de tu cuenta en <strong>AURA</strong>.</p>
             <p>Haz clic en el siguiente botón para elegir una nueva contraseña segura:</p>
             <div class="btn-container">
               <a href="${enlaceRecuperacion}" class="btn">Restablecer Contraseña</a>
@@ -190,7 +190,7 @@ export class MailService implements OnModuleInit {
             <p><small>Si no solicitaste este cambio, puedes ignorar este correo; tu cuenta permanece segura.</small></p>
           </div>
           <div class="footer">
-            <p>© ${new Date().getFullYear()} El Magnífico. Todos los derechos reservados.</p>
+            <p>© ${new Date().getFullYear()} AURA. Todos los derechos reservados.</p>
             <p>Monitorea este envío en <a href="https://mailtrap.io/sending/email_logs" target="_blank">Mailtrap Logs</a></p>
           </div>
         </div>
@@ -198,7 +198,7 @@ export class MailService implements OnModuleInit {
       </html>
     `;
 
-    const subject = 'Restablecer contraseña - El Magnífico';
+    const subject = 'Restablecer contraseña - AURA';
     const text = `Hola ${nombre}, solicitaste restablecer tu contraseña. Ingresa a: ${enlaceRecuperacion} o usa el token: ${token}`;
 
     if (encolar) {
@@ -231,8 +231,8 @@ export class MailService implements OnModuleInit {
             ${item.talla || item.color ? `<div style="font-size: 12px; color: #64748b;">${item.talla ? `Talla: ${item.talla}` : ''} ${item.color ? `· Color: ${item.color}` : ''}</div>` : ''}
           </td>
           <td style="padding: 12px 8px; text-align: center; color: #334155;">${item.cantidad}</td>
-          <td style="padding: 12px 8px; text-align: right; color: #334155;">Bs. ${Number(item.precioUnitario).toFixed(2)}</td>
-          <td style="padding: 12px 8px; text-align: right; font-weight: 600; color: #0f172a;">Bs. ${Number(item.subtotal).toFixed(2)}</td>
+          <td style="padding: 12px 8px; text-align: right; color: #334155;">$${Number(item.precioUnitario).toFixed(2)}</td>
+          <td style="padding: 12px 8px; text-align: right; font-weight: 600; color: #0f172a;">$${Number(item.subtotal).toFixed(2)}</td>
         </tr>
       `,
       )
@@ -309,28 +309,28 @@ export class MailService implements OnModuleInit {
             <table class="totals-table">
               <tr>
                 <td style="text-align: right; color: #64748b;">Subtotal:</td>
-                <td style="text-align: right; width: 120px; font-weight: 600;">Bs. ${Number(datos.subtotal).toFixed(2)}</td>
+                <td style="text-align: right; width: 120px; font-weight: 600;">$${Number(datos.subtotal).toFixed(2)}</td>
               </tr>
               ${descuento > 0 ? `
               <tr>
                 <td style="text-align: right; color: #16a34a;">Descuento ${datos.cuponCodigo ? `(Cupón "${datos.cuponCodigo}")` : ''}:</td>
-                <td style="text-align: right; color: #16a34a; font-weight: 600;">- Bs. ${descuento.toFixed(2)}</td>
+                <td style="text-align: right; color: #16a34a; font-weight: 600;">- $${descuento.toFixed(2)}</td>
               </tr>` : ''}
               ${costoEnvio > 0 ? `
               <tr>
                 <td style="text-align: right; color: #64748b;">Costo de Envío:</td>
-                <td style="text-align: right; font-weight: 600;">Bs. ${costoEnvio.toFixed(2)}</td>
+                <td style="text-align: right; font-weight: 600;">$${costoEnvio.toFixed(2)}</td>
               </tr>` : ''}
               <tr class="total-row">
                 <td style="text-align: right; padding-top: 10px;">Total Pagado:</td>
-                <td style="text-align: right; padding-top: 10px; color: #059669;">Bs. ${Number(datos.total).toFixed(2)}</td>
+                <td style="text-align: right; padding-top: 10px; color: #059669;">$${Number(datos.total).toFixed(2)}</td>
               </tr>
             </table>
 
             <p style="margin-top: 30px; font-size: 13px; color: #64748b;">Te notificaremos cuando tu pedido sea despachado con la información de rastreo.</p>
           </div>
           <div class="footer">
-            <p>© ${new Date().getFullYear()} El Magnífico E-Commerce. Todos los derechos reservados.</p>
+            <p>© ${new Date().getFullYear()} AURA. Todos los derechos reservados.</p>
             <p><small>Monitorea este envío en <a href="https://mailtrap.io/sending/email_logs" target="_blank" style="color: #059669;">Mailtrap Logs</a></small></p>
           </div>
         </div>
@@ -338,8 +338,8 @@ export class MailService implements OnModuleInit {
       </html>
     `;
 
-    const subject = `Confirmación de Pedido #${datos.nroPedido} - El Magnífico`;
-    const text = `Hola ${datos.nombreCliente}, confirmamos tu pedido #${datos.nroPedido} por un total de Bs. ${Number(datos.total).toFixed(2)}.`;
+    const subject = `Confirmación de Pedido #${datos.nroPedido} - AURA`;
+    const text = `Hola ${datos.nombreCliente}, confirmamos tu pedido #${datos.nroPedido} por un total de $${Number(datos.total).toFixed(2)}.`;
 
     if (encolar) {
       return this.mailQueueService.encolar({
@@ -386,20 +386,20 @@ export class MailService implements OnModuleInit {
       <body>
         <div class="container">
           <div class="header">
-            <h1>El Magnífico — E-Commerce</h1>
+            <h1>AURA — Atelier</h1>
           </div>
           <div class="content">
             <h2>¡Hola, ${nombre}!</h2>
-            <p>Gracias por unirte a nuestra tienda. Para activar tu cuenta y asegurar tus compras, por favor confirma tu dirección de correo electrónico.</p>
+            <p>Gracias por unirte a nuestra casa de moda. Para activar tu cuenta y asegurar tus compras, por favor confirma tu dirección de correo electrónico.</p>
             <div class="btn-container">
               <a href="${enlaceVerificacion}" class="btn">Verificar mi Correo</a>
             </div>
             <p>O si prefieres, utiliza este token de verificación en la aplicación:</p>
             <div class="token-box">${token}</div>
-            <p><small>Si no creaste una cuenta en El Magnífico, puedes ignorar este mensaje.</small></p>
+            <p><small>Si no creaste una cuenta en AURA, puedes ignorar este mensaje.</small></p>
           </div>
           <div class="footer">
-            <p>© ${new Date().getFullYear()} El Magnífico. Todos los derechos reservados.</p>
+            <p>© ${new Date().getFullYear()} AURA. Todos los derechos reservados.</p>
             <p>Monitorea este envío en <a href="https://mailtrap.io/sending/email_logs" target="_blank">Mailtrap Logs</a></p>
           </div>
         </div>
@@ -407,8 +407,8 @@ export class MailService implements OnModuleInit {
       </html>
     `;
 
-    const subject = 'Confirma tu correo electrónico - El Magnífico';
-    const text = `Hola ${nombre}, verifica tu cuenta en El Magnífico ingresando a este enlace: ${enlaceVerificacion} o usando el token: ${token}`;
+    const subject = 'Confirma tu correo electrónico - AURA';
+    const text = `Hola ${nombre}, verifica tu cuenta en AURA ingresando a este enlace: ${enlaceVerificacion} o usando el token: ${token}`;
 
     if (encolar) {
       return this.mailQueueService.encolar({

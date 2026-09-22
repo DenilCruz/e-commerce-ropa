@@ -365,7 +365,7 @@ export const AdminShippingPage: React.FC = () => {
                   <div className="text-right">
                     <div className="text-xs text-slate-400 uppercase font-medium">Tarifa</div>
                     <div className="text-xl font-extrabold text-indigo-600">
-                      Bs. {Number(m.costo).toFixed(2)}
+                      ${Number(m.costo).toFixed(2)}
                     </div>
                   </div>
 
@@ -524,7 +524,7 @@ export const AdminShippingPage: React.FC = () => {
               <div className="grid grid-cols-2 gap-4">
                 <div>
                   <label className="block text-xs font-semibold text-slate-700 uppercase mb-1">
-                    Costo (Bs.)
+                    Costo ($)
                   </label>
                   <input
                     type="number"

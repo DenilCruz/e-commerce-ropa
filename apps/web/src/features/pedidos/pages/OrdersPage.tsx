@@ -208,7 +208,7 @@ export const OrdersPage: React.FC = () => {
           <h3 className="text-lg font-bold text-gray-900 mb-1">No hay pedidos</h3>
           <p className="text-gray-500 text-xs mb-6">
             {filtroEstado === 'TODOS'
-              ? 'Aún no has realizado ninguna compra en El Magnífico.'
+              ? 'Aún no has realizado ninguna compra en AURA.'
               : `No tienes pedidos con estado "${filtroEstado}".`}
           </p>
           <Link
@@ -264,7 +264,7 @@ export const OrdersPage: React.FC = () => {
                           {it.nombre} <span className="text-gray-400 font-normal">({it.talla} / {it.color}) × {it.cantidad}</span>
                         </span>
                         <span className="font-bold text-gray-900 flex-shrink-0">
-                          Bs. {Number(it.subtotal || 0).toFixed(2)}
+                          ${Number(it.subtotal || 0).toFixed(2)}
                         </span>
                       </div>
                     ))}
@@ -293,7 +293,7 @@ export const OrdersPage: React.FC = () => {
                   <div className="pt-3 border-t border-gray-200 mt-2 flex justify-between items-baseline">
                     <span className="text-xs font-bold uppercase text-gray-500">Total Pedido</span>
                     <span className="text-xl font-black text-gray-900">
-                      Bs. {Number(pedido.total || 0).toFixed(2)}
+                      ${Number(pedido.total || 0).toFixed(2)}
                     </span>
                   </div>
                 </div>
@@ -454,7 +454,7 @@ export const OrdersPage: React.FC = () => {
                           Talla: {it.talla} · Color: {it.color} · Cantidad: {it.cantidad}
                         </p>
                       </div>
-                      <span className="font-bold text-gray-900">Bs. {Number(it.subtotal || 0).toFixed(2)}</span>
+                      <span className="font-bold text-gray-900">${Number(it.subtotal || 0).toFixed(2)}</span>
                     </div>
                   ))}
                 </div>
@@ -464,21 +464,21 @@ export const OrdersPage: React.FC = () => {
               <div className="bg-gray-50 rounded-2xl p-4 border border-gray-200 space-y-2 text-sm">
                 <div className="flex justify-between text-gray-600">
                   <span>Subtotal</span>
-                  <span>Bs. {Number(pedidoSeleccionado.subtotal || 0).toFixed(2)}</span>
+                  <span>${Number(pedidoSeleccionado.subtotal || 0).toFixed(2)}</span>
                 </div>
                 {Number(pedidoSeleccionado.descuento || 0) > 0 && (
                   <div className="flex justify-between text-emerald-600 font-semibold">
                     <span>Descuento</span>
-                    <span>- Bs. {Number(pedidoSeleccionado.descuento || 0).toFixed(2)}</span>
+                    <span>- ${Number(pedidoSeleccionado.descuento || 0).toFixed(2)}</span>
                   </div>
                 )}
                 <div className="flex justify-between text-gray-600">
                   <span>Costo de Envío</span>
-                  <span>{Number(pedidoSeleccionado.costoEnvio || 0) === 0 ? 'Gratis' : `Bs. ${Number(pedidoSeleccionado.costoEnvio || 0).toFixed(2)}`}</span>
+                  <span>{Number(pedidoSeleccionado.costoEnvio || 0) === 0 ? 'Gratis' : `$${Number(pedidoSeleccionado.costoEnvio || 0).toFixed(2)}`}</span>
                 </div>
                 <div className="pt-2 border-t border-gray-200 flex justify-between text-base font-black text-gray-900">
                   <span>Total</span>
-                  <span>Bs. {Number(pedidoSeleccionado.total || 0).toFixed(2)}</span>
+                  <span>${Number(pedidoSeleccionado.total || 0).toFixed(2)}</span>
                 </div>
               </div>
 

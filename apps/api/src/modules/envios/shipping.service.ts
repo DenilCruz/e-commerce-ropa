@@ -241,7 +241,7 @@ export class ShippingService {
 
     const puntosRuta = [
       {
-        nombre: 'Centro Logístico Principal El Magnífico',
+        nombre: 'Atelier Central AURA',
         lat: -17.7833,
         lng: -63.1821,
         descripcion: 'Almacén Central - Parque Industrial, Santa Cruz',

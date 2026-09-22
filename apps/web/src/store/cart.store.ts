@@ -22,8 +22,11 @@ interface CartStoreState {
   descuento: number;
   totalConDescuento: number;
   mensajeCupon: string | null;
+  isDrawerOpen: boolean;
 
   // Actions
+  openDrawer: () => void;
+  closeDrawer: () => void;
   cargarCarrito: () => Promise<void>;
   addItem: (varianteId: string, cantidad?: number) => Promise<void>;
   updateQuantity: (itemIdOrVarianteId: string, cantidad: number) => Promise<void>;
@@ -45,6 +48,10 @@ export const useCartStore = create<CartStoreState>()(
       descuento: 0,
       totalConDescuento: 0,
       mensajeCupon: null,
+      isDrawerOpen: false,
+
+      openDrawer: () => set({ isDrawerOpen: true }),
+      closeDrawer: () => set({ isDrawerOpen: false }),
 
       cargarCarrito: async () => {
         set({ cargando: true, error: null });
@@ -134,6 +141,7 @@ export const useCartStore = create<CartStoreState>()(
             set({ guestItems });
             await get().cargarCarrito();
           }
+          set({ isDrawerOpen: true });
         } catch (err: any) {
           const msg = err?.response?.data?.message || 'No se pudo agregar el producto al carrito.';
           set({ error: msg, cargando: false });

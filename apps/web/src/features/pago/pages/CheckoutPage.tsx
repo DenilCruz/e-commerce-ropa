@@ -431,7 +431,7 @@ export const CheckoutPage: React.FC = () => {
                         Talla: {item.talla} · Color: {item.color} · Cant: {item.cantidad}
                       </span>
                     </div>
-                    <span className="font-bold text-gray-900">Bs. {item.subtotal.toFixed(2)}</span>
+                    <span className="font-bold text-gray-900">${item.subtotal.toFixed(2)}</span>
                   </div>
                 ))}
               </div>
@@ -441,21 +441,21 @@ export const CheckoutPage: React.FC = () => {
             <div className="pt-4 border-t border-gray-200 space-y-1.5 text-sm">
               <div className="flex justify-between text-gray-600">
                 <span>Subtotal</span>
-                <span>Bs. {ordenCompletada.subtotal.toFixed(2)}</span>
+                <span>${ordenCompletada.subtotal.toFixed(2)}</span>
               </div>
               {ordenCompletada.descuento > 0 && (
                 <div className="flex justify-between text-emerald-600 font-semibold">
                   <span>Descuento aplicado</span>
-                  <span>- Bs. {ordenCompletada.descuento.toFixed(2)}</span>
+                  <span>- ${ordenCompletada.descuento.toFixed(2)}</span>
                 </div>
               )}
               <div className="flex justify-between text-gray-600">
                 <span>Costo de Envío</span>
-                <span>{ordenCompletada.costoEnvio === 0 ? 'Gratis' : `Bs. ${ordenCompletada.costoEnvio.toFixed(2)}`}</span>
+                <span>{ordenCompletada.costoEnvio === 0 ? 'Gratis' : `$${ordenCompletada.costoEnvio.toFixed(2)}`}</span>
               </div>
               <div className="flex justify-between text-base font-black text-gray-900 pt-2 border-t border-gray-300">
                 <span>Total Pagado</span>
-                <span>Bs. {ordenCompletada.total.toFixed(2)}</span>
+                <span>${ordenCompletada.total.toFixed(2)}</span>
               </div>
             </div>
           </div>
@@ -672,41 +672,41 @@ export const CheckoutPage: React.FC = () => {
                   onClick={() => setTipoEnvio('ESTANDAR')}
                   className={`p-4 rounded-xl border-2 text-left transition flex flex-col justify-between ${
                     tipoEnvio === 'ESTANDAR'
-                      ? 'border-indigo-600 bg-indigo-50/50 shadow-sm'
-                      : 'border-gray-200 hover:border-gray-300 bg-white'
+                      ? 'border-stone-900 bg-[#F2ECE1] shadow-xs'
+                      : 'border-[#D5CCC0] hover:border-stone-400 bg-white'
                   }`}
                 >
                   <div className="flex items-center justify-between mb-2">
-                    <span className="text-sm font-bold text-gray-900">Envío Estándar</span>
-                    <span className="font-extrabold text-indigo-600 text-sm">
-                      {subtotal >= 200 ? 'GRATIS' : 'Bs. 15.00'}
+                    <span className="text-sm font-medium text-stone-900">Envío Estándar Atelier</span>
+                    <span className="font-semibold text-stone-900 text-xs uppercase tracking-luxury">
+                      {subtotal >= 100 ? 'Cortesía' : '$10.00'}
                     </span>
                   </div>
-                  <p className="text-xs text-gray-500">2 a 3 días hábiles a domicilio</p>
+                  <p className="text-xs text-stone-500 font-light">2 a 3 días hábiles en empaque rígido protegido</p>
                 </button>
 
                 {/* Opción Express */}
                 <button
                   type="button"
                   onClick={() => setTipoEnvio('EXPRESS')}
-                  className={`p-4 rounded-xl border-2 text-left transition flex flex-col justify-between ${
+                  className={`p-4 rounded-xs border text-left transition flex flex-col justify-between ${
                     tipoEnvio === 'EXPRESS'
-                      ? 'border-indigo-600 bg-indigo-50/50 shadow-sm'
-                      : 'border-gray-200 hover:border-gray-300 bg-white'
+                      ? 'border-stone-900 bg-[#F2ECE1] shadow-xs'
+                      : 'border-[#D5CCC0] hover:border-stone-400 bg-white'
                   }`}
                 >
                   <div className="flex items-center justify-between mb-2">
                     <div className="flex items-center gap-1.5">
-                      <span className="text-sm font-bold text-gray-900">Envío Express 24h</span>
-                      <span className="text-[10px] font-black uppercase bg-amber-100 text-amber-800 px-1.5 py-0.5 rounded">
-                        Rápido
+                      <span className="text-sm font-medium text-stone-900">Envío Express Prioritario</span>
+                      <span className="text-[9px] uppercase tracking-luxury bg-stone-900 text-white px-1.5 py-0.5">
+                        24h
                       </span>
                     </div>
-                    <span className="font-extrabold text-indigo-600 text-sm">
-                      Bs. 30.00
+                    <span className="font-semibold text-stone-900 text-xs">
+                      $20.00
                     </span>
                   </div>
-                  <p className="text-xs text-gray-500">Entrega prioritaria en 24 horas</p>
+                  <p className="text-xs text-stone-500 font-light">Entrega prioritaria asegurada en 24 horas</p>
                 </button>
               </div>
             </div>
@@ -854,7 +854,7 @@ export const CheckoutPage: React.FC = () => {
                   </p>
                   <div className="text-[11px] text-amber-700 font-semibold flex items-center gap-1.5">
                     <CheckCircle2 className="w-3.5 h-3.5 text-amber-600" />
-                    <span>Se recomienda tener el cambio exacto de <strong>Bs. {totalFinal.toFixed(2)}</strong></span>
+                    <span>Se recomienda tener el cambio exacto de <strong>${totalFinal.toFixed(2)}</strong></span>
                   </div>
                 </div>
               )}
@@ -863,13 +863,13 @@ export const CheckoutPage: React.FC = () => {
 
           {/* COLUMNA DERECHA: RESUMEN DE COMPRA */}
           <div className="lg:col-span-5">
-            <div className="bg-white rounded-2xl p-6 border border-gray-200 shadow-sm sticky top-6 space-y-6">
-              <h2 className="text-lg font-bold text-gray-900 pb-3 border-b border-gray-100">
+            <div className="bg-white p-6 border border-[#E7E1D7] sticky top-6 space-y-6">
+              <h2 className="font-serif text-lg font-normal text-stone-900 pb-3 border-b border-[#E7E1D7]">
                 Resumen del Pedido ({cart?.totalItems || 0} prendas)
               </h2>
 
               {/* LISTADO DE ITEMS */}
-              <div className="max-h-72 overflow-y-auto space-y-3 divide-y divide-gray-100 pr-1">
+              <div className="max-h-72 overflow-y-auto space-y-3 divide-y divide-[#E7E1D7] pr-1">
                 {items.map((item: any) => {
                   const prod = item.producto;
                   const img = prod?.imagen || prod?.imagenes?.[0]?.url;
@@ -878,7 +878,7 @@ export const CheckoutPage: React.FC = () => {
 
                   return (
                     <div key={item.id || item.varianteId} className="pt-3 first:pt-0 flex gap-3 items-center">
-                      <div className="w-14 h-16 bg-gray-100 rounded-lg overflow-hidden flex-shrink-0 flex items-center justify-center">
+                      <div className="w-14 h-18 bg-[#F2ECE1] overflow-hidden shrink-0 flex items-center justify-center border border-[#E7E1D7]">
                         {img ? (
                           <img
                             src={getImageUrl(img)}
@@ -889,19 +889,19 @@ export const CheckoutPage: React.FC = () => {
                             }}
                           />
                         ) : (
-                          <ShoppingBag className="w-6 h-6 text-gray-400" />
+                          <ShoppingBag className="w-6 h-6 text-stone-400" />
                         )}
                       </div>
                       <div className="flex-1 min-w-0">
-                        <p className="font-semibold text-sm text-gray-900 truncate">{prod?.nombre}</p>
-                        <p className="text-xs text-gray-500">
+                        <p className="font-serif text-sm text-stone-900 truncate">{prod?.nombre}</p>
+                        <p className="text-xs text-stone-500">
                           Talla: {tallaNombre} · Color: {colorNombre}
                         </p>
-                        <p className="text-xs text-gray-500 font-medium">Cant: {item.cantidad}</p>
+                        <p className="text-xs text-stone-500 font-medium">Cant: {item.cantidad}</p>
                       </div>
                       <div className="text-right">
-                        <p className="text-sm font-bold text-gray-900">
-                          Bs. {(Number(item.precioUnitario || prod?.precioBase || 0) * item.cantidad).toFixed(2)}
+                        <p className="text-sm font-semibold text-stone-900 font-sans">
+                          ${(Number(item.precioUnitario || prod?.precioBase || 0) * item.cantidad).toFixed(2)}
                         </p>
                       </div>
                     </div>
@@ -910,45 +910,45 @@ export const CheckoutPage: React.FC = () => {
               </div>
 
               {/* DESGLOSE FINANCIERO */}
-              <div className="pt-4 border-t border-gray-200 space-y-2 text-sm">
-                <div className="flex justify-between text-gray-600">
+              <div className="pt-4 border-t border-[#E7E1D7] space-y-2 text-xs text-stone-600">
+                <div className="flex justify-between">
                   <span>Subtotal</span>
-                  <span className="font-semibold text-gray-900">Bs. {subtotal.toFixed(2)}</span>
+                  <span className="font-semibold text-stone-900">${subtotal.toFixed(2)}</span>
                 </div>
 
                 {descuento > 0 && (
-                  <div className="flex justify-between text-emerald-600 font-semibold">
+                  <div className="flex justify-between text-emerald-700 font-semibold">
                     <span>Descuento cupón</span>
-                    <span>- Bs. {descuento.toFixed(2)}</span>
+                    <span>- ${descuento.toFixed(2)}</span>
                   </div>
                 )}
 
-                <div className="flex justify-between text-gray-600 items-center">
+                <div className="flex justify-between items-center">
                   <span>Envío a domicilio</span>
-                  <span className="font-semibold text-gray-900">
-                    {costoEnvio === 0 ? <span className="text-emerald-600 uppercase font-bold text-xs">Gratis</span> : `Bs. ${costoEnvio.toFixed(2)}`}
+                  <span className="font-semibold text-stone-900">
+                    {costoEnvio === 0 ? <span className="text-emerald-700 uppercase tracking-luxury font-medium text-[10px]">Cortesía</span> : `$${costoEnvio.toFixed(2)}`}
                   </span>
                 </div>
 
-                <div className="pt-3 border-t border-gray-200 flex justify-between items-baseline">
+                <div className="pt-3 border-t border-[#E7E1D7] flex justify-between items-baseline">
                   <div>
-                    <span className="text-base font-bold text-gray-900">Total a Pagar</span>
-                    <span className="block text-[11px] text-gray-500">Impuestos y tasas incluidos</span>
+                    <span className="font-serif text-base uppercase tracking-wider text-stone-900">Total a Pagar</span>
+                    <span className="block text-[10px] text-stone-400">Impuestos y tasas incluidos (USD)</span>
                   </div>
-                  <div className="text-2xl font-black text-gray-900">
-                    Bs. {totalFinal.toFixed(2)}
+                  <div className="font-serif text-2xl font-medium text-stone-900">
+                    ${totalFinal.toFixed(2)}
                   </div>
                 </div>
               </div>
 
               {/* BOTÓN SUBMIT DE PAGO */}
               {metodoPago === 'tarjeta' && embeddedSessionId ? (
-                <div className="p-4 bg-indigo-50 border border-indigo-100 rounded-xl text-center space-y-1 text-xs text-indigo-800">
-                  <div className="font-bold flex items-center justify-center gap-1.5">
-                    <Lock className="w-3.5 h-3.5" />
+                <div className="p-4 bg-[#F2ECE1] border border-[#D5CCC0] rounded-xs text-center space-y-1 text-xs text-stone-800">
+                  <div className="font-medium flex items-center justify-center gap-1.5">
+                    <Lock className="w-3.5 h-3.5 text-[#9B7B54]" />
                     <span>Completa el pago en el formulario seguro de Stripe</span>
                   </div>
-                  <p className="text-[11px] text-indigo-600">
+                  <p className="text-[11px] text-stone-500">
                     Haz clic en el botón oficial "Pagar" dentro del formulario de Stripe arriba.
                   </p>
                 </div>
@@ -956,21 +956,21 @@ export const CheckoutPage: React.FC = () => {
                 <button
                   type="submit"
                   disabled={procesando || items.length === 0 || cargandoEmbedded}
-                  className="w-full bg-black text-white hover:bg-gray-800 disabled:opacity-50 font-bold py-4 px-6 rounded-xl text-center shadow-lg transition transform hover:-translate-y-0.5 flex items-center justify-center gap-2 cursor-pointer"
+                  className="w-full bg-stone-900 text-white hover:bg-stone-800 disabled:opacity-50 text-xs uppercase tracking-luxury py-4 px-6 rounded-none text-center shadow-sm transition flex items-center justify-center gap-2 cursor-pointer font-medium"
                 >
                   {procesando || cargandoEmbedded ? (
                     <div className="flex items-center gap-2">
-                      <div className="w-5 h-5 border-2 border-white border-t-transparent rounded-full animate-spin"></div>
+                      <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" />
                       <span>Procesando...</span>
                     </div>
                   ) : (
                     <>
                       <span>
                         {metodoPago === 'tarjeta'
-                          ? `Abrir Pasarela de Pago (Bs. ${totalFinal.toFixed(2)})`
-                          : `Confirmar Pedido en Efectivo (Bs. ${totalFinal.toFixed(2)})`}
+                          ? `Abrir Pasarela de Pago ($${totalFinal.toFixed(2)})`
+                          : `Confirmar Pedido en Efectivo ($${totalFinal.toFixed(2)})`}
                       </span>
-                      <Lock className="w-4 h-4" />
+                      <Lock className="w-3.5 h-3.5" />
                     </>
                   )}
                 </button>

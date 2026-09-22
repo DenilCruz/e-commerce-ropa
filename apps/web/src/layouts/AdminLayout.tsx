@@ -39,12 +39,12 @@ export const AdminLayout: React.FC = () => {
         <div className="p-6 space-y-6 flex-1 overflow-y-auto">
           {/* Logo */}
           <div className="flex items-center gap-3">
-            <span className="bg-white text-black px-2.5 py-1 rounded font-black text-xs tracking-wider">
-              EM
+            <span className="bg-[#9B7B54] text-white px-2.5 py-1 rounded font-serif font-bold text-xs tracking-wider">
+              A
             </span>
             <div>
-              <h2 className="text-sm font-black tracking-tight text-white uppercase">El Magnífico</h2>
-              <span className="text-[10px] text-gray-400 font-mono tracking-widest uppercase">Admin Panel</span>
+              <h2 className="text-sm font-bold tracking-[0.2em] text-white uppercase font-serif">AURA</h2>
+              <span className="text-[10px] text-gray-400 font-mono tracking-widest uppercase">Atelier Admin</span>
             </div>
           </div>
 

@@ -4,6 +4,7 @@ import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
 export enum ProveedorIA {
   GROQ = 'GROQ',
   OLLAMA = 'OLLAMA',
+  GEMINI = 'GEMINI',
 }
 
 export class GenerarReporteDinamicoDto {

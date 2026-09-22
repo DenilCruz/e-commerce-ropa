@@ -805,7 +805,7 @@ export const ProfileScreen: React.FC = () => {
                       <View style={{ flex: 1, marginLeft: 12 }}>
                         <Text style={{ fontSize: 13, fontWeight: '700', color: '#0f172a' }} numberOfLines={1}>{p.nombre}</Text>
                         <Text style={{ fontSize: 11, color: '#64748b' }}>
-                          {p.categoria?.nombre || 'General'} • Bs. {Number(p.precio).toFixed(2)}
+                          {p.categoria?.nombre || 'General'} • ${Number(p.precio).toFixed(2)}
                         </Text>
                       </View>
                       <TouchableOpacity

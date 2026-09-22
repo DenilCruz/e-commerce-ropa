@@ -184,7 +184,7 @@ export const CartScreen: React.FC = () => {
                     </View>
 
                     <Text style={styles.itemPrice}>
-                      Bs. {precio.toFixed(2)}{' '}
+                      ${precio.toFixed(2)}{' '}
                       <Text style={styles.itemUnit}>c/u</Text>
                     </Text>
 
@@ -207,7 +207,7 @@ export const CartScreen: React.FC = () => {
                       </View>
 
                       <View style={styles.subtotalBox}>
-                        <Text style={styles.subtotalText}>Bs. {itemSubtotal.toFixed(2)}</Text>
+                        <Text style={styles.subtotalText}>${itemSubtotal.toFixed(2)}</Text>
                       </View>
 
                       <TouchableOpacity
@@ -237,12 +237,12 @@ export const CartScreen: React.FC = () => {
                     <Text style={styles.appliedCouponCode}>{cupon.codigo}</Text>
                     <View style={styles.appliedCouponPill}>
                       <Text style={styles.appliedCouponPillText}>
-                        {cupon.tipo === 'PORCENTAJE' ? `${cupon.valor}% OFF` : `Bs. ${cupon.valor} OFF`}
+                        {cupon.tipo === 'PORCENTAJE' ? `${cupon.valor}% OFF` : `$${cupon.valor} OFF`}
                       </Text>
                     </View>
                   </View>
                   <Text style={styles.appliedCouponDesc}>
-                    Descuento: - Bs. {descuento.toFixed(2)}
+                    Descuento: - ${descuento.toFixed(2)}
                   </Text>
                 </View>
 
@@ -311,19 +311,19 @@ export const CartScreen: React.FC = () => {
 
             <View style={styles.summaryRow}>
               <Text style={styles.summaryLabel}>Subtotal</Text>
-              <Text style={styles.summaryValue}>Bs. {subtotal.toFixed(2)}</Text>
+              <Text style={styles.summaryValue}>${subtotal.toFixed(2)}</Text>
             </View>
 
             {descuento > 0 && (
               <View style={styles.summaryRow}>
                 <Text style={[styles.summaryLabel, styles.discountText]}>Descuento cupón</Text>
-                <Text style={[styles.summaryValue, styles.discountText]}>- Bs. {descuento.toFixed(2)}</Text>
+                <Text style={[styles.summaryValue, styles.discountText]}>- ${descuento.toFixed(2)}</Text>
               </View>
             )}
 
             <View style={[styles.summaryRow, styles.totalRow]}>
               <Text style={styles.totalLabel}>Total a Pagar</Text>
-              <Text style={styles.totalValue}>Bs. {totalFinal.toFixed(2)}</Text>
+              <Text style={styles.totalValue}>${totalFinal.toFixed(2)}</Text>
             </View>
 
             {/* BOTÓN CHECKOUT */}

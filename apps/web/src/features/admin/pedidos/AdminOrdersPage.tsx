@@ -152,7 +152,7 @@ export const AdminOrdersPage: React.FC = () => {
         <div>
           <h1 className="text-2xl font-black text-gray-900">Gestión de Pedidos y Pagos</h1>
           <p className="text-sm text-gray-500">
-            Control de órdenes de compra, validación de pasarela Stripe y procesamiento de reembolsos. Total recaudado: <strong className="text-emerald-700 font-bold">Bs. {totalRecaudado.toFixed(2)}</strong>
+            Control de órdenes de compra, validación de pasarela Stripe y procesamiento de reembolsos. Total recaudado: <strong className="text-emerald-700 font-bold">${totalRecaudado.toFixed(2)}</strong>
           </p>
         </div>
 
@@ -325,7 +325,7 @@ export const AdminOrdersPage: React.FC = () => {
                         </div>
                       </td>
                       <td className="py-3.5 px-4 font-black text-gray-900">
-                        Bs. {Number(pedido.total || 0).toFixed(2)}
+                        ${Number(pedido.total || 0).toFixed(2)}
                       </td>
                       <td className="py-3.5 px-4">
                         {getStatusBadge(pedido.estado, pedido.pago?.estado)}
@@ -380,7 +380,7 @@ export const AdminOrdersPage: React.FC = () => {
             <div className="space-y-4 text-xs text-gray-600">
               <div className="bg-purple-50 p-4 rounded-xl border border-purple-100 space-y-1.5">
                 <p className="font-bold text-purple-950">Información del Pago a Revertir:</p>
-                <p><strong>Monto:</strong> Bs. {Number(reembolsandoPedido.total || 0).toFixed(2)}</p>
+                <p><strong>Monto:</strong> ${Number(reembolsandoPedido.total || 0).toFixed(2)}</p>
                 <p><strong>Pasarela:</strong> Stripe (ID: {reembolsandoPedido.pago?.idTransaccion})</p>
                 <p><strong>Cliente:</strong> {reembolsandoPedido.usuario?.nombre} ({reembolsandoPedido.usuario?.correo})</p>
               </div>
@@ -491,7 +491,7 @@ export const AdminOrdersPage: React.FC = () => {
                           Talla: {it.talla} · Color: {it.color} · Cant: {it.cantidad}
                         </p>
                       </div>
-                      <span className="font-bold text-gray-900">Bs. {Number(it.subtotal || 0).toFixed(2)}</span>
+                      <span className="font-bold text-gray-900">${Number(it.subtotal || 0).toFixed(2)}</span>
                     </div>
                   ))}
                 </div>
@@ -501,21 +501,21 @@ export const AdminOrdersPage: React.FC = () => {
               <div className="bg-gray-50 rounded-2xl p-4 space-y-1.5 text-xs border border-gray-200">
                 <div className="flex justify-between text-gray-600">
                   <span>Subtotal</span>
-                  <span>Bs. {Number(pedidoSeleccionado.subtotal || 0).toFixed(2)}</span>
+                  <span>${Number(pedidoSeleccionado.subtotal || 0).toFixed(2)}</span>
                 </div>
                 {Number(pedidoSeleccionado.descuento || 0) > 0 && (
                   <div className="flex justify-between text-emerald-600 font-semibold">
                     <span>Descuento</span>
-                    <span>- Bs. {Number(pedidoSeleccionado.descuento || 0).toFixed(2)}</span>
+                    <span>- ${Number(pedidoSeleccionado.descuento || 0).toFixed(2)}</span>
                   </div>
                 )}
                 <div className="flex justify-between text-gray-600">
                   <span>Envío</span>
-                  <span>{Number(pedidoSeleccionado.costoEnvio || 0) === 0 ? 'Gratis' : `Bs. ${Number(pedidoSeleccionado.costoEnvio || 0).toFixed(2)}`}</span>
+                  <span>{Number(pedidoSeleccionado.costoEnvio || 0) === 0 ? 'Gratis' : `$${Number(pedidoSeleccionado.costoEnvio || 0).toFixed(2)}`}</span>
                 </div>
                 <div className="flex justify-between text-sm font-black text-gray-900 pt-2 border-t border-gray-300">
                   <span>Total</span>
-                  <span>Bs. {Number(pedidoSeleccionado.total || 0).toFixed(2)}</span>
+                  <span>${Number(pedidoSeleccionado.total || 0).toFixed(2)}</span>
                 </div>
               </div>
 

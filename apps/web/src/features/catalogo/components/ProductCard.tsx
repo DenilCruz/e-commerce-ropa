@@ -9,7 +9,6 @@ interface ProductCardProps {
   producto: Producto;
 }
 
-// Obtenemos la URL base (http://localhost:3000)
 const ASSETS_URL = (import.meta.env.VITE_API_URL || 'http://localhost:3000/api/v1').replace('/api/v1', '');
 
 export const ProductCard: React.FC<ProductCardProps> = ({ producto }) => {
@@ -18,9 +17,8 @@ export const ProductCard: React.FC<ProductCardProps> = ({ producto }) => {
   const [agregando, setAgregando] = useState(false);
   const [agregadoExito, setAgregadoExito] = useState(false);
 
-  // Función para normalizar la URL de la imagen
   const getImageUrl = (url?: string) => {
-    if (!url) return 'https://placehold.co/400x500?text=Sin+Imagen';
+    if (!url) return 'https://images.unsplash.com/photo-1515886657613-9f3515b0c78f?w=600&auto=format&fit=crop&q=80';
     if (url.startsWith('http')) return url;
     if (url.startsWith('/uploads')) return `${ASSETS_URL}${url}`;
     if (url.startsWith('/')) return `${ASSETS_URL}/uploads${url}`;
@@ -28,22 +26,20 @@ export const ProductCard: React.FC<ProductCardProps> = ({ producto }) => {
   };
 
   const imagenPrincipal = producto.imagenes?.find((img) => img.esPrincipal || (img as any).principal) || producto.imagenes?.[0];
-  const urlImagen = imagenPrincipal ? getImageUrl(imagenPrincipal.url) : 'https://placehold.co/400x500?text=Sin+Imagen';
+  const urlImagen = imagenPrincipal ? getImageUrl(imagenPrincipal.url) : 'https://images.unsplash.com/photo-1515886657613-9f3515b0c78f?w=600&auto=format&fit=crop&q=80';
 
   const handleQuickAdd = async (e: React.MouseEvent) => {
     e.preventDefault();
     e.stopPropagation();
 
-    // Si tiene variantes y hay al menos una con stock
     if (producto.variantes && producto.variantes.length > 0) {
       const varianteDisponible = producto.variantes.find((v) => v.stock > 0) || producto.variantes[0];
       setAgregando(true);
       try {
         await addItem(varianteDisponible.id, 1);
         setAgregadoExito(true);
-        setTimeout(() => setAgregadoExito(false), 2200);
-      } catch (err: any) {
-        // Si requiere seleccionar talla específica o hubo error, navegar al detalle
+        setTimeout(() => setAgregadoExito(false), 2000);
+      } catch {
         navigate(`/producto/${producto.id}`);
       } finally {
         setAgregando(false);
@@ -54,62 +50,64 @@ export const ProductCard: React.FC<ProductCardProps> = ({ producto }) => {
   };
 
   return (
-    <div className="group bg-white border border-gray-200 rounded-xl overflow-hidden hover:shadow-lg transition-all duration-300 flex flex-col justify-between">
+    <div className="group bg-white border border-[#E7E1D7] overflow-hidden hover:border-stone-400 transition-all duration-300 flex flex-col justify-between">
       <div className="relative">
-        <Link to={`/producto/${producto.id}`} className="block relative aspect-[4/5] overflow-hidden bg-gray-100">
+        <Link to={`/producto/${producto.id}`} className="block relative aspect-[3/4] overflow-hidden bg-[#F2ECE1]">
           <img 
             src={urlImagen} 
             alt={producto.nombre} 
-            className="w-full h-full object-cover object-center group-hover:scale-105 transition-transform duration-500"
+            className="w-full h-full object-cover object-top group-hover:scale-104 transition-transform duration-700 ease-out"
           />
           {producto.destacado && (
-            <span className="absolute top-2 left-2 bg-black text-white text-[10px] font-bold uppercase tracking-wider px-2 py-1 rounded shadow-sm">
-              Destacado
+            <span className="absolute top-2.5 left-2.5 bg-stone-900/90 backdrop-blur-xs text-white text-[9px] uppercase tracking-luxury px-2 py-0.5">
+              Atelier Pick
             </span>
           )}
         </Link>
         
-        {/* HU-76: Botón de guardar en favoritos directamente en la tarjeta */}
-        <div className="absolute top-2 right-2 z-10">
+        {/* Guardar en favoritos */}
+        <div className="absolute top-2.5 right-2.5 z-10">
           <HeartButton productoId={producto.id} variant="floating" />
         </div>
       </div>
       
-      <div className="p-4 flex flex-col flex-1 justify-between">
-        <div className="mb-3">
-          <div className="flex justify-between items-start mb-1 gap-2">
-            <h3 className="text-sm font-semibold text-gray-900 line-clamp-1 hover:text-gray-600 transition-colors">
-              <Link to={`/producto/${producto.id}`}>
-                {producto.nombre}
-              </Link>
-            </h3>
-            <p className="text-sm font-bold text-gray-900 whitespace-nowrap">Bs. {Number(producto.precio).toFixed(2)}</p>
-          </div>
+      <div className="p-4 flex flex-col flex-1 justify-between bg-white">
+        <div className="space-y-1 mb-3">
           {producto.categoria && (
-            <p className="text-xs text-gray-500 font-medium">{producto.categoria.nombre}</p>
+            <p className="text-[10px] uppercase tracking-luxury text-[#9B7B54] font-medium">
+              {producto.categoria.nombre}
+            </p>
           )}
+          <h3 className="font-serif text-sm font-normal text-stone-900 line-clamp-1 group-hover:text-[#9B7B54] transition-colors">
+            <Link to={`/producto/${producto.id}`}>
+              {producto.nombre}
+            </Link>
+          </h3>
+          <p className="font-sans text-xs font-semibold text-stone-900 tracking-tight pt-0.5">
+            ${Number(producto.precio).toFixed(2)}
+          </p>
         </div>
         
         <button
           onClick={handleQuickAdd}
           disabled={agregando}
-          className={`w-full mt-2 border text-sm font-medium py-2 rounded-lg transition-all focus:outline-none focus:ring-2 focus:ring-black focus:ring-offset-1 flex items-center justify-center gap-1.5 ${
+          className={`w-full py-2.5 px-3 border text-xs uppercase tracking-luxury transition-all flex items-center justify-center gap-1.5 font-medium ${
             agregadoExito
-              ? 'bg-emerald-600 border-emerald-600 text-white'
-              : 'bg-white border-gray-300 text-gray-800 hover:bg-black hover:text-white hover:border-black'
+              ? 'bg-stone-900 border-stone-900 text-white'
+              : 'border-[#D5CCC0] text-stone-800 hover:bg-stone-900 hover:text-white hover:border-stone-900'
           }`}
         >
           {agregando ? (
-            <div className="w-4 h-4 border-2 border-black border-t-transparent rounded-full animate-spin"></div>
+            <div className="w-3.5 h-3.5 border-2 border-current border-t-transparent rounded-full animate-spin" />
           ) : agregadoExito ? (
             <>
-              <span className="font-semibold">¡Añadido!</span>
-              <Check className="w-4 h-4" />
+              <span>En la Bolsa</span>
+              <Check className="w-3.5 h-3.5" />
             </>
           ) : (
             <>
-              <span>Añadir al Carrito</span>
-              <ShoppingBag className="w-4 h-4" />
+              <span>Añadir a la Bolsa</span>
+              <ShoppingBag className="w-3.5 h-3.5" />
             </>
           )}
         </button>

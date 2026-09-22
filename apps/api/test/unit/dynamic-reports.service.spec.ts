@@ -118,6 +118,52 @@ describe('DynamicReportsService (Unit Tests)', () => {
       expect(resultado.filas[0].producto).toBe('Vestido Elegante');
     });
 
+    it('debe interpretar correctamente consultas de stock de vestidos', async () => {
+      mockDataSource.query.mockResolvedValueOnce([
+        { producto: 'Vestido de Gala', categoria: 'Vestidos de Noche', color: 'Rojo Escarlata', talla: 'M', stock_actual: 15, stock_minimo: 5, precio_unitario: 320.0 },
+      ]);
+
+      const resultado = await service.generarYEjecutarReporte({
+        prompt: 'muestrame cuanto stock hay de vestidos',
+        proveedor: ProveedorIA.GROQ,
+      });
+
+      expect(resultado.sql).toContain('vestido');
+      expect(resultado.sql).not.toContain('stock <= v.stock_minimo');
+      expect(resultado.descripcion).toContain('Vestidos');
+      expect(resultado.totalFilas).toBe(1);
+    });
+
+    it('debe interpretar correctamente consultas de stock con categoría y color combinado (pantalones azules)', async () => {
+      mockDataSource.query.mockResolvedValueOnce([
+        { producto: 'Jeans Denim', categoria: 'Pantalones', color: 'Azul Denim', talla: 'M', stock_actual: 15, stock_minimo: 5, precio_unitario: 140.0 },
+      ]);
+
+      const resultado = await service.generarYEjecutarReporte({
+        prompt: 'muestrame cuanto stock hay de pantalones azules',
+        proveedor: ProveedorIA.GROQ,
+      });
+
+      expect(resultado.sql).toContain('pantalon');
+      expect(resultado.sql).toContain('azul');
+      expect(resultado.sql).not.toContain('stock <= v.stock_minimo');
+      expect(resultado.totalFilas).toBe(1);
+    });
+
+    it('debe filtrar por stock_minimo únicamente cuando se solicita stock agotado o bajo', async () => {
+      mockDataSource.query.mockResolvedValueOnce([
+        { producto: 'Top Básico', categoria: 'Poleras', color: 'Negro', talla: 'S', stock_actual: 2, stock_minimo: 5, sku: 'TOP-1' },
+      ]);
+
+      const resultado = await service.generarYEjecutarReporte({
+        prompt: 'prendas con stock agotado o menor al stock mínimo',
+        proveedor: ProveedorIA.GROQ,
+      });
+
+      expect(resultado.sql).toContain('stock <= v.stock_minimo');
+      expect(resultado.totalFilas).toBe(1);
+    });
+
     it('debe devolver totalFilas = 0 y lista vacía sin error cuando no hay registros en la base de datos', async () => {
       mockDataSource.query.mockResolvedValueOnce([]);
 

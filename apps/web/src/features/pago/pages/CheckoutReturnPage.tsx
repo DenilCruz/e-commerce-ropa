@@ -196,10 +196,10 @@ export const CheckoutReturnPage: React.FC = () => {
               </span>
             </div>
 
-            <div className="bg-gray-50 p-4 rounded-2xl border border-gray-100">
-              <span className="text-xs text-gray-500 block mb-1 uppercase font-bold">Total Pagado</span>
-              <span className="text-lg font-black text-gray-900">
-                Bs. {orden.total.toFixed(2)}
+            <div className="bg-[#F2ECE1] p-4 border border-[#E7E1D7]">
+              <span className="text-xs text-stone-500 block mb-1 uppercase font-medium">Total Pagado</span>
+              <span className="font-serif text-xl font-medium text-stone-900">
+                ${orden.total.toFixed(2)}
               </span>
             </div>
           </div>
@@ -207,18 +207,18 @@ export const CheckoutReturnPage: React.FC = () => {
           {/* ACCIONES */}
           <div className="pt-4 flex flex-col sm:flex-row gap-3">
             <Link
-              to="/orders"
-              className="flex-1 py-3.5 px-6 bg-black text-white font-bold text-sm rounded-xl text-center hover:bg-gray-800 transition flex items-center justify-center gap-2"
+              to="/pedidos"
+              className="flex-1 py-3.5 px-6 bg-stone-900 text-white font-medium text-xs uppercase tracking-luxury text-center hover:bg-stone-800 transition flex items-center justify-center gap-2"
             >
               <span>Ver en Mis Pedidos</span>
               <ArrowRight className="w-4 h-4" />
             </Link>
             <Link
-              to="/"
-              className="flex-1 py-3.5 px-6 bg-gray-100 text-gray-800 font-bold text-sm rounded-xl text-center hover:bg-gray-200 transition flex items-center justify-center gap-2"
+              to="/catalogo"
+              className="flex-1 py-3.5 px-6 border border-[#D5CCC0] text-stone-800 font-medium text-xs uppercase tracking-luxury text-center hover:bg-stone-100 transition flex items-center justify-center gap-2"
             >
               <ShoppingBag className="w-4 h-4" />
-              <span>Seguir Comprando</span>
+              <span>Explorar Colección</span>
             </Link>
           </div>
         </div>
