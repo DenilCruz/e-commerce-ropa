@@ -26,6 +26,13 @@ export interface RegistroRequest {
   ci?: string;
 }
 
+export interface RegistroResponse {
+  message: string;
+  usuario: UserProfile;
+  enlaceVerificacion?: string;
+  tokenVerificacion?: string;
+}
+
 export interface LoginRequest {
   correo: string;
   contrasena: string;

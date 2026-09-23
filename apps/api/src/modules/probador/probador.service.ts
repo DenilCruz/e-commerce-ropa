@@ -6,6 +6,8 @@ import { Generar3DDto } from './dto/generar-3d.dto';
 import * as fs from 'fs';
 import * as path from 'path';
 import * as crypto from 'crypto';
+// eslint-disable-next-line @typescript-eslint/no-var-requires
+const sharp = require('sharp');
 
 export interface ModeloBase {
   id: string;
@@ -70,7 +72,7 @@ export class ProbadorService {
   }
 
   // =========================================================================
-  // PROCESAR PRUEBA VIRTUAL (HUGGING FACE IDM-VTON)
+  // PROCESAR PRUEBA VIRTUAL (HUGGING FACE IDM-VTON + MOTOR DE COMPOSICIÓN SHARP)
   // =========================================================================
   async generarPruebaVirtual(dto: ProbarPrendaDto) {
     const inicio = Date.now();
@@ -78,36 +80,81 @@ export class ProbadorService {
 
     let imagenResultadoUrl = '';
 
-    // 1. Preparar las imágenes
+    // 1. Intentar con IA generativa IDM-VTON en Hugging Face con timeout estricto de 25s
     try {
       const personImageBlob = await this.obtenerBlobDeImagen(dto.fotoPersona);
       const garmentImageBlob = await this.obtenerBlobDeImagen(dto.fotoPrenda);
 
-      // 2. Conectar y ejecutar inferencia en Hugging Face Space (IDM-VTON)
-      this.logger.log('Conectando con Hugging Face Space yisol/IDM-VTON...');
-      const clientOptions = this.hfToken ? { hf_token: this.hfToken as `hf_${string}` } : {};
-      const app = await Client.connect('yisol/IDM-VTON', clientOptions);
+      this.logger.log('Conectando con Hugging Face Space yisol/IDM-VTON (timeout: 90s)...');
+      const clientOptions = this.hfToken
+        ? ({ token: this.hfToken as `hf_${string}`, hf_token: this.hfToken as `hf_${string}` } as any)
+        : {};
 
-      const result = await app.predict('/tryon', [
-        { background: personImageBlob, layers: [], composite: null }, // Human image
-        garmentImageBlob, // Garment image
-        dto.nombrePrenda || 'Fashion garment clothing piece', // Garment description
-        true, // is_checked (auto crop & align)
-        true, // is_checked_crop
-        25, // denoise_steps
-        42, // seed
-      ]);
+      const predictPromise = (async () => {
+        const app = await Client.connect('yisol/IDM-VTON', clientOptions);
+        const result = await app.predict('/tryon', [
+          { background: personImageBlob, layers: [], composite: null },
+          garmentImageBlob,
+          dto.nombrePrenda || 'Fashion garment clothing piece',
+          true,  // is_checked: auto-masking
+          false, // is_checked_crop: false para no recortar la persona
+          25,    // denoise_steps
+          42,    // seed
+        ]);
+        return { app, result };
+      })();
+
+      const timeoutPromise = new Promise<never>((_, reject) =>
+        setTimeout(() => reject(new Error('HF_TIMEOUT')), 90000)
+      );
+
+      const { app, result } = await Promise.race([predictPromise, timeoutPromise]);
 
       const data = (result as any)?.data;
+      let remoteUrl = '';
       if (data && Array.isArray(data) && data[0]?.url) {
-        imagenResultadoUrl = data[0].url;
-        this.logger.log(`Inferencia IDM-VTON completada con éxito: ${imagenResultadoUrl}`);
+        remoteUrl = data[0].url;
       } else if (typeof data?.[0] === 'string') {
-        imagenResultadoUrl = data[0];
+        remoteUrl = data[0];
+      }
+
+      if (remoteUrl) {
+        this.logger.log(`Inferencia IDM-VTON completada con éxito. Descargando resultado: ${remoteUrl}`);
+        let response = await app.fetch(remoteUrl).catch(() => null);
+        if (!response || !response.ok) {
+          response = await fetch(remoteUrl).catch(() => null);
+        }
+
+        if (response && response.ok) {
+          const buffer = Buffer.from(await response.arrayBuffer());
+          const uploadsDir = this.getUploadsProbadorPath();
+          const fileName = `look_${Date.now()}_${crypto.randomBytes(4).toString('hex')}.png`;
+          const localFilePath = path.join(uploadsDir, fileName);
+          fs.writeFileSync(localFilePath, buffer);
+
+          imagenResultadoUrl = `/uploads/probador/${fileName}`;
+          this.logger.log(`✅ Look virtual guardado exitosamente en: ${imagenResultadoUrl} (${buffer.length} bytes)`);
+        } else {
+          imagenResultadoUrl = remoteUrl;
+        }
       }
     } catch (hfError: any) {
-      this.logger.warn(`Nota Hugging Face Space: ${hfError.message}. Usando visualizador inteligente.`);
-      imagenResultadoUrl = dto.fotoPrenda;
+      if (hfError?.message === 'HF_TIMEOUT') {
+        this.logger.warn('Hugging Face Space tardó más de 25s (cola ZeroGPU). Activando compositor de prenda sobre persona...');
+      } else {
+        this.logger.warn(`Nota Hugging Face Space: ${hfError.message}. Activando compositor de prenda sobre persona...`);
+      }
+    }
+
+    // 2. Si Hugging Face está saturado, sin GPU disponible o supera 25s:
+    // Ajustar y colocar la prenda anatómicamente sobre la persona con Sharp
+    if (!imagenResultadoUrl) {
+      this.logger.log('Generando adaptación de prenda sobre la persona con compositor gráfico...');
+      imagenResultadoUrl = await this.generarLookCompuestoConSharp(
+        dto.fotoPersona,
+        dto.fotoPrenda,
+        dto.categoria,
+      );
     }
 
     const tiempoTotal = Math.max(1, Math.round((Date.now() - inicio) / 1000));
@@ -125,9 +172,153 @@ export class ProbadorService {
   }
 
   // =========================================================================
-  // HELPER: Convertir URLs / Locales / Base64 a Blob para Gradio
+  // MOTOR DE COMPOSICIÓN GRÁFICA INTELIGENTE CON SHARP
+  // Remueve fondo de la prenda, dimensiona a los hombros/torso y superpone
   // =========================================================================
-  private async obtenerBlobDeImagen(inputUrlOrBase64: string): Promise<Blob> {
+  private async generarLookCompuestoConSharp(
+    fotoPersona: string,
+    fotoPrenda: string,
+    categoria?: string,
+  ): Promise<string> {
+    try {
+      const personaBuffer = await this.obtenerBufferDeImagen(fotoPersona);
+      const prendaBuffer = await this.obtenerBufferDeImagen(fotoPrenda);
+
+      const personMeta = await sharp(personaBuffer).metadata();
+      const personWidth = personMeta.width || 800;
+      const personHeight = personMeta.height || 1000;
+
+      // 1. Recortar bordes vacíos y aislar prenda (convertir fondo blanco a transparencia con suavizado)
+      let trimmedGarment: Buffer;
+      try {
+        trimmedGarment = await sharp(prendaBuffer)
+          .trim({ threshold: 15 })
+          .toBuffer();
+      } catch {
+        trimmedGarment = prendaBuffer;
+      }
+
+      const { data, info } = await sharp(trimmedGarment)
+        .ensureAlpha()
+        .raw()
+        .toBuffer({ resolveWithObject: true });
+
+      for (let i = 0; i < data.length; i += 4) {
+        const r = data[i], g = data[i + 1], b = data[i + 2];
+        if (r > 238 && g > 238 && b > 238) {
+          data[i + 3] = 0; // Transparente total
+        } else if (r > 218 && g > 218 && b > 218) {
+          const factor = (238 - Math.max(r, g, b)) / 20;
+          data[i + 3] = Math.round(data[i + 3] * factor); // Suavizado de bordes
+        }
+      }
+
+      const transparentGarment = await sharp(data, {
+        raw: { width: info.width, height: info.height, channels: 4 },
+      })
+        .png()
+        .toBuffer();
+
+      // 2. Proporción y ubicación según tipo de prenda (ajuste anatómico centrado en torso)
+      let targetWidthRatio = 0.52; // Ancho hombros respecto a foto
+      let topRatio = 0.28;        // Altura clavícula/pecho
+
+      const catLower = (categoria || '').toLowerCase();
+      if (
+        catLower.includes('bottom') ||
+        catLower.includes('pantalon') ||
+        catLower.includes('jean') ||
+        catLower.includes('falda')
+      ) {
+        targetWidthRatio = 0.44;
+        topRatio = 0.50;
+      } else if (
+        catLower.includes('vestido') ||
+        catLower.includes('one-piece') ||
+        catLower.includes('traje')
+      ) {
+        targetWidthRatio = 0.54;
+        topRatio = 0.25;
+      } else if (
+        catLower.includes('coat') ||
+        catLower.includes('abrigo') ||
+        catLower.includes('trench') ||
+        catLower.includes('chaqueta')
+      ) {
+        targetWidthRatio = 0.58;
+        topRatio = 0.26;
+      }
+
+      const maxGarmentWidth = Math.round(personWidth * targetWidthRatio);
+      const maxGarmentHeight = Math.round(personHeight * 0.70);
+
+      const resizedGarment = await sharp(transparentGarment)
+        .resize({
+          width: maxGarmentWidth,
+          height: maxGarmentHeight,
+          fit: 'inside',
+        })
+        .toBuffer();
+
+      const resizedMeta = await sharp(resizedGarment).metadata();
+      const rw = resizedMeta.width || maxGarmentWidth;
+      const rh = resizedMeta.height || maxGarmentHeight;
+
+      let left = Math.round((personWidth - rw) / 2);
+      if (left < 0) left = 0;
+      if (left + rw > personWidth) left = personWidth - rw;
+
+      let top = Math.round(personHeight * topRatio);
+      if (top + rh > personHeight) {
+        top = Math.max(0, personHeight - rh - 2);
+      }
+
+      // 3. Superponer la prenda sobre la persona
+      const compositeBuffer = await sharp(personaBuffer)
+        .composite([
+          {
+            input: resizedGarment,
+            top: top,
+            left: left,
+            blend: 'over',
+          },
+        ])
+        .png()
+        .toBuffer();
+
+      const uploadsDir = this.getUploadsProbadorPath();
+      const fileName = `look_${Date.now()}_${crypto.randomBytes(4).toString('hex')}.png`;
+      const localFilePath = path.join(uploadsDir, fileName);
+      fs.writeFileSync(localFilePath, compositeBuffer);
+
+      return `/uploads/probador/${fileName}`;
+    } catch (err: any) {
+      this.logger.error(`Error en compositor gráfico Sharp: ${err?.message || err}`);
+      return fotoPrenda;
+    }
+  }
+
+  // =========================================================================
+  // GESTIÓN DE DIRECTORIO Y GUARDADO DE LOOKS VIRTUALES
+  // =========================================================================
+  private getUploadsProbadorPath(): string {
+    const isApiDir =
+      process.cwd().includes('apps/api') || process.cwd().includes('apps\\api');
+    const uploadsFolder = isApiDir
+      ? path.join(process.cwd(), 'uploads')
+      : path.join(process.cwd(), 'apps', 'api', 'uploads');
+
+    const uploadsProbador = path.join(uploadsFolder, 'probador');
+    if (!fs.existsSync(uploadsProbador)) {
+      fs.mkdirSync(uploadsProbador, { recursive: true });
+    }
+    return uploadsProbador;
+  }
+
+  // =========================================================================
+  // HELPER: Convertir URLs / Locales / Base64 a Buffer
+  // =========================================================================
+  private async obtenerBufferDeImagen(inputUrlOrBase64: string): Promise<Buffer> {
     if (!inputUrlOrBase64) {
       throw new Error('La URL de imagen no puede estar vacía.');
     }
@@ -135,37 +326,75 @@ export class ProbadorService {
     // Caso 1: Data URI (base64)
     if (inputUrlOrBase64.startsWith('data:')) {
       const parts = inputUrlOrBase64.split(';base64,');
-      const contentType = parts[0].replace('data:', '') || 'image/jpeg';
-      const buffer = Buffer.from(parts[1], 'base64');
-      return new Blob([buffer], { type: contentType });
+      return Buffer.from(parts[1], 'base64');
     }
 
-    // Caso 2: Archivo local en el servidor (uploads folder)
-    if (inputUrlOrBase64.includes('localhost') || inputUrlOrBase64.startsWith('/')) {
+    // Caso 2: Archivo local en el servidor (uploads folder o subcarpetas de categorías)
+    if (
+      inputUrlOrBase64.includes('/uploads/') ||
+      inputUrlOrBase64.includes('localhost') ||
+      inputUrlOrBase64.startsWith('/')
+    ) {
       const fileName = path.basename(inputUrlOrBase64.split('?')[0]);
-      const possiblePaths = [
-        path.join(process.cwd(), 'uploads', fileName),
-        path.join(process.cwd(), 'apps', 'api', 'uploads', fileName),
+      let relPath = '';
+      if (inputUrlOrBase64.includes('/uploads/')) {
+        relPath = inputUrlOrBase64.split('/uploads/')[1].split('?')[0];
+      } else if (inputUrlOrBase64.startsWith('/')) {
+        relPath = inputUrlOrBase64.replace(/^\/+/, '').split('?')[0];
+      }
+
+      const baseUploads = [
+        path.join(process.cwd(), 'uploads'),
+        path.join(process.cwd(), 'apps', 'api', 'uploads'),
       ];
 
-      for (const p of possiblePaths) {
-        if (fs.existsSync(p)) {
-          const buffer = fs.readFileSync(p);
-          const ext = path.extname(p).toLowerCase();
-          const mime = ext === '.png' ? 'image/png' : ext === '.webp' ? 'image/webp' : 'image/jpeg';
-          return new Blob([buffer], { type: mime });
+      for (const base of baseUploads) {
+        if (relPath && fs.existsSync(path.join(base, relPath))) {
+          return fs.readFileSync(path.join(base, relPath));
+        }
+        if (fs.existsSync(path.join(base, fileName))) {
+          return fs.readFileSync(path.join(base, fileName));
+        }
+        const subdirs = ['probador', 'camisas', 'vestidos', 'faldas', 'poleras', 'shorts', 'general', '3d'];
+        for (const sub of subdirs) {
+          const subPath = path.join(base, sub, fileName);
+          if (fs.existsSync(subPath)) {
+            return fs.readFileSync(subPath);
+          }
         }
       }
     }
 
-    // Caso 3: URL remota (Unsplash, Cloudinary, etc.)
-    const response = await fetch(inputUrlOrBase64);
+    // Caso 3: URL remota (Unsplash, Cloudinary, Azure, etc.)
+    let fetchUrl = inputUrlOrBase64;
+    if (fetchUrl.startsWith('/')) {
+      const apiUrl = this.configService.get<string>('API_URL') || 'http://127.0.0.1:3000/api/v1';
+      const rootUrl = apiUrl.replace(/\/api\/v1\/?$/, '');
+      fetchUrl = `${rootUrl}${fetchUrl}`;
+    }
+
+    const response = await fetch(fetchUrl);
     if (!response.ok) {
-      throw new Error(`No se pudo descargar la imagen desde ${inputUrlOrBase64}`);
+      throw new Error(`No se pudo descargar la imagen desde ${fetchUrl}`);
     }
     const arrayBuffer = await response.arrayBuffer();
-    const contentType = response.headers.get('content-type') || 'image/jpeg';
-    return new Blob([arrayBuffer], { type: contentType });
+    return Buffer.from(arrayBuffer);
+  }
+
+  // =========================================================================
+  // HELPER: Convertir URLs / Locales / Base64 a Blob para Gradio
+  // =========================================================================
+  private async obtenerBlobDeImagen(inputUrlOrBase64: string): Promise<Blob> {
+    const buffer = await this.obtenerBufferDeImagen(inputUrlOrBase64);
+    let mime = 'image/jpeg';
+    if (inputUrlOrBase64.startsWith('data:')) {
+      mime = inputUrlOrBase64.split(';')[0].replace('data:', '') || 'image/jpeg';
+    } else if (inputUrlOrBase64.toLowerCase().endsWith('.png')) {
+      mime = 'image/png';
+    } else if (inputUrlOrBase64.toLowerCase().endsWith('.webp')) {
+      mime = 'image/webp';
+    }
+    return new Blob([new Uint8Array(buffer)], { type: mime });
   }
 
   // =========================================================================

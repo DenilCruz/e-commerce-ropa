@@ -19,6 +19,7 @@ export const RegisterPage: React.FC = () => {
   const [errores, setErrores] = useState<string[]>([]);
   const [registroExitoso, setRegistroExitoso] = useState(false);
   const [mensajeExito, setMensajeExito] = useState('');
+  const [tokenVerificacion, setTokenVerificacion] = useState('');
 
   const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     setFormData({
@@ -56,11 +57,14 @@ export const RegisterPage: React.FC = () => {
     try {
       const res = await authApi.registro(payload);
       setMensajeExito(res.message);
+      if (res.tokenVerificacion) {
+        setTokenVerificacion(res.tokenVerificacion);
+      }
       setRegistroExitoso(true);
     } catch (err: any) {
       if (!err.response) {
         setErrores([
-          'No se pudo conectar con el servidor API (http://localhost:3000). Asegúrate de que el backend esté encendido.',
+          'No se pudo conectar con el servidor API. Asegúrate de que el backend esté encendido.',
         ]);
       } else {
         const responseData = err.response.data;
@@ -84,27 +88,27 @@ export const RegisterPage: React.FC = () => {
           <CheckCircle2 className="w-8 h-8 text-emerald-600" />
         </div>
         <h2 className="text-2xl font-bold text-gray-900 mb-2">¡Registro Exitoso!</h2>
-        <p className="text-sm text-gray-600 mb-6">
-          {mensajeExito || 'Hemos enviado un correo con el enlace de verificación para activar tu cuenta.'}
+        <p className="text-sm text-gray-600 mb-5">
+          {mensajeExito || 'Tu cuenta ha sido creada. Hemos enviado un correo con el enlace de verificación para confirmarla.'}
         </p>
 
-        <div className="p-4 bg-blue-50 border border-blue-200 rounded-lg text-left text-xs text-blue-800 mb-6 space-y-1">
-          <p className="font-semibold flex items-center gap-1.5">
+        <div className="p-4 bg-blue-50 border border-blue-200 rounded-xl text-left text-xs text-blue-900 mb-5 space-y-2">
+          <p className="font-semibold flex items-center gap-1.5 text-sm">
             <Mail className="w-4 h-4 text-blue-600" />
-            <span>Revisa tu bandeja de entrada:</span>
+            <span>Confirmación de correo</span>
           </p>
-          <p>Enviamos el correo a <strong>{formData.correo}</strong>.</p>
-          <p className="text-blue-600">
-            ¿Pruebas en desarrollo? Puedes verificar los logs de envío en{' '}
-            <a
-              href="https://mailtrap.io/sending/email_logs"
-              target="_blank"
-              rel="noopener noreferrer"
-              className="underline font-medium hover:text-blue-900"
-            >
-              Mailtrap Logs
-            </a>
+          <p>
+            Enviamos las instrucciones a <strong>{formData.correo}</strong>. Si el correo tarda o estás en entorno de evaluación:
           </p>
+          {tokenVerificacion && (
+            <div className="pt-1">
+              <Link to={`/verificar-email?token=${tokenVerificacion}`}>
+                <Button variant="outline" size="sm" className="w-full bg-white text-indigo-700 border-indigo-200 hover:bg-indigo-50 font-semibold shadow-sm">
+                  ⚡ Activar mi cuenta directamente ahora
+                </Button>
+              </Link>
+            </div>
+          )}
         </div>
 
         <Link to="/login">

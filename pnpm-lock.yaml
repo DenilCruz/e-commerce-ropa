@@ -224,8 +224,8 @@ importers:
         specifier: workspace:*
         version: link:../../packages/shared
       '@mediapipe/tasks-vision':
-        specifier: ^1.0.1
-        version: 1.0.1
+        specifier: ^0.10.14
+        version: 0.10.14
       '@tanstack/react-query':
         specifier: ^5.28.0
         version: 5.103.1(react@18.2.0)
@@ -1405,8 +1405,8 @@ packages:
     resolution: {integrity: sha512-Z7C/xXCiGWsg0KuKsHTKJxbWhpI3Vs5GwLfOean7MGyVFGqdRgBbAjOCh6u4bbjPc/8MJ2pZmK/0DLdCbivLDA==}
     engines: {node: '>=8'}
 
-  '@mediapipe/tasks-vision@1.0.1':
-    resolution: {integrity: sha512-rvRE2FmAZ6ZxKSw7wq+e+jQDpN3t1B/tD2mJz9SmAzb1msoDkd4dMoE4wAh8Z30Um0PQwLiHr9QtomhmXk3aUQ==}
+  '@mediapipe/tasks-vision@0.10.14':
+    resolution: {integrity: sha512-vOifgZhkndgybdvoRITzRkIueWWSiCKuEUXXK6Q4FaJsFvRJuwgg++vqFUMlL0Uox62U5aEXFhHxlhV7Ja5e3Q==}
 
   '@microsoft/tsdoc@0.15.1':
     resolution: {integrity: sha512-4aErSrCR/On/e5G2hDP0wjooqDdauzEbIq8hIkIe5pXV0rtWJZvdCEKL0ykZxex+IxIwBp0eGeV48hQN07dXtw==}
@@ -7670,7 +7670,7 @@ snapshots:
 
   '@lukeed/csprng@1.1.0': {}
 
-  '@mediapipe/tasks-vision@1.0.1': {}
+  '@mediapipe/tasks-vision@0.10.14': {}
 
   '@microsoft/tsdoc@0.15.1': {}
 

@@ -280,27 +280,11 @@ export const ResenasSection: React.FC<ResenasSectionProps> = ({ productoId }) =>
                 <div className="flex items-start gap-3 p-4 bg-amber-50 border border-amber-200 rounded-xl text-amber-900 text-xs">
                   <ShieldCheck className="w-5 h-5 text-amber-600 shrink-0 mt-0.5" />
                   <div className="space-y-1">
-                    <p className="font-bold">Compra verificada requerida (HU-66)</p>
+                    <p className="font-bold">Compra verificada requerida</p>
                     <p className="text-amber-800 leading-relaxed">
-                      Para garantizar opiniones auténticas, solo los clientes que hayan comprado esta prenda pueden calificarla y dejar una reseña.
+                      Para garantizar opiniones auténticas, solo los clientes que hayan adquirido esta prenda pueden calificarla y compartir su experiencia.
                     </p>
                   </div>
-                </div>
-
-                {/* Herramienta de Demostración y Evaluación */}
-                <div className="p-3 bg-gray-50 border border-gray-200/80 rounded-xl text-center space-y-2">
-                  <p className="text-[11px] text-gray-500">
-                    ¿Probando la plataforma? Puedes simular una compra de prueba al instante:
-                  </p>
-                  <button
-                    type="button"
-                    disabled={simulando}
-                    onClick={handleSimularCompra}
-                    className="w-full py-2 bg-gray-900 text-white rounded-lg text-xs font-semibold hover:bg-black transition-colors flex items-center justify-center gap-1.5"
-                  >
-                    <ShoppingBag className="w-3.5 h-3.5" />
-                    <span>{simulando ? 'Registrando...' : 'Simular compra de este producto'}</span>
-                  </button>
                 </div>
               </div>
             ) : estadoCompra && estadoCompra.yaReseno ? (

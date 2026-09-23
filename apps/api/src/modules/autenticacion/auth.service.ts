@@ -124,6 +124,9 @@ export class AuthService {
         .enviarEmailBienvenida({ correo: usuarioGuardado.correo, nombre: usuarioGuardado.nombre })
         .catch((err) => this.logger.error('Error enviando email de bienvenida:', err));
 
+      const appUrl = this.configService.get<string>('appUrl') || 'http://localhost:5173';
+      const enlaceVerificacion = `${appUrl}/verificar-email?token=${tokenValor}`;
+
       return {
         message: 'Usuario registrado exitosamente. Se ha enviado un correo con el enlace de verificación.',
         usuario: {
@@ -134,6 +137,8 @@ export class AuthService {
           rol: rolCliente.nombre,
           emailVerificado: usuarioGuardado.emailVerificado,
         },
+        enlaceVerificacion,
+        tokenVerificacion: tokenValor,
       };
     } catch (error) {
       await queryRunner.rollbackTransaction();

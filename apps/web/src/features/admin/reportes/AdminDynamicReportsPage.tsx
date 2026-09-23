@@ -96,7 +96,19 @@ export const AdminDynamicReportsPage: React.FC = () => {
       setEscuchando(false);
       setTextoVozInterim('');
       if (event.error !== 'no-speech') {
-        setError(`Error en el micrófono: ${event.error}`);
+        if (event.error === 'network') {
+          setError(
+            'Error de red en el reconocimiento de voz. En Brave Browser, los servicios de voz de Google vienen bloqueados por defecto por privacidad. Puedes activarlo en brave://settings (busca "Google services for voice recognition" o "reconocimiento de voz"), o usar Google Chrome / Edge. También puedes escribir tu consulta directamente.',
+          );
+        } else if (event.error === 'not-allowed') {
+          setError(
+            'Permiso de micrófono denegado. Haz clic en el ícono de candado al lado de la barra de direcciones y permite el acceso al micrófono.',
+          );
+        } else if (event.error === 'audio-capture') {
+          setError('No se detectó ningún micrófono conectado en tu equipo.');
+        } else {
+          setError(`Error en el micrófono: ${event.error}`);
+        }
       }
     };
 

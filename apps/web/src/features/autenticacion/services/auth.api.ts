@@ -3,6 +3,7 @@ import {
   AuthResponse,
   LoginRequest,
   RegistroRequest,
+  RegistroResponse,
   RecuperarPasswordRequest,
   RestablecerPasswordRequest,
   VerificarEmailRequest,
@@ -10,7 +11,7 @@ import {
 } from '../types';
 
 export const authApi = {
-  registro: async (data: RegistroRequest): Promise<{ message: string; usuario: UserProfile }> => {
+  registro: async (data: RegistroRequest): Promise<RegistroResponse> => {
     const res = await api.post('/auth/registro', data);
     return res.data;
   },

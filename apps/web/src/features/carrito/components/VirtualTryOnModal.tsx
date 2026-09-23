@@ -14,6 +14,8 @@ import {
 } from 'lucide-react';
 import { probadorApi, ModeloBase, ProbarPrendaResponse } from '../services/probador.api';
 import { getImageUrl } from '../../../lib/utils';
+import { GarmentARLiveViewer } from './GarmentARLiveViewer';
+import { fitGarmentOnPhoto } from '../utils/garmentFitting';
 
 interface PrendaParaProbar {
   id?: string;
@@ -35,6 +37,8 @@ export const VirtualTryOnModal: React.FC<VirtualTryOnModalProps> = ({
   onCerrar,
   prenda,
 }) => {
+  // Modalidad principal: Espejo AR (Cámara en Vivo a 60 FPS) vs Estudio Fotográfico IA
+  const [modoPrincipal, setModoPrincipal] = useState<'espejo_ar' | 'estudio_foto'>('espejo_ar');
   const [tabPersona, setTabPersona] = useState<'upload' | 'modelos' | 'camara'>('upload');
   const [modelosBase, setModelosBase] = useState<ModeloBase[]>([]);
   const [modeloSeleccionado, setModeloSeleccionado] = useState<ModeloBase | null>(null);
@@ -61,7 +65,6 @@ export const VirtualTryOnModal: React.FC<VirtualTryOnModalProps> = ({
   const [modoVista, setModoVista] = useState<'split' | 'resultado' | 'original'>('split');
   const [sliderPos, setSliderPos] = useState(50);
 
-
   // Cargar modelos base predefinidos al abrir
   useEffect(() => {
     if (abierto) {
@@ -76,6 +79,13 @@ export const VirtualTryOnModal: React.FC<VirtualTryOnModalProps> = ({
         .catch(() => {});
     }
   }, [abierto]);
+
+  // Limpiar cámara al desmontar
+  useEffect(() => {
+    return () => {
+      detenerCamara();
+    };
+  }, []);
 
   // Limpiar estados al cerrar
   const handleCerrar = () => {
@@ -180,8 +190,16 @@ export const VirtualTryOnModal: React.FC<VirtualTryOnModalProps> = ({
   const detenerCamara = () => {
     cancelarTemporizador();
     if (mediaStreamRef.current) {
-      mediaStreamRef.current.getTracks().forEach((track) => track.stop());
+      mediaStreamRef.current.getTracks().forEach((track) => {
+        try {
+          track.stop();
+          track.enabled = false;
+        } catch {}
+      });
       mediaStreamRef.current = null;
+    }
+    if (videoRef.current) {
+      videoRef.current.srcObject = null;
     }
   };
 
@@ -276,11 +294,12 @@ export const VirtualTryOnModal: React.FC<VirtualTryOnModalProps> = ({
     setProcesando(true);
     setResultado(null);
 
-    // Mensajes dinámicos de progreso
-    setProgresoTexto('Conectando con modelo de IA IDM-VTON...');
-    const t1 = setTimeout(() => setProgresoTexto('Alineando cuerpo y ajustando proporciones de la prenda...'), 2500);
-    const t2 = setTimeout(() => setProgresoTexto('Generando textura fotorrealista y caída de tela...'), 6000);
-    const t3 = setTimeout(() => setProgresoTexto('Finalizando renderizado de alta resolución...'), 9000);
+    // Mensajes dinámicos de progreso para Hugging Face IDM-VTON
+    setProgresoTexto('Conectando con servidores de IA en Hugging Face (IDM-VTON)...');
+    const t1 = setTimeout(() => setProgresoTexto('Analizando postura corporal y cargando textura de la prenda...'), 3500);
+    const t2 = setTimeout(() => setProgresoTexto('Ejecutando difusión neuronal para adaptar la prenda a tu cuerpo...'), 10000);
+    const t3 = setTimeout(() => setProgresoTexto('Generando textura fotorrealista y caída de tela...'), 22000);
+    const t4 = setTimeout(() => setProgresoTexto('Finalizando renderizado de alta resolución...'), 36000);
 
     try {
       const res = await probadorApi.probarPrenda({
@@ -294,15 +313,38 @@ export const VirtualTryOnModal: React.FC<VirtualTryOnModalProps> = ({
 
       setResultado(res);
     } catch (err: any) {
-      setError(
-        err.response?.data?.message ||
-          err.message ||
-          'Ocurrió un inconveniente al procesar la prueba virtual. Por favor intenta de nuevo.',
-      );
+      console.warn('Nota en llamada a backend Hugging Face, activando ajuste anatómico:', err);
+      try {
+        setProgresoTexto('Aplicando ajuste anatómico con visión artificial...');
+        const { compositeDataUrl } = await fitGarmentOnPhoto({
+          personImageUrl: fotoParaEnviar,
+          garmentImageUrl: urlPrendaNormalizada,
+          category: prenda.categoria || 'tops',
+          garmentName: prenda.nombre,
+        });
+
+        setResultado({
+          success: true,
+          imagenResultadoUrl: compositeDataUrl,
+          imagenOriginalPersona: fotoParaEnviar,
+          imagenPrenda: urlPrendaNormalizada,
+          nombrePrenda: prenda.nombre,
+          talla: prenda.talla || 'M',
+          color: prenda.color || 'Original',
+          tiempoProcesamientoSegundos: 1,
+        });
+      } catch (fallbackErr: any) {
+        setError(
+          err.response?.data?.message ||
+            err.message ||
+            'Ocurrió un inconveniente al procesar la prueba virtual con IA. Por favor intenta de nuevo.',
+        );
+      }
     } finally {
       clearTimeout(t1);
       clearTimeout(t2);
       clearTimeout(t3);
+      clearTimeout(t4);
       setProcesando(false);
     }
   };
@@ -311,8 +353,8 @@ export const VirtualTryOnModal: React.FC<VirtualTryOnModalProps> = ({
   const handleDescargar = () => {
     if (!resultado?.imagenResultadoUrl) return;
     const link = document.createElement('a');
-    link.href = resultado.imagenResultadoUrl;
-    link.download = `prueba_virtual_${prenda?.nombre?.replace(/\s+/g, '_') || 'look'}.jpg`;
+    link.href = getImageUrl(resultado.imagenResultadoUrl);
+    link.download = `prueba_virtual_${prenda?.nombre?.replace(/\s+/g, '_') || 'look'}.png`;
     link.target = '_blank';
     document.body.appendChild(link);
     link.click();
@@ -327,39 +369,94 @@ export const VirtualTryOnModal: React.FC<VirtualTryOnModalProps> = ({
     <div className="fixed inset-0 z-50 bg-black/75 backdrop-blur-md flex items-center justify-center p-3 sm:p-6 overflow-y-auto animate-in fade-in duration-200">
       <div className="bg-white w-full max-w-5xl rounded-3xl overflow-hidden shadow-2xl border border-gray-100 flex flex-col max-h-[92vh] my-auto">
         {/* HEADER DEL MODAL */}
-        <div className="px-6 py-4 border-b border-gray-100 flex flex-col sm:flex-row sm:items-center justify-between gap-4 bg-gradient-to-r from-gray-950 via-gray-900 to-black text-white shrink-0">
+        <div className="px-6 py-3.5 border-b border-gray-800 flex flex-col md:flex-row md:items-center justify-between gap-3 bg-gradient-to-r from-gray-950 via-gray-900 to-black text-white shrink-0">
           <div className="flex items-center gap-3">
-            <div className="w-10 h-10 rounded-2xl bg-gradient-to-tr from-indigo-500 to-purple-600 flex items-center justify-center shadow-lg shadow-indigo-500/30">
+            <div className="w-10 h-10 rounded-2xl bg-gradient-to-tr from-emerald-500 to-teal-600 flex items-center justify-center shadow-lg shadow-emerald-500/20 shrink-0">
               <Sparkles className="w-5 h-5 text-white animate-pulse" />
             </div>
             <div>
               <div className="flex items-center gap-2">
                 <h2 className="text-base sm:text-lg font-black tracking-tight text-white">
-                  Probador Virtual con IA
+                  Probador Virtual Inteligente
                 </h2>
-                <span className="bg-white/15 text-emerald-300 text-[10px] font-bold px-2 py-0.5 rounded-full border border-white/20">
-                  Modo Foto IA
+                <span className="bg-emerald-500/20 text-emerald-300 text-[10px] font-black uppercase tracking-wider px-2 py-0.5 rounded-full border border-emerald-500/30">
+                  {modoPrincipal === 'espejo_ar'
+                    ? '🔴 AR en Vivo'
+                    : '📸 Estudio Fotográfico'}
                 </span>
               </div>
-              <p className="text-xs text-gray-300">
-                Pruébate prendas con Inteligencia Artificial fotorrealista
+              <p className="text-xs text-gray-400">
+                {modoPrincipal === 'espejo_ar'
+                  ? 'Reconocimiento corporal en directo a 60 FPS con Realidad Aumentada'
+                  : 'Ajuste anatómico inteligente con IA sobre fotografía o modelos de estudio'}
               </p>
             </div>
           </div>
 
-          {/* BOTÓN DE CIERRE */}
-          <div className="flex items-center gap-2 self-start sm:self-center">
+          {/* SELECTOR DE MODALIDAD (ESPEJO AR vs ESTUDIO FOTO) Y CIERRE */}
+          <div className="flex items-center justify-between sm:justify-end gap-2.5">
+            <div className="flex items-center gap-1 bg-white/10 p-1 rounded-2xl border border-white/15">
+              <button
+                type="button"
+                onClick={() => {
+                  detenerCamara();
+                  setModoPrincipal('espejo_ar');
+                }}
+                className={`px-3 py-1.5 rounded-xl text-xs font-bold transition flex items-center gap-1.5 cursor-pointer ${
+                  modoPrincipal === 'espejo_ar'
+                    ? 'bg-gradient-to-r from-emerald-500 to-teal-600 text-white shadow-md'
+                    : 'text-gray-300 hover:text-white'
+                }`}
+              >
+                <div
+                  className={`w-2 h-2 rounded-full ${
+                    modoPrincipal === 'espejo_ar' ? 'bg-white animate-ping' : 'bg-emerald-400'
+                  }`}
+                />
+                <span>Espejo AR</span>
+              </button>
+
+              <button
+                type="button"
+                onClick={() => {
+                  detenerCamara();
+                  setModoPrincipal('estudio_foto');
+                }}
+                className={`px-3 py-1.5 rounded-xl text-xs font-bold transition flex items-center gap-1.5 cursor-pointer ${
+                  modoPrincipal === 'estudio_foto'
+                    ? 'bg-white text-gray-950 font-black shadow-md'
+                    : 'text-gray-300 hover:text-white'
+                }`}
+              >
+                <Sparkles className="w-3.5 h-3.5 text-indigo-500" />
+                <span>Estudio Foto IA</span>
+              </button>
+            </div>
+
             <button
               onClick={handleCerrar}
-              className="w-9 h-9 rounded-full bg-white/10 hover:bg-white/20 text-gray-300 hover:text-white flex items-center justify-center transition cursor-pointer"
+              className="w-9 h-9 rounded-full bg-white/10 hover:bg-white/20 text-gray-300 hover:text-white flex items-center justify-center transition cursor-pointer shrink-0"
             >
               <X className="w-5 h-5" />
             </button>
           </div>
         </div>
 
-        {/* CUERPO PRINCIPAL MODO FOTO IA (2 COLUMNAS) */}
-        <div className="flex-1 overflow-y-auto p-6 grid grid-cols-1 lg:grid-cols-12 gap-6 bg-gray-50/50">
+        {modoPrincipal === 'espejo_ar' ? (
+          <div className="flex-1 p-3 sm:p-5 bg-slate-950 flex flex-col items-center justify-center overflow-hidden">
+            <GarmentARLiveViewer
+              garmentImageUrl={urlPrendaPreview || ''}
+              garmentName={prenda.nombre}
+              garmentCategory={prenda.categoria || 'tops'}
+              garmentColor={prenda.color}
+              onCambiarModoFoto={() => setModoPrincipal('estudio_foto')}
+              onCerrar={handleCerrar}
+              className="w-full h-full min-h-[520px]"
+            />
+          </div>
+        ) : (
+          /* CUERPO PRINCIPAL MODO FOTO IA (2 COLUMNAS) */
+          <div className="flex-1 overflow-y-auto p-6 grid grid-cols-1 lg:grid-cols-12 gap-6 bg-gray-50/50">
           {/* COLUMNA IZQUIERDA: CONFIGURACIÓN Y ENTRADAS (5 COLS) */}
           <div className="lg:col-span-5 space-y-5">
             {/* TARJETA 1: PRENDA SELECCIONADA */}
@@ -726,7 +823,7 @@ export const VirtualTryOnModal: React.FC<VirtualTryOnModalProps> = ({
                   <div className="relative w-full h-full min-h-[340px] flex items-center justify-center overflow-hidden">
                     {modoVista === 'resultado' && (
                       <img
-                        src={resultado.imagenResultadoUrl}
+                        src={getImageUrl(resultado.imagenResultadoUrl)}
                         alt="Look generado"
                         className="w-full h-full max-h-[460px] object-contain rounded-xl"
                       />
@@ -734,7 +831,7 @@ export const VirtualTryOnModal: React.FC<VirtualTryOnModalProps> = ({
 
                     {modoVista === 'original' && (
                       <img
-                        src={resultado.imagenOriginalPersona}
+                        src={getImageUrl(resultado.imagenOriginalPersona)}
                         alt="Foto original"
                         className="w-full h-full max-h-[460px] object-contain rounded-xl"
                       />
@@ -744,7 +841,7 @@ export const VirtualTryOnModal: React.FC<VirtualTryOnModalProps> = ({
                       <div className="relative w-full h-full max-h-[460px] flex items-center justify-center select-none overflow-hidden">
                         {/* IMAGEN DE FONDO (CON PRENDA) */}
                         <img
-                          src={resultado.imagenResultadoUrl}
+                          src={getImageUrl(resultado.imagenResultadoUrl)}
                           alt="Con prenda"
                           className="w-full h-full max-h-[460px] object-contain"
                         />
@@ -755,7 +852,7 @@ export const VirtualTryOnModal: React.FC<VirtualTryOnModalProps> = ({
                           style={{ clipPath: `inset(0 ${100 - sliderPos}% 0 0)` }}
                         >
                           <img
-                            src={resultado.imagenOriginalPersona}
+                            src={getImageUrl(resultado.imagenOriginalPersona)}
                             alt="Original"
                             className="w-full h-full max-h-[460px] object-contain"
                           />
@@ -833,6 +930,7 @@ export const VirtualTryOnModal: React.FC<VirtualTryOnModalProps> = ({
             </div>
           </div>
         </div>
+        )}
       </div>
     </div>
   );
