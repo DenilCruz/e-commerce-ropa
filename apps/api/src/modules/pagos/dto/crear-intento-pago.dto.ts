@@ -39,4 +39,9 @@ export class CrearIntentoPagoDto {
   @ApiPropertyOptional({ description: 'Coordenada Longitud de entrega' })
   @IsOptional()
   longitud?: number;
+
+  @ApiPropertyOptional({ description: 'Origen de la solicitud: web o mobile' })
+  @IsOptional()
+  @IsString()
+  origen?: 'web' | 'mobile';
 }

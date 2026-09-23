@@ -159,7 +159,55 @@ export class PaymentsService {
   }
 
   // =========================================================================
-  // STRIPE EMBEDDED CHECKOUT (HU-56: Checkout Embebido Oficial)
+  // HELPER: Resolver ID dinámico y real del método de pago en BD
+  // Evita violaciones de clave foránea FK (pago_metodo_pago_id_fkey)
+  // =========================================================================
+  private async resolverMetodoPagoId(tipo: 'tarjeta' | 'contra_entrega' | 'qr'): Promise<string> {
+    try {
+      let metodo: PaymentMethodEntity | null = null;
+      if (tipo === 'tarjeta') {
+        metodo = await this.paymentMethodRepo
+          .createQueryBuilder('m')
+          .where('LOWER(m.nombre) LIKE :k1 OR LOWER(m.nombre) LIKE :k2', {
+            k1: '%tarjeta%',
+            k2: '%stripe%',
+          })
+          .getOne();
+      } else if (tipo === 'contra_entrega') {
+        metodo = await this.paymentMethodRepo
+          .createQueryBuilder('m')
+          .where('LOWER(m.nombre) LIKE :k1 OR LOWER(m.nombre) LIKE :k2', {
+            k1: '%efectivo%',
+            k2: '%contra%',
+          })
+          .getOne();
+      } else if (tipo === 'qr') {
+        metodo = await this.paymentMethodRepo
+          .createQueryBuilder('m')
+          .where('LOWER(m.nombre) LIKE :k1 OR LOWER(m.nombre) LIKE :k2', {
+            k1: '%qr%',
+            k2: '%transferencia%',
+          })
+          .getOne();
+      }
+
+      if (metodo) {
+        return metodo.id;
+      }
+    } catch (err: any) {
+      this.logger.warn(`Error buscando método de pago "${tipo}" en BD: ${err.message}`);
+    }
+
+    const fallback = await this.paymentMethodRepo.findOne({ where: { activo: true } });
+    if (fallback) return fallback.id;
+
+    if (tipo === 'qr') return 'dcb8cd5b-18f8-43c7-a7b6-44dfa1beae69';
+    if (tipo === 'contra_entrega') return '7082b2da-8046-4f75-8bbf-88f7be385e7f';
+    return 'e939257b-8c33-4688-8236-68a214c561b7';
+  }
+
+  // =========================================================================
+  // STRIPE EMBEDDED / HOSTED CHECKOUT (HU-56: Checkout Oficial)
   // =========================================================================
   async crearSesionEmbebida(usuarioId: string, dto: CrearIntentoPagoDto) {
     const { subtotal, descuento, envio, totalFinal, cart, cupon } =
@@ -178,13 +226,15 @@ export class PaymentsService {
     }
 
     const usuario = await this.userRepo.findOne({ where: { id: usuarioId } });
-    const clientUrl = this.configService.get<string>('CLIENT_URL') || 'http://localhost:5173';
+    const clientUrl =
+      this.configService.get<string>('CLIENT_URL') ||
+      this.configService.get<string>('APP_URL') ||
+      'https://aura-ecommerce.westus2.cloudapp.azure.com';
 
     try {
-      const session = await this.stripe.checkout.sessions.create({
-        ui_mode: 'embedded_page' as any,
+      const esMobile = dto.origen === 'mobile';
+      const sessionParams: any = {
         mode: 'payment',
-        return_url: `${clientUrl}/checkout/return?session_id={CHECKOUT_SESSION_ID}`,
         customer_email: usuario?.correo,
         line_items: [
           {
@@ -214,11 +264,22 @@ export class PaymentsService {
           latitud: dto.latitud !== undefined ? dto.latitud.toString() : '',
           longitud: dto.longitud !== undefined ? dto.longitud.toString() : '',
         },
-      });
+      };
+
+      if (esMobile) {
+        sessionParams.success_url = `${clientUrl}/checkout/return?session_id={CHECKOUT_SESSION_ID}&status=success`;
+        sessionParams.cancel_url = `${clientUrl}/checkout?status=cancel`;
+      } else {
+        sessionParams.ui_mode = 'embedded_page';
+        sessionParams.return_url = `${clientUrl}/checkout/return?session_id={CHECKOUT_SESSION_ID}`;
+      }
+
+      const session = await this.stripe.checkout.sessions.create(sessionParams);
 
       return {
         clientSecret: session.client_secret,
         sessionId: session.id,
+        url: session.url,
         amount: totalFinal,
         currency: 'bob',
       };
@@ -355,7 +416,7 @@ export class PaymentsService {
 
       const nuevoPago = queryRunner.manager.create(PaymentEntity, {
         notaventaId: ordenGuardada.id,
-        metodoPagoId: METODO_TARJETA_ID,
+        metodoPagoId: await this.resolverMetodoPagoId('tarjeta'),
         monto: ordenGuardada.total,
         estado: 'APROBADO',
         idTransaccion: paymentIntentId,
@@ -556,7 +617,7 @@ export class PaymentsService {
       // 4. Crear registro en tabla pago (HU-58)
       const nuevoPago = queryRunner.manager.create(PaymentEntity, {
         notaventaId: ordenGuardada.id,
-        metodoPagoId: METODO_TARJETA_ID,
+        metodoPagoId: await this.resolverMetodoPagoId('tarjeta'),
         monto: totalFinal,
         estado: 'APROBADO',
         idTransaccion: paymentIntent.id,
@@ -730,7 +791,7 @@ export class PaymentsService {
       // 3. Crear registro pago con estado PENDIENTE
       const nuevoPago = queryRunner.manager.create(PaymentEntity, {
         notaventaId: ordenGuardada.id,
-        metodoPagoId: METODO_CONTRA_ENTREGA_ID,
+        metodoPagoId: await this.resolverMetodoPagoId('contra_entrega'),
         monto: totalFinal,
         estado: 'PENDIENTE',
         idTransaccion: `COD-${orderNro}`,
@@ -896,7 +957,7 @@ export class PaymentsService {
       // 3. Crear registro pago con estado APROBADO
       const nuevoPago = queryRunner.manager.create(PaymentEntity, {
         notaventaId: ordenGuardada.id,
-        metodoPagoId: METODO_QR_ID,
+        metodoPagoId: await this.resolverMetodoPagoId('qr'),
         monto: totalFinal,
         estado: 'APROBADO',
         idTransaccion: trxRef,

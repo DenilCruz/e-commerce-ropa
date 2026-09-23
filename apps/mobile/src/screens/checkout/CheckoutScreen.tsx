@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import {
   View,
   Text,
@@ -8,6 +8,7 @@ import {
   TextInput,
   ActivityIndicator,
   Alert,
+  Linking,
 } from 'react-native';
 import { Image } from 'expo-image';
 import { SafeAreaView } from 'react-native-safe-area-context';
@@ -34,11 +35,10 @@ export const CheckoutScreen: React.FC = () => {
   const [metodoPago, setMetodoPago] = useState<'tarjeta' | 'contra_entrega' | 'qr'>('tarjeta');
   const [nroComprobanteQr, setNroComprobanteQr] = useState('');
 
-  // Datos de tarjeta
-  const [nombreTitular, setNombreTitular] = useState(user?.nombre ? `${user.nombre} ${user.apellido || ''}`.trim() : '');
-  const [numeroTarjeta, setNumeroTarjeta] = useState('');
-  const [expiracion, setExpiracion] = useState('');
-  const [cvc, setCvc] = useState('');
+  // Sesión oficial de Stripe Checkout
+  const [stripeSessionId, setStripeSessionId] = useState<string | null>(null);
+  const [stripeUrl, setStripeUrl] = useState<string | null>(null);
+  const [verificandoStripe, setVerificandoStripe] = useState(false);
 
   // Estados
   const [tipoEnvio, setTipoEnvio] = useState<'ESTANDAR' | 'EXPRESS'>('ESTANDAR');
@@ -54,19 +54,16 @@ export const CheckoutScreen: React.FC = () => {
     ? 'e2000000-0000-0000-0000-000000000002'
     : 'e1000000-0000-0000-0000-000000000001';
 
-  const formatCardNumber = (text: string) => {
-    const raw = text.replace(/\D/g, '').slice(0, 16);
-    const formatted = raw.match(/.{1,4}/g)?.join(' ') || raw;
-    setNumeroTarjeta(formatted);
-  };
+  // Polling automático para verificar la sesión de Stripe en cuanto el usuario pague
+  useEffect(() => {
+    if (!stripeSessionId || ordenCompletada) return;
 
-  const formatExp = (text: string) => {
-    let raw = text.replace(/\D/g, '').slice(0, 4);
-    if (raw.length >= 2) {
-      raw = raw.slice(0, 2) + '/' + raw.slice(2);
-    }
-    setExpiracion(raw);
-  };
+    const interval = setInterval(() => {
+      verificarPagoStripe(true);
+    }, 3500);
+
+    return () => clearInterval(interval);
+  }, [stripeSessionId, ordenCompletada]);
 
   // OBTENER UBICACIÓN GPS
   const obtenerUbicacionGPS = () => {
@@ -111,8 +108,38 @@ export const CheckoutScreen: React.FC = () => {
     );
   };
 
-  // HU-56 / HU-58: Procesar Pago con Tarjeta (Stripe)
-  const procesarPagoTarjeta = async () => {
+  // HU-56 / HU-57 / HU-58: Verificar estado de sesión oficial de Stripe
+  const verificarPagoStripe = async (silencioso = false) => {
+    if (!stripeSessionId) return;
+
+    if (!silencioso) setVerificandoStripe(true);
+    try {
+      const res = await paymentsApi.consultarEstadoSesion(stripeSessionId);
+      if (res.orden && (res.paymentStatus === 'paid' || res.status === 'complete')) {
+        clearCart();
+        setOrdenCompletada(res.orden);
+        setStripeSessionId(null);
+        setStripeUrl(null);
+      } else if (!silencioso) {
+        Alert.alert(
+          'Pago en proceso',
+          'Aún no se ha registrado la confirmación del pago en Stripe. Si ya completaste los datos en la página de Stripe, aguarda unos segundos y vuelve a presionar Verificar.'
+        );
+      }
+    } catch (err: any) {
+      if (!silencioso) {
+        Alert.alert(
+          'Estado del pago',
+          err.response?.data?.message || err.message || 'No se pudo verificar el pago con Stripe.'
+        );
+      }
+    } finally {
+      if (!silencioso) setVerificandoStripe(false);
+    }
+  };
+
+  // HU-56: Abrir Pasarela Oficial de Stripe (Hosted Checkout)
+  const procesarPagoStripeOficial = async () => {
     if (!direccion.trim()) {
       setErrorMsg('Ingresa la dirección completa de entrega.');
       return;
@@ -121,49 +148,34 @@ export const CheckoutScreen: React.FC = () => {
       setErrorMsg('Ingresa un número de teléfono de contacto.');
       return;
     }
-    const cleanCard = numeroTarjeta.replace(/\s/g, '');
-    if (cleanCard.length < 15) {
-      setErrorMsg('Ingresa un número de tarjeta válido (16 dígitos).');
-      return;
-    }
-    if (expiracion.length < 5) {
-      setErrorMsg('Ingresa el vencimiento (MM/AA).');
-      return;
-    }
-    if (cvc.length < 3) {
-      setErrorMsg('Ingresa el código CVC de seguridad.');
-      return;
-    }
 
     setProcesando(true);
     setErrorMsg(null);
 
     try {
-      // 1. Crear PaymentIntent en backend
-      const intentData = await paymentsApi.crearIntento({
+      const res = await paymentsApi.crearSesionEmbebida({
         direccionEnvio: `${direccion}, ${ciudad}`,
         telefono,
         notas,
         cuponId: cupon?.id,
         metodoEnvioId,
         tipoEnvio,
+        origen: 'mobile',
       });
 
-      // 2. Tokenizar y confirmar con Stripe / backend
-      const orden = await paymentsApi.confirmarTarjeta({
-        paymentIntentId: intentData.paymentIntentId,
-        direccionEnvio: `${direccion}, ${ciudad}`,
-        telefono,
-        notas,
-        cuponId: cupon?.id,
-        metodoEnvioId,
-        tipoEnvio,
-      });
-
-      clearCart();
-      setOrdenCompletada(orden);
+      setStripeSessionId(res.sessionId);
+      if (res.url) {
+        setStripeUrl(res.url);
+        await Linking.openURL(res.url);
+      } else {
+        throw new Error('No se recibió la URL de pago de Stripe.');
+      }
     } catch (err: any) {
-      setErrorMsg(err.response?.data?.message || err.message || 'Error al procesar el pago.');
+      setErrorMsg(
+        err.response?.data?.message ||
+          err.message ||
+          'Error al conectar con la pasarela oficial de Stripe.'
+      );
     } finally {
       setProcesando(false);
     }
@@ -238,7 +250,11 @@ export const CheckoutScreen: React.FC = () => {
 
   const handleProcesar = () => {
     if (metodoPago === 'tarjeta') {
-      procesarPagoTarjeta();
+      if (stripeSessionId) {
+        verificarPagoStripe(false);
+      } else {
+        procesarPagoStripeOficial();
+      }
     } else if (metodoPago === 'qr') {
       procesarPagoQr();
     } else {
@@ -558,68 +574,88 @@ export const CheckoutScreen: React.FC = () => {
           {/* CONTENIDO SEGÚN EL MÉTODO DE PAGO */}
           {metodoPago === 'tarjeta' ? (
             <View style={{ marginTop: 12 }}>
-              {/* TARJETA VISUAL STRIPE */}
-              <View style={styles.creditCardVisual}>
-                <View style={styles.cardVisualTop}>
-                  <View style={styles.cardChip} />
-                  <Text style={styles.cardBrand}>STRIPE EMBEDDED CHECKOUT</Text>
-                </View>
-                <Text style={styles.cardNumberText}>
-                  {numeroTarjeta || '•••• •••• •••• ••••'}
-                </Text>
-                <View style={styles.cardVisualBottom}>
-                  <Text style={styles.cardHolderText}>{nombreTitular || 'NOMBRE TITULAR'}</Text>
-                  <Text style={styles.cardExpText}>{expiracion || 'MM/AA'}</Text>
-                </View>
-              </View>
+              {stripeSessionId ? (
+                /* SESIÓN OFICIAL DE STRIPE ACTIVA */
+                <View style={styles.stripeActiveCard}>
+                  <View style={styles.stripeActiveHeader}>
+                    <Ionicons name="time" size={26} color="#4f46e5" />
+                    <View style={{ marginLeft: 10, flex: 1 }}>
+                      <Text style={styles.stripeActiveTitle}>Sesión de Pago Stripe Abierta</Text>
+                      <Text style={styles.stripeActiveSub}>
+                        Se ha abierto el formulario oficial de Stripe por ${totalFinal.toFixed(2)} USD. Ingresa tu tarjeta y confirma tu compra.
+                      </Text>
+                    </View>
+                  </View>
 
-              {/* INPUTS DE TARJETA STRIPE */}
-              <View style={styles.inputGroup}>
-                <Text style={styles.label}>Nombre en la Tarjeta *</Text>
-                <TextInput
-                  style={styles.input}
-                  placeholder="JUAN PEREZ"
-                  autoCapitalize="characters"
-                  value={nombreTitular}
-                  onChangeText={setNombreTitular}
-                />
-              </View>
+                  <View style={styles.stripeActiveButtonsRow}>
+                    <TouchableOpacity
+                      style={styles.stripeReopenBtn}
+                      onPress={() => stripeUrl && Linking.openURL(stripeUrl)}
+                    >
+                      <Ionicons name="open-outline" size={16} color="#4f46e5" style={{ marginRight: 6 }} />
+                      <Text style={styles.stripeReopenText}>Reabrir Stripe</Text>
+                    </TouchableOpacity>
 
-              <View style={styles.inputGroup}>
-                <Text style={styles.label}>Número de Tarjeta (Stripe Test) *</Text>
-                <TextInput
-                  style={styles.input}
-                  placeholder="4242 4242 4242 4242"
-                  keyboardType="number-pad"
-                  value={numeroTarjeta}
-                  onChangeText={formatCardNumber}
-                />
-              </View>
+                    <TouchableOpacity
+                      style={styles.stripeVerifyBtn}
+                      onPress={() => verificarPagoStripe(false)}
+                      disabled={verificandoStripe}
+                    >
+                      {verificandoStripe ? (
+                        <ActivityIndicator size="small" color="#fff" style={{ marginRight: 6 }} />
+                      ) : (
+                        <Ionicons name="checkmark-done" size={16} color="#fff" style={{ marginRight: 6 }} />
+                      )}
+                      <Text style={styles.stripeVerifyText}>
+                        {verificandoStripe ? 'Verificando...' : 'Verificar Pago'}
+                      </Text>
+                    </TouchableOpacity>
+                  </View>
 
-              <View style={styles.inputRow}>
-                <View style={[styles.inputGroup, { flex: 1 }]}>
-                  <Text style={styles.label}>Vencimiento *</Text>
-                  <TextInput
-                    style={styles.input}
-                    placeholder="12/28"
-                    keyboardType="number-pad"
-                    value={expiracion}
-                    onChangeText={formatExp}
-                  />
+                  <Text style={styles.stripeAutoCheckNote}>
+                    🔄 Verificando confirmación de Stripe automáticamente cada 3 segundos...
+                  </Text>
                 </View>
-                <View style={[styles.inputGroup, { flex: 1 }]}>
-                  <Text style={styles.label}>CVC *</Text>
-                  <TextInput
-                    style={styles.input}
-                    placeholder="123"
-                    keyboardType="number-pad"
-                    secureTextEntry
-                    maxLength={4}
-                    value={cvc}
-                    onChangeText={setCvc}
-                  />
+              ) : (
+                /* INVITACIÓN A PASARELA OFICIAL STRIPE */
+                <View style={styles.stripePromoCard}>
+                  <View style={styles.stripePromoHeader}>
+                    <Ionicons name="shield-checkmark" size={28} color="#4f46e5" />
+                    <View style={{ marginLeft: 12, flex: 1 }}>
+                      <Text style={styles.stripePromoTitle}>Pasarela Oficial Stripe</Text>
+                      <Text style={styles.stripePromoSubtitle}>
+                        Checkout oficial con certificación PCI-DSS Nivel 1.
+                      </Text>
+                    </View>
+                  </View>
+
+                  <Text style={styles.stripePromoDesc}>
+                    Al continuar, se abrirá el formulario oficial y seguro de Stripe con soporte para tarjetas de crédito y débito, encriptación bancaria y validación inmediata.
+                  </Text>
+
+                  <View style={styles.cardBrandsRow}>
+                    <View style={styles.brandBadge}>
+                      <Text style={styles.brandBadgeText}>VISA</Text>
+                    </View>
+                    <View style={styles.brandBadge}>
+                      <Text style={styles.brandBadgeText}>MASTERCARD</Text>
+                    </View>
+                    <View style={styles.brandBadge}>
+                      <Text style={styles.brandBadgeText}>AMEX</Text>
+                    </View>
+                    <View style={styles.brandBadge}>
+                      <Text style={styles.brandBadgeText}>GOOGLE PAY</Text>
+                    </View>
+                  </View>
+
+                  <View style={styles.stripeSecurityRow}>
+                    <Ionicons name="lock-closed" size={14} color="#059669" />
+                    <Text style={styles.stripeSecurityText}>
+                      Tus datos viajan directamente a los servidores de Stripe de forma cifrada (SSL 256-bit).
+                    </Text>
+                  </View>
                 </View>
-              </View>
+              )}
             </View>
           ) : metodoPago === 'qr' ? (
             /* OPCIÓN QR SIMPLE / TRANSFERENCIA */
@@ -687,22 +723,28 @@ export const CheckoutScreen: React.FC = () => {
 
         {/* BOTÓN FINAL */}
         <TouchableOpacity
-          style={[styles.payBtn, procesando && { opacity: 0.7 }]}
-          disabled={procesando}
+          style={[styles.payBtn, (procesando || verificandoStripe) && { opacity: 0.7 }]}
+          disabled={procesando || verificandoStripe}
           onPress={handleProcesar}
         >
-          {procesando ? (
+          {procesando || verificandoStripe ? (
             <ActivityIndicator color="#fff" />
           ) : (
             <>
               <Text style={styles.payBtnText}>
                 {metodoPago === 'tarjeta'
-                  ? `Pagar $${totalFinal.toFixed(2)} con Stripe`
+                  ? stripeSessionId
+                    ? 'Verificar Estado de Pago Stripe'
+                    : `Pagar con Formulario Oficial Stripe ($${totalFinal.toFixed(2)})`
                   : metodoPago === 'qr'
                   ? `Confirmar Pago QR ($${totalFinal.toFixed(2)})`
                   : `Confirmar Pedido ($${totalFinal.toFixed(2)})`}
               </Text>
-              <Ionicons name="lock-closed" size={18} color="#fff" />
+              <Ionicons
+                name={metodoPago === 'tarjeta' && !stripeSessionId ? 'open-outline' : 'lock-closed'}
+                size={18}
+                color="#fff"
+              />
             </>
           )}
         </TouchableOpacity>
@@ -1002,4 +1044,132 @@ const styles = StyleSheet.create({
     borderRadius: 8,
   },
   receiptTrackBtnText: { color: '#fff', fontSize: 11, fontWeight: '700' },
+  // ESTILOS PASARELA OFICIAL STRIPE
+  stripePromoCard: {
+    backgroundColor: '#f8fafc',
+    borderRadius: 16,
+    padding: 16,
+    borderWidth: 1.5,
+    borderColor: '#e2e8f0',
+  },
+  stripePromoHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginBottom: 10,
+  },
+  stripePromoTitle: {
+    fontSize: 15,
+    fontWeight: '800',
+    color: '#1e1b4b',
+  },
+  stripePromoSubtitle: {
+    fontSize: 11,
+    color: '#6366f1',
+    fontWeight: '600',
+    marginTop: 2,
+  },
+  stripePromoDesc: {
+    fontSize: 12,
+    color: '#475569',
+    lineHeight: 18,
+    marginBottom: 14,
+  },
+  cardBrandsRow: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: 6,
+    marginBottom: 14,
+  },
+  brandBadge: {
+    backgroundColor: '#fff',
+    borderWidth: 1,
+    borderColor: '#cbd5e1',
+    borderRadius: 6,
+    paddingHorizontal: 8,
+    paddingVertical: 4,
+  },
+  brandBadgeText: {
+    fontSize: 10,
+    fontWeight: '800',
+    color: '#334155',
+  },
+  stripeSecurityRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    backgroundColor: '#ecfdf5',
+    padding: 8,
+    borderRadius: 8,
+  },
+  stripeSecurityText: {
+    fontSize: 11,
+    color: '#065f46',
+    fontWeight: '500',
+    flex: 1,
+  },
+  stripeActiveCard: {
+    backgroundColor: '#f5f3ff',
+    borderRadius: 16,
+    padding: 16,
+    borderWidth: 1.5,
+    borderColor: '#c7d2fe',
+  },
+  stripeActiveHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginBottom: 12,
+  },
+  stripeActiveTitle: {
+    fontSize: 14,
+    fontWeight: '800',
+    color: '#312e81',
+  },
+  stripeActiveSub: {
+    fontSize: 11,
+    color: '#4338ca',
+    marginTop: 2,
+    lineHeight: 16,
+  },
+  stripeActiveButtonsRow: {
+    flexDirection: 'row',
+    gap: 10,
+    marginVertical: 10,
+  },
+  stripeReopenBtn: {
+    flex: 1,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: '#fff',
+    borderWidth: 1.5,
+    borderColor: '#6366f1',
+    paddingVertical: 10,
+    borderRadius: 10,
+  },
+  stripeReopenText: {
+    fontSize: 12,
+    fontWeight: '700',
+    color: '#4f46e5',
+  },
+  stripeVerifyBtn: {
+    flex: 1,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: '#4f46e5',
+    paddingVertical: 10,
+    borderRadius: 10,
+  },
+  stripeVerifyText: {
+    fontSize: 12,
+    fontWeight: '700',
+    color: '#fff',
+  },
+  stripeAutoCheckNote: {
+    fontSize: 11,
+    color: '#6366f1',
+    fontStyle: 'italic',
+    textAlign: 'center',
+    marginTop: 4,
+  },
 });

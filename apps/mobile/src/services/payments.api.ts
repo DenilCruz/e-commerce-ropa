@@ -116,7 +116,8 @@ export const paymentsApi = {
     cuponId?: string;
     metodoEnvioId?: string;
     tipoEnvio?: string;
-  }): Promise<{ clientSecret: string; sessionId: string; amount: number; currency: string }> => {
+    origen?: 'web' | 'mobile';
+  }): Promise<{ clientSecret: string; sessionId: string; url?: string; amount: number; currency: string }> => {
     const res = await api.post('/payments/embedded-session', datos);
     return res.data;
   },
