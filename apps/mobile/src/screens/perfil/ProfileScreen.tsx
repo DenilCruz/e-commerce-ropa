@@ -402,7 +402,7 @@ export const ProfileScreen: React.FC = () => {
 
             <TouchableOpacity
               style={[styles.adminPrimaryBtn, { backgroundColor: '#4f46e5', borderColor: '#4338ca' }]}
-              onPress={() => Linking.openURL('http://192.168.0.5:5173/admin/reportes-dinamicos')}
+              onPress={() => navigation.navigate('ConsultasIA')}
             >
               <Ionicons name="sparkles" size={16} color="#fff" style={{ marginRight: 8 }} />
               <Text style={styles.adminPrimaryBtnText}>Reportes Dinámicos por Voz / IA</Text>

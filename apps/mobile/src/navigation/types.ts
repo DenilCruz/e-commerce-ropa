@@ -4,7 +4,9 @@ export type RootStackParamList = {
   ProductDetail: { productId: string };
   Checkout: undefined;
   Favoritos: undefined;
-  Tracking: { codigo?: string } | undefined;
+  Tracking: { orderId?: string; codigo?: string } | undefined;
+  Probador: { producto?: any } | undefined;
+  ConsultasIA: undefined;
 };
 
 export type AuthStackParamList = {

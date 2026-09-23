@@ -96,8 +96,39 @@ export const paymentsApi = {
     return res.data;
   },
 
+  pagoQr: async (datos: {
+    direccionEnvio?: string;
+    telefono?: string;
+    notas?: string;
+    nroComprobante?: string;
+    cuponId?: string;
+    metodoEnvioId?: string;
+    tipoEnvio?: string;
+  }): Promise<OrdenRespuesta> => {
+    const res = await api.post<OrdenRespuesta>('/payments/qr', datos);
+    return res.data;
+  },
+
+  crearSesionEmbebida: async (datos: {
+    direccionEnvio?: string;
+    telefono?: string;
+    notas?: string;
+    cuponId?: string;
+    metodoEnvioId?: string;
+    tipoEnvio?: string;
+  }): Promise<{ clientSecret: string; sessionId: string; amount: number; currency: string }> => {
+    const res = await api.post('/payments/embedded-session', datos);
+    return res.data;
+  },
+
+  consultarEstadoSesion: async (sessionId: string): Promise<{ status: string; paymentStatus: string; orden: OrdenRespuesta | null }> => {
+    const res = await api.get(`/payments/session-status/${sessionId}`);
+    return res.data;
+  },
+
   consultarEstado: async (orderId: string): Promise<OrdenRespuesta> => {
     const res = await api.get<OrdenRespuesta>(`/payments/status/${orderId}`);
     return res.data;
   },
 };
+

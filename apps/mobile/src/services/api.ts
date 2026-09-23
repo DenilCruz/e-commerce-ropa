@@ -1,15 +1,36 @@
 import axios from 'axios';
 import { Platform } from 'react-native';
+import Constants from 'expo-constants';
 import { useAuthStore } from '../store/auth.store';
 
-const getBaseUrl = (): string => {
+export const getBaseUrl = (): string => {
   const envUrl = process.env.EXPO_PUBLIC_API_URL;
-  if (envUrl && !envUrl.includes('localhost')) {
+
+  // Detectar la IP de la máquina host desde Expo Metro bundler (ej. 10.253.15.111:8081 -> 10.253.15.111)
+  const hostUri = Constants.expoConfig?.hostUri;
+  const metroHostIp = hostUri ? hostUri.split(':')[0] : null;
+
+  // Si hay una URL en .env y no es una IP obsoleta harcodeada (192.168.100.22 / 192.168.0.5)
+  if (
+    envUrl &&
+    !envUrl.includes('localhost') &&
+    !envUrl.includes('192.168.100.22') &&
+    !envUrl.includes('192.168.0.5')
+  ) {
     return envUrl;
   }
 
-  // En dispositivo físico o emulador, apuntar a la IP de la máquina de desarrollo
-  return envUrl || 'http://192.168.0.5:3000/api/v1';
+  // Si Expo Metro provee la IP del host del desarrollador, usarla preferentemente
+  if (metroHostIp && metroHostIp !== 'localhost' && metroHostIp !== '127.0.0.1') {
+    return `http://${metroHostIp}:3000/api/v1`;
+  }
+
+  // En Android Emulator (AVD), 10.0.2.2 es la IP especial para el localhost del PC host
+  if (Platform.OS === 'android') {
+    return 'http://10.0.2.2:3000/api/v1';
+  }
+
+  return 'http://localhost:3000/api/v1';
 };
 
 export const api = axios.create({
@@ -20,6 +41,16 @@ export const api = axios.create({
   timeout: 10000,
 });
 
+export const getImageUrl = (url?: string | null): string => {
+  if (!url) return 'https://placehold.co/400x500?text=Sin+Imagen';
+  if (url.startsWith('http')) return url;
+  const currentBaseURL = api.defaults.baseURL || getBaseUrl();
+  const assetsURL = currentBaseURL.replace(/\/api\/v1\/?$/, '');
+  if (url.startsWith('/uploads')) return `${assetsURL}${url}`;
+  if (url.startsWith('/')) return `${assetsURL}/uploads${url}`;
+  return `${assetsURL}/uploads/${url}`;
+};
+
 api.interceptors.request.use((config) => {
   const token = useAuthStore.getState().token;
   if (token && config.headers) {
@@ -27,3 +58,4 @@ api.interceptors.request.use((config) => {
   }
   return config;
 });
+

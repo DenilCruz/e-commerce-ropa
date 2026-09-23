@@ -15,7 +15,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { catalogoApi, Producto, Categoria } from '../../services/catalogo.api';
 import { useFavoritosStore } from '../../store/favoritos.store';
 import { HeartButton } from '../../components/HeartButton';
-import { api } from '../../services/api';
+import { api, getImageUrl } from '../../services/api';
 
 const { width } = Dimensions.get('window');
 
@@ -47,15 +47,7 @@ export const HomeScreen: React.FC = () => {
     fetchHomeData();
   }, []);
 
-  const getImageUrl = (url?: string | null) => {
-    if (!url) return 'https://placehold.co/400x500?text=Sin+Imagen';
-    if (url.startsWith('http')) return url;
-    const baseURL = api.defaults.baseURL || 'http://localhost:3000/api/v1';
-    const assetsURL = baseURL.replace('/api/v1', '');
-    if (url.startsWith('/uploads')) return `${assetsURL}${url}`;
-    if (url.startsWith('/')) return `${assetsURL}/uploads${url}`;
-    return `${assetsURL}/uploads/${url}`;
-  };
+
 
   return (
     <SafeAreaView style={styles.container} edges={['top']}>

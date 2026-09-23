@@ -364,8 +364,16 @@ export const ProductDetailScreen: React.FC = () => {
         </View>
       )}
 
-      {/* BOTON AÑADIR A LA CESTA */}
+      {/* BOTON PROBADOR VIRTUAL IA Y AÑADIR A LA CESTA */}
       <View style={styles.footer}>
+        <TouchableOpacity
+          style={styles.tryOnBtn}
+          onPress={() => navigation.navigate('Probador', { producto })}
+        >
+          <Ionicons name="sparkles" size={16} color="#4f46e5" />
+          <Text style={styles.tryOnBtnText}>Probador Virtual IA</Text>
+        </TouchableOpacity>
+
         <TouchableOpacity 
           style={[
             styles.addToCartBtn, 
@@ -607,6 +615,23 @@ const styles = StyleSheet.create({
     borderTopWidth: 1,
     borderTopColor: '#f3f4f6',
     backgroundColor: '#fff',
+    gap: 10,
+  },
+  tryOnBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: '#eef2ff',
+    borderWidth: 1,
+    borderColor: '#c7d2fe',
+    paddingVertical: 12,
+    borderRadius: 12,
+    gap: 6,
+  },
+  tryOnBtnText: {
+    color: '#4338ca',
+    fontSize: 13,
+    fontWeight: '700',
   },
   addToCartBtn: {
     flexDirection: 'row',

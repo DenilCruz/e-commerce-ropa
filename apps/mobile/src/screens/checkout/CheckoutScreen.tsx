@@ -9,12 +9,14 @@ import {
   ActivityIndicator,
   Alert,
 } from 'react-native';
+import { Image } from 'expo-image';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useNavigation } from '@react-navigation/native';
 import { Ionicons } from '@expo/vector-icons';
 import { useCartStore } from '../../store/cart.store';
 import { useAuthStore } from '../../store/auth.store';
 import { paymentsApi, OrdenRespuesta } from '../../services/payments.api';
+import { api } from '../../services/api';
 
 export const CheckoutScreen: React.FC = () => {
   const navigation = useNavigation<any>();
@@ -26,9 +28,11 @@ export const CheckoutScreen: React.FC = () => {
   const [telefono, setTelefono] = useState(user?.celular || '');
   const [ciudad, setCiudad] = useState('Santa Cruz');
   const [notas, setNotas] = useState('');
+  const [geolocalizando, setGeolocalizando] = useState(false);
 
-  // Método de pago: 'tarjeta' | 'contra_entrega'
-  const [metodoPago, setMetodoPago] = useState<'tarjeta' | 'contra_entrega'>('tarjeta');
+  // Método de pago: 'tarjeta' | 'contra_entrega' | 'qr'
+  const [metodoPago, setMetodoPago] = useState<'tarjeta' | 'contra_entrega' | 'qr'>('tarjeta');
+  const [nroComprobanteQr, setNroComprobanteQr] = useState('');
 
   // Datos de tarjeta
   const [nombreTitular, setNombreTitular] = useState(user?.nombre ? `${user.nombre} ${user.apellido || ''}`.trim() : '');
@@ -64,7 +68,50 @@ export const CheckoutScreen: React.FC = () => {
     setExpiracion(raw);
   };
 
-  // HU-56 / HU-58: Procesar Pago con Tarjeta
+  // OBTENER UBICACIÓN GPS
+  const obtenerUbicacionGPS = () => {
+    if (typeof navigator === 'undefined' || !navigator.geolocation) {
+      Alert.alert('GPS no disponible', 'La geolocalización no está soportada en tu dispositivo.');
+      return;
+    }
+
+    setGeolocalizando(true);
+    navigator.geolocation.getCurrentPosition(
+      async (pos) => {
+        const lat = pos.coords.latitude;
+        const lng = pos.coords.longitude;
+
+        try {
+          const res = await fetch(
+            `https://nominatim.openstreetmap.org/reverse?format=json&lat=${lat}&lon=${lng}&zoom=18&addressdetails=1`,
+            { headers: { 'Accept-Language': 'es' } }
+          );
+          const data = await res.json();
+          if (data && data.display_name) {
+            const road = data.address?.road || data.address?.pedestrian || data.address?.suburb || '';
+            const suburb = data.address?.neighbourhood || data.address?.suburb || '';
+            const town = data.address?.city || data.address?.town || 'Santa Cruz';
+            const textoLimpio = [road, suburb, town].filter(Boolean).join(', ');
+            setDireccion(textoLimpio || data.display_name);
+            if (town) setCiudad(town);
+          } else {
+            setDireccion(`Lat: ${lat.toFixed(4)}, Lng: ${lng.toFixed(4)}`);
+          }
+        } catch (err) {
+          setDireccion(`Lat: ${lat.toFixed(4)}, Lng: ${lng.toFixed(4)}`);
+        } finally {
+          setGeolocalizando(false);
+        }
+      },
+      (err) => {
+        setGeolocalizando(false);
+        Alert.alert('Error GPS', 'No se pudo obtener la ubicación: ' + err.message);
+      },
+      { enableHighAccuracy: true, timeout: 10000 }
+    );
+  };
+
+  // HU-56 / HU-58: Procesar Pago con Tarjeta (Stripe)
   const procesarPagoTarjeta = async () => {
     if (!direccion.trim()) {
       setErrorMsg('Ingresa la dirección completa de entrega.');
@@ -102,8 +149,7 @@ export const CheckoutScreen: React.FC = () => {
         tipoEnvio,
       });
 
-      // 2. Tokenizar y confirmar con Stripe o backend
-      // En modo test de Stripe se confirma el PaymentIntent con el método de prueba
+      // 2. Tokenizar y confirmar con Stripe / backend
       const orden = await paymentsApi.confirmarTarjeta({
         paymentIntentId: intentData.paymentIntentId,
         direccionEnvio: `${direccion}, ${ciudad}`,
@@ -118,6 +164,40 @@ export const CheckoutScreen: React.FC = () => {
       setOrdenCompletada(orden);
     } catch (err: any) {
       setErrorMsg(err.response?.data?.message || err.message || 'Error al procesar el pago.');
+    } finally {
+      setProcesando(false);
+    }
+  };
+
+  // PROCESAR PAGO POR QR SIMPLE
+  const procesarPagoQr = async () => {
+    if (!direccion.trim()) {
+      setErrorMsg('Ingresa la dirección de entrega.');
+      return;
+    }
+    if (!telefono.trim()) {
+      setErrorMsg('Ingresa un teléfono de contacto.');
+      return;
+    }
+
+    setProcesando(true);
+    setErrorMsg(null);
+
+    try {
+      const orden = await paymentsApi.pagoQr({
+        direccionEnvio: `${direccion}, ${ciudad}`,
+        telefono,
+        notas,
+        nroComprobante: nroComprobanteQr.trim() || undefined,
+        cuponId: cupon?.id,
+        metodoEnvioId,
+        tipoEnvio,
+      });
+
+      clearCart();
+      setOrdenCompletada(orden);
+    } catch (err: any) {
+      setErrorMsg(err.response?.data?.message || err.message || 'Error al procesar la transferencia QR.');
     } finally {
       setProcesando(false);
     }
@@ -159,6 +239,8 @@ export const CheckoutScreen: React.FC = () => {
   const handleProcesar = () => {
     if (metodoPago === 'tarjeta') {
       procesarPagoTarjeta();
+    } else if (metodoPago === 'qr') {
+      procesarPagoQr();
     } else {
       procesarPagoContraEntrega();
     }
@@ -183,7 +265,7 @@ export const CheckoutScreen: React.FC = () => {
 
           <View style={[styles.badgeContainer, esAprobado ? styles.badgeAprobado : styles.badgePendiente]}>
             <Text style={[styles.badgeText, esAprobado ? styles.badgeTextAprobado : styles.badgeTextPendiente]}>
-              {esAprobado ? 'Pago Aprobado (Stripe)' : 'Pago Pendiente (Contra Entrega)'}
+              {esAprobado ? 'Pago Aprobado (Confirmado)' : 'Pago Pendiente (Contra Entrega / QR)'}
             </Text>
           </View>
 
@@ -191,7 +273,7 @@ export const CheckoutScreen: React.FC = () => {
           <Text style={styles.successSubtitle}>
             {esAprobado
               ? 'Tu pago ha sido procesado de forma segura. Tu pedido está en camino.'
-              : 'Tu pedido ha sido confirmado. Pagarás en efectivo al momento de recibirlo.'}
+              : 'Tu pedido ha sido registrado correctamente. Te notificaremos al preparar el envío.'}
           </Text>
 
           {/* CARD DE DETALLE */}
@@ -202,32 +284,32 @@ export const CheckoutScreen: React.FC = () => {
             </View>
 
             <View style={styles.receiptRow}>
-              <Text style={styles.receiptLabel}>Método de Pago</Text>
-              <Text style={styles.receiptValue}>{ordenCompletada.pago?.metodoPago || 'Tarjeta'}</Text>
+              <Text style={styles.receiptLabel}>Fecha</Text>
+              <Text style={styles.receiptValue}>
+                {new Date(ordenCompletada.fecha).toLocaleDateString('es-ES', {
+                  day: 'numeric',
+                  month: 'short',
+                  year: 'numeric',
+                })}
+              </Text>
             </View>
 
-            {ordenCompletada.pago?.idTransaccion && (
-              <View style={styles.receiptRow}>
-                <Text style={styles.receiptLabel}>Referencia</Text>
-                <Text style={[styles.receiptValue, { fontSize: 11, color: '#6366f1' }]}>
-                  {ordenCompletada.pago.idTransaccion}
-                </Text>
-              </View>
-            )}
+            <View style={styles.receiptRow}>
+              <Text style={styles.receiptLabel}>Método de Pago</Text>
+              <Text style={styles.receiptValue}>
+                {ordenCompletada.pago?.metodoPago || metodoPago.toUpperCase()}
+              </Text>
+            </View>
 
-            {ordenCompletada.envio && (
+            {ordenCompletada.envio?.numeroTracking && (
               <View style={styles.receiptShippingBox}>
-                <View style={{ flex: 1 }}>
-                  <Text style={styles.receiptShippingLabel}>Guía de Seguimiento (HU-64)</Text>
+                <View>
+                  <Text style={styles.receiptShippingLabel}>Número de Tracking</Text>
                   <Text style={styles.receiptShippingCode}>{ordenCompletada.envio.numeroTracking}</Text>
                 </View>
                 <TouchableOpacity
                   style={styles.receiptTrackBtn}
-                  onPress={() =>
-                    navigation.navigate('Tracking', {
-                      codigo: ordenCompletada.envio?.numeroTracking,
-                    })
-                  }
+                  onPress={() => navigation.navigate('Tracking', { orderId: ordenCompletada.ordenId })}
                 >
                   <Text style={styles.receiptTrackBtnText}>Rastrear</Text>
                 </TouchableOpacity>
@@ -235,17 +317,17 @@ export const CheckoutScreen: React.FC = () => {
             )}
 
             <View style={styles.divider} />
+            <Text style={styles.sectionHeading}>Items comprados</Text>
 
-            <Text style={styles.sectionHeading}>Prendas Pedidas ({ordenCompletada.items?.length || 0})</Text>
-            {ordenCompletada.items?.map((it) => (
-              <View key={it.id} style={styles.receiptItemRow}>
+            {ordenCompletada.items.map((item) => (
+              <View key={item.id} style={styles.receiptItemRow}>
                 <View style={{ flex: 1 }}>
-                  <Text style={styles.receiptItemTitle}>{it.nombre}</Text>
+                  <Text style={styles.receiptItemTitle}>{item.nombre}</Text>
                   <Text style={styles.receiptItemSub}>
-                    {it.talla} / {it.color} · Cant: {it.cantidad}
+                    Cant: {item.cantidad} • Talla: {item.talla} • Color: {item.color}
                   </Text>
                 </View>
-                <Text style={styles.receiptItemPrice}>${it.subtotal.toFixed(2)}</Text>
+                <Text style={styles.receiptItemPrice}>${item.subtotal.toFixed(2)}</Text>
               </View>
             ))}
 
@@ -281,6 +363,11 @@ export const CheckoutScreen: React.FC = () => {
     );
   }
 
+  const getAssetsUrl = () => {
+    const baseURL = api.defaults.baseURL || 'http://192.168.0.5:3000/api/v1';
+    return baseURL.replace('/api/v1', '');
+  };
+
   return (
     <SafeAreaView style={styles.container} edges={['top']}>
       {/* HEADER */}
@@ -303,9 +390,27 @@ export const CheckoutScreen: React.FC = () => {
 
         {/* SECCIÓN 1: DATOS DE ENVÍO */}
         <View style={styles.card}>
-          <View style={styles.cardHeader}>
-            <Ionicons name="location-outline" size={20} color="#0f172a" />
-            <Text style={styles.cardTitle}>1. Datos de Entrega</Text>
+          <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' }}>
+            <View style={styles.cardHeader}>
+              <Ionicons name="location-outline" size={20} color="#0f172a" />
+              <Text style={styles.cardTitle}>1. Datos de Entrega</Text>
+            </View>
+
+            {/* BOTÓN GPS */}
+            <TouchableOpacity
+              style={styles.gpsBtn}
+              onPress={obtenerUbicacionGPS}
+              disabled={geolocalizando}
+            >
+              {geolocalizando ? (
+                <ActivityIndicator size="small" color="#059669" />
+              ) : (
+                <Ionicons name="navigate" size={14} color="#059669" />
+              )}
+              <Text style={styles.gpsBtnText}>
+                {geolocalizando ? 'Buscando GPS...' : 'Mi GPS'}
+              </Text>
+            </TouchableOpacity>
           </View>
 
           <View style={styles.inputGroup}>
@@ -346,7 +451,7 @@ export const CheckoutScreen: React.FC = () => {
           </View>
         </View>
 
-        {/* SECCIÓN 2: MÉTODO DE ENVÍO (HU-62 & HU-63) */}
+        {/* SECCIÓN 2: MÉTODO DE ENVÍO */}
         <View style={styles.card}>
           <View style={styles.cardHeader}>
             <Ionicons name="car-outline" size={20} color="#0f172a" />
@@ -393,14 +498,14 @@ export const CheckoutScreen: React.FC = () => {
           </View>
         </View>
 
-        {/* SECCIÓN 3: MÉTODO DE PAGO */}
+        {/* SECCIÓN 3: MÉTODO DE PAGO (3 OPCIONES IGUAL QUE EN LA WEB) */}
         <View style={styles.card}>
           <View style={styles.cardHeader}>
             <Ionicons name="shield-checkmark-outline" size={20} color="#0f172a" />
             <Text style={styles.cardTitle}>3. Método de Pago</Text>
           </View>
 
-          {/* SELECTOR */}
+          {/* SELECTOR DE 3 PESTAÑAS DE PAGO */}
           <View style={styles.methodSelector}>
             <TouchableOpacity
               style={[styles.methodTab, metodoPago === 'tarjeta' && styles.methodTabActive]}
@@ -408,11 +513,25 @@ export const CheckoutScreen: React.FC = () => {
             >
               <Ionicons
                 name="card-outline"
-                size={20}
-                color={metodoPago === 'tarjeta' ? '#000' : '#94a3b8'}
+                size={18}
+                color={metodoPago === 'tarjeta' ? '#4f46e5' : '#94a3b8'}
               />
               <Text style={[styles.methodTabText, metodoPago === 'tarjeta' && styles.methodTabTextActive]}>
-                Tarjeta (Stripe)
+                Stripe
+              </Text>
+            </TouchableOpacity>
+
+            <TouchableOpacity
+              style={[styles.methodTab, metodoPago === 'qr' && styles.methodTabActiveQr]}
+              onPress={() => setMetodoPago('qr')}
+            >
+              <Ionicons
+                name="qr-code-outline"
+                size={18}
+                color={metodoPago === 'qr' ? '#7e22ce' : '#94a3b8'}
+              />
+              <Text style={[styles.methodTabText, metodoPago === 'qr' && styles.methodTabTextActiveQr]}>
+                QR Simple
               </Text>
             </TouchableOpacity>
 
@@ -422,7 +541,7 @@ export const CheckoutScreen: React.FC = () => {
             >
               <Ionicons
                 name="cash-outline"
-                size={20}
+                size={18}
                 color={metodoPago === 'contra_entrega' ? '#000' : '#94a3b8'}
               />
               <Text
@@ -431,18 +550,19 @@ export const CheckoutScreen: React.FC = () => {
                   metodoPago === 'contra_entrega' && styles.methodTabTextActive,
                 ]}
               >
-                Contra Entrega
+                Efectivo
               </Text>
             </TouchableOpacity>
           </View>
 
+          {/* CONTENIDO SEGÚN EL MÉTODO DE PAGO */}
           {metodoPago === 'tarjeta' ? (
             <View style={{ marginTop: 12 }}>
-              {/* TARJETA VISUAL */}
+              {/* TARJETA VISUAL STRIPE */}
               <View style={styles.creditCardVisual}>
                 <View style={styles.cardVisualTop}>
                   <View style={styles.cardChip} />
-                  <Text style={styles.cardBrand}>STRIPE SECURE</Text>
+                  <Text style={styles.cardBrand}>STRIPE EMBEDDED CHECKOUT</Text>
                 </View>
                 <Text style={styles.cardNumberText}>
                   {numeroTarjeta || '•••• •••• •••• ••••'}
@@ -453,7 +573,7 @@ export const CheckoutScreen: React.FC = () => {
                 </View>
               </View>
 
-              {/* INPUTS DE TARJETA */}
+              {/* INPUTS DE TARJETA STRIPE */}
               <View style={styles.inputGroup}>
                 <Text style={styles.label}>Nombre en la Tarjeta *</Text>
                 <TextInput
@@ -466,7 +586,7 @@ export const CheckoutScreen: React.FC = () => {
               </View>
 
               <View style={styles.inputGroup}>
-                <Text style={styles.label}>Número de Tarjeta (Stripe Test: 4242 4242...) *</Text>
+                <Text style={styles.label}>Número de Tarjeta (Stripe Test) *</Text>
                 <TextInput
                   style={styles.input}
                   placeholder="4242 4242 4242 4242"
@@ -501,7 +621,38 @@ export const CheckoutScreen: React.FC = () => {
                 </View>
               </View>
             </View>
+          ) : metodoPago === 'qr' ? (
+            /* OPCIÓN QR SIMPLE / TRANSFERENCIA */
+            <View style={styles.qrBoxContainer}>
+              <Text style={styles.qrBoxTitle}>Transferencia Bancaria QR Simple</Text>
+              <Text style={styles.qrBoxSub}>
+                Escanea el código QR con tu banca móvil (Banco Unión, BNB, BCP, Mercantil Santa Cruz, etc.)
+              </Text>
+
+              <View style={styles.qrImageWrapper}>
+                <Image
+                  source={{ uri: `${getAssetsUrl()}/uploads/qr_pago_aura.png` }}
+                  style={styles.qrImage}
+                  contentFit="contain"
+                />
+              </View>
+
+              <Text style={styles.qrMontoText}>
+                Monto a transferir: <Text style={styles.qrMontoBold}>${totalFinal.toFixed(2)} USD</Text>
+              </Text>
+
+              <View style={styles.inputGroup}>
+                <Text style={styles.label}>Nro. de Comprobante / Referencia (Opcional)</Text>
+                <TextInput
+                  style={styles.input}
+                  placeholder="Ej. 98451203"
+                  value={nroComprobanteQr}
+                  onChangeText={setNroComprobanteQr}
+                />
+              </View>
+            </View>
           ) : (
+            /* OPCIÓN CONTRA ENTREGA */
             <View style={styles.codBox}>
               <Ionicons name="cube-outline" size={24} color="#b45309" />
               <Text style={styles.codText}>
@@ -547,6 +698,8 @@ export const CheckoutScreen: React.FC = () => {
               <Text style={styles.payBtnText}>
                 {metodoPago === 'tarjeta'
                   ? `Pagar $${totalFinal.toFixed(2)} con Stripe`
+                  : metodoPago === 'qr'
+                  ? `Confirmar Pago QR ($${totalFinal.toFixed(2)})`
                   : `Confirmar Pedido ($${totalFinal.toFixed(2)})`}
               </Text>
               <Ionicons name="lock-closed" size={18} color="#fff" />
@@ -596,6 +749,22 @@ const styles = StyleSheet.create({
   },
   cardHeader: { flexDirection: 'row', alignItems: 'center', gap: 8 },
   cardTitle: { fontSize: 16, fontWeight: '800', color: '#0f172a' },
+  gpsBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+    backgroundColor: '#ecfdf5',
+    borderWidth: 1,
+    borderColor: '#a7f3d0',
+    paddingHorizontal: 10,
+    paddingVertical: 4,
+    borderRadius: 8,
+  },
+  gpsBtnText: {
+    fontSize: 11,
+    fontWeight: '700',
+    color: '#047857',
+  },
   inputGroup: { gap: 6 },
   inputRow: { flexDirection: 'row', gap: 12 },
   label: { fontSize: 12, fontWeight: '700', color: '#475569', textTransform: 'uppercase' },
@@ -609,22 +778,24 @@ const styles = StyleSheet.create({
     fontSize: 14,
     color: '#0f172a',
   },
-  methodSelector: { flexDirection: 'row', gap: 10, marginTop: 4 },
+  methodSelector: { flexDirection: 'row', gap: 8, marginTop: 4 },
   methodTab: {
     flex: 1,
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
-    gap: 6,
-    paddingVertical: 12,
+    gap: 4,
+    paddingVertical: 10,
     borderRadius: 12,
     borderWidth: 1.5,
     borderColor: '#e2e8f0',
     backgroundColor: '#f8fafc',
   },
-  methodTabActive: { borderColor: '#000', backgroundColor: '#fff' },
-  methodTabText: { fontSize: 12, fontWeight: '700', color: '#64748b' },
-  methodTabTextActive: { color: '#000' },
+  methodTabActive: { borderColor: '#4f46e5', backgroundColor: '#eef2ff' },
+  methodTabActiveQr: { borderColor: '#7e22ce', backgroundColor: '#faf5ff' },
+  methodTabText: { fontSize: 11, fontWeight: '700', color: '#64748b' },
+  methodTabTextActive: { color: '#4f46e5' },
+  methodTabTextActiveQr: { color: '#7e22ce' },
   creditCardVisual: {
     backgroundColor: '#0f172a',
     borderRadius: 16,
@@ -639,6 +810,52 @@ const styles = StyleSheet.create({
   cardVisualBottom: { flexDirection: 'row', justifyContent: 'space-between' },
   cardHolderText: { color: '#cbd5e1', fontSize: 11, fontWeight: '700', textTransform: 'uppercase' },
   cardExpText: { color: '#cbd5e1', fontSize: 11, fontWeight: '700' },
+  qrBoxContainer: {
+    backgroundColor: '#faf5ff',
+    borderWidth: 1,
+    borderColor: '#f3e8ff',
+    padding: 14,
+    borderRadius: 14,
+    marginTop: 8,
+    gap: 10,
+    alignItems: 'center',
+  },
+  qrBoxTitle: {
+    fontSize: 14,
+    fontWeight: '800',
+    color: '#6b21a8',
+  },
+  qrBoxSub: {
+    fontSize: 11,
+    color: '#7e22ce',
+    textAlign: 'center',
+    lineHeight: 16,
+  },
+  qrImageWrapper: {
+    width: 180,
+    height: 180,
+    backgroundColor: '#fff',
+    borderRadius: 12,
+    padding: 8,
+    borderWidth: 1,
+    borderColor: '#e9d5ff',
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginVertical: 4,
+  },
+  qrImage: {
+    width: '100%',
+    height: '100%',
+  },
+  qrMontoText: {
+    fontSize: 12,
+    color: '#581c87',
+  },
+  qrMontoBold: {
+    fontSize: 15,
+    fontWeight: '900',
+    color: '#6b21a8',
+  },
   codBox: {
     backgroundColor: '#fef3c7',
     padding: 14,
