@@ -38,17 +38,19 @@ export const api = axios.create({
   headers: {
     'Content-Type': 'application/json',
   },
-  timeout: 10000,
+  timeout: 30000,
 });
 
 export const getImageUrl = (url?: string | null): string => {
   if (!url) return 'https://placehold.co/400x500?text=Sin+Imagen';
-  if (url.startsWith('http')) return url;
+  if (url.startsWith('http') || url.startsWith('data:') || url.startsWith('blob:')) return url;
   const currentBaseURL = api.defaults.baseURL || getBaseUrl();
   const assetsURL = currentBaseURL.replace(/\/api\/v1\/?$/, '');
-  if (url.startsWith('/uploads')) return `${assetsURL}${url}`;
-  if (url.startsWith('/')) return `${assetsURL}/uploads${url}`;
-  return `${assetsURL}/uploads/${url}`;
+  const cleanUrl = url.startsWith('/') ? url : `/${url}`;
+  if (cleanUrl.startsWith('/uploads/')) {
+    return `${assetsURL}${cleanUrl}`;
+  }
+  return `${assetsURL}/uploads${cleanUrl}`;
 };
 
 api.interceptors.request.use((config) => {

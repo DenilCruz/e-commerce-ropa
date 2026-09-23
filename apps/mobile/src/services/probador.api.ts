@@ -53,13 +53,17 @@ export const probadorApi = {
 
   // Ejecutar prueba virtual con IDM-VTON / IA
   probarPrenda: async (payload: ProbarPrendaRequest): Promise<ProbarPrendaResponse> => {
-    const { data } = await api.post<ProbarPrendaResponse>('/probador/try-on', payload);
+    const { data } = await api.post<ProbarPrendaResponse>('/probador/try-on', payload, {
+      timeout: 120000, // 120 segundos para permitir inferencia neuronal en Hugging Face
+    });
     return data;
   },
 
   // Generar o consultar modelo 3D (.glb)
   generarModelo3D: async (payload: Generar3DRequest): Promise<Generar3DResponse> => {
-    const { data } = await api.post<Generar3DResponse>('/probador/generar-3d', payload);
+    const { data } = await api.post<Generar3DResponse>('/probador/generar-3d', payload, {
+      timeout: 120000,
+    });
     return data;
   },
 };

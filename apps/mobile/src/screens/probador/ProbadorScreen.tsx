@@ -76,10 +76,10 @@ export const ProbadorScreen: React.FC = () => {
       }
 
       const res = await ImagePicker.launchCameraAsync({
-        mediaTypes: ImagePicker.MediaTypeOptions.Images,
+        mediaTypes: ['images'],
         allowsEditing: true,
         aspect: [3, 4],
-        quality: 0.8,
+        quality: 0.6,
         base64: true,
       });
 
@@ -109,10 +109,10 @@ export const ProbadorScreen: React.FC = () => {
       }
 
       const res = await ImagePicker.launchImageLibraryAsync({
-        mediaTypes: ImagePicker.MediaTypeOptions.Images,
+        mediaTypes: ['images'],
         allowsEditing: true,
         aspect: [3, 4],
-        quality: 0.8,
+        quality: 0.6,
         base64: true,
       });
 
@@ -168,7 +168,13 @@ export const ProbadorScreen: React.FC = () => {
 
       setResultado(res);
     } catch (err: any) {
-      setErrorMsg(err.response?.data?.message || err.message || 'Error al procesar la prueba virtual IA.');
+      if (err.code === 'ECONNABORTED' || err.message?.includes('timeout')) {
+        setErrorMsg('El servidor de IA demoró más de lo esperado en la cola. Por favor reintenta en unos instantes.');
+      } else if (err.message === 'Network Error') {
+        setErrorMsg('Error de red. Verifica que tengas conexión a internet o reintenta.');
+      } else {
+        setErrorMsg(err.response?.data?.message || err.message || 'Error al procesar la prueba virtual IA.');
+      }
     } finally {
       setProcesando(false);
     }
@@ -343,9 +349,18 @@ export const ProbadorScreen: React.FC = () => {
             <Ionicons name="sparkles" size={18} color="#fff" style={{ marginRight: 8 }} />
           )}
           <Text style={styles.actionBtnText}>
-            {procesando ? 'Generando simulación IA...' : 'Iniciar Prueba Virtual'}
+            {procesando ? 'Conectando con IA... (~30s)' : 'Iniciar Prueba Virtual'}
           </Text>
         </TouchableOpacity>
+
+        {procesando && (
+          <View style={[styles.banner, { backgroundColor: '#f0fdf4', borderColor: '#bbf7d0', marginTop: 12 }]}>
+            <Ionicons name="time-outline" size={18} color="#16a34a" />
+            <Text style={[styles.bannerText, { color: '#166534' }]}>
+              Generando difusión neuronal en Hugging Face (IDM-VTON). Esto toma entre 30 y 40 segundos, por favor mantén la app abierta.
+            </Text>
+          </View>
+        )}
 
         {/* ERRORES */}
         {errorMsg && (
