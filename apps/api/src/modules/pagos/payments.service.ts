@@ -296,29 +296,44 @@ export class PaymentsService {
 
       const orderItems: OrderItemEntity[] = [];
       for (const item of cart.items) {
-        const precioUnitario = Number(item.precioUnitario || item.variante?.producto?.precio || 0);
+        // Bloqueo Pesimista (SELECT ... FOR UPDATE) para prevenir Race Conditions en compras concurrentes
+        const varianteBloqueada = await queryRunner.manager.findOne(ProductVariantEntity, {
+          where: { id: item.varianteId },
+          lock: { mode: 'pessimistic_write' },
+          relations: ['producto', 'talla', 'color'],
+        });
+
+        if (!varianteBloqueada) {
+          throw new BadRequestException('La variante seleccionada ya no existe en el catálogo.');
+        }
+
+        if (varianteBloqueada.stock < item.cantidad) {
+          const nombreProd = varianteBloqueada.producto?.nombre || 'Prenda';
+          throw new BadRequestException(
+            `Stock insuficiente para "${nombreProd}". Quedan ${varianteBloqueada.stock} unidad(es) disponible(s) (intentaste adquirir ${item.cantidad}). Otro cliente acaba de adquirir la prenda.`,
+          );
+        }
+
+        const precioUnitario = Number(item.precioUnitario || varianteBloqueada.producto?.precio || 0);
         const itemSubtotal = Number((precioUnitario * item.cantidad).toFixed(2));
 
         const orderItem = queryRunner.manager.create(OrderItemEntity, {
           notaventaId: ordenGuardada.id,
-          productoId: item.variante?.productoId || item.varianteId,
+          productoId: varianteBloqueada.productoId || item.varianteId,
           varianteId: item.varianteId,
           cantidad: item.cantidad,
           precio: precioUnitario,
           descuento: 0,
           subtotal: itemSubtotal,
-          nombreProducto: item.variante?.producto?.nombre || 'Prenda',
-          talla: item.variante?.talla?.nombre || 'Única',
-          color: item.variante?.color?.nombre || 'Original',
+          nombreProducto: varianteBloqueada.producto?.nombre || 'Prenda',
+          talla: varianteBloqueada.talla?.nombre || 'Única',
+          color: varianteBloqueada.color?.nombre || 'Original',
         });
         orderItems.push(orderItem);
 
-        await queryRunner.manager.decrement(
-          ProductVariantEntity,
-          { id: item.varianteId },
-          'stock',
-          item.cantidad,
-        );
+        // Descontar atómicamente el stock protegido
+        varianteBloqueada.stock -= item.cantidad;
+        await queryRunner.manager.save(ProductVariantEntity, varianteBloqueada);
       }
       await queryRunner.manager.save(orderItems);
 
@@ -474,32 +489,47 @@ export class PaymentsService {
 
       const ordenGuardada = await queryRunner.manager.save(nuevaOrden);
 
-      // 3. Crear detalles_nota_venta y descontar stock de variantes
+      // 3. Crear detalles_nota_venta y descontar stock de variantes con bloqueo pesimista
       const orderItems: OrderItemEntity[] = [];
       for (const item of cart.items) {
-        const precioUnitario = Number(item.precioUnitario || item.variante?.producto?.precio || 0);
+        // Bloqueo Pesimista (SELECT ... FOR UPDATE) para prevenir Race Conditions en compras concurrentes
+        const varianteBloqueada = await queryRunner.manager.findOne(ProductVariantEntity, {
+          where: { id: item.varianteId },
+          lock: { mode: 'pessimistic_write' },
+          relations: ['producto', 'talla', 'color'],
+        });
+
+        if (!varianteBloqueada) {
+          throw new BadRequestException('La variante seleccionada ya no existe en el catálogo.');
+        }
+
+        if (varianteBloqueada.stock < item.cantidad) {
+          const nombreProd = varianteBloqueada.producto?.nombre || 'Prenda';
+          throw new BadRequestException(
+            `Stock insuficiente para "${nombreProd}". Quedan ${varianteBloqueada.stock} unidad(es) disponible(s) (intentaste adquirir ${item.cantidad}). Otro cliente acaba de adquirir la prenda.`,
+          );
+        }
+
+        const precioUnitario = Number(item.precioUnitario || varianteBloqueada.producto?.precio || 0);
         const itemSubtotal = Number((precioUnitario * item.cantidad).toFixed(2));
 
         const orderItem = queryRunner.manager.create(OrderItemEntity, {
           notaventaId: ordenGuardada.id,
-          productoId: item.variante?.productoId || item.varianteId,
+          productoId: varianteBloqueada.productoId || item.varianteId,
           varianteId: item.varianteId,
           cantidad: item.cantidad,
           precio: precioUnitario,
           descuento: 0,
           subtotal: itemSubtotal,
-          nombreProducto: item.variante?.producto?.nombre || 'Prenda',
-          talla: item.variante?.talla?.nombre || 'Única',
-          color: item.variante?.color?.nombre || 'Original',
+          nombreProducto: varianteBloqueada.producto?.nombre || 'Prenda',
+          talla: varianteBloqueada.talla?.nombre || 'Única',
+          color: varianteBloqueada.color?.nombre || 'Original',
         });
         orderItems.push(orderItem);
 
-        await queryRunner.manager.decrement(
-          ProductVariantEntity,
-          { id: item.varianteId },
-          'stock',
-          item.cantidad,
-        );
+        // Descontar atómicamente el stock protegido
+        varianteBloqueada.stock -= item.cantidad;
+        await queryRunner.manager.save(ProductVariantEntity, varianteBloqueada);
       }
       await queryRunner.manager.save(orderItems);
 
@@ -629,32 +659,47 @@ export class PaymentsService {
 
       const ordenGuardada = await queryRunner.manager.save(nuevaOrden);
 
-      // 2. Crear detalles y reservar stock
+      // 2. Crear detalles y reservar stock con bloqueo pesimista
       const orderItems: OrderItemEntity[] = [];
       for (const item of cart.items) {
-        const precioUnitario = Number(item.precioUnitario || item.variante?.producto?.precio || 0);
+        // Bloqueo Pesimista (SELECT ... FOR UPDATE) para prevenir Race Conditions en reservas/pedidos simultáneos
+        const varianteBloqueada = await queryRunner.manager.findOne(ProductVariantEntity, {
+          where: { id: item.varianteId },
+          lock: { mode: 'pessimistic_write' },
+          relations: ['producto', 'talla', 'color'],
+        });
+
+        if (!varianteBloqueada) {
+          throw new BadRequestException('La variante seleccionada ya no existe en el catálogo.');
+        }
+
+        if (varianteBloqueada.stock < item.cantidad) {
+          const nombreProd = varianteBloqueada.producto?.nombre || 'Prenda';
+          throw new BadRequestException(
+            `Stock insuficiente para "${nombreProd}". Quedan ${varianteBloqueada.stock} unidad(es) disponible(s) (intentaste adquirir ${item.cantidad}). Otro cliente acaba de reservar o comprar la prenda.`,
+          );
+        }
+
+        const precioUnitario = Number(item.precioUnitario || varianteBloqueada.producto?.precio || 0);
         const itemSubtotal = Number((precioUnitario * item.cantidad).toFixed(2));
 
         const orderItem = queryRunner.manager.create(OrderItemEntity, {
           notaventaId: ordenGuardada.id,
-          productoId: item.variante?.productoId || item.varianteId,
+          productoId: varianteBloqueada.productoId || item.varianteId,
           varianteId: item.varianteId,
           cantidad: item.cantidad,
           precio: precioUnitario,
           descuento: 0,
           subtotal: itemSubtotal,
-          nombreProducto: item.variante?.producto?.nombre || 'Prenda',
-          talla: item.variante?.talla?.nombre || 'Única',
-          color: item.variante?.color?.nombre || 'Original',
+          nombreProducto: varianteBloqueada.producto?.nombre || 'Prenda',
+          talla: varianteBloqueada.talla?.nombre || 'Única',
+          color: varianteBloqueada.color?.nombre || 'Original',
         });
         orderItems.push(orderItem);
 
-        await queryRunner.manager.decrement(
-          ProductVariantEntity,
-          { id: item.varianteId },
-          'stock',
-          item.cantidad,
-        );
+        // Descontar/apartar atómicamente el stock reservado
+        varianteBloqueada.stock -= item.cantidad;
+        await queryRunner.manager.save(ProductVariantEntity, varianteBloqueada);
       }
       await queryRunner.manager.save(orderItems);
 

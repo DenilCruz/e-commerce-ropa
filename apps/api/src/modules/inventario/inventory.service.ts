@@ -179,6 +179,7 @@ export class InventarioService {
       for (const item of items) {
         const variante = await repo.findOne({
           where: { id: item.varianteId },
+          lock: { mode: 'pessimistic_write' },
           relations: ['producto'],
         });
 

@@ -221,7 +221,8 @@ CREATE TABLE producto_variante (
     activa          BOOLEAN NOT NULL DEFAULT TRUE,
     creado_en       TIMESTAMP NOT NULL DEFAULT NOW(),
     actualizado_en  TIMESTAMP NOT NULL DEFAULT NOW(),
-    UNIQUE(producto_id, talla_id, color_id)
+    UNIQUE(producto_id, talla_id, color_id),
+    CONSTRAINT chk_stock_no_negativo CHECK (stock >= 0)
 );
 
 CREATE INDEX idx_variante_producto ON producto_variante(producto_id);
