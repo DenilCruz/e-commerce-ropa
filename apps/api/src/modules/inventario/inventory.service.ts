@@ -180,7 +180,6 @@ export class InventarioService {
         const variante = await repo.findOne({
           where: { id: item.varianteId },
           lock: { mode: 'pessimistic_write' },
-          relations: ['producto'],
         });
 
         if (!variante) {
@@ -188,9 +187,8 @@ export class InventarioService {
         }
 
         if (variante.stock < item.cantidad) {
-          const nombreProd = variante.producto?.nombre || 'Producto';
           throw new BadRequestException(
-            `Stock insuficiente para "${nombreProd}" (${variante.sku}). Solicitado: ${item.cantidad}, Disponible: ${variante.stock}.`
+            `Stock insuficiente para la prenda solicitada (${variante.sku}). Solicitado: ${item.cantidad}, Disponible: ${variante.stock}.`,
           );
         }
       }

@@ -149,6 +149,11 @@ export class PaymentsService {
       };
     } catch (err: any) {
       this.logger.error(`Error creando PaymentIntent en Stripe: ${err.message}`);
+      if (err.message?.includes('Invalid API Key') || err.message?.includes('sk_test_...')) {
+        throw new BadRequestException(
+          'La pasarela de pago con tarjeta (Stripe) no tiene configurada una clave activa en el servidor. Por favor utiliza el método de pago por QR Simple o Contra Entrega para completar tu compra.',
+        );
+      }
       throw new BadRequestException(`Fallo al inicializar pago con Stripe: ${err.message}`);
     }
   }
@@ -219,6 +224,11 @@ export class PaymentsService {
       };
     } catch (err: any) {
       this.logger.error(`Error creando sesión de Embedded Checkout en Stripe: ${err.message}`);
+      if (err.message?.includes('Invalid API Key') || err.message?.includes('sk_test_...')) {
+        throw new BadRequestException(
+          'La pasarela de pago con tarjeta (Stripe) no tiene configurada una clave activa en el servidor. Por favor utiliza el método de pago por QR Simple o Contra Entrega para completar tu compra.',
+        );
+      }
       throw new BadRequestException(`Fallo al inicializar Embedded Checkout con Stripe: ${err.message}`);
     }
   }
@@ -298,25 +308,29 @@ export class PaymentsService {
 
       const orderItems: OrderItemEntity[] = [];
       for (const item of cart.items) {
-        // Bloqueo Pesimista (SELECT ... FOR UPDATE) para prevenir Race Conditions en compras concurrentes
+        // Bloqueo Pesimista (SELECT ... FOR UPDATE) directo sobre la variante sin JOINs para PostgreSQL
         const varianteBloqueada = await queryRunner.manager.findOne(ProductVariantEntity, {
           where: { id: item.varianteId },
           lock: { mode: 'pessimistic_write' },
-          relations: ['producto', 'talla', 'color'],
         });
 
         if (!varianteBloqueada) {
-          throw new BadRequestException('La variante seleccionada ya no existe en el catálogo.');
+          throw new BadRequestException('Una de las prendas seleccionadas ya no se encuentra disponible.');
         }
 
         if (varianteBloqueada.stock < item.cantidad) {
-          const nombreProd = varianteBloqueada.producto?.nombre || 'Prenda';
           throw new BadRequestException(
-            `Stock insuficiente para "${nombreProd}". Quedan ${varianteBloqueada.stock} unidad(es) disponible(s) (intentaste adquirir ${item.cantidad}). Otro cliente acaba de adquirir la prenda.`,
+            `Stock insuficiente. Quedan ${varianteBloqueada.stock} unidad(es) disponible(s). Otro cliente acaba de adquirir la prenda.`,
           );
         }
 
-        const precioUnitario = Number(item.precioUnitario || varianteBloqueada.producto?.precio || 0);
+        // Cargar detalles descriptivos sin outer join lock
+        const varianteInfo = await queryRunner.manager.findOne(ProductVariantEntity, {
+          where: { id: item.varianteId },
+          relations: ['producto', 'talla', 'color'],
+        });
+
+        const precioUnitario = Number(item.precioUnitario || varianteInfo?.producto?.precio || 0);
         const itemSubtotal = Number((precioUnitario * item.cantidad).toFixed(2));
 
         const orderItem = queryRunner.manager.create(OrderItemEntity, {
@@ -327,9 +341,9 @@ export class PaymentsService {
           precio: precioUnitario,
           descuento: 0,
           subtotal: itemSubtotal,
-          nombreProducto: varianteBloqueada.producto?.nombre || 'Prenda',
-          talla: varianteBloqueada.talla?.nombre || 'Única',
-          color: varianteBloqueada.color?.nombre || 'Original',
+          nombreProducto: varianteInfo?.producto?.nombre || 'Prenda',
+          talla: varianteInfo?.talla?.nombre || 'Única',
+          color: varianteInfo?.color?.nombre || 'Original',
         });
         orderItems.push(orderItem);
 
@@ -494,25 +508,29 @@ export class PaymentsService {
       // 3. Crear detalles_nota_venta y descontar stock de variantes con bloqueo pesimista
       const orderItems: OrderItemEntity[] = [];
       for (const item of cart.items) {
-        // Bloqueo Pesimista (SELECT ... FOR UPDATE) para prevenir Race Conditions en compras concurrentes
+        // Bloqueo Pesimista (SELECT ... FOR UPDATE) directo sobre la variante sin JOINs para PostgreSQL
         const varianteBloqueada = await queryRunner.manager.findOne(ProductVariantEntity, {
           where: { id: item.varianteId },
           lock: { mode: 'pessimistic_write' },
-          relations: ['producto', 'talla', 'color'],
         });
 
         if (!varianteBloqueada) {
-          throw new BadRequestException('La variante seleccionada ya no existe en el catálogo.');
+          throw new BadRequestException('Una de las prendas seleccionadas ya no se encuentra disponible.');
         }
 
         if (varianteBloqueada.stock < item.cantidad) {
-          const nombreProd = varianteBloqueada.producto?.nombre || 'Prenda';
           throw new BadRequestException(
-            `Stock insuficiente para "${nombreProd}". Quedan ${varianteBloqueada.stock} unidad(es) disponible(s) (intentaste adquirir ${item.cantidad}). Otro cliente acaba de adquirir la prenda.`,
+            `Stock insuficiente. Quedan ${varianteBloqueada.stock} unidad(es) disponible(s). Otro cliente acaba de adquirir la prenda.`,
           );
         }
 
-        const precioUnitario = Number(item.precioUnitario || varianteBloqueada.producto?.precio || 0);
+        // Cargar detalles descriptivos sin outer join lock
+        const varianteInfo = await queryRunner.manager.findOne(ProductVariantEntity, {
+          where: { id: item.varianteId },
+          relations: ['producto', 'talla', 'color'],
+        });
+
+        const precioUnitario = Number(item.precioUnitario || varianteInfo?.producto?.precio || 0);
         const itemSubtotal = Number((precioUnitario * item.cantidad).toFixed(2));
 
         const orderItem = queryRunner.manager.create(OrderItemEntity, {
@@ -523,9 +541,9 @@ export class PaymentsService {
           precio: precioUnitario,
           descuento: 0,
           subtotal: itemSubtotal,
-          nombreProducto: varianteBloqueada.producto?.nombre || 'Prenda',
-          talla: varianteBloqueada.talla?.nombre || 'Única',
-          color: varianteBloqueada.color?.nombre || 'Original',
+          nombreProducto: varianteInfo?.producto?.nombre || 'Prenda',
+          talla: varianteInfo?.talla?.nombre || 'Única',
+          color: varianteInfo?.color?.nombre || 'Original',
         });
         orderItems.push(orderItem);
 
@@ -664,25 +682,29 @@ export class PaymentsService {
       // 2. Crear detalles y reservar stock con bloqueo pesimista
       const orderItems: OrderItemEntity[] = [];
       for (const item of cart.items) {
-        // Bloqueo Pesimista (SELECT ... FOR UPDATE) para prevenir Race Conditions en reservas/pedidos simultáneos
+        // Bloqueo Pesimista (SELECT ... FOR UPDATE) directo sobre la variante sin JOINs para PostgreSQL
         const varianteBloqueada = await queryRunner.manager.findOne(ProductVariantEntity, {
           where: { id: item.varianteId },
           lock: { mode: 'pessimistic_write' },
-          relations: ['producto', 'talla', 'color'],
         });
 
         if (!varianteBloqueada) {
-          throw new BadRequestException('La variante seleccionada ya no existe en el catálogo.');
+          throw new BadRequestException('Una de las prendas seleccionadas ya no se encuentra disponible.');
         }
 
         if (varianteBloqueada.stock < item.cantidad) {
-          const nombreProd = varianteBloqueada.producto?.nombre || 'Prenda';
           throw new BadRequestException(
-            `Stock insuficiente para "${nombreProd}". Quedan ${varianteBloqueada.stock} unidad(es) disponible(s) (intentaste adquirir ${item.cantidad}). Otro cliente acaba de reservar o comprar la prenda.`,
+            `Stock insuficiente. Quedan ${varianteBloqueada.stock} unidad(es) disponible(s). Otro cliente acaba de reservar o comprar la prenda.`,
           );
         }
 
-        const precioUnitario = Number(item.precioUnitario || varianteBloqueada.producto?.precio || 0);
+        // Cargar detalles descriptivos sin outer join lock
+        const varianteInfo = await queryRunner.manager.findOne(ProductVariantEntity, {
+          where: { id: item.varianteId },
+          relations: ['producto', 'talla', 'color'],
+        });
+
+        const precioUnitario = Number(item.precioUnitario || varianteInfo?.producto?.precio || 0);
         const itemSubtotal = Number((precioUnitario * item.cantidad).toFixed(2));
 
         const orderItem = queryRunner.manager.create(OrderItemEntity, {
@@ -693,9 +715,9 @@ export class PaymentsService {
           precio: precioUnitario,
           descuento: 0,
           subtotal: itemSubtotal,
-          nombreProducto: varianteBloqueada.producto?.nombre || 'Prenda',
-          talla: varianteBloqueada.talla?.nombre || 'Única',
-          color: varianteBloqueada.color?.nombre || 'Original',
+          nombreProducto: varianteInfo?.producto?.nombre || 'Prenda',
+          talla: varianteInfo?.talla?.nombre || 'Única',
+          color: varianteInfo?.color?.nombre || 'Original',
         });
         orderItems.push(orderItem);
 
@@ -827,24 +849,29 @@ export class PaymentsService {
       // 2. Crear detalles y reservar stock con bloqueo pesimista
       const orderItems: OrderItemEntity[] = [];
       for (const item of cart.items) {
+        // Bloqueo Pesimista (SELECT ... FOR UPDATE) directo sobre la variante sin JOINs para PostgreSQL
         const varianteBloqueada = await queryRunner.manager.findOne(ProductVariantEntity, {
           where: { id: item.varianteId },
           lock: { mode: 'pessimistic_write' },
-          relations: ['producto', 'talla', 'color'],
         });
 
         if (!varianteBloqueada) {
-          throw new BadRequestException('La variante seleccionada ya no existe en el catálogo.');
+          throw new BadRequestException('Una de las prendas seleccionadas ya no se encuentra disponible.');
         }
 
         if (varianteBloqueada.stock < item.cantidad) {
-          const nombreProd = varianteBloqueada.producto?.nombre || 'Prenda';
           throw new BadRequestException(
-            `Stock insuficiente para "${nombreProd}". Quedan ${varianteBloqueada.stock} unidad(es) disponible(s).`,
+            `Stock insuficiente. Quedan ${varianteBloqueada.stock} unidad(es) disponible(s). Otro cliente acaba de comprar la prenda.`,
           );
         }
 
-        const precioUnitario = Number(item.precioUnitario || varianteBloqueada.producto?.precio || 0);
+        // Cargar detalles descriptivos sin outer join lock
+        const varianteInfo = await queryRunner.manager.findOne(ProductVariantEntity, {
+          where: { id: item.varianteId },
+          relations: ['producto', 'talla', 'color'],
+        });
+
+        const precioUnitario = Number(item.precioUnitario || varianteInfo?.producto?.precio || 0);
         const itemSubtotal = Number((precioUnitario * item.cantidad).toFixed(2));
 
         const orderItem = queryRunner.manager.create(OrderItemEntity, {
@@ -855,9 +882,9 @@ export class PaymentsService {
           precio: precioUnitario,
           descuento: 0,
           subtotal: itemSubtotal,
-          nombreProducto: varianteBloqueada.producto?.nombre || 'Prenda',
-          talla: varianteBloqueada.talla?.nombre || 'Única',
-          color: varianteBloqueada.color?.nombre || 'Original',
+          nombreProducto: varianteInfo?.producto?.nombre || 'Prenda',
+          talla: varianteInfo?.talla?.nombre || 'Única',
+          color: varianteInfo?.color?.nombre || 'Original',
         });
         orderItems.push(orderItem);
 
@@ -945,7 +972,10 @@ export class PaymentsService {
     } catch (err: any) {
       await queryRunner.rollbackTransaction();
       this.logger.error(`Error procesando pedido con QR: ${err.message}`);
-      throw new BadRequestException(`Fallo al registrar pedido con QR: ${err.message}`);
+      if (err instanceof BadRequestException || err instanceof NotFoundException) {
+        throw err;
+      }
+      throw new BadRequestException('No se pudo registrar el pedido con QR en este momento. Por favor verifica los datos o intenta nuevamente.');
     } finally {
       await queryRunner.release();
     }

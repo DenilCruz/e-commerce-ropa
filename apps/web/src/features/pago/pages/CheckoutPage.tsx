@@ -230,6 +230,20 @@ export const CheckoutPage: React.FC = () => {
     ? 'e2000000-0000-0000-0000-000000000002'
     : 'e1000000-0000-0000-0000-000000000001';
 
+  const limpiarMensajeError = (rawMsg: any): string => {
+    const msg = typeof rawMsg === 'string' ? rawMsg : (rawMsg?.message || '');
+    if (!msg) return 'Ocurrió un inconveniente al procesar tu solicitud.';
+    if (
+      msg.includes('FOR UPDATE') ||
+      msg.includes('outer join') ||
+      msg.includes('syntax error') ||
+      msg.includes('QueryFailedError')
+    ) {
+      return 'Disculpa, hubo un inconveniente al verificar la disponibilidad de inventario. Por favor intenta nuevamente.';
+    }
+    return msg;
+  };
+
   // HU-56: Inicializar Stripe Embedded Checkout
   const inicializarEmbeddedCheckout = async () => {
     if (!direccion.trim()) {
@@ -281,7 +295,7 @@ export const CheckoutPage: React.FC = () => {
         }
       }, 50);
     } catch (err: any) {
-      setErrorPago(err.response?.data?.message || err.message || 'Error al inicializar Stripe Embedded Checkout.');
+      setErrorPago(limpiarMensajeError(err.response?.data?.message || err.message));
     } finally {
       setCargandoEmbedded(false);
     }
@@ -316,7 +330,7 @@ export const CheckoutPage: React.FC = () => {
       clearCart();
       setOrdenCompletada(orden);
     } catch (err: any) {
-      setErrorPago(err.response?.data?.message || err.message || 'Error al procesar la orden contra entrega.');
+      setErrorPago(limpiarMensajeError(err.response?.data?.message || err.message));
     } finally {
       setProcesando(false);
     }
@@ -352,7 +366,7 @@ export const CheckoutPage: React.FC = () => {
       clearCart();
       setOrdenCompletada(orden);
     } catch (err: any) {
-      setErrorPago(err.response?.data?.message || err.message || 'Error al procesar el pago por QR.');
+      setErrorPago(limpiarMensajeError(err.response?.data?.message || err.message));
     } finally {
       setProcesando(false);
     }
