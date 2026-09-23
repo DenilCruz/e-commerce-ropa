@@ -59,6 +59,22 @@ export const paymentsApi = {
     return res.data;
   },
 
+  // Pago con QR Simple / Transferencia
+  pagoQr: async (datos: {
+    direccionEnvio?: string;
+    telefono?: string;
+    notas?: string;
+    nroComprobante?: string;
+    cuponId?: string;
+    metodoEnvioId?: string;
+    tipoEnvio?: string;
+    latitud?: number;
+    longitud?: number;
+  }): Promise<OrdenRespuesta> => {
+    const res = await api.post<OrdenRespuesta>('/payments/qr', datos);
+    return res.data;
+  },
+
   // HU-57: Consultar estado de pago y comprobante
   consultarEstado: async (orderId: string): Promise<OrdenRespuesta> => {
     const res = await api.get<OrdenRespuesta>(`/payments/status/${orderId}`);

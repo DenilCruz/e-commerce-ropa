@@ -17,6 +17,7 @@ import {
   Loader2,
   Navigation,
   X,
+  QrCode,
 } from 'lucide-react';
 import { useCartStore } from '../../../store/cart.store';
 import { useAuthStore } from '../../../store/auth.store';
@@ -63,8 +64,9 @@ export const CheckoutPage: React.FC = () => {
   // Método de envío: 'ESTANDAR' | 'EXPRESS' (HU-62 & HU-63)
   const [tipoEnvio, setTipoEnvio] = useState<'ESTANDAR' | 'EXPRESS'>('ESTANDAR');
 
-  // Método de pago: 'tarjeta' | 'contra_entrega'
-  const [metodoPago, setMetodoPago] = useState<'tarjeta' | 'contra_entrega'>('tarjeta');
+  // Método de pago: 'tarjeta' | 'contra_entrega' | 'qr'
+  const [metodoPago, setMetodoPago] = useState<'tarjeta' | 'contra_entrega' | 'qr'>('tarjeta');
+  const [nroComprobanteQr, setNroComprobanteQr] = useState('');
 
   // Estado de Stripe Embedded Checkout
   const [embeddedSessionId, setEmbeddedSessionId] = useState<string | null>(null);
@@ -320,12 +322,50 @@ export const CheckoutPage: React.FC = () => {
     }
   };
 
+  // Pago con QR Simple / Transferencia Bancaria
+  const procesarPagoQr = async () => {
+    if (!direccion.trim()) {
+      setErrorPago('Por favor ingresa la dirección de entrega.');
+      return;
+    }
+    if (!telefono.trim()) {
+      setErrorPago('Por favor ingresa un número de teléfono de contacto.');
+      return;
+    }
+
+    setProcesando(true);
+    setErrorPago(null);
+
+    try {
+      const orden = await paymentsApi.pagoQr({
+        direccionEnvio: `${direccion}, ${ciudad}`,
+        telefono,
+        notas,
+        nroComprobante: nroComprobanteQr || undefined,
+        cuponId: cupon?.id,
+        metodoEnvioId,
+        tipoEnvio,
+        latitud: coordenadas?.lat,
+        longitud: coordenadas?.lng,
+      });
+
+      clearCart();
+      setOrdenCompletada(orden);
+    } catch (err: any) {
+      setErrorPago(err.response?.data?.message || err.message || 'Error al procesar el pago por QR.');
+    } finally {
+      setProcesando(false);
+    }
+  };
+
   const handleProcesarCompra = (e: React.FormEvent) => {
     e.preventDefault();
     if (metodoPago === 'tarjeta') {
       if (!embeddedSessionId) {
         inicializarEmbeddedCheckout();
       }
+    } else if (metodoPago === 'qr') {
+      procesarPagoQr();
     } else {
       procesarPagoContraEntrega();
     }
@@ -725,7 +765,7 @@ export const CheckoutPage: React.FC = () => {
               </div>
 
               {/* SELECTOR DE PESTAÑAS DE PAGO */}
-              <div className="grid grid-cols-2 gap-3">
+              <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
                 <button
                   type="button"
                   onClick={() => setMetodoPago('tarjeta')}
@@ -743,7 +783,28 @@ export const CheckoutPage: React.FC = () => {
                   </div>
                   <div>
                     <p className="font-bold text-sm text-gray-900">Tarjeta Débito/Crédito</p>
-                    <p className="text-xs text-gray-500">Procesamiento seguro instantáneo</p>
+                    <p className="text-xs text-gray-500">Procesamiento instantáneo</p>
+                  </div>
+                </button>
+
+                <button
+                  type="button"
+                  onClick={() => setMetodoPago('qr')}
+                  className={`p-4 rounded-xl border-2 text-left transition flex flex-col justify-between ${
+                    metodoPago === 'qr'
+                      ? 'border-purple-700 bg-purple-50/50 shadow-sm'
+                      : 'border-gray-200 hover:border-gray-300 bg-white'
+                  }`}
+                >
+                  <div className="flex items-center justify-between mb-2">
+                    <QrCode className={`w-5 h-5 ${metodoPago === 'qr' ? 'text-purple-700' : 'text-gray-400'}`} />
+                    <span className="text-[10px] font-black uppercase tracking-wider bg-purple-100 text-purple-800 px-2 py-0.5 rounded">
+                      QR Simple
+                    </span>
+                  </div>
+                  <div>
+                    <p className="font-bold text-sm text-gray-900">Transferencia QR</p>
+                    <p className="text-xs text-gray-500">Banca móvil nacional</p>
                   </div>
                 </button>
 
@@ -764,7 +825,7 @@ export const CheckoutPage: React.FC = () => {
                   </div>
                   <div>
                     <p className="font-bold text-sm text-gray-900">Pago Contra Entrega</p>
-                    <p className="text-xs text-gray-500">Pagas en efectivo al recibir</p>
+                    <p className="text-xs text-gray-500">Pagas al recibir paquete</p>
                   </div>
                 </button>
               </div>
@@ -841,6 +902,78 @@ export const CheckoutPage: React.FC = () => {
                       ></div>
                     </div>
                   )}
+                </div>
+              ) : metodoPago === 'qr' ? (
+                /* OPCIÓN: PAGO CON QR SIMPLE */
+                <div className="space-y-4 pt-2">
+                  <div className="bg-purple-50/60 border border-purple-100 rounded-2xl p-4 flex items-center justify-between gap-3">
+                    <div className="flex items-center gap-3">
+                      <div className="w-10 h-10 rounded-xl bg-purple-600 text-white flex items-center justify-center font-bold text-sm shadow-md">
+                        <QrCode className="w-5 h-5" />
+                      </div>
+                      <div>
+                        <h4 className="font-bold text-sm text-gray-900">Transferencia Bancaria QR Simple</h4>
+                        <p className="text-xs text-gray-500">Paga al instante escaneando el código con tu banca móvil</p>
+                      </div>
+                    </div>
+                    <span className="text-[10px] font-black uppercase tracking-wider bg-purple-100 text-purple-800 px-2.5 py-1 rounded-full">
+                      QR Oficial
+                    </span>
+                  </div>
+
+                  <div className="bg-white border-2 border-dashed border-purple-200 rounded-2xl p-6 flex flex-col items-center text-center space-y-4">
+                    <div className="p-3 bg-white rounded-2xl shadow-md border border-gray-200 inline-block">
+                      <img
+                        src="/qr_pago_aura.png"
+                        alt="Código QR de Pago AURA"
+                        className="w-56 h-56 object-contain rounded-xl"
+                      />
+                    </div>
+
+                    <div className="space-y-1 max-w-sm">
+                      <p className="text-xs text-gray-500 uppercase tracking-wider font-semibold">Monto a transferir:</p>
+                      <p className="text-2xl font-black text-gray-900 font-mono">
+                        ${totalFinal.toFixed(2)} USD <span className="text-xs font-normal text-gray-500">(o equivalente en Bs)</span>
+                      </p>
+                      <p className="text-xs text-gray-500 mt-2 leading-relaxed">
+                        1. Abre tu aplicación bancaria móvil (Banco Unión, BNB, BCP, Mercantil Santa Cruz, etc.).<br />
+                        2. Escanea el código QR de arriba y confirma la transacción.<br />
+                        3. Ingresa tu número de comprobante o referencia y confirma tu pedido.
+                      </p>
+                    </div>
+
+                    <div className="w-full max-w-sm text-left pt-2 border-t border-gray-100">
+                      <label className="block text-xs font-bold text-gray-700 uppercase mb-1">
+                        Nro. de Comprobante / Referencia Bancaria (Opcional)
+                      </label>
+                      <input
+                        type="text"
+                        placeholder="Ej. TRX-984321 o número de operación"
+                        value={nroComprobanteQr}
+                        onChange={(e) => setNroComprobanteQr(e.target.value)}
+                        className="w-full px-3.5 py-2.5 bg-gray-50 border border-gray-300 rounded-xl text-sm focus:bg-white focus:ring-2 focus:ring-purple-600 focus:outline-none transition"
+                      />
+                    </div>
+
+                    <button
+                      type="button"
+                      onClick={procesarPagoQr}
+                      disabled={procesando}
+                      className="w-full max-w-sm py-4 bg-purple-700 text-white text-sm font-black rounded-xl hover:bg-purple-800 transition shadow-lg flex items-center justify-center gap-2 cursor-pointer"
+                    >
+                      {procesando ? (
+                        <>
+                          <Loader2 className="w-4 h-4 animate-spin" />
+                          <span>Confirmando Pago QR...</span>
+                        </>
+                      ) : (
+                        <>
+                          <CheckCircle2 className="w-4 h-4" />
+                          <span>Ya transferí · Confirmar Pedido</span>
+                        </>
+                      )}
+                    </button>
+                  </div>
                 </div>
               ) : (
                 /* OPCION: PAGO CONTRA ENTREGA */
@@ -968,6 +1101,8 @@ export const CheckoutPage: React.FC = () => {
                       <span>
                         {metodoPago === 'tarjeta'
                           ? `Abrir Pasarela de Pago ($${totalFinal.toFixed(2)})`
+                          : metodoPago === 'qr'
+                          ? `Confirmar Pago por QR ($${totalFinal.toFixed(2)})`
                           : `Confirmar Pedido en Efectivo ($${totalFinal.toFixed(2)})`}
                       </span>
                       <Lock className="w-3.5 h-3.5" />

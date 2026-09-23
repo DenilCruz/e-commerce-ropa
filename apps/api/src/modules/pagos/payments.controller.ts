@@ -20,6 +20,7 @@ import { PaymentsService } from './payments.service';
 import { CrearIntentoPagoDto } from './dto/crear-intento-pago.dto';
 import { ConfirmarPagoTarjetaDto } from './dto/confirmar-pago-tarjeta.dto';
 import { PagoContraEntregaDto } from './dto/pago-contra-entrega.dto';
+import { PagoQrDto } from './dto/pago-qr.dto';
 import { ReembolsarPagoDto } from './dto/reembolsar-pago.dto';
 
 import { JwtAuthGuard } from '../autenticacion/guards/jwt-auth.guard';
@@ -133,6 +134,26 @@ export class PaymentsController {
     @Body() dto: PagoContraEntregaDto,
   ) {
     return this.paymentsService.pagoContraEntrega(usuarioId, dto);
+  }
+
+  // =========================================================================
+  // PAGO CON QR SIMPLE (TRANSFERENCIA BANCARIA INMEDIATA)
+  // =========================================================================
+  @Post('qr')
+  @UseGuards(JwtAuthGuard)
+  @ApiBearerAuth()
+  @HttpCode(HttpStatus.CREATED)
+  @ApiOperation({
+    summary: 'Procesar pedido con pago por transferencia QR Simple',
+    description: 'Registra la orden confirmada y el pago validado por transferencia bancaria QR.',
+  })
+  @ApiResponse({ status: 201, description: 'Pedido con QR registrado y confirmado exitosamente.' })
+  @ApiResponse({ status: 400, description: 'Carrito vacío o stock insuficiente.' })
+  pagoQr(
+    @CurrentUser('userId') usuarioId: string,
+    @Body() dto: PagoQrDto,
+  ) {
+    return this.paymentsService.pagoQr(usuarioId, dto);
   }
 
   // =========================================================================

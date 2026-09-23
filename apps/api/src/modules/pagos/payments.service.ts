@@ -29,10 +29,12 @@ import { MailService } from '../mail/mail.service';
 import { CrearIntentoPagoDto } from './dto/crear-intento-pago.dto';
 import { ConfirmarPagoTarjetaDto } from './dto/confirmar-pago-tarjeta.dto';
 import { PagoContraEntregaDto } from './dto/pago-contra-entrega.dto';
+import { PagoQrDto } from './dto/pago-qr.dto';
 import { ReembolsarPagoDto } from './dto/reembolsar-pago.dto';
 
 const METODO_TARJETA_ID = '5d6c0b39-63f4-4cb1-b0df-66aa706e44e5';
 const METODO_CONTRA_ENTREGA_ID = '17817d50-a056-4697-a572-bf7145b63646';
+const METODO_QR_ID = 'dcb8cd5b-18f8-43c7-a7b6-44dfa1beae69';
 
 @Injectable()
 export class PaymentsService {
@@ -781,6 +783,169 @@ export class PaymentsService {
       await queryRunner.rollbackTransaction();
       this.logger.error(`Error en pago contra entrega: ${err.message}`);
       throw new BadRequestException(`No se pudo procesar el pedido contra entrega: ${err.message}`);
+    } finally {
+      await queryRunner.release();
+    }
+  }
+
+  // =========================================================================
+  // PAGO CON QR SIMPLE (TRANSFERENCIA BANCARIA INMEDIATA)
+  // =========================================================================
+  async pagoQr(usuarioId: string, dto: PagoQrDto) {
+    const { subtotal, descuento, envio, totalFinal, cart, cupon } =
+      await this.calcularTotalesCarrito(usuarioId, dto.cuponId, dto.metodoEnvioId, dto.tipoEnvio);
+
+    if (!cart.items || cart.items.length === 0) {
+      throw new BadRequestException('El carrito de compras está vacío.');
+    }
+
+    const queryRunner = this.dataSource.createQueryRunner();
+    await queryRunner.connect();
+    await queryRunner.startTransaction();
+
+    try {
+      const countOrders = await this.orderRepo.count();
+      const orderNro = `NV-${new Date().getFullYear()}-${String(countOrders + 1).padStart(5, '0')}`;
+      const trxRef = dto.nroComprobante?.trim()
+        ? `QR-${dto.nroComprobante.trim().toUpperCase()}`
+        : `QR-${Math.random().toString(36).substring(2, 8).toUpperCase()}`;
+
+      // 1. Crear nota_venta con estado PAGADO (confirmado por transferencia QR)
+      const nuevaOrden = queryRunner.manager.create(OrderEntity, {
+        nro: orderNro,
+        usuarioId,
+        subtotal,
+        descuento,
+        costoEnvio: envio,
+        total: totalFinal,
+        estado: 'PAGADO',
+        cuponId: cupon ? cupon.id : null,
+      });
+
+      const ordenGuardada = await queryRunner.manager.save(nuevaOrden);
+
+      // 2. Crear detalles y reservar stock con bloqueo pesimista
+      const orderItems: OrderItemEntity[] = [];
+      for (const item of cart.items) {
+        const varianteBloqueada = await queryRunner.manager.findOne(ProductVariantEntity, {
+          where: { id: item.varianteId },
+          lock: { mode: 'pessimistic_write' },
+          relations: ['producto', 'talla', 'color'],
+        });
+
+        if (!varianteBloqueada) {
+          throw new BadRequestException('La variante seleccionada ya no existe en el catálogo.');
+        }
+
+        if (varianteBloqueada.stock < item.cantidad) {
+          const nombreProd = varianteBloqueada.producto?.nombre || 'Prenda';
+          throw new BadRequestException(
+            `Stock insuficiente para "${nombreProd}". Quedan ${varianteBloqueada.stock} unidad(es) disponible(s).`,
+          );
+        }
+
+        const precioUnitario = Number(item.precioUnitario || varianteBloqueada.producto?.precio || 0);
+        const itemSubtotal = Number((precioUnitario * item.cantidad).toFixed(2));
+
+        const orderItem = queryRunner.manager.create(OrderItemEntity, {
+          notaventaId: ordenGuardada.id,
+          productoId: varianteBloqueada.productoId || item.varianteId,
+          varianteId: item.varianteId,
+          cantidad: item.cantidad,
+          precio: precioUnitario,
+          descuento: 0,
+          subtotal: itemSubtotal,
+          nombreProducto: varianteBloqueada.producto?.nombre || 'Prenda',
+          talla: varianteBloqueada.talla?.nombre || 'Única',
+          color: varianteBloqueada.color?.nombre || 'Original',
+        });
+        orderItems.push(orderItem);
+
+        varianteBloqueada.stock -= item.cantidad;
+        await queryRunner.manager.save(ProductVariantEntity, varianteBloqueada);
+      }
+      await queryRunner.manager.save(orderItems);
+
+      // 3. Crear registro pago con estado APROBADO
+      const nuevoPago = queryRunner.manager.create(PaymentEntity, {
+        notaventaId: ordenGuardada.id,
+        metodoPagoId: METODO_QR_ID,
+        monto: totalFinal,
+        estado: 'APROBADO',
+        idTransaccion: trxRef,
+        fechaPago: new Date(),
+        respuestaPasarela: {
+          gateway: 'qr_simple',
+          referenciaComprobante: trxRef,
+          instrucciones: 'Pago validado mediante transferencia QR Simple.',
+          direccionEnvio: dto.direccionEnvio || '',
+          telefono: dto.telefono || '',
+        },
+      });
+      const pagoGuardado = await queryRunner.manager.save(nuevoPago);
+
+      // 4. Crear registro en shipping_envio
+      const anio = new Date().getFullYear();
+      const aleatorio = Math.random().toString(36).substring(2, 7).toUpperCase();
+      const trackingCode = `TRK-BO-${anio}-${aleatorio}`;
+      const diasEntrega = dto.tipoEnvio?.toUpperCase() === 'EXPRESS' ? 1 : 3;
+      const fechaEstimada = new Date();
+      fechaEstimada.setDate(fechaEstimada.getDate() + diasEntrega);
+
+      const nuevoEnvio = queryRunner.manager.create(ShippingEntity, {
+        notaventaId: ordenGuardada.id,
+        metodoEnvioId: dto.metodoEnvioId || 'e1000000-0000-0000-0000-000000000001',
+        direccionTexto: dto.direccionEnvio || 'Dirección acordada con el cliente',
+        empresaTransportadora: 'Courier Local Express',
+        numeroTracking: trackingCode,
+        estado: 'PREPARANDO',
+        fechaEntregaEstimada: fechaEstimada,
+        notas: dto.notas,
+        latitud: dto.latitud as any,
+        longitud: dto.longitud as any,
+      });
+      const envioGuardado = await queryRunner.manager.save(nuevoEnvio);
+
+      // 5. Registrar historial_venta
+      const historial = queryRunner.manager.create(OrderHistoryEntity, {
+        notaventaId: ordenGuardada.id,
+        estadoAnterior: null,
+        estadoNuevo: 'PAGADO',
+        comentario: `Pago con QR Simple registrado exitosamente (Ref: ${trxRef}). Guía: ${trackingCode}`,
+        usuarioId,
+      });
+      await queryRunner.manager.save(historial);
+
+      // 6. Vaciar carrito
+      await queryRunner.manager.delete(CartItemEntity, { carritoId: cart.id });
+      await queryRunner.manager.update(CartEntity, { id: cart.id }, { total: 0 });
+
+      if (cupon) {
+        await queryRunner.manager.increment(CouponEntity, { id: cupon.id }, 'usosActuales', 1);
+      }
+
+      await queryRunner.commitTransaction();
+
+      ordenGuardada.items = orderItems;
+      ordenGuardada.envio = envioGuardado;
+
+      // Enviar correo de confirmación de compra
+      this.enviarConfirmacionEmailSeguro(
+        usuarioId,
+        ordenGuardada,
+        orderItems,
+        totalFinal,
+        subtotal,
+        descuento,
+        envio,
+        'QR Simple / Transferencia',
+      );
+
+      return this.formatearRespuestaPago(ordenGuardada, pagoGuardado);
+    } catch (err: any) {
+      await queryRunner.rollbackTransaction();
+      this.logger.error(`Error procesando pedido con QR: ${err.message}`);
+      throw new BadRequestException(`Fallo al registrar pedido con QR: ${err.message}`);
     } finally {
       await queryRunner.release();
     }
