@@ -19,5 +19,5 @@ ssh -F /dev/null -o StrictHostKeyChecking=no azureuser@52.233.82.87 "bash -c '
   cd apps/api && pm2 restart aura-api --update-env
   echo \"🔄 Recargando Nginx...\"
   sudo systemctl reload nginx
-  echo \"✅ ¡Servidor actualizado exitosamente en https://aura-ecommerce.westus2.cloudapp.azure.com!\"
+  echo \"✅ ¡Servidor actualizado exitosamente en https://aura.daches.dev (y https://aura-ecommerce.westus2.cloudapp.azure.com)!\"
 '"
