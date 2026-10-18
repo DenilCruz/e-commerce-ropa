@@ -53,6 +53,30 @@ export const getImageUrl = (url?: string | null): string => {
   return `${assetsURL}/uploads${cleanUrl}`;
 };
 
+export const getWebBaseUrl = (): string => {
+  const envWebUrl = process.env.EXPO_PUBLIC_WEB_URL;
+  if (
+    envWebUrl &&
+    !envWebUrl.includes('192.168.100.22') &&
+    !envWebUrl.includes('192.168.0.5')
+  ) {
+    return envWebUrl;
+  }
+
+  const currentApiUrl = getBaseUrl();
+  if (currentApiUrl.includes('daches.dev') || currentApiUrl.includes('azure.com')) {
+    return 'https://aura.daches.dev';
+  }
+
+  const hostUri = Constants.expoConfig?.hostUri;
+  const metroHostIp = hostUri ? hostUri.split(':')[0] : null;
+  if (metroHostIp && metroHostIp !== 'localhost' && metroHostIp !== '127.0.0.1') {
+    return `http://${metroHostIp}:5173`;
+  }
+
+  return 'https://aura.daches.dev';
+};
+
 api.interceptors.request.use((config) => {
   const token = useAuthStore.getState().token;
   if (token && config.headers) {

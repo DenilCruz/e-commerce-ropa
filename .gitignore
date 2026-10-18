@@ -32,6 +32,7 @@ Thumbs.db
 
 # Scratch / Temp
 scratch/
+.atl/
 
 # Mobile APKs & Binaries
 *.apk

@@ -1,8 +1,11 @@
-import { Controller, Get, Post, Body, Param, Put, Delete, HttpCode, HttpStatus, ParseUUIDPipe } from '@nestjs/common';
-import { ApiTags, ApiOperation, ApiResponse, ApiParam } from '@nestjs/swagger';
+import { Controller, Get, Post, Body, Param, Put, Delete, HttpCode, HttpStatus, ParseUUIDPipe, UseGuards } from '@nestjs/common';
+import { ApiTags, ApiOperation, ApiResponse, ApiParam, ApiBearerAuth } from '@nestjs/swagger';
 import { CategoriasService } from './categories.service';
 import { CrearCategoriaDto } from './dto/crear-categoria.dto';
 import { ActualizarCategoriaDto } from './dto/actualizar-categoria.dto';
+import { JwtAuthGuard } from '../autenticacion/guards/jwt-auth.guard';
+import { RolesGuard } from '../autenticacion/guards/roles.guard';
+import { Roles } from '../autenticacion/decorators/roles.decorator';
 
 @ApiTags('Categorias')
 @Controller(['categorias', 'catalogo/categorias'])
@@ -10,6 +13,9 @@ export class CategoriasController {
   constructor(private readonly servicioCategorias: CategoriasService) {}
 
   @Post()
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles('ADMIN', 'SUPERADMIN', 'ADMINISTRADOR')
+  @ApiBearerAuth()
   @ApiOperation({ summary: 'HU-30: Crear una nueva categoría o subcategoría' })
   @ApiResponse({ status: 201, description: 'Categoría creada exitosamente.' })
   crear(@Body() datos: CrearCategoriaDto) {
@@ -40,6 +46,9 @@ export class CategoriasController {
   }
 
   @Put(':id')
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles('ADMIN', 'SUPERADMIN', 'ADMINISTRADOR')
+  @ApiBearerAuth()
   @ApiOperation({ summary: 'HU-31: Actualizar los datos (nombre, imagen, etc.) de una categoría' })
   @ApiParam({ name: 'id', description: 'ID (UUID) de la categoría' })
   @ApiResponse({ status: 200, description: 'Categoría actualizada exitosamente.' })
@@ -51,6 +60,9 @@ export class CategoriasController {
   }
 
   @Put(':id/toggle')
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles('ADMIN', 'SUPERADMIN', 'ADMINISTRADOR')
+  @ApiBearerAuth()
   @ApiOperation({ summary: 'Alternar estado activo/inactivo de una categoría' })
   @ApiParam({ name: 'id', description: 'ID (UUID) de la categoría' })
   @ApiResponse({ status: 200, description: 'Estado alternado exitosamente.' })
@@ -59,6 +71,9 @@ export class CategoriasController {
   }
 
   @Delete(':id/desactivar')
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles('ADMIN', 'SUPERADMIN', 'ADMINISTRADOR')
+  @ApiBearerAuth()
   @HttpCode(HttpStatus.OK)
   @ApiOperation({ summary: 'Desactivar lógicamente una categoría sin borrarla de la base de datos' })
   @ApiParam({ name: 'id', description: 'ID (UUID) de la categoría' })
@@ -67,6 +82,9 @@ export class CategoriasController {
   }
 
   @Delete(':id')
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles('ADMIN', 'SUPERADMIN', 'ADMINISTRADOR')
+  @ApiBearerAuth()
   @HttpCode(HttpStatus.NO_CONTENT)
   @ApiOperation({ summary: 'HU-32: Eliminar físicamente una categoría vacía (sin productos ni subcategorías)' })
   @ApiParam({ name: 'id', description: 'ID (UUID) de la categoría' })

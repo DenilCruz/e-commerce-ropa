@@ -18,12 +18,14 @@ import {
   Navigation,
   X,
   QrCode,
+  WifiOff,
 } from 'lucide-react';
 import { useCartStore } from '../../../store/cart.store';
 import { useAuthStore } from '../../../store/auth.store';
 import { paymentsApi } from '../services/payments.api';
 import { OrdenRespuesta } from '../types';
 import { getImageUrl } from '../../../lib/utils';
+import { useNetworkStatus } from '../../../hooks/useNetworkStatus';
 
 declare global {
   interface Window {
@@ -39,6 +41,7 @@ const STRIPE_PUBLIC_KEY =
 export const CheckoutPage: React.FC = () => {
   const { cart, cupon, descuento, totalConDescuento, cargarCarrito, clearCart } = useCartStore();
   const { user } = useAuthStore();
+  const { isOnline } = useNetworkStatus();
 
   // Estados del formulario de envío
   const [direccion, setDireccion] = useState('');
@@ -374,6 +377,11 @@ export const CheckoutPage: React.FC = () => {
 
   const handleProcesarCompra = (e: React.FormEvent) => {
     e.preventDefault();
+    if (!isOnline) {
+      setErrorPago('Necesitas conexión a internet para procesar el pago de forma segura.');
+      return;
+    }
+
     if (metodoPago === 'tarjeta') {
       if (!embeddedSessionId) {
         inicializarEmbeddedCheckout();
@@ -574,6 +582,21 @@ export const CheckoutPage: React.FC = () => {
         <form onSubmit={handleProcesarCompra} className="grid grid-cols-1 lg:grid-cols-12 gap-8">
           {/* COLUMNA IZQUIERDA: DATOS DE ENVÍO Y PASARELA DE PAGO */}
           <div className="lg:col-span-7 space-y-6">
+            {/* ALERTA DE MODO SIN CONEXIÓN */}
+            {!isOnline && (
+              <div className="bg-amber-50 border border-amber-200 text-amber-900 p-4 rounded-xl flex items-start gap-3 text-xs leading-relaxed shadow-xs">
+                <WifiOff className="w-5 h-5 flex-shrink-0 mt-0.5 text-amber-700" />
+                <div>
+                  <p className="font-bold uppercase tracking-wider text-[11px] text-amber-950">
+                    Modo sin conexión detectado
+                  </p>
+                  <p className="text-amber-800 mt-1 font-light">
+                    Necesitas conexión a internet para procesar el pago de forma segura. Tu carrito e información de compra permanecerán guardados hasta que recuperes la conexión.
+                  </p>
+                </div>
+              </div>
+            )}
+
             {/* ERROR BANNER */}
             {errorPago && (
               <div className="bg-red-50 border border-red-200 text-red-700 p-4 rounded-xl flex items-start gap-3 text-sm">
@@ -1102,14 +1125,23 @@ export const CheckoutPage: React.FC = () => {
               ) : (
                 <button
                   type="submit"
-                  disabled={procesando || items.length === 0 || cargandoEmbedded}
-                  className="w-full bg-stone-900 text-white hover:bg-stone-800 disabled:opacity-50 text-xs uppercase tracking-luxury py-4 px-6 rounded-none text-center shadow-sm transition flex items-center justify-center gap-2 cursor-pointer font-medium"
+                  disabled={procesando || items.length === 0 || cargandoEmbedded || !isOnline}
+                  className={`w-full text-xs uppercase tracking-luxury py-4 px-6 rounded-none text-center shadow-sm transition flex items-center justify-center gap-2 font-medium ${
+                    !isOnline
+                      ? 'bg-stone-300 text-stone-500 cursor-not-allowed border border-stone-300'
+                      : 'bg-stone-900 text-white hover:bg-stone-800 disabled:opacity-50 cursor-pointer'
+                  }`}
                 >
                   {procesando || cargandoEmbedded ? (
                     <div className="flex items-center gap-2">
                       <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" />
                       <span>Procesando...</span>
                     </div>
+                  ) : !isOnline ? (
+                    <>
+                      <WifiOff className="w-3.5 h-3.5" />
+                      <span>Conexión requerida para procesar el pago</span>
+                    </>
                   ) : (
                     <>
                       <span>

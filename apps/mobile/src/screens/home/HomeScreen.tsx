@@ -85,6 +85,8 @@ export const HomeScreen: React.FC = () => {
               }}
               style={styles.heroImage}
               contentFit="cover"
+              cachePolicy="disk"
+              transition={200}
             />
             <View style={styles.heroOverlay}>
               <Text style={styles.heroTag}>COLECCIÓN PERMANENTE</Text>
@@ -158,6 +160,8 @@ export const HomeScreen: React.FC = () => {
                         source={{ uri: getImageUrl(imgPrincipal) }}
                         style={styles.productImage}
                         contentFit="cover"
+                        cachePolicy="disk"
+                        transition={200}
                       />
                       <View style={styles.heartWrapper}>
                         <HeartButton productoId={item.id} size={18} />

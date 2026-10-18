@@ -37,7 +37,14 @@ export const ProductCard: React.FC<ProductCardProps> = ({ producto }) => {
       const varianteDisponible = producto.variantes.find((v) => v.stock > 0) || producto.variantes[0];
       setAgregando(true);
       try {
-        await addItem(varianteDisponible.id, 1);
+        await addItem(varianteDisponible.id, 1, {
+          nombre: producto.nombre,
+          precioUnitario: Number(producto.precio),
+          imagen: imagenPrincipal?.url || null,
+          talla: varianteDisponible.talla?.nombre || null,
+          color: varianteDisponible.color?.nombre || null,
+          productoId: producto.id,
+        });
         setAgregadoExito(true);
         setTimeout(() => setAgregadoExito(false), 2000);
         toast.success(`"${producto.nombre}" se agregó a tu bolsa de compras.`);

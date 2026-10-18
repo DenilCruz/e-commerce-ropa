@@ -141,12 +141,13 @@ export const CatalogPage: React.FC = () => {
   // Nombre de la categoría activa (para mostrar badge/resumen)
   const categoriaActivaObj = useMemo(() => {
     if (categoriaSeleccionada === 'todas') return null;
-    // Buscar en raíces
-    const raiz = categorias.find(c => c.id === categoriaSeleccionada);
+    const catQuery = categoriaSeleccionada.toLowerCase();
+    // Buscar en raíces (por UUID exacto o nombre)
+    const raiz = categorias.find(c => c.id === categoriaSeleccionada || c.nombre.toLowerCase().includes(catQuery));
     if (raiz) return raiz;
     // Buscar en subcategorías
     for (const c of categorias) {
-      const sub = c.subcategorias?.find(s => s.id === categoriaSeleccionada);
+      const sub = c.subcategorias?.find(s => s.id === categoriaSeleccionada || s.nombre.toLowerCase().includes(catQuery));
       if (sub) return sub;
     }
     return null;
@@ -201,16 +202,18 @@ export const CatalogPage: React.FC = () => {
       resultado = resultado.filter(p => p.nombre.toLowerCase().includes(q));
     }
 
-    // 3. HU-25 y HU-34: Filtrar por Categoría (Jerárquico)
+    // 3. HU-25 y HU-34: Filtrar por Categoría (Jerárquico y Semántico)
     if (categoriaSeleccionada !== 'todas') {
-      // Identificar si la categoría seleccionada tiene subcategorías
-      const catObj = categorias.find(c => c.id === categoriaSeleccionada);
+      const catQuery = categoriaSeleccionada.toLowerCase();
+      // Identificar si la categoría seleccionada tiene subcategorías o coincide con nombre
+      const catObj = categorias.find(c => c.id === categoriaSeleccionada || c.nombre.toLowerCase().includes(catQuery));
       const subcatIds = catObj?.subcategorias?.map(s => s.id) || [];
-      const idsPermitidos = new Set([categoriaSeleccionada, ...subcatIds]);
+      const idsPermitidos = new Set([categoriaSeleccionada, catObj?.id || '', ...subcatIds].filter(Boolean));
 
       resultado = resultado.filter(p => {
         const prodCatId = p.categoria?.id || p.categoriaId;
-        return prodCatId ? idsPermitidos.has(prodCatId) : false;
+        const prodCatNombre = (p.categoria?.nombre || '').toLowerCase();
+        return (prodCatId ? idsPermitidos.has(prodCatId) : false) || prodCatNombre.includes(catQuery);
       });
     }
 

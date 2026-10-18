@@ -1,4 +1,6 @@
 import { create } from 'zustand';
+import { persist, createJSONStorage } from 'zustand/middleware';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 
 export interface MobileUser {
   id: string;
@@ -23,16 +25,24 @@ interface AuthState {
   logout: () => void;
 }
 
-export const useAuthStore = create<AuthState>((set) => ({
-  user: null,
-  token: null,
-  refreshToken: null,
-  isAuthenticated: false,
-  setAuth: (user, token, refreshToken) =>
-    set({ user, token, refreshToken, isAuthenticated: true }),
-  setTokens: (token, refreshToken) =>
-    set((state) => ({ token, refreshToken: refreshToken || state.refreshToken })),
-  setUser: (user) => set({ user }),
-  logout: () =>
-    set({ user: null, token: null, refreshToken: null, isAuthenticated: false }),
-}));
+export const useAuthStore = create<AuthState>()(
+  persist(
+    (set) => ({
+      user: null,
+      token: null,
+      refreshToken: null,
+      isAuthenticated: false,
+      setAuth: (user, token, refreshToken) =>
+        set({ user, token, refreshToken, isAuthenticated: true }),
+      setTokens: (token, refreshToken) =>
+        set((state) => ({ token, refreshToken: refreshToken || state.refreshToken })),
+      setUser: (user) => set({ user }),
+      logout: () =>
+        set({ user: null, token: null, refreshToken: null, isAuthenticated: false }),
+    }),
+    {
+      name: '@aura_auth_store',
+      storage: createJSONStorage(() => AsyncStorage),
+    }
+  )
+);

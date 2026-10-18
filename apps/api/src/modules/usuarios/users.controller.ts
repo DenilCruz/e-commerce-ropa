@@ -1,10 +1,13 @@
-import { Controller, Get, Post, Body, Param, Put, Delete, Query, HttpCode, HttpStatus, ParseUUIDPipe } from '@nestjs/common';
-import { ApiTags, ApiOperation, ApiResponse, ApiParam, ApiQuery } from '@nestjs/swagger';
+import { Controller, Get, Post, Body, Param, Put, Delete, Query, HttpCode, HttpStatus, ParseUUIDPipe, UseGuards } from '@nestjs/common';
+import { ApiTags, ApiOperation, ApiResponse, ApiParam, ApiQuery, ApiBearerAuth } from '@nestjs/swagger';
 import { UsuariosService } from './users.service';
 import { ActualizarUsuarioDto } from './dto/actualizar-usuario.dto';
 import { CrearDireccionDto } from './dto/crear-direccion.dto';
 import { CambiarContrasenaDto } from './dto/cambiar-contrasena.dto';
 import { CambiarRolDto } from './dto/cambiar-rol.dto';
+import { JwtAuthGuard } from '../autenticacion/guards/jwt-auth.guard';
+import { RolesGuard } from '../autenticacion/guards/roles.guard';
+import { Roles } from '../autenticacion/decorators/roles.decorator';
 
 @ApiTags('Usuarios y Perfiles')
 @Controller('usuarios')
@@ -16,6 +19,9 @@ export class UsuariosController {
   // ==========================
 
   @Get()
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles('ADMIN', 'SUPERADMIN', 'ADMINISTRADOR')
+  @ApiBearerAuth()
   @ApiOperation({ summary: 'Listar usuarios con paginación y búsqueda (HU-15)' })
   @ApiQuery({ name: 'pagina', required: false, example: 1 })
   @ApiQuery({ name: 'limite', required: false, example: 10 })
@@ -29,12 +35,18 @@ export class UsuariosController {
   }
 
   @Get('roles')
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles('ADMIN', 'SUPERADMIN', 'ADMINISTRADOR')
+  @ApiBearerAuth()
   @ApiOperation({ summary: 'Obtener lista de roles del sistema' })
   obtenerRoles() {
     return this.servicioUsuarios.obtenerRoles();
   }
 
   @Put(':id/toggle-bloqueo')
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles('ADMIN', 'SUPERADMIN', 'ADMINISTRADOR')
+  @ApiBearerAuth()
   @ApiOperation({ summary: 'Bloquear o desbloquear usuario (HU-16)' })
   @ApiParam({ name: 'id', description: 'ID del usuario' })
   toggleBloqueo(@Param('id', ParseUUIDPipe) id: string) {
@@ -42,6 +54,9 @@ export class UsuariosController {
   }
 
   @Put(':id/rol')
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles('ADMIN', 'SUPERADMIN', 'ADMINISTRADOR')
+  @ApiBearerAuth()
   @ApiOperation({ summary: 'Cambiar rol de un usuario (HU-17: cliente <-> admin)' })
   @ApiParam({ name: 'id', description: 'ID del usuario' })
   cambiarRol(
@@ -56,6 +71,8 @@ export class UsuariosController {
   // ==========================
 
   @Get(':id/perfil')
+  @UseGuards(JwtAuthGuard)
+  @ApiBearerAuth()
   @ApiOperation({ summary: 'Obtener el perfil de un usuario con sus direcciones (HU-09)' })
   @ApiParam({ name: 'id', description: 'ID del usuario' })
   obtenerPerfil(@Param('id', ParseUUIDPipe) id: string) {
@@ -63,6 +80,8 @@ export class UsuariosController {
   }
 
   @Put(':id/perfil')
+  @UseGuards(JwtAuthGuard)
+  @ApiBearerAuth()
   @ApiOperation({ summary: 'Actualizar datos básicos del perfil (nombre, foto, celular) (HU-10)' })
   @ApiParam({ name: 'id', description: 'ID del usuario' })
   actualizarPerfil(
@@ -73,6 +92,8 @@ export class UsuariosController {
   }
 
   @Put(':id/cambiar-password')
+  @UseGuards(JwtAuthGuard)
+  @ApiBearerAuth()
   @ApiOperation({ summary: 'Cambiar contraseña desde el perfil (HU-11)' })
   @ApiParam({ name: 'id', description: 'ID del usuario' })
   cambiarContrasena(
@@ -87,6 +108,8 @@ export class UsuariosController {
   // ==========================
 
   @Get(':id/direcciones')
+  @UseGuards(JwtAuthGuard)
+  @ApiBearerAuth()
   @ApiOperation({ summary: 'Listar todas las direcciones de entrega de un usuario' })
   @ApiParam({ name: 'id', description: 'ID del usuario' })
   obtenerDirecciones(@Param('id', ParseUUIDPipe) id: string) {
@@ -94,6 +117,8 @@ export class UsuariosController {
   }
 
   @Post(':id/direcciones')
+  @UseGuards(JwtAuthGuard)
+  @ApiBearerAuth()
   @ApiOperation({ summary: 'Agregar una nueva dirección de entrega a la libreta (HU-12)' })
   @ApiParam({ name: 'id', description: 'ID del usuario' })
   @ApiResponse({ status: 201, description: 'Dirección guardada exitosamente.' })
@@ -105,6 +130,8 @@ export class UsuariosController {
   }
 
   @Put(':idUsuario/direcciones/:idDireccion/predeterminada')
+  @UseGuards(JwtAuthGuard)
+  @ApiBearerAuth()
   @ApiOperation({ summary: 'Marcar dirección como predeterminada (HU-13)' })
   @ApiParam({ name: 'idUsuario', description: 'ID del usuario' })
   @ApiParam({ name: 'idDireccion', description: 'ID de la dirección' })
@@ -116,6 +143,8 @@ export class UsuariosController {
   }
 
   @Delete(':idUsuario/direcciones/:idDireccion')
+  @UseGuards(JwtAuthGuard)
+  @ApiBearerAuth()
   @HttpCode(HttpStatus.NO_CONTENT)
   @ApiOperation({ summary: 'Eliminar una dirección de la libreta del usuario (HU-14)' })
   @ApiParam({ name: 'idUsuario', description: 'ID del usuario' })

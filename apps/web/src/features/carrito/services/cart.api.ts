@@ -38,27 +38,29 @@ export const cartApi = {
     return res.data;
   },
 
-  // Sincronizar items de visitante tras iniciar sesión
-  sincronizarCarrito: async (items: Array<{
-    varianteId?: string;
-    productoId?: string;
-    tallaId?: string;
-    colorId?: string;
-    cantidad: number;
-  }>): Promise<Cart> => {
-    const res = await api.post<Cart>('/cart/sincronizar', { items });
+  // Sincronizar items de visitante tras iniciar sesión o reconexión
+  sincronizarCarrito: async (items: Array<any>): Promise<Cart> => {
+    const cleanItems = items.map((i) => ({
+      varianteId: i.varianteId,
+      productoId: i.productoId,
+      tallaId: i.tallaId,
+      colorId: i.colorId,
+      cantidad: i.cantidad || 1,
+    }));
+    const res = await api.post<Cart>('/cart/sincronizar', { items: cleanItems });
     return res.data;
   },
 
   // Calcular carrito temporal para visitantes (sin login)
-  calcularCarritoTemporal: async (items: Array<{
-    varianteId?: string;
-    productoId?: string;
-    tallaId?: string;
-    colorId?: string;
-    cantidad: number;
-  }>): Promise<Cart> => {
-    const res = await api.post<Cart>('/cart/calcular-temporal', { items });
+  calcularCarritoTemporal: async (items: Array<any>): Promise<Cart> => {
+    const cleanItems = items.map((i) => ({
+      varianteId: i.varianteId,
+      productoId: i.productoId,
+      tallaId: i.tallaId,
+      colorId: i.colorId,
+      cantidad: i.cantidad || 1,
+    }));
+    const res = await api.post<Cart>('/cart/calcular-temporal', { items: cleanItems });
     return res.data;
   },
 };

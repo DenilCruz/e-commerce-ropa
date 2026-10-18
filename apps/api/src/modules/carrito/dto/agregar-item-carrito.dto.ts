@@ -44,4 +44,24 @@ export class AgregarItemCarritoDto {
   @IsInt({ message: 'La cantidad debe ser un número entero' })
   @Min(1, { message: 'La cantidad mínima a agregar es 1' })
   cantidad: number = 1;
+
+  @ApiPropertyOptional()
+  @IsOptional()
+  nombre?: string;
+
+  @ApiPropertyOptional()
+  @IsOptional()
+  precioUnitario?: number;
+
+  @ApiPropertyOptional()
+  @IsOptional()
+  imagen?: string | null;
+
+  @ApiPropertyOptional()
+  @IsOptional()
+  talla?: string | null;
+
+  @ApiPropertyOptional()
+  @IsOptional()
+  color?: string | null;
 }

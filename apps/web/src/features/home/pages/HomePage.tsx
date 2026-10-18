@@ -21,25 +21,19 @@ const HERO_SLIDES = [
     image: `${ASSETS_URL}/uploads/vestido_seda_oliva_1790036699102.jpg`,
     title: 'Edición Seda Morera',
     subtitle: 'Fluidez y caída orgánica que desafían el paso del tiempo.',
-    categoryLink: '/catalogo?categoria=264efe79-ded7-4cfa-a0b0-110b822944c5'
-  },
-  {
-    image: `${ASSETS_URL}/uploads/blazer_sastre_camel.jpg`,
-    title: 'Sastrería Arquitectónica',
-    subtitle: 'Estructura en lana fría con solapas definidas y líneas sobrias.',
-    categoryLink: '/catalogo?categoria=afc1e8b6-47ab-45bc-a0d7-02dcd023ff3b'
+    categoryLink: '/catalogo?categoria=Vestidos'
   },
   {
     image: `${ASSETS_URL}/uploads/falda_plisada_camel_1790037005715.jpg`,
     title: 'Movimiento & Textura',
     subtitle: 'Plisados permanentes que crean volumen y armonía al andar.',
-    categoryLink: '/catalogo?categoria=67c0ec1b-94fa-4bd4-b37a-9f74f815031f'
+    categoryLink: '/catalogo?categoria=Faldas'
   },
   {
     image: `${ASSETS_URL}/uploads/vestido_lino_blanco_1790036743580.jpg`,
     title: 'Puro Lino Italiano',
     subtitle: 'Frescura atemporal hilada con fibras de cultivo sustentable.',
-    categoryLink: '/catalogo?categoria=264efe79-ded7-4cfa-a0b0-110b822944c5'
+    categoryLink: '/catalogo?categoria=Vestidos'
   }
 ];
 

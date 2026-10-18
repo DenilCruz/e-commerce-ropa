@@ -240,6 +240,7 @@ export const CatalogScreen: React.FC = () => {
               source={{ uri: getImageUrl(imagenPrincipal) }}
               style={styles.image}
               contentFit="cover"
+              cachePolicy="disk"
               transition={200}
             />
           ) : (

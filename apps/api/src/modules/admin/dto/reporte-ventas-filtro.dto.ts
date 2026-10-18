@@ -18,6 +18,16 @@ export class ReporteVentasFiltroDto {
   @IsString()
   estado?: string;
 
+  @ApiPropertyOptional({ description: 'ID de la categoría para filtrar ventas de productos pertenecientes a ella' })
+  @IsOptional()
+  @IsString()
+  categoriaId?: string;
+
+  @ApiPropertyOptional({ description: 'ID del usuario/cliente para filtrar sus pedidos' })
+  @IsOptional()
+  @IsString()
+  usuarioId?: string;
+
   @ApiPropertyOptional({ description: 'Término de búsqueda (nro de pedido, nombre o correo del cliente)' })
   @IsOptional()
   @IsString()

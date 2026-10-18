@@ -11,11 +11,13 @@ import {
   Download,
   Shirt,
   Timer,
+  WifiOff,
 } from 'lucide-react';
 import { probadorApi, ModeloBase, ProbarPrendaResponse } from '../services/probador.api';
 import { getImageUrl } from '../../../lib/utils';
 import { GarmentARLiveViewer } from './GarmentARLiveViewer';
 import { fitGarmentOnPhoto } from '../utils/garmentFitting';
+import { useNetworkStatus } from '../../../hooks/useNetworkStatus';
 
 interface PrendaParaProbar {
   id?: string;
@@ -37,6 +39,8 @@ export const VirtualTryOnModal: React.FC<VirtualTryOnModalProps> = ({
   onCerrar,
   prenda,
 }) => {
+  const { isOnline } = useNetworkStatus();
+
   // Modalidad principal: Espejo AR (Cámara en Vivo a 60 FPS) vs Estudio Fotográfico IA
   const [modoPrincipal, setModoPrincipal] = useState<'espejo_ar' | 'estudio_foto'>('espejo_ar');
   const [tabPersona, setTabPersona] = useState<'upload' | 'modelos' | 'camara'>('upload');
@@ -205,15 +209,45 @@ export const VirtualTryOnModal: React.FC<VirtualTryOnModalProps> = ({
 
   const ejecutarCapturaFoto = () => {
     if (!videoRef.current) return;
+    const vWidth = videoRef.current.videoWidth || 720;
+    const vHeight = videoRef.current.videoHeight || 960;
+    const targetAspect = 3 / 4; // Relación de aspecto 3:4 requerida por el probador (768x1024)
+
+    let cropWidth = vWidth;
+    let cropHeight = vHeight;
+    let cropX = 0;
+    let cropY = 0;
+
+    // Calcular encuadre centrado según lo que ve el usuario en el contenedor aspect-[3/4]
+    if (vWidth / vHeight > targetAspect) {
+      // El video es más ancho (típico en webcam 16:9), recortamos bordes laterales
+      cropWidth = Math.round(vHeight * targetAspect);
+      cropX = Math.round((vWidth - cropWidth) / 2);
+    } else {
+      // El video es más alto, recortamos arriba y abajo
+      cropHeight = Math.round(vWidth / targetAspect);
+      cropY = Math.round((vHeight - cropHeight) / 2);
+    }
+
     const canvas = document.createElement('canvas');
-    canvas.width = videoRef.current.videoWidth || 720;
-    canvas.height = videoRef.current.videoHeight || 960;
+    canvas.width = 768;
+    canvas.height = 1024;
     const ctx = canvas.getContext('2d');
     if (ctx) {
       // Modo espejo para coincidir con la vista previa del usuario
       ctx.translate(canvas.width, 0);
       ctx.scale(-1, 1);
-      ctx.drawImage(videoRef.current, 0, 0, canvas.width, canvas.height);
+      ctx.drawImage(
+        videoRef.current,
+        cropX,
+        cropY,
+        cropWidth,
+        cropHeight,
+        0,
+        0,
+        canvas.width,
+        canvas.height
+      );
       const dataUrl = canvas.toDataURL('image/jpeg', 0.92);
       setFotoPersona(dataUrl);
       setNombreArchivo('captura_camara.jpg');
@@ -263,6 +297,11 @@ export const VirtualTryOnModal: React.FC<VirtualTryOnModalProps> = ({
 
   // Ejecutar generación virtual con IDM-VTON + Groq
   const handleProbarPrenda = async () => {
+    if (!isOnline) {
+      setError('El Probador Virtual con Inteligencia Artificial requiere conexión a internet para procesar la imagen y renderizar las prendas.');
+      return;
+    }
+
     if (!prenda) {
       setError('No hay ninguna prenda seleccionada.');
       return;
@@ -562,7 +601,7 @@ export const VirtualTryOnModal: React.FC<VirtualTryOnModalProps> = ({
                         <img
                           src={fotoPersona}
                           alt="Foto seleccionada"
-                          className="w-full h-56 object-cover"
+                          className="w-full h-56 object-contain"
                         />
                         <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center gap-2">
                           <label className="bg-white text-black px-3.5 py-1.5 rounded-xl text-xs font-bold cursor-pointer hover:bg-gray-100 transition">
@@ -731,17 +770,36 @@ export const VirtualTryOnModal: React.FC<VirtualTryOnModalProps> = ({
               )}
             </div>
 
+            {/* AVISO OFFLINE DENTRO DEL MODAL */}
+            {!isOnline && (
+              <div className="p-3 bg-amber-50 border border-amber-200 text-amber-900 rounded-xl text-xs flex items-center gap-2.5">
+                <WifiOff className="w-4 h-4 text-amber-700 shrink-0" />
+                <span className="font-medium text-amber-900">
+                  Estás sin conexión. La prueba virtual IA requiere acceso a internet.
+                </span>
+              </div>
+            )}
+
             {/* BOTÓN PRINCIPAL DE GENERAR PRUEBA VIRTUAL */}
             <button
               type="button"
               onClick={handleProbarPrenda}
-              disabled={procesando}
-              className="w-full py-4 bg-gradient-to-r from-indigo-600 via-purple-600 to-black hover:opacity-95 text-white rounded-2xl font-black text-sm tracking-wide shadow-xl shadow-indigo-600/20 transition-all transform active:scale-95 disabled:opacity-50 disabled:pointer-events-none flex items-center justify-center gap-2 cursor-pointer"
+              disabled={procesando || !isOnline}
+              className={`w-full py-4 rounded-2xl font-black text-sm tracking-wide transition-all transform active:scale-95 flex items-center justify-center gap-2 cursor-pointer ${
+                !isOnline
+                  ? 'bg-stone-300 text-stone-500 cursor-not-allowed shadow-none'
+                  : 'bg-gradient-to-r from-indigo-600 via-purple-600 to-black hover:opacity-95 text-white shadow-xl shadow-indigo-600/20 disabled:opacity-50 disabled:pointer-events-none'
+              }`}
             >
               {procesando ? (
                 <>
                   <RefreshCw className="w-4 h-4 animate-spin text-white" />
                   <span>Generando con IA...</span>
+                </>
+              ) : !isOnline ? (
+                <>
+                  <WifiOff className="w-4 h-4 text-stone-500" />
+                  <span>Conexión Requerida para IA</span>
                 </>
               ) : (
                 <>

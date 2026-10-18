@@ -8,13 +8,17 @@ import {
   HttpCode,
   HttpStatus,
   ParseUUIDPipe,
+  UseGuards,
 } from '@nestjs/common';
-import { ApiTags, ApiOperation, ApiResponse, ApiParam } from '@nestjs/swagger';
+import { ApiTags, ApiOperation, ApiResponse, ApiParam, ApiBearerAuth } from '@nestjs/swagger';
 import { FavoritosService } from './wishlist.service';
 import { AgregarFavoritoDto } from './dto/agregar-favorito.dto';
 import { MoverFavoritoAlCarritoDto } from './dto/mover-favorito-carrito.dto';
+import { JwtAuthGuard } from '../autenticacion/guards/jwt-auth.guard';
 
 @ApiTags('Favoritos (Lista de Deseos)')
+@UseGuards(JwtAuthGuard)
+@ApiBearerAuth()
 @Controller('favoritos')
 export class FavoritosController {
   constructor(private readonly servicioFavoritos: FavoritosService) {}

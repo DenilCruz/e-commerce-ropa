@@ -15,6 +15,7 @@ import {
   FolderTree,
   Image as ImageIcon,
   Star,
+  Sparkles,
 } from 'lucide-react';
 import { adminApi } from '../services/admin.api';
 import {
@@ -123,6 +124,26 @@ export const AdminDashboardPage: React.FC = () => {
             <span>Generar Reporte</span>
           </Link>
         </div>
+      </div>
+
+      {/* TABS DE CONMUTACIÓN DE DASHBOARD (DESCRIPTIVO VS PREDICTIVO VS VOZ) */}
+      <div className="flex flex-wrap items-center gap-2 border-b border-gray-200 pb-2">
+        <span className="px-4 py-2 text-xs font-bold uppercase tracking-wider bg-black text-white rounded-lg shadow-sm">
+          📊 Dashboard Descriptivo (Lo ocurrido)
+        </span>
+        <Link
+          to="/admin/dashboard-predictivo"
+          className="flex items-center gap-2 px-4 py-2 text-xs font-bold uppercase tracking-wider bg-purple-50 text-purple-700 hover:bg-purple-100 rounded-lg transition-colors border border-purple-200"
+        >
+          <Sparkles className="w-3.5 h-3.5 text-purple-600 animate-pulse" />
+          <span>Dashboard Predictivo (IA & Proyecciones)</span>
+        </Link>
+        <Link
+          to="/admin/reportes-dinamicos"
+          className="flex items-center gap-2 px-4 py-2 text-xs font-bold uppercase tracking-wider bg-gray-100 text-gray-700 hover:bg-gray-200 rounded-lg transition-colors"
+        >
+          <span>🎙️ Consultas por Voz</span>
+        </Link>
       </div>
 
       {/* TARJETAS DE MÉTRICAS PRINCIPALES */}

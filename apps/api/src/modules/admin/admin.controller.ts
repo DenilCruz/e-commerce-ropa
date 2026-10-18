@@ -98,4 +98,25 @@ export class AdminController {
   ejecutarSqlDinamico(@Body() dto: EjecutarSqlDinamicoDto) {
     return this.dynamicReportsService.ejecutarSqlDirecto(dto.sql);
   }
+
+  // =========================================================================
+  // ANALÍTICA PREDICTIVA IA: VENTAS, CHURN Y AFINIDAD
+  // =========================================================================
+  @Get('predictivo/ventas')
+  @ApiOperation({ summary: 'Obtener análisis predictivo y proyección de ventas futuras con regresión lineal' })
+  obtenerAnalisisPredictivoVentas() {
+    return this.adminService.analisisPredictivoVentas();
+  }
+
+  @Get('predictivo/churn')
+  @ApiOperation({ summary: 'Obtener predicción de abandono de clientes (Churn Risk) basada en RFM' })
+  obtenerPrediccionAbandonoClientes() {
+    return this.adminService.prediccionAbandonoClientes();
+  }
+
+  @Get('predictivo/afinidad')
+  @ApiOperation({ summary: 'Obtener recomendaciones de productos por afinidad y canasta de compra (Market Basket)' })
+  obtenerRecomendacionesAfinidad() {
+    return this.adminService.recomendacionesAfinidadProductos();
+  }
 }

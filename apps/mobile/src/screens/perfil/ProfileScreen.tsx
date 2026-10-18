@@ -18,7 +18,7 @@ import { useAuthStore } from '../../store/auth.store';
 import { authService } from '../../services/auth.service';
 import { perfilApi, DireccionEnvio } from '../../services/perfil.api';
 import { catalogoApi, Producto } from '../../services/catalogo.api';
-import { api } from '../../services/api';
+import { api, getBaseUrl, getWebBaseUrl } from '../../services/api';
 
 export const ProfileScreen: React.FC = () => {
   const navigation = useNavigation<any>();
@@ -27,7 +27,7 @@ export const ProfileScreen: React.FC = () => {
   const getImageUrl = (url?: string | null) => {
     if (!url) return 'https://placehold.co/400x500?text=Sin+Imagen';
     if (url.startsWith('http')) return url;
-    const baseURL = api.defaults.baseURL || 'http://192.168.0.5:3000/api/v1';
+    const baseURL = api.defaults.baseURL || getBaseUrl();
     const assetsURL = baseURL.replace('/api/v1', '');
     if (url.startsWith('/uploads')) return `${assetsURL}${url}`;
     if (url.startsWith('/')) return `${assetsURL}/uploads${url}`;
@@ -384,7 +384,7 @@ export const ProfileScreen: React.FC = () => {
 
             <TouchableOpacity
               style={styles.adminPrimaryBtn}
-              onPress={() => Linking.openURL('http://192.168.0.5:5173/admin')}
+              onPress={() => Linking.openURL(`${getWebBaseUrl()}/admin`)}
             >
               <Ionicons name="desktop-outline" size={16} color="#fff" style={{ marginRight: 8 }} />
               <Text style={styles.adminPrimaryBtnText}>Abrir Dashboard Admin (Web)</Text>
@@ -412,7 +412,7 @@ export const ProfileScreen: React.FC = () => {
             <View style={styles.adminShortcutsRow}>
               <TouchableOpacity
                 style={styles.adminShortcut}
-                onPress={() => Linking.openURL('http://192.168.0.5:5173/admin/usuarios')}
+                onPress={() => Linking.openURL(`${getWebBaseUrl()}/admin/usuarios`)}
               >
                 <Ionicons name="people-outline" size={18} color="#111827" />
                 <Text style={styles.adminShortcutText}>Usuarios</Text>
@@ -420,7 +420,7 @@ export const ProfileScreen: React.FC = () => {
 
               <TouchableOpacity
                 style={styles.adminShortcut}
-                onPress={() => Linking.openURL('http://192.168.0.5:5173/admin/inventario')}
+                onPress={() => Linking.openURL(`${getWebBaseUrl()}/admin/inventario`)}
               >
                 <Ionicons name="cube-outline" size={18} color="#111827" />
                 <Text style={styles.adminShortcutText}>Inventario</Text>
@@ -428,7 +428,7 @@ export const ProfileScreen: React.FC = () => {
 
               <TouchableOpacity
                 style={styles.adminShortcut}
-                onPress={() => Linking.openURL('http://192.168.0.5:5173/admin/categorias')}
+                onPress={() => Linking.openURL(`${getWebBaseUrl()}/admin/categorias`)}
               >
                 <Ionicons name="grid-outline" size={18} color="#111827" />
                 <Text style={styles.adminShortcutText}>Categorías</Text>
@@ -436,7 +436,7 @@ export const ProfileScreen: React.FC = () => {
 
               <TouchableOpacity
                 style={styles.adminShortcut}
-                onPress={() => Linking.openURL('http://192.168.0.5:5173/admin/reportes')}
+                onPress={() => Linking.openURL(`${getWebBaseUrl()}/admin/reportes`)}
               >
                 <Ionicons name="stats-chart-outline" size={18} color="#111827" />
                 <Text style={styles.adminShortcutText}>Reportes</Text>

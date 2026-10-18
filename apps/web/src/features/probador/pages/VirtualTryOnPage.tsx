@@ -1,9 +1,10 @@
 import React, { useState, useEffect } from 'react';
 import { useSearchParams, Link } from 'react-router-dom';
-import { Sparkles, ArrowLeft, Check } from 'lucide-react';
+import { Sparkles, ArrowLeft, Check, WifiOff } from 'lucide-react';
 import { obtenerProductos } from '../../catalogo/services/catalogo.api';
 import { Producto } from '../../catalogo/types';
 import { VirtualTryOnModal } from '../../carrito/components/VirtualTryOnModal';
+import { useNetworkStatus } from '../../../hooks/useNetworkStatus';
 
 const ASSETS_URL = (import.meta.env.VITE_API_URL || 'http://localhost:3000/api/v1').replace('/api/v1', '');
 
@@ -18,6 +19,7 @@ const getImageUrl = (url?: string | null) => {
 export const VirtualTryOnPage: React.FC = () => {
   const [searchParams] = useSearchParams();
   const productoIdParam = searchParams.get('producto');
+  const { isOnline } = useNetworkStatus();
 
   const [productos, setProductos] = useState<Producto[]>([]);
   const [productoSeleccionado, setProductoSeleccionado] = useState<Producto | null>(null);
@@ -79,6 +81,21 @@ export const VirtualTryOnPage: React.FC = () => {
         </p>
       </div>
 
+      {/* Advertencia Offline para IA */}
+      {!isOnline && (
+        <div className="bg-amber-50 border border-amber-200 text-amber-900 p-4 sm:p-5 flex items-start gap-3.5 shadow-xs">
+          <WifiOff className="w-5 h-5 text-amber-700 shrink-0 mt-0.5" />
+          <div className="space-y-1">
+            <h4 className="text-xs uppercase tracking-wider font-bold text-amber-950">
+              Conexión Requerida para el Probador Virtual IA
+            </h4>
+            <p className="text-xs text-amber-800 leading-relaxed font-light">
+              El Probador Virtual con Inteligencia Artificial requiere conexión a internet para procesar la fotografía y renderizar las prendas de alta costura.
+            </p>
+          </div>
+        </div>
+      )}
+
       {/* Prenda Seleccionada y Trigger */}
       {productoSeleccionado && (
         <div className="bg-white border border-[#E7E1D7] p-6 sm:p-8 flex flex-col sm:flex-row items-center justify-between gap-6 shadow-xs">
@@ -104,11 +121,20 @@ export const VirtualTryOnPage: React.FC = () => {
           </div>
 
           <button
-            onClick={() => setModalAbierto(true)}
-            className="w-full sm:w-auto px-8 py-3.5 bg-stone-900 text-white text-xs uppercase tracking-luxury hover:bg-stone-800 transition-colors flex items-center justify-center gap-2 shadow-sm font-medium"
+            onClick={() => {
+              if (isOnline) {
+                setModalAbierto(true);
+              }
+            }}
+            disabled={!isOnline}
+            className={`w-full sm:w-auto px-8 py-3.5 text-xs uppercase tracking-luxury flex items-center justify-center gap-2 shadow-sm font-medium transition-colors ${
+              !isOnline
+                ? 'bg-stone-300 text-stone-500 cursor-not-allowed border border-stone-300'
+                : 'bg-stone-900 text-white hover:bg-stone-800'
+            }`}
           >
             <Sparkles className="w-4 h-4 text-[#EAE2D5]" />
-            <span>Iniciar Prueba Virtual</span>
+            <span>{isOnline ? 'Iniciar Prueba Virtual' : 'Conexión Requerida para IA'}</span>
           </button>
         </div>
       )}

@@ -82,7 +82,7 @@ export class ProbadorService {
 
     // 1. Intentar con IA generativa IDM-VTON en Hugging Face con timeout estricto de 25s
     try {
-      const personImageBlob = await this.obtenerBlobDeImagen(dto.fotoPersona);
+      const personImageBlob = await this.obtenerBlobDeImagenNormalizada(dto.fotoPersona);
       const garmentImageBlob = await this.obtenerBlobDeImagen(dto.fotoPrenda);
 
       this.logger.log('Conectando con Hugging Face Space yisol/IDM-VTON (timeout: 90s)...');
@@ -97,7 +97,7 @@ export class ProbadorService {
           garmentImageBlob,
           dto.nombrePrenda || 'Fashion garment clothing piece',
           true,  // is_checked: auto-masking
-          false, // is_checked_crop: false para no recortar la persona
+          true,  // is_checked_crop: true (mantiene proporción anatómica 3:4 sin aplastar de los lados)
           25,    // denoise_steps
           42,    // seed
         ]);
@@ -395,6 +395,52 @@ export class ProbadorService {
       mime = 'image/webp';
     }
     return new Blob([new Uint8Array(buffer)], { type: mime });
+  }
+
+  // =========================================================================
+  // HELPER: Convertir URLs / Base64 a Blob Normalizado a 3:4 (768x1024)
+  // Asegura que las imágenes no sufran compresión o estiramiento horizontal en IDM-VTON
+  // =========================================================================
+  private async obtenerBlobDeImagenNormalizada(inputUrlOrBase64: string): Promise<Blob> {
+    try {
+      const buffer = await this.obtenerBufferDeImagen(inputUrlOrBase64);
+      const meta = await sharp(buffer).metadata();
+      const w = meta.width || 768;
+      const h = meta.height || 1024;
+      const aspect = w / h;
+      const targetAspect = 3 / 4; // 0.75
+
+      // Si la imagen difiere de la proporción 3:4, recortar bordes sobrantes centrados
+      if (Math.abs(aspect - targetAspect) > 0.05) {
+        let cropWidth = w;
+        let cropHeight = h;
+        let left = 0;
+        let top = 0;
+
+        if (aspect > targetAspect) {
+          // Más ancha que 3:4 (ej: webcam 16:9) -> recortar franjas laterales manteniendo el centro
+          cropWidth = Math.round(h * targetAspect);
+          left = Math.round((w - cropWidth) / 2);
+        } else {
+          // Más alta que 3:4 -> recortar franja inferior manteniendo cabeza y torso
+          cropHeight = Math.round(w / targetAspect);
+          top = 0;
+        }
+
+        const normalizedBuffer = await sharp(buffer)
+          .extract({ left, top, width: cropWidth, height: cropHeight })
+          .resize(768, 1024, { fit: 'fill' })
+          .jpeg({ quality: 95 })
+          .toBuffer();
+
+        return new Blob([new Uint8Array(normalizedBuffer)], { type: 'image/jpeg' });
+      }
+
+      return this.obtenerBlobDeImagen(inputUrlOrBase64);
+    } catch (err) {
+      this.logger.warn(`Nota al normalizar proporción de imagen para IDM-VTON: ${err}`);
+      return this.obtenerBlobDeImagen(inputUrlOrBase64);
+    }
   }
 
   // =========================================================================

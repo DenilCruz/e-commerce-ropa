@@ -2,6 +2,7 @@ import React from 'react';
 import { Outlet, NavLink, Link } from 'react-router-dom';
 import {
   LayoutDashboard,
+  TrendingUp,
   BarChart3,
   Sparkles,
   Shirt,
@@ -18,7 +19,8 @@ import {
 
 export const AdminLayout: React.FC = () => {
   const navItems = [
-    { to: '/admin', label: 'Dashboard', icon: LayoutDashboard, end: true },
+    { to: '/admin', label: 'Dashboard Descriptivo', icon: LayoutDashboard, end: true },
+    { to: '/admin/dashboard-predictivo', label: 'Dashboard Predictivo (IA)', icon: TrendingUp },
     { to: '/admin/reportes', label: 'Reportes de Ventas', icon: BarChart3 },
     { to: '/admin/reportes-dinamicos', label: 'Reportes por Voz (IA)', icon: Sparkles },
     { to: '/admin/productos', label: 'Productos', icon: Shirt },

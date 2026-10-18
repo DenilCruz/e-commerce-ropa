@@ -108,6 +108,8 @@ export interface ReporteVentasFiltros {
   fechaInicio?: string;
   fechaFin?: string;
   estado?: string;
+  categoriaId?: string;
+  usuarioId?: string;
   busqueda?: string;
   pagina?: number;
   limite?: number;
@@ -158,4 +160,71 @@ export interface ReporteDinamicoResultado {
   totalFilas: number;
   tiempoEjecucionMs: number;
 }
+
+export interface PuntoSeriePredictiva {
+  fecha: string;
+  label: string;
+  valorReal: number | null;
+  valorProyectado: number | null;
+  tipo: 'HISTORICO' | 'PROYECCION';
+}
+
+export interface MetricasPredictivasVentas {
+  proyeccionVentas7Dias: number;
+  proyeccionVentas14Dias: number;
+  proyeccionVentas30Dias: number;
+  promedioDiarioHistorico: number;
+  tendencia: 'ALCISTA' | 'ESTABLE' | 'BAJISTA';
+  pendienteDiaria: number;
+  nivelConfianza: string;
+}
+
+export interface AnalisisPredictivoVentasRespuesta {
+  metricasPredictivas: MetricasPredictivasVentas;
+  serieGrafico: PuntoSeriePredictiva[];
+  recomendacionEstrategica: string;
+}
+
+export interface ClienteRiesgoChurn {
+  id: string;
+  nombre: string;
+  correo: string;
+  celular: string;
+  totalCompras: number;
+  gastoTotal: number;
+  ticketPromedio: number;
+  ultimaCompra: string;
+  diasSinComprar: number | null;
+  nivelRiesgo: 'ALTO' | 'MEDIO' | 'BAJO';
+  scoreRiesgo: number;
+  accionRecomendada: string;
+}
+
+export interface PrediccionChurnRespuesta {
+  resumen: {
+    totalClientes: number;
+    riesgoAlto: number;
+    riesgoMedio: number;
+    riesgoBajo: number;
+    tasaRiesgoGlobal: number;
+    tasaRetencionEstimada: number;
+  };
+  clientes: ClienteRiesgoChurn[];
+}
+
+export interface AsociacionProductoAfinidad {
+  ranking: number;
+  productoA: { id: string; nombre: string };
+  productoB: { id: string; nombre: string };
+  frecuenciaTransaccional: number;
+  scoreAfinidad: number;
+  estrategiaSugerida: string;
+}
+
+export interface RecomendacionesAfinidadRespuesta {
+  tipoAnalisis: string;
+  descripcion: string;
+  asociaciones: AsociacionProductoAfinidad[];
+}
+
 

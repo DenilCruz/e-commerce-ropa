@@ -493,10 +493,10 @@ export const MainLayout: React.FC = () => {
             <div className="space-y-3">
               <h4 className="text-xs uppercase tracking-widest text-stone-400 font-medium">Colecciones</h4>
               <ul className="space-y-2 text-xs text-stone-300 font-light">
-                <li><Link to="/catalogo?categoria=264efe79-ded7-4cfa-a0b0-110b822944c5" className="hover:text-white transition-colors">Vestidos de Seda</Link></li>
-                <li><Link to="/catalogo?categoria=afc1e8b6-47ab-45bc-a0d7-02dcd023ff3b" className="hover:text-white transition-colors">Sastrería & Abrigos</Link></li>
-                <li><Link to="/catalogo?categoria=3a3ed9f0-94be-45a7-8699-c007a4ef9795" className="hover:text-white transition-colors">Camisería Fina</Link></li>
-                <li><Link to="/catalogo?categoria=583d0937-40b2-4070-96b3-4685fdb92bc2" className="hover:text-white transition-colors">Pantalones Wide-Leg</Link></li>
+                <li><Link to="/catalogo?categoria=Vestidos" className="hover:text-white transition-colors">Vestidos de Seda</Link></li>
+                <li><Link to="/catalogo?categoria=Sastrería" className="hover:text-white transition-colors">Sastrería & Abrigos</Link></li>
+                <li><Link to="/catalogo?categoria=Camisas" className="hover:text-white transition-colors">Camisería Fina</Link></li>
+                <li><Link to="/catalogo?categoria=Pantalones" className="hover:text-white transition-colors">Pantalones Wide-Leg</Link></li>
               </ul>
             </div>
 

@@ -17,10 +17,12 @@ import * as ImagePicker from 'expo-image-picker';
 import { probadorApi, ModeloBase, ProbarPrendaResponse } from '../../services/probador.api';
 import { catalogoApi, Producto } from '../../services/catalogo.api';
 import { api, getImageUrl } from '../../services/api';
+import { useNetworkStore } from '../../store/network.store';
 
 export const ProbadorScreen: React.FC = () => {
   const navigation = useNavigation<any>();
   const route = useRoute<any>();
+  const isConnected = useNetworkStore((s) => s.isConnected);
   const productoInicial = route.params?.producto as Producto | undefined;
 
   const [productos, setProductos] = useState<Producto[]>([]);
@@ -147,6 +149,14 @@ export const ProbadorScreen: React.FC = () => {
       return;
     }
 
+    if (!isConnected) {
+      Alert.alert(
+        'Modo sin conexión',
+        'El Probador Virtual con IA requiere conexión a internet para comunicarse con los modelos de visión neuronal y generar la prueba.'
+      );
+      return;
+    }
+
     setProcesando(true);
     setErrorMsg(null);
     setResultado(null);
@@ -200,6 +210,16 @@ export const ProbadorScreen: React.FC = () => {
           </Text>
         </View>
 
+        {/* ALERTA MODO OFFLINE */}
+        {!isConnected && (
+          <View style={styles.offlineWarningBox}>
+            <Ionicons name="cloud-offline" size={20} color="#b45309" />
+            <Text style={styles.offlineWarningText}>
+              Estás en modo sin conexión. Para generar la prueba con Inteligencia Artificial necesitas conectarte a internet.
+            </Text>
+          </View>
+        )}
+
         {/* 1. SELECCIÓN DE PRENDA */}
         <Text style={styles.sectionTitle}>1. Prenda a Probar</Text>
         {productoSeleccionado ? (
@@ -208,6 +228,8 @@ export const ProbadorScreen: React.FC = () => {
               source={{ uri: getImageUrl(productoSeleccionado.imagenes?.[0]?.url) }}
               style={styles.garmentImage}
               contentFit="cover"
+              cachePolicy="disk"
+              transition={200}
             />
             <View style={{ flex: 1 }}>
               <Text style={styles.garmentCategory}>
@@ -339,17 +361,30 @@ export const ProbadorScreen: React.FC = () => {
 
         {/* BOTÓN PROCESAR */}
         <TouchableOpacity
-          style={[styles.actionBtn, procesando && { opacity: 0.7 }]}
+          style={[
+            styles.actionBtn,
+            procesando && { opacity: 0.7 },
+            !isConnected && { backgroundColor: '#64748b', opacity: 0.8 },
+          ]}
           onPress={handleProbarPrenda}
-          disabled={procesando}
+          disabled={procesando || !isConnected}
         >
           {procesando ? (
             <ActivityIndicator color="#fff" style={{ marginRight: 8 }} />
           ) : (
-            <Ionicons name="sparkles" size={18} color="#fff" style={{ marginRight: 8 }} />
+            <Ionicons
+              name={!isConnected ? 'cloud-offline-outline' : 'sparkles'}
+              size={18}
+              color="#fff"
+              style={{ marginRight: 8 }}
+            />
           )}
           <Text style={styles.actionBtnText}>
-            {procesando ? 'Conectando con IA... (~30s)' : 'Iniciar Prueba Virtual'}
+            {procesando
+              ? 'Conectando con IA... (~30s)'
+              : !isConnected
+              ? 'Conexión requerida para IA'
+              : 'Iniciar Prueba Virtual'}
           </Text>
         </TouchableOpacity>
 
@@ -695,6 +730,24 @@ const styles = StyleSheet.create({
     fontSize: 11,
     color: '#64748b',
     marginTop: 10,
+  },
+  offlineWarningBox: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: '#fef3c7',
+    padding: 12,
+    borderRadius: 12,
+    marginBottom: 16,
+    borderWidth: 1,
+    borderColor: '#fde68a',
+  },
+  offlineWarningText: {
+    fontSize: 12,
+    color: '#92400e',
+    fontWeight: '600',
+    marginLeft: 8,
+    flex: 1,
+    lineHeight: 16,
   },
 });
 

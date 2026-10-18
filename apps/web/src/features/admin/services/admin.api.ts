@@ -63,4 +63,20 @@ export const adminApi = {
     const res = await api.post('/admin/reportes-dinamicos/ejecutar-sql', { sql });
     return res.data;
   },
+
+  // ANALÍTICA PREDICTIVA IA
+  obtenerAnalisisPredictivoVentas: async (): Promise<import('../types').AnalisisPredictivoVentasRespuesta> => {
+    const res = await api.get<import('../types').AnalisisPredictivoVentasRespuesta>('/admin/predictivo/ventas');
+    return res.data;
+  },
+
+  obtenerPrediccionChurn: async (): Promise<import('../types').PrediccionChurnRespuesta> => {
+    const res = await api.get<import('../types').PrediccionChurnRespuesta>('/admin/predictivo/churn');
+    return res.data;
+  },
+
+  obtenerRecomendacionesAfinidad: async (): Promise<import('../types').RecomendacionesAfinidadRespuesta> => {
+    const res = await api.get<import('../types').RecomendacionesAfinidadRespuesta>('/admin/predictivo/afinidad');
+    return res.data;
+  },
 };

@@ -25,6 +25,7 @@ import { ProfilePage } from '../features/perfil/pages/ProfilePage';
 import { FavoritosPage } from '../features/favoritos/pages/FavoritosPage';
 
 import { AdminDashboardPage } from '../features/admin/dashboard/AdminDashboardPage';
+import { AdminPredictiveDashboardPage } from '../features/admin/dashboard/AdminPredictiveDashboardPage';
 import { AdminReportsPage } from '../features/admin/reportes/AdminReportsPage';
 import { AdminDynamicReportsPage } from '../features/admin/reportes/AdminDynamicReportsPage';
 import { AdminProductsPage } from '../features/admin/productos/AdminProductsPage';
@@ -76,6 +77,8 @@ export const AppRouter: React.FC = () => {
       <Route path="/admin" element={<AdminRoute />}>
         <Route element={<AdminLayout />}>
           <Route index element={<AdminDashboardPage />} />
+          <Route path="dashboard" element={<AdminDashboardPage />} />
+          <Route path="dashboard-predictivo" element={<AdminPredictiveDashboardPage />} />
           <Route path="reportes" element={<AdminReportsPage />} />
           <Route path="reportes-dinamicos" element={<AdminDynamicReportsPage />} />
           <Route path="productos" element={<AdminProductsPage />} />

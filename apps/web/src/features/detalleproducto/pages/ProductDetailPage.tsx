@@ -97,9 +97,14 @@ export const ProductDetailPage: React.FC = () => {
 
     try {
       setAgregando(true);
-      setErrorAgregar(null);
-      await addItem(varianteSeleccionada.id, cantidad);
-      setExitoAgregar(true);
+      await addItem(varianteSeleccionada.id, cantidad, {
+        nombre: producto?.nombre,
+        precioUnitario: Number(producto?.precio || 0) + Number(varianteSeleccionada.precioExtra || 0),
+        imagen: imagenActiva || producto?.imagenes?.[0]?.url || null,
+        talla: varianteSeleccionada.talla?.nombre || null,
+        color: varianteSeleccionada.color?.nombre || null,
+        productoId: producto?.id,
+      });
       setTimeout(() => setExitoAgregar(false), 3000);
       toast.success(`"${producto?.nombre}" se añadió a tu bolsa de compras.`);
     } catch (err: any) {

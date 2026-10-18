@@ -12,6 +12,8 @@ import {
 } from 'lucide-react';
 import { adminApi } from '../services/admin.api';
 import { ReporteVentasRespuesta, ReportePedido, ReporteVentasFiltros } from '../types';
+import { obtenerCategorias } from '../../catalogo/services/catalogo.api';
+import { adminUsuariosApi, UsuarioAdmin } from '../usuarios/admin-usuarios.api';
 
 export const AdminReportsPage: React.FC = () => {
   // Preset de fechas
@@ -19,8 +21,14 @@ export const AdminReportsPage: React.FC = () => {
   const [fechaInicio, setFechaInicio] = useState<string>('');
   const [fechaFin, setFechaFin] = useState<string>('');
   const [estado, setEstado] = useState<string>('TODOS');
+  const [categoriaId, setCategoriaId] = useState<string>('');
+  const [usuarioId, setUsuarioId] = useState<string>('');
   const [busqueda, setBusqueda] = useState<string>('');
   const [pagina, setPagina] = useState<number>(1);
+
+  // Listas para filtros desplegables
+  const [listaCategorias, setListaCategorias] = useState<any[]>([]);
+  const [listaUsuarios, setListaUsuarios] = useState<UsuarioAdmin[]>([]);
 
   const [reporte, setReporte] = useState<ReporteVentasRespuesta | null>(null);
   const [cargando, setCargando] = useState<boolean>(true);
@@ -63,9 +71,22 @@ export const AdminReportsPage: React.FC = () => {
     setPagina(1);
   };
 
-  // Inicializar con preset 'este_mes'
+  // Inicializar con preset 'este_mes' y cargar combos de categorías y usuarios
   useEffect(() => {
     aplicarPreset('este_mes');
+    const cargarCatalogosFiltros = async () => {
+      try {
+        const [cats, usersRes] = await Promise.all([
+          obtenerCategorias().catch(() => []),
+          adminUsuariosApi.listarUsuarios(1, 100).catch(() => ({ usuarios: [] })),
+        ]);
+        setListaCategorias(cats || []);
+        setListaUsuarios(usersRes.usuarios || []);
+      } catch (err) {
+        console.error('Error cargando listas de filtros:', err);
+      }
+    };
+    cargarCatalogosFiltros();
   }, []);
 
   const cargarReporte = async () => {
@@ -75,6 +96,8 @@ export const AdminReportsPage: React.FC = () => {
         fechaInicio: fechaInicio || undefined,
         fechaFin: fechaFin || undefined,
         estado: estado !== 'TODOS' ? estado : undefined,
+        categoriaId: categoriaId || undefined,
+        usuarioId: usuarioId || undefined,
         busqueda: busqueda.trim() || undefined,
         pagina,
         limite: 20,
@@ -92,7 +115,7 @@ export const AdminReportsPage: React.FC = () => {
     if (fechaInicio !== undefined && fechaFin !== undefined) {
       cargarReporte();
     }
-  }, [fechaInicio, fechaFin, estado, pagina]);
+  }, [fechaInicio, fechaFin, estado, categoriaId, usuarioId, pagina]);
 
   const handleBuscar = (e: React.FormEvent) => {
     e.preventDefault();
@@ -238,7 +261,7 @@ export const AdminReportsPage: React.FC = () => {
         </div>
 
         {/* Formulario de Filtros */}
-        <form onSubmit={handleBuscar} className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 pt-2">
+        <form onSubmit={handleBuscar} className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 pt-2">
           {/* Fecha Inicio */}
           <div>
             <label className="block text-[11px] font-bold uppercase tracking-wider text-gray-500 mb-1">
@@ -300,10 +323,54 @@ export const AdminReportsPage: React.FC = () => {
             </select>
           </div>
 
+          {/* Filtro por Categoría */}
+          <div>
+            <label className="block text-[11px] font-bold uppercase tracking-wider text-gray-500 mb-1">
+              Filtrar por Categoría
+            </label>
+            <select
+              value={categoriaId}
+              onChange={(e) => {
+                setCategoriaId(e.target.value);
+                setPagina(1);
+              }}
+              className="w-full px-3 py-2 text-sm border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-black bg-white"
+            >
+              <option value="">Todas las categorías</option>
+              {listaCategorias.map((c) => (
+                <option key={c.id} value={c.id}>
+                  {c.nombre}
+                </option>
+              ))}
+            </select>
+          </div>
+
+          {/* Filtro por Cliente Específico */}
+          <div>
+            <label className="block text-[11px] font-bold uppercase tracking-wider text-gray-500 mb-1">
+              Filtrar por Cliente
+            </label>
+            <select
+              value={usuarioId}
+              onChange={(e) => {
+                setUsuarioId(e.target.value);
+                setPagina(1);
+              }}
+              className="w-full px-3 py-2 text-sm border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-black bg-white"
+            >
+              <option value="">Todos los clientes</option>
+              {listaUsuarios.map((u) => (
+                <option key={u.id} value={u.id}>
+                  {u.nombre} {u.apellido} ({u.correo})
+                </option>
+              ))}
+            </select>
+          </div>
+
           {/* Búsqueda Cliente / Pedido */}
           <div>
             <label className="block text-[11px] font-bold uppercase tracking-wider text-gray-500 mb-1">
-              Buscar Pedido / Cliente
+              Buscar Pedido / Texto
             </label>
             <div className="flex gap-2">
               <div className="relative flex-1">

@@ -16,11 +16,13 @@ import { useNavigation } from '@react-navigation/native';
 import { Ionicons } from '@expo/vector-icons';
 import { useCartStore } from '../../store/cart.store';
 import { useAuthStore } from '../../store/auth.store';
+import { useNetworkStore } from '../../store/network.store';
 import { paymentsApi, OrdenRespuesta } from '../../services/payments.api';
-import { api } from '../../services/api';
+import { api, getBaseUrl } from '../../services/api';
 
 export const CheckoutScreen: React.FC = () => {
   const navigation = useNavigation<any>();
+  const isConnected = useNetworkStore((s) => s.isConnected);
   const { cart, cupon, descuento, totalConDescuento, clearCart } = useCartStore();
   const user = useAuthStore((s) => s.user);
 
@@ -249,6 +251,14 @@ export const CheckoutScreen: React.FC = () => {
   };
 
   const handleProcesar = () => {
+    if (!isConnected) {
+      Alert.alert(
+        'Modo sin conexión',
+        'Para validar el inventario en tiempo real y procesar tu orden de pago de forma segura, necesitas conexión a internet. Tu carrito se mantendrá guardado.'
+      );
+      return;
+    }
+
     if (metodoPago === 'tarjeta') {
       if (stripeSessionId) {
         verificarPagoStripe(false);
@@ -380,7 +390,7 @@ export const CheckoutScreen: React.FC = () => {
   }
 
   const getAssetsUrl = () => {
-    const baseURL = api.defaults.baseURL || 'http://192.168.0.5:3000/api/v1';
+    const baseURL = api.defaults.baseURL || getBaseUrl();
     return baseURL.replace('/api/v1', '');
   };
 
@@ -401,6 +411,19 @@ export const CheckoutScreen: React.FC = () => {
           <View style={styles.errorBox}>
             <Ionicons name="alert-circle" size={20} color="#b91c1c" />
             <Text style={styles.errorText}>{errorMsg}</Text>
+          </View>
+        )}
+
+        {/* ALERTA MODO OFFLINE EN CHECKOUT */}
+        {!isConnected && (
+          <View style={styles.offlineCheckoutAlert}>
+            <Ionicons name="cloud-offline" size={22} color="#b45309" />
+            <View style={{ marginLeft: 10, flex: 1 }}>
+              <Text style={styles.offlineCheckoutTitle}>Modo sin conexión</Text>
+              <Text style={styles.offlineCheckoutDesc}>
+                Puedes revisar tu dirección y resumen. La confirmación del pedido y el cobro requieren conexión a internet para asegurar la reserva de inventario.
+              </Text>
+            </View>
           </View>
         )}
 
@@ -670,6 +693,7 @@ export const CheckoutScreen: React.FC = () => {
                   source={{ uri: `${getAssetsUrl()}/uploads/qr_pago_aura.png` }}
                   style={styles.qrImage}
                   contentFit="contain"
+                  cachePolicy="disk"
                 />
               </View>
 
@@ -723,8 +747,11 @@ export const CheckoutScreen: React.FC = () => {
 
         {/* BOTÓN FINAL */}
         <TouchableOpacity
-          style={[styles.payBtn, (procesando || verificandoStripe) && { opacity: 0.7 }]}
-          disabled={procesando || verificandoStripe}
+          style={[
+            styles.payBtn,
+            (procesando || verificandoStripe || !isConnected) && { backgroundColor: '#64748b', opacity: 0.85 },
+          ]}
+          disabled={procesando || verificandoStripe || !isConnected}
           onPress={handleProcesar}
         >
           {procesando || verificandoStripe ? (
@@ -732,7 +759,9 @@ export const CheckoutScreen: React.FC = () => {
           ) : (
             <>
               <Text style={styles.payBtnText}>
-                {metodoPago === 'tarjeta'
+                {!isConnected
+                  ? 'Conexión requerida para procesar pedido'
+                  : metodoPago === 'tarjeta'
                   ? stripeSessionId
                     ? 'Verificar Estado de Pago Stripe'
                     : `Pagar con Formulario Oficial Stripe ($${totalFinal.toFixed(2)})`
@@ -741,7 +770,13 @@ export const CheckoutScreen: React.FC = () => {
                   : `Confirmar Pedido ($${totalFinal.toFixed(2)})`}
               </Text>
               <Ionicons
-                name={metodoPago === 'tarjeta' && !stripeSessionId ? 'open-outline' : 'lock-closed'}
+                name={
+                  !isConnected
+                    ? 'cloud-offline-outline'
+                    : metodoPago === 'tarjeta' && !stripeSessionId
+                    ? 'open-outline'
+                    : 'lock-closed'
+                }
                 size={18}
                 color="#fff"
               />
@@ -1171,5 +1206,26 @@ const styles = StyleSheet.create({
     fontStyle: 'italic',
     textAlign: 'center',
     marginTop: 4,
+  },
+  offlineCheckoutAlert: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: '#fef3c7',
+    padding: 14,
+    borderRadius: 12,
+    marginBottom: 16,
+    borderWidth: 1,
+    borderColor: '#fde68a',
+  },
+  offlineCheckoutTitle: {
+    fontSize: 13,
+    fontWeight: '800',
+    color: '#92400e',
+  },
+  offlineCheckoutDesc: {
+    fontSize: 11,
+    color: '#b45309',
+    marginTop: 2,
+    lineHeight: 15,
   },
 });

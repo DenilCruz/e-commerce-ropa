@@ -1,9 +1,12 @@
-import { Controller, Get, Post, Body, Param, Put, Delete, HttpCode, HttpStatus, ParseUUIDPipe, Query } from '@nestjs/common';
-import { ApiTags, ApiOperation, ApiResponse, ApiParam } from '@nestjs/swagger';
+import { Controller, Get, Post, Body, Param, Put, Delete, HttpCode, HttpStatus, ParseUUIDPipe, Query, UseGuards } from '@nestjs/common';
+import { ApiTags, ApiOperation, ApiResponse, ApiParam, ApiBearerAuth } from '@nestjs/swagger';
 import { ProductosService } from './products.service';
 import { CrearProductoDto } from './dto/crear-producto.dto';
 import { ActualizarProductoDto } from './dto/actualizar-producto.dto';
 import { CrearColorDto } from './dto/crear-color.dto';
+import { JwtAuthGuard } from '../autenticacion/guards/jwt-auth.guard';
+import { RolesGuard } from '../autenticacion/guards/roles.guard';
+import { Roles } from '../autenticacion/decorators/roles.decorator';
 
 @ApiTags('Productos')
 @Controller(['productos', 'catalogo/productos'])
@@ -11,6 +14,9 @@ export class ProductosController {
   constructor(private readonly servicioProductos: ProductosService) {}
 
   @Post()
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles('ADMIN', 'SUPERADMIN', 'ADMINISTRADOR')
+  @ApiBearerAuth()
   @ApiOperation({ summary: 'Crear un nuevo producto junto con sus variantes e imágenes' })
   @ApiResponse({ status: 201, description: 'Producto creado exitosamente.' })
   crear(@Body() datos: CrearProductoDto) {
@@ -25,6 +31,9 @@ export class ProductosController {
 
   
   @Post('colores')
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles('ADMIN', 'SUPERADMIN', 'ADMINISTRADOR')
+  @ApiBearerAuth()
   @ApiOperation({ summary: 'Crear un nuevo color en la base de datos' })
   crearColor(@Body() datos: CrearColorDto) {
     return this.servicioProductos.crearColor(datos);
@@ -64,6 +73,9 @@ export class ProductosController {
   }
 
   @Put(':id')
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles('ADMIN', 'SUPERADMIN', 'ADMINISTRADOR')
+  @ApiBearerAuth()
   @ApiOperation({ summary: 'Actualizar los datos de un producto' })
   @ApiParam({ name: 'id', description: 'ID (UUID) del producto' })
   @ApiResponse({ status: 200, description: 'Producto actualizado exitosamente.' })
@@ -75,6 +87,9 @@ export class ProductosController {
   }
 
   @Delete(':id/desactivar')
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles('ADMIN', 'SUPERADMIN', 'ADMINISTRADOR')
+  @ApiBearerAuth()
   @HttpCode(HttpStatus.OK)
   @ApiOperation({ summary: 'Dar de baja (desactivar) un producto del catálogo sin borrarlo' })
   @ApiParam({ name: 'id', description: 'ID (UUID) del producto' })
@@ -83,6 +98,9 @@ export class ProductosController {
   }
 
   @Put(':id/toggle')
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles('ADMIN', 'SUPERADMIN', 'ADMINISTRADOR')
+  @ApiBearerAuth()
   @ApiOperation({ summary: 'Alternar estado activo/inactivo de un producto sin borrarlo' })
   @ApiParam({ name: 'id', description: 'ID (UUID) del producto' })
   toggleEstado(@Param('id', ParseUUIDPipe) id: string) {
@@ -90,6 +108,9 @@ export class ProductosController {
   }
 
   @Delete(':id')
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles('ADMIN', 'SUPERADMIN', 'ADMINISTRADOR')
+  @ApiBearerAuth()
   @HttpCode(HttpStatus.NO_CONTENT)
   @ApiOperation({ summary: 'Eliminar un producto definitivamente de la base de datos' })
   @ApiParam({ name: 'id', description: 'ID (UUID) del producto' })

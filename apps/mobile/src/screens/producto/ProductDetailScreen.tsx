@@ -17,6 +17,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { RootStackParamList } from '../../navigation/types';
 import { catalogoApi, Producto, VarianteProducto } from '../../services/catalogo.api';
 import { useCartStore } from '../../store/cart.store';
+import { useNetworkStore } from '../../store/network.store';
 import { HeartButton } from '../../components/HeartButton';
 import { ResenasSection } from '../resenas/ResenasSection';
 import { api } from '../../services/api';
@@ -99,7 +100,18 @@ export const ProductDetailScreen: React.FC = () => {
 
     setAgregando(true);
     try {
-      await addItem(varianteSeleccionada.id, cantidad);
+      const imgPrincipal =
+        producto?.imagenes?.find((img) => img.esPrincipal || img.principal)?.url ||
+        producto?.imagenes?.[0]?.url;
+
+      await addItem(varianteSeleccionada.id, cantidad, {
+        nombre: producto?.nombre,
+        precioUnitario: precioFinal,
+        imagen: imgPrincipal,
+        talla: varianteSeleccionada.talla?.nombre,
+        color: varianteSeleccionada.color?.nombre,
+        productoId: producto?.id,
+      });
       setExitoAgregar(true);
       setTimeout(() => setExitoAgregar(false), 3500);
     } catch (err: any) {
@@ -153,6 +165,7 @@ export const ProductDetailScreen: React.FC = () => {
             source={{ uri: getImageUrl(imagenActiva) }}
             style={styles.image}
             contentFit="cover"
+            cachePolicy="disk"
             transition={200}
           />
         </View>
@@ -168,7 +181,13 @@ export const ProductDetailScreen: React.FC = () => {
                   style={[styles.thumbnail, esActiva && styles.thumbnailSelected]}
                   onPress={() => setImagenActiva(img.url)}
                 >
-                  <Image source={{ uri: getImageUrl(img.url) }} style={styles.thumbnailImage} contentFit="cover" />
+                  <Image
+                    source={{ uri: getImageUrl(img.url) }}
+                    style={styles.thumbnailImage}
+                    contentFit="cover"
+                    cachePolicy="disk"
+                    transition={200}
+                  />
                 </TouchableOpacity>
               );
             })}
@@ -329,6 +348,8 @@ export const ProductDetailScreen: React.FC = () => {
                         source={{ uri: getImageUrl(imgRel) }}
                         style={styles.relatedImage}
                         contentFit="cover"
+                        cachePolicy="disk"
+                        transition={200}
                       />
                       <Text style={styles.relatedName} numberOfLines={1}>
                         {item.nombre}
@@ -368,7 +389,17 @@ export const ProductDetailScreen: React.FC = () => {
       <View style={styles.footer}>
         <TouchableOpacity
           style={styles.tryOnBtn}
-          onPress={() => navigation.navigate('Probador', { producto })}
+          onPress={() => {
+            const isConnected = useNetworkStore.getState().isConnected;
+            if (!isConnected) {
+              Alert.alert(
+                'Modo sin conexión',
+                'El Probador Virtual con IA requiere conexión a internet para transferir la imagen y renderizar la prueba.'
+              );
+              return;
+            }
+            navigation.navigate('Probador', { producto });
+          }}
         >
           <Ionicons name="sparkles" size={16} color="#4f46e5" />
           <Text style={styles.tryOnBtnText}>Probador Virtual IA</Text>
