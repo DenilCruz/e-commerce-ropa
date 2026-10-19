@@ -15,6 +15,7 @@
     "seed:ventas": "npx ts-node -r tsconfig-paths/register src/database/seeds/seed-admin-sales.ts"
   },
   "dependencies": {
+    "@decartai/sdk": "^0.2.12",
     "@ecommerce/shared": "workspace:*",
     "@gradio/client": "^2.7.0",
     "@nestjs-modules/mailer": "^1.11.2",

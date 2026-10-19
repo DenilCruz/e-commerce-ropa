@@ -689,4 +689,41 @@ export class ProbadorService {
       this.logger.error(`Error al crear GLB: ${err.message}`);
     }
   }
+
+  // =========================================================================
+  // DECART AI - LUCY 2.5 REALTIME TOKEN
+  // =========================================================================
+  async obtenerTokenDecart() {
+    const apiKey =
+      this.configService.get<string>('DECART_API_KEY') ||
+      process.env.DECART_API_KEY ||
+      '';
+
+    if (!apiKey) {
+      return {
+        configured: false,
+        apiKey: null,
+        message: 'DECART_API_KEY no está configurada aún en apps/api/.env',
+      };
+    }
+
+    try {
+      const { createDecartClient } = await import('@decartai/sdk');
+      const client = createDecartClient({ apiKey });
+      const tokenRes = await client.tokens.create();
+      return {
+        configured: true,
+        apiKey: (tokenRes as any)?.token || (tokenRes as any)?.apiKey || apiKey,
+      };
+    } catch (err: any) {
+      this.logger.warn(
+        `No se pudo crear client token con Decart SDK: ${err?.message || err}. Retornando API key directa.`,
+      );
+      return {
+        configured: true,
+        apiKey,
+      };
+    }
+  }
 }
+

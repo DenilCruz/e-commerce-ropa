@@ -406,53 +406,57 @@ export const VirtualTryOnModal: React.FC<VirtualTryOnModalProps> = ({
 
   return (
     <div className="fixed inset-0 z-50 bg-black/75 backdrop-blur-md flex items-center justify-center p-3 sm:p-6 overflow-y-auto animate-in fade-in duration-200">
-      <div className="bg-white w-full max-w-5xl rounded-3xl overflow-hidden shadow-2xl border border-gray-100 flex flex-col max-h-[92vh] my-auto">
-        {/* HEADER DEL MODAL */}
-        <div className="px-6 py-3.5 border-b border-gray-800 flex flex-col md:flex-row md:items-center justify-between gap-3 bg-gradient-to-r from-gray-950 via-gray-900 to-black text-white shrink-0">
+      <div
+        className={`w-full max-w-5xl rounded-3xl overflow-hidden shadow-2xl border flex flex-col max-h-[92vh] my-auto transition-colors duration-200 ${
+          modoPrincipal === 'espejo_ar' ? 'bg-[#0D0C0B] border-[#2C2926]' : 'bg-white border-gray-100'
+        }`}
+      >
+        {/* HEADER DEL MODAL AURA */}
+        <div className="px-6 py-3.5 border-b border-[#2C2926] flex flex-col md:flex-row md:items-center justify-between gap-3 bg-[#161513] text-white shrink-0">
           <div className="flex items-center gap-3">
-            <div className="w-10 h-10 rounded-2xl bg-gradient-to-tr from-emerald-500 to-teal-600 flex items-center justify-center shadow-lg shadow-emerald-500/20 shrink-0">
-              <Sparkles className="w-5 h-5 text-white animate-pulse" />
+            <div className="w-10 h-10 rounded-2xl bg-gradient-to-tr from-[#9B7B54] to-[#C5B59E] flex items-center justify-center shadow-lg shadow-[#9B7B54]/20 shrink-0">
+              <Sparkles className="w-5 h-5 text-stone-950 animate-pulse" />
             </div>
             <div>
               <div className="flex items-center gap-2">
-                <h2 className="text-base sm:text-lg font-black tracking-tight text-white">
+                <h2 className="text-base sm:text-lg font-serif tracking-wide text-white">
                   Probador Virtual Inteligente
                 </h2>
-                <span className="bg-emerald-500/20 text-emerald-300 text-[10px] font-black uppercase tracking-wider px-2 py-0.5 rounded-full border border-emerald-500/30">
+                <span className="bg-[#9B7B54]/20 text-[#D5C4AC] text-[9px] uppercase tracking-luxury px-2 py-0.5 rounded-full border border-[#9B7B54]/30 font-medium">
                   {modoPrincipal === 'espejo_ar'
-                    ? '🔴 AR en Vivo'
+                    ? '✨ Lucy 2.5 Live IA'
                     : '📸 Estudio Fotográfico'}
                 </span>
               </div>
-              <p className="text-xs text-gray-400">
+              <p className="text-xs text-[#C5B59E]/70 font-light">
                 {modoPrincipal === 'espejo_ar'
-                  ? 'Reconocimiento corporal en directo a 60 FPS con Realidad Aumentada'
-                  : 'Ajuste anatómico inteligente con IA sobre fotografía o modelos de estudio'}
+                  ? 'Generación y drapeado en video en tiempo real a 30 FPS con Decart AI'
+                  : 'Ajuste anatómico de atelier con IA sobre fotografía o modelos de estudio'}
               </p>
             </div>
           </div>
 
-          {/* SELECTOR DE MODALIDAD (ESPEJO AR vs ESTUDIO FOTO) Y CIERRE */}
+          {/* SELECTOR DE MODALIDAD (LUCY 2.5 LIVE vs ESTUDIO FOTO) Y CIERRE */}
           <div className="flex items-center justify-between sm:justify-end gap-2.5">
-            <div className="flex items-center gap-1 bg-white/10 p-1 rounded-2xl border border-white/15">
+            <div className="flex items-center gap-1 bg-white/5 p-1 rounded-2xl border border-white/10">
               <button
                 type="button"
                 onClick={() => {
                   detenerCamara();
                   setModoPrincipal('espejo_ar');
                 }}
-                className={`px-3 py-1.5 rounded-xl text-xs font-bold transition flex items-center gap-1.5 cursor-pointer ${
+                className={`px-3 py-1.5 rounded-xl text-xs font-serif tracking-wider transition flex items-center gap-1.5 cursor-pointer ${
                   modoPrincipal === 'espejo_ar'
-                    ? 'bg-gradient-to-r from-emerald-500 to-teal-600 text-white shadow-md'
-                    : 'text-gray-300 hover:text-white'
+                    ? 'bg-gradient-to-r from-[#9B7B54] to-[#83653F] text-white shadow-md shadow-[#9B7B54]/20'
+                    : 'text-stone-400 hover:text-white'
                 }`}
               >
                 <div
                   className={`w-2 h-2 rounded-full ${
-                    modoPrincipal === 'espejo_ar' ? 'bg-white animate-ping' : 'bg-emerald-400'
+                    modoPrincipal === 'espejo_ar' ? 'bg-white animate-ping' : 'bg-[#9B7B54]'
                   }`}
                 />
-                <span>Espejo AR</span>
+                <span>Lucy 2.5 Live</span>
               </button>
 
               <button
@@ -461,13 +465,13 @@ export const VirtualTryOnModal: React.FC<VirtualTryOnModalProps> = ({
                   detenerCamara();
                   setModoPrincipal('estudio_foto');
                 }}
-                className={`px-3 py-1.5 rounded-xl text-xs font-bold transition flex items-center gap-1.5 cursor-pointer ${
+                className={`px-3 py-1.5 rounded-xl text-xs font-serif tracking-wider transition flex items-center gap-1.5 cursor-pointer ${
                   modoPrincipal === 'estudio_foto'
-                    ? 'bg-white text-gray-950 font-black shadow-md'
-                    : 'text-gray-300 hover:text-white'
+                    ? 'bg-gradient-to-r from-[#9B7B54] to-[#83653F] text-white shadow-md shadow-[#9B7B54]/20'
+                    : 'text-stone-400 hover:text-white'
                 }`}
               >
-                <Sparkles className="w-3.5 h-3.5 text-indigo-500" />
+                <Sparkles className="w-3.5 h-3.5 text-[#C5B59E]" />
                 <span>Estudio Foto IA</span>
               </button>
             </div>
@@ -482,7 +486,7 @@ export const VirtualTryOnModal: React.FC<VirtualTryOnModalProps> = ({
         </div>
 
         {modoPrincipal === 'espejo_ar' ? (
-          <div className="flex-1 p-3 sm:p-5 bg-slate-950 flex flex-col items-center justify-center overflow-hidden">
+          <div className="flex-1 p-3 sm:p-5 bg-[#0D0C0B] flex flex-col items-center justify-center overflow-hidden">
             <GarmentARLiveViewer
               garmentImageUrl={urlPrendaPreview || ''}
               garmentName={prenda.nombre}

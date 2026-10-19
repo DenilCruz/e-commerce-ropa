@@ -41,3 +41,8 @@ scratch/
 # Probador uploads
 apps/api/uploads/probador/
 
+# Graphify
+graphify-out/
+.graphify/
+*.graphify*
+

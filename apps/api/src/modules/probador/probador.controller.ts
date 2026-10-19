@@ -31,4 +31,13 @@ export class ProbadorController {
   generarModelo3D(@Body() dto: Generar3DDto) {
     return this.probadorService.generarModelo3D(dto);
   }
+
+  @Post('realtime-token')
+  @HttpCode(HttpStatus.OK)
+  @ApiOperation({ summary: 'Obtener token de sesión en tiempo real para Decart AI (Lucy 2.5)' })
+  @ApiResponse({ status: 200, description: 'Token de sesión o estado de configuración de Decart AI.' })
+  obtenerTokenDecart() {
+    return this.probadorService.obtenerTokenDecart();
+  }
 }
+

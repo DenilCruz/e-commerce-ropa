@@ -4,22 +4,18 @@ import {
   RefreshCw,
   AlertCircle,
   Sparkles,
-  Eye,
-  EyeOff,
-  Volume2,
-  VolumeX,
   Play,
   Square,
   ShieldCheck,
-  X,
   ArrowRight,
-  Info,
+  Sliders,
+  Send,
+  Download,
+  Eye,
+  EyeOff,
 } from 'lucide-react';
-import {
-  FilesetResolver,
-  PoseLandmarker,
-  DrawingUtils,
-} from '@mediapipe/tasks-vision';
+import { createDecartClient, models } from '@decartai/sdk';
+import { probadorApi } from '../services/probador.api';
 
 /* ─── Props del componente ─── */
 export interface GarmentARLiveViewerProps {
@@ -32,611 +28,260 @@ export interface GarmentARLiveViewerProps {
   onCerrar?: () => void;
 }
 
-/* ─── Índices de landmarks de MediaPipe Pose (33 puntos) ─── */
-const L = {
-  LS: 11, RS: 12,   // Hombros
-  LE: 13, RE: 14,   // Codos
-  LW: 15, RW: 16,   // Muñecas
-  LH: 23, RH: 24,   // Caderas
-  LK: 25, RK: 26,   // Rodillas
-  LA: 27, RA: 28,   // Tobillos
-} as const;
-
-/* ─── Utilidades vectoriales 2D ─── */
-type Vec2 = { x: number; y: number };
-const sub  = (a: Vec2, b: Vec2): Vec2 => ({ x: a.x - b.x, y: a.y - b.y });
-const add  = (a: Vec2, b: Vec2): Vec2 => ({ x: a.x + b.x, y: a.y + b.y });
-const mul  = (a: Vec2, k: number): Vec2 => ({ x: a.x * k, y: a.y * k });
-const mid  = (a: Vec2, b: Vec2): Vec2 => mul(add(a, b), 0.5);
-const vlen = (a: Vec2): number => Math.hypot(a.x, a.y);
-const unit = (a: Vec2): Vec2 => { const l = vlen(a) || 1; return { x: a.x / l, y: a.y / l }; };
-
-/* ─── Estructura de Física de Caída de Tela (Spring-Damper) ─── */
-interface ClothPhysics {
-  swayX: number;       // Desplazamiento lateral del dobladillo por inercia (px)
-  swayVel: number;     // Velocidad del bamboleo
-  tiltAngle: number;   // Ángulo de retraso rotacional
-  tiltVel: number;
-  lastTorsoX: number;  // Posición X anterior del cuerpo
-  lastTime: number;    // Marca de tiempo anterior
-}
-
-/* ─── Remoción de fondo blanco de la prenda en canvas offscreen ─── */
-function createTransparentGarment(img: HTMLImageElement): HTMLCanvasElement {
-  const canvas = document.createElement('canvas');
-  canvas.width = img.naturalWidth || img.width || 600;
-  canvas.height = img.naturalHeight || img.height || 800;
-  const ctx = canvas.getContext('2d', { willReadFrequently: true });
-  if (!ctx) return canvas;
-
-  ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
-
-  try {
-    const imgData = ctx.getImageData(0, 0, canvas.width, canvas.height);
-    const d = imgData.data;
-
-    // Convertir fondo blanco / muy claro en transparencia PNG con suavizado perimetral
-    for (let i = 0; i < d.length; i += 4) {
-      const r = d[i], g = d[i + 1], b = d[i + 2];
-      if (r > 238 && g > 238 && b > 238) {
-        d[i + 3] = 0;
-      } else if (r > 218 && g > 218 && b > 218) {
-        const factor = (238 - Math.max(r, g, b)) / 20;
-        d[i + 3] = Math.round(d[i + 3] * factor);
-      }
-    }
-    ctx.putImageData(imgData, 0, 0);
-  } catch {
-    // Si ocurre restricción de origen cruzado, dejamos el canvas intacto
-  }
-
-  return canvas;
-}
-
-/* ─── Renderizado de Prenda con Física de Tela y Deformación ─── */
-function drawDrapedGarment(
-  ctx: CanvasRenderingContext2D,
-  pts: Vec2[],
-  garmentCanvas: HTMLCanvasElement,
-  category: string,
-  physics: ClothPhysics,
-) {
-  const ls = pts[L.LS];
-  const rs = pts[L.RS];
-  const lh = pts[L.LH];
-  const rh = pts[L.RH];
-
-  const sw = vlen(sub(ls, rs));
-  if (sw < 15) return;
-
-  const shoulderMid = mid(ls, rs);
-  const hipMid = mid(lh, rh);
-  const gAspect = garmentCanvas.height / (garmentCanvas.width || 1);
-  const catLower = (category || 'tops').toLowerCase();
-
-  const isBottom =
-    catLower.includes('bottom') ||
-    catLower.includes('pantalon') ||
-    catLower.includes('jean') ||
-    catLower.includes('falda') ||
-    catLower.includes('short');
-
-  const isDress =
-    catLower.includes('vestido') ||
-    catLower.includes('dress') ||
-    catLower.includes('one-piece') ||
-    catLower.includes('traje');
-
-  // 1. Vector del torso orientado hacia abajo (columna vertebral)
-  const down = unit(sub(hipMid, shoulderMid));
-
-  // 2. Ángulo de inclinación del torso respecto al eje vertical de la gravedad (¡siempre vertical erguido!)
-  const torsoAngle = Math.atan2(down.x, down.y);
-
-  // 3. Proporciones y dimensionamiento anatómico
-  let gw: number;
-  let gh: number;
-  let anchorCenter: Vec2;
-
-  if (isBottom) {
-    const hw = vlen(sub(lh, rh)) || sw * 0.75;
-    const lk = pts[L.LK] || add(lh, { x: 0, y: hw * 1.5 });
-    const rk = pts[L.RK] || add(rh, { x: 0, y: hw * 1.5 });
-    const kneeMid = mid(lk, rk);
-    const legDown = unit(sub(kneeMid, hipMid));
-
-    gw = hw * 1.45;
-    gh = gw * gAspect;
-    anchorCenter = add(hipMid, mul(legDown, gh * 0.46));
-  } else if (isDress) {
-    gw = sw * 1.65;
-    gh = gw * gAspect;
-    anchorCenter = add(shoulderMid, mul(down, gh * 0.44));
-  } else {
-    // Tops / Abrigos / Poleras / Camisas
-    const widthFactor =
-      catLower.includes('coat') || catLower.includes('abrigo') || catLower.includes('blazer')
-        ? 1.78
-        : 1.55;
-    gw = sw * widthFactor;
-    gh = gw * gAspect;
-    anchorCenter = add(shoulderMid, mul(down, gh * 0.42));
-  }
-
-  // 4. Actualizar Física de Inercia del Dobladillo (Bamboleo orgánico)
-  const now = performance.now();
-  const dt = Math.min(Math.max((now - physics.lastTime) / 1000, 0.008), 0.05);
-  physics.lastTime = now;
-
-  const currentTorsoX = anchorCenter.x;
-  const torsoVelX = (currentTorsoX - physics.lastTorsoX) / dt;
-  physics.lastTorsoX = currentTorsoX;
-
-  // Fuerza inercial contraria al movimiento lateral
-  const inertialForce = -torsoVelX * 0.16;
-  const springK = 32.0; // Tensión de la tela
-  const damping = 6.5;  // Fricción del aire
-  const acc = -springK * physics.swayX - damping * physics.swayVel + inertialForce;
-
-  physics.swayVel += acc * dt;
-  physics.swayX += physics.swayVel * dt;
-  physics.swayX = Math.max(-45, Math.min(45, physics.swayX)); // Límites de elasticidad
-
-  // 5. Dibujar Sombra Volumétrica de Profundidad (Evita efecto cartón plano)
-  ctx.save();
-  ctx.translate(anchorCenter.x, anchorCenter.y);
-  ctx.rotate(torsoAngle);
-
-  // Sombra de contacto difuminada detrás de la prenda
-  ctx.shadowColor = 'rgba(0, 0, 0, 0.35)';
-  ctx.shadowBlur = Math.round(sw * 0.12);
-  ctx.shadowOffsetX = 0;
-  ctx.shadowOffsetY = Math.round(sw * 0.05);
-
-  // 6. Deformación Anatómica en 3 Secciones Horizontales (Skinning con Física de Tela)
-  // Divide la prenda en: Hombros (fijos), Torso medio (transición) y Dobladillo (oscilación física)
-  const numSlices = 3;
-  const sliceHeight = garmentCanvas.height / numSlices;
-  const destSliceHeight = gh / numSlices;
-
-  for (let i = 0; i < numSlices; i++) {
-    // Proporción de oscilación: 0% en cuello, 40% en cintura, 100% en dobladillo
-    const swayFactor = i === 0 ? 0.0 : i === 1 ? 0.4 : 1.0;
-    const sliceSway = physics.swayX * swayFactor;
-
-    const sy = i * sliceHeight;
-    const dy = -gh / 2 + i * destSliceHeight;
-
-    ctx.save();
-    // Desplazamiento orgánico por resorte en cada sección
-    ctx.translate(sliceSway, 0);
-
-    ctx.drawImage(
-      garmentCanvas,
-      0,
-      sy,
-      garmentCanvas.width,
-      sliceHeight,
-      -gw / 2,
-      dy,
-      gw,
-      destSliceHeight + 1, // +1 para evitar hendiduras entre cortes
-    );
-    ctx.restore();
-  }
-
-  // 7. Relieve e Iluminación Sutil (Brillo especular y sombra en pliegues)
-  const depthGradient = ctx.createLinearGradient(-gw / 2, 0, gw / 2, 0);
-  depthGradient.addColorStop(0, 'rgba(0,0,0,0.18)');
-  depthGradient.addColorStop(0.2, 'rgba(255,255,255,0.06)');
-  depthGradient.addColorStop(0.5, 'rgba(0,0,0,0)');
-  depthGradient.addColorStop(0.8, 'rgba(255,255,255,0.06)');
-  depthGradient.addColorStop(1, 'rgba(0,0,0,0.18)');
-
-  ctx.fillStyle = depthGradient;
-  ctx.globalCompositeOperation = 'source-atop';
-  ctx.fillRect(-gw / 2, -gh / 2, gw, gh);
-
-  ctx.restore();
-}
-
-/* ─── Estimar puntos ocultos ─── */
-function estimateHidden(pts: Vec2[], lm: Array<{ x: number; y: number; visibility: number }>) {
-  const vis = (i: number) => (lm[i]?.visibility ?? 0) > 0.45;
-  const ls = pts[L.LS], rs = pts[L.RS];
-  const sw = vlen(sub(ls, rs));
-  const across = unit(sub(ls, rs));
-  const down: Vec2 = { x: -across.y, y: across.x };
-
-  if (!vis(L.LH) || !vis(L.RH)) {
-    pts[L.LH] = add(add(ls, mul(down, sw * 1.3)), mul(across, -sw * 0.12));
-    pts[L.RH] = add(add(rs, mul(down, sw * 1.3)), mul(across,  sw * 0.12));
-  }
-  const armDefs: [number, number, number, number][] = [
-    [L.LS, L.LE, L.LW, 1],
-    [L.RS, L.RE, L.RW, -1],
-  ];
-  for (const [s, e, w, side] of armDefs) {
-    if (!vis(e)) pts[e] = add(add(pts[s], mul(down, sw * 0.7)), mul(across, side * sw * 0.15));
-    if (!vis(w)) pts[w] = add(pts[e], mul(down, sw * 0.7));
-  }
-  if (!vis(L.LK)) pts[L.LK] = add(pts[L.LH], mul(down, sw * 1.2));
-  if (!vis(L.RK)) pts[L.RK] = add(pts[L.RH], mul(down, sw * 1.2));
-}
-
-/* ═══════════════════════════════════════════════════════════════════════════
-   COMPONENTE PRINCIPAL: GarmentARLiveViewer
-   ═══════════════════════════════════════════════════════════════════════════ */
 export const GarmentARLiveViewer: React.FC<GarmentARLiveViewerProps> = ({
   garmentImageUrl,
   garmentName = 'Prenda de Colección',
   garmentCategory = 'tops',
+  garmentColor = '',
   className = '',
   onCambiarModoFoto,
   onCerrar,
 }) => {
-  const videoRef = useRef<HTMLVideoElement>(null);
-  const canvasRef = useRef<HTMLCanvasElement>(null);
+  // Referencias de video
+  const localVideoRef = useRef<HTMLVideoElement>(null);
+  const remoteVideoRef = useRef<HTMLVideoElement>(null);
 
-  // Cámara controlada por el usuario (apagada inicialmente para total privacidad)
+  // Estados de conexión y streaming
   const [cameraActive, setCameraActive] = useState(false);
-  const [cameraStarting, setCameraStarting] = useState(false);
-  const [loadingModel, setLoadingModel] = useState(false);
-  const [bodyDetected, setBodyDetected] = useState(false);
+  const [connecting, setConnecting] = useState(false);
+  const [streamingActive, setStreamingActive] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  const [showLandmarks, setShowLandmarks] = useState(false);
-  const [showSkeleton, setShowSkeleton] = useState(false);
-  const [flashEffect, setFlashEffect] = useState(false);
-  const [soundEnabled, setSoundEnabled] = useState(true);
-
-  // Referencia física permanente del stream de hardware (¡nunca huérfano!)
-  const mediaStreamRef = useRef<MediaStream | null>(null);
-
-  // Referencias de IA
-  const landmarkerRef = useRef<PoseLandmarker | null>(null);
-  const drawingUtilsRef = useRef<DrawingUtils | null>(null);
-  const animFrameRef = useRef<number | null>(null);
-  const isRunningRef = useRef(false);
-  const smoothedRef = useRef<Array<{ x: number; y: number; visibility: number }> | null>(null);
-  const lastTimeRef = useRef(-1);
-  const bodyDetectedRef = useRef(false);
-
-  // Estado del simulador de física de tela
-  const clothPhysicsRef = useRef<ClothPhysics>({
-    swayX: 0,
-    swayVel: 0,
-    tiltAngle: 0,
-    tiltVel: 0,
-    lastTorsoX: 0,
-    lastTime: performance.now(),
-  });
-
-  // Canvas procesado de la prenda real (sin fondo blanco)
-  const cutoutGarmentCanvasRef = useRef<HTMLCanvasElement | null>(null);
-
-  // Refs de estado para el bucle de renderizado a 60 FPS
-  const showLandmarksRef = useRef(showLandmarks);
-  const showSkeletonRef = useRef(showSkeleton);
-  const garmentCategoryRef = useRef(garmentCategory);
-
-  useEffect(() => { showLandmarksRef.current = showLandmarks; }, [showLandmarks]);
-  useEffect(() => { showSkeletonRef.current = showSkeleton; }, [showSkeleton]);
-  useEffect(() => { garmentCategoryRef.current = garmentCategory; }, [garmentCategory]);
-
-  const ALPHA = 0.52; // Factor de suavizado EMA
-
-  /* ── Cargar y pre-procesar imagen de la prenda ── */
-  useEffect(() => {
-    if (!garmentImageUrl) return;
-    const img = new Image();
-    img.crossOrigin = 'anonymous';
-    img.src = garmentImageUrl;
-    img.onload = () => {
-      cutoutGarmentCanvasRef.current = createTransparentGarment(img);
-    };
-  }, [garmentImageUrl]);
-
-  /* ── Sonido de detección ── */
-  const playBeep = useCallback(
-    (freq = 900, duration = 0.15) => {
-      if (!soundEnabled) return;
-      try {
-        const AudioCtx = window.AudioContext || (window as any).webkitAudioContext;
-        if (!AudioCtx) return;
-        const ctx = new AudioCtx();
-        const osc = ctx.createOscillator();
-        const gain = ctx.createGain();
-        osc.connect(gain);
-        gain.connect(ctx.destination);
-        osc.frequency.value = freq;
-        gain.gain.setValueAtTime(0.08, ctx.currentTime);
-        gain.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + duration);
-        osc.start();
-        osc.stop(ctx.currentTime + duration);
-      } catch { /* ignorar */ }
-    },
-    [soundEnabled],
+  // Control de Prompt interactivo en tiempo real
+  const [promptActual, setPromptActual] = useState(
+    `A realistic person wearing ${garmentName}${garmentColor ? ` in ${garmentColor}` : ''}, photorealistic fashion fit, natural cloth movement and realistic lighting`,
+  );
+  const [nuevoPrompt, setNuevoPrompt] = useState('');
+  const [enviandoPrompt, setEnviandoPrompt] = useState(false);
+  const [mostrarPipLocal, setMostrarPipLocal] = useState(true);
+  const [estadoConexion, setEstadoConexion] = useState<string>(
+    'Sincronizando cámara con Decart AI a 30 FPS...',
   );
 
-  /* ── DETENER CÁMARA Y LIBERAR DISPOSITIVO AL 100% ── */
-  const stopCamera = useCallback(() => {
-    isRunningRef.current = false;
-    if (animFrameRef.current) {
-      cancelAnimationFrame(animFrameRef.current);
-      animFrameRef.current = null;
+  // Referencias del cliente Decart y stream
+  const mediaStreamRef = useRef<MediaStream | null>(null);
+  const realtimeClientRef = useRef<any>(null);
+
+  // Actualizar prompt base cuando cambia la prenda
+
+  useEffect(() => {
+    setPromptActual(
+      `A realistic person wearing ${garmentName}${garmentColor ? ` in ${garmentColor}` : ''}, photorealistic fashion fit, natural cloth movement and realistic lighting`,
+    );
+  }, [garmentName, garmentColor]);
+
+  // Detener cámara y desconectar Decart
+  const stopAll = useCallback(() => {
+    if (realtimeClientRef.current) {
+      try {
+        realtimeClientRef.current.disconnect();
+      } catch (e) {
+        console.warn('Error desconectando Decart client:', e);
+      }
+      realtimeClientRef.current = null;
     }
 
-    // Detener tracks del stream persistente
     if (mediaStreamRef.current) {
-      mediaStreamRef.current.getTracks().forEach((track) => {
-        try {
-          track.stop();
-          track.enabled = false;
-        } catch { /* ignorar */ }
-      });
+      mediaStreamRef.current.getTracks().forEach((track) => track.stop());
       mediaStreamRef.current = null;
     }
 
-    if (videoRef.current) {
-      videoRef.current.srcObject = null;
+    if (localVideoRef.current) {
+      localVideoRef.current.srcObject = null;
+    }
+    if (remoteVideoRef.current) {
+      remoteVideoRef.current.srcObject = null;
     }
 
     setCameraActive(false);
-    setCameraStarting(false);
-    setBodyDetected(false);
-    bodyDetectedRef.current = false;
+    setConnecting(false);
+    setStreamingActive(false);
   }, []);
 
-  /* ── INICIAR CÁMARA WEB Y MODELO MEDIAPIPE BAJO DEMANDA ── */
-  const startCamera = async () => {
-    setCameraStarting(true);
+  // Cleanup al desmontar
+  useEffect(() => {
+    return () => {
+      stopAll();
+    };
+  }, [stopAll]);
+
+  // Iniciar Lucy 2.5 Realtime
+  const startLucy = async () => {
     setError(null);
+    setEstadoConexion('Solicitando token seguro de sesión WebRTC al backend...');
+
+    // 1. Obtener token seguro de sesión WebRTC emitido por el backend
+    let sessionToken = '';
+    try {
+      const res = await probadorApi.obtenerTokenDecart();
+      if (!res.configured || !res.apiKey) {
+        setError(
+          'El servicio Lucy 2.5 no está disponible: la clave DECART_API_KEY debe configurarse en las variables de entorno del servidor (backend).',
+        );
+        return;
+      }
+      sessionToken = res.apiKey;
+    } catch (err: any) {
+      setError(
+        'No se pudo comunicar con el servidor para autenticar la sesión de video en tiempo real.',
+      );
+      return;
+    }
 
     try {
-      // 1. Cargar modelo MediaPipe si aún no está inicializado
-      if (!landmarkerRef.current) {
-        setLoadingModel(true);
-        const vision = await FilesetResolver.forVisionTasks(
-          'https://cdn.jsdelivr.net/npm/@mediapipe/tasks-vision@0.10.14/wasm',
-        );
+      setConnecting(true);
+      setCameraActive(true);
+      setEstadoConexion('Accediendo a la cámara local HD 720p...');
 
-        landmarkerRef.current = await PoseLandmarker.createFromOptions(vision, {
-          baseOptions: {
-            modelAssetPath:
-              'https://storage.googleapis.com/mediapipe-models/pose_landmarker/pose_landmarker_lite/float16/1/pose_landmarker_lite.task',
-            delegate: 'GPU',
-          },
-          runningMode: 'VIDEO',
-          numPoses: 1,
-        });
-        setLoadingModel(false);
-      }
+      const model = models.realtime('lucy-2.5');
 
-      // 2. Solicitar permiso de cámara al usuario
+      // 2. Obtener flujo de la cámara con especificaciones de Lucy 2.5
       const stream = await navigator.mediaDevices.getUserMedia({
-        video: { width: { ideal: 1280 }, height: { ideal: 960 }, facingMode: 'user' },
         audio: false,
+        video: {
+          frameRate: model.fps,
+          width: model.width,
+          height: model.height,
+        },
       });
 
       mediaStreamRef.current = stream;
 
-      if (videoRef.current) {
-        videoRef.current.srcObject = stream;
-        await new Promise<void>((r) => {
-          videoRef.current!.onloadedmetadata = () => r();
-        });
-        await videoRef.current.play();
-
-        if (canvasRef.current) {
-          canvasRef.current.width = videoRef.current.videoWidth;
-          canvasRef.current.height = videoRef.current.videoHeight;
-          const ctx = canvasRef.current.getContext('2d');
-          if (ctx) drawingUtilsRef.current = new DrawingUtils(ctx);
-        }
-
-        setCameraActive(true);
-        setCameraStarting(false);
-        isRunningRef.current = true;
-        smoothedRef.current = null;
-        lastTimeRef.current = -1;
-        clothPhysicsRef.current.lastTime = performance.now();
-        requestAnimationFrame(loop);
+      // Asignar al preview local
+      if (localVideoRef.current) {
+        localVideoRef.current.srcObject = stream;
+        await localVideoRef.current.play().catch(() => {});
       }
+
+      setEstadoConexion('Negociando enlace WebRTC y sincronizando con Lucy 2.5...');
+
+      // 3. Crear cliente de Decart usando el token efímero del backend
+      const client = createDecartClient({
+        apiKeyProvider: async () => sessionToken,
+      });
+
+      // 4. Conectar al canal WebRTC en tiempo real
+      const realtimeClient = await client.realtime.connect(stream, {
+        model,
+        mirror: 'auto',
+        initialState: {
+          prompt: {
+            text: promptActual,
+            enhance: true,
+          },
+          ...(garmentImageUrl && garmentImageUrl.startsWith('http')
+            ? { image: garmentImageUrl }
+            : {}),
+        },
+        onConnectionChange: (state: any) => {
+          console.log('[Decart] Connection state:', state);
+          if (state === 'connecting') {
+            setEstadoConexion('Estableciendo conexión WebRTC con Lucy 2.5...');
+          } else if (state === 'connected') {
+            setEstadoConexion('Canal conectado. Recibiendo primeros fotogramas generados...');
+          }
+        },
+        onQueuePosition: (pos: any) => {
+          console.log('[Decart] Queue position:', pos);
+          setEstadoConexion(`En cola en servidores Decart AI (Turno: ${pos?.position ?? 1})...`);
+        },
+        onCapacityWait: (wait: any) => {
+          console.log('[Decart] Capacity wait:', wait);
+          setEstadoConexion('Servidores Decart con alta demanda, esperando disponibilidad...');
+        },
+        onRemoteStream: (editedStream: MediaStream) => {
+          if (remoteVideoRef.current) {
+            remoteVideoRef.current.srcObject = editedStream;
+            remoteVideoRef.current.play().catch((err) => {
+              console.warn('Playback error on remote stream:', err);
+            });
+          }
+          setStreamingActive(true);
+          setConnecting(false);
+        },
+      });
+
+      realtimeClientRef.current = realtimeClient;
     } catch (err: any) {
-      stopCamera();
-      setError('Por favor otorga permisos de cámara web en tu navegador para usar el espejo en vivo.');
+      console.error('Error al iniciar Lucy 2.5:', err);
+      const msg =
+        err?.message?.includes('401') || err?.message?.includes('Unauthorized')
+          ? 'Error de autenticación con el servicio Decart AI. Verifica las credenciales en el servidor.'
+          : err?.message || 'Error al conectar con el servicio Lucy 2.5 de Decart AI.';
+      setError(msg);
+      stopAll();
     }
   };
 
-  /* ── LIMPIEZA TOTAL AL DESMONTAR EL COMPONENTE ── */
-  useEffect(() => {
-    return () => {
-      stopCamera();
-      if (landmarkerRef.current) {
-        try {
-          landmarkerRef.current.close();
-          landmarkerRef.current = null;
-        } catch { /* ignorar */ }
-      }
-    };
-  }, [stopCamera]);
+  // Enviar modificación de prompt en tiempo real
+  const handleActualizarPrompt = async (e?: React.FormEvent) => {
+    if (e) e.preventDefault();
+    if (!nuevoPrompt.trim() || !realtimeClientRef.current) return;
 
-  /* ── Loop de detección a 60 FPS ── */
-  const loop = () => {
-    if (!isRunningRef.current) return;
-
-    const video = videoRef.current;
-    const landmarker = landmarkerRef.current;
-
-    if (video && landmarker && video.readyState >= 2 && video.currentTime !== lastTimeRef.current) {
-      lastTimeRef.current = video.currentTime;
-      try {
-        const result = landmarker.detectForVideo(video, performance.now());
-        const lm = result.landmarks?.[0] ?? null;
-        render(lm);
-      } catch { /* omitir frame drop */ }
+    try {
+      setEnviandoPrompt(true);
+      const promptCombinado = `${promptActual}. ${nuevoPrompt.trim()}`;
+      await realtimeClientRef.current.setPrompt(promptCombinado);
+      setPromptActual(promptCombinado);
+      setNuevoPrompt('');
+    } catch (err: any) {
+      setError(`Error actualizando prompt: ${err?.message || err}`);
+    } finally {
+      setEnviandoPrompt(false);
     }
-
-    animFrameRef.current = requestAnimationFrame(loop);
   };
 
-  /* ── Renderizado del frame ── */
-  const render = (lm: Array<{ x: number; y: number; z?: number; visibility?: number }> | null) => {
-    const canvas = canvasRef.current;
-    const video = videoRef.current;
-    if (!canvas || !video) return;
+  // Capturar foto del stream
+  const tomarFoto = () => {
+    const targetVideo = remoteVideoRef.current || localVideoRef.current;
+    if (!targetVideo) return;
 
+    const canvas = document.createElement('canvas');
+    canvas.width = targetVideo.videoWidth || 1280;
+    canvas.height = targetVideo.videoHeight || 720;
     const ctx = canvas.getContext('2d');
     if (!ctx) return;
 
-    const W = canvas.width;
-    const H = canvas.height;
-
-    ctx.clearRect(0, 0, W, H);
-
-    if (!lm) {
-      smoothedRef.current = null;
-      if (bodyDetectedRef.current) {
-        bodyDetectedRef.current = false;
-        setBodyDetected(false);
-      }
-      return;
-    }
-
-    // Suavizado temporal EMA
-    const prev = smoothedRef.current;
-    const smoothed = prev
-      ? lm.map((p, i) => ({
-          x: prev[i].x + ALPHA * (p.x - prev[i].x),
-          y: prev[i].y + ALPHA * (p.y - prev[i].y),
-          visibility: p.visibility ?? 0,
-        }))
-      : lm.map((p) => ({ x: p.x, y: p.y, visibility: p.visibility ?? 0 }));
-    smoothedRef.current = smoothed;
-
-    const shouldersOk = [L.LS, L.RS].every((i) => smoothed[i].visibility > 0.45);
-
-    if (!shouldersOk) {
-      if (bodyDetectedRef.current) {
-        bodyDetectedRef.current = false;
-        setBodyDetected(false);
-      }
-      return;
-    }
-
-    if (!bodyDetectedRef.current) {
-      bodyDetectedRef.current = true;
-      setBodyDetected(true);
-      playBeep(1100, 0.1);
-    }
-
-    // Proyectar puntos al espacio de pantalla espejado (modo selfie)
-    const mirroredLm = smoothed.map((p) => ({
-      ...p,
-      x: 1 - p.x,
-    }));
-
-    const pts: Vec2[] = mirroredLm.map((p) => ({ x: p.x * W, y: p.y * H }));
-
-    estimateHidden(pts, mirroredLm);
-
-    // ── DIBUJAR PRENDA REAL CON FÍSICA Y ORIENTACIÓN VERTICAL CORREGIDA ──
-    if (cutoutGarmentCanvasRef.current) {
-      drawDrapedGarment(
-        ctx,
-        pts,
-        cutoutGarmentCanvasRef.current,
-        garmentCategoryRef.current,
-        clothPhysicsRef.current,
-      );
-    }
-
-    // ── ESQUELETO Y PUNTOS DE IA (Si están activados) ──
-    if (showSkeletonRef.current && drawingUtilsRef.current) {
-      drawingUtilsRef.current.drawConnectors(
-        mirroredLm,
-        PoseLandmarker.POSE_CONNECTIONS,
-        { color: '#00e5ff', lineWidth: 2 },
-      );
-    }
-
-    if (showLandmarksRef.current && drawingUtilsRef.current) {
-      drawingUtilsRef.current.drawLandmarks(
-        mirroredLm,
-        { color: '#ffea00', radius: 4 },
-      );
-    }
-  };
-
-  /* ── Captura de foto con prenda en vivo ── */
-  const handleCapturePhoto = useCallback(() => {
-    const canvas = canvasRef.current;
-    const video = videoRef.current;
-    if (!canvas || !video) return;
-
-    setFlashEffect(true);
-    playBeep(1400, 0.25);
-
-    const tempCanvas = document.createElement('canvas');
-    tempCanvas.width = canvas.width;
-    tempCanvas.height = canvas.height;
-    const tempCtx = tempCanvas.getContext('2d')!;
-
-    // Dibujar video espejado
-    tempCtx.save();
-    tempCtx.translate(tempCanvas.width, 0);
-    tempCtx.scale(-1, 1);
-    tempCtx.drawImage(video, 0, 0, tempCanvas.width, tempCanvas.height);
-    tempCtx.restore();
-
-    // Dibujar la prenda encima
-    tempCtx.drawImage(canvas, 0, 0);
-
-    setTimeout(() => {
-      setFlashEffect(false);
-      const dataUrl = tempCanvas.toDataURL('image/jpeg', 0.95);
-      const link = document.createElement('a');
-      link.href = dataUrl;
-      link.download = `ar_look_${garmentName.replace(/\s+/g, '_')}.jpg`;
-      link.click();
-    }, 150);
-  }, [garmentName, playBeep]);
-
-  const handleCerrarTodo = () => {
-    stopCamera();
-    if (onCerrar) onCerrar();
+    ctx.drawImage(targetVideo, 0, 0, canvas.width, canvas.height);
+    const dataUrl = canvas.toDataURL('image/jpeg', 0.95);
+    const link = document.createElement('a');
+    link.href = dataUrl;
+    link.download = `lucy_2.5_look_${garmentName.replace(/\s+/g, '_')}.jpg`;
+    link.click();
   };
 
   return (
     <div
-      className={`relative w-full h-full min-h-[520px] rounded-3xl overflow-hidden bg-slate-950 select-none flex flex-col items-center justify-center border border-slate-800 shadow-2xl ${className}`}
+      className={`relative w-full h-full min-h-[540px] rounded-2xl overflow-hidden bg-[#0D0C0B] select-none flex flex-col items-center justify-center border border-[#2C2926] shadow-2xl ${className}`}
     >
-      {/* ─── PANTALLA DE BIENVENIDA / CONSENTIMIENTO (CÁMARA APAGADA) ─── */}
+      {/* ─── PANTALLA DE BIENVENIDA AURA (CÁMARA APAGADA) ─── */}
       {!cameraActive && (
-        <div className="absolute inset-0 z-20 bg-gradient-to-b from-slate-900 via-slate-950 to-black flex flex-col items-center justify-center p-6 text-center text-white space-y-6">
+        <div className="absolute inset-0 z-20 bg-gradient-to-b from-[#1C1A17] via-[#121110] to-[#0D0C0B] flex flex-col items-center justify-center p-6 text-center text-white space-y-6">
           <div className="relative">
-            <div className="w-24 h-24 rounded-3xl bg-emerald-500/10 border border-emerald-500/30 flex items-center justify-center shadow-xl shadow-emerald-500/10">
-              <Camera className="w-10 h-10 text-emerald-400" />
+            <div className="w-24 h-24 rounded-2xl bg-[#9B7B54]/10 border border-[#9B7B54]/30 flex items-center justify-center shadow-2xl shadow-[#9B7B54]/10">
+              <Sparkles className="w-10 h-10 text-[#C5B59E] animate-pulse" />
             </div>
-            <span className="absolute -top-2 -right-2 px-2.5 py-0.5 bg-emerald-500 text-black text-[10px] font-black uppercase tracking-wider rounded-full shadow-md">
-              60 FPS
+            <span className="absolute -top-2 -right-3 px-2.5 py-0.5 bg-[#9B7B54] text-white text-[9px] font-serif uppercase tracking-[0.2em] font-medium rounded-xs shadow-md">
+              Lucy 2.5
             </span>
           </div>
 
-          <div className="space-y-2 max-w-md">
-            <h3 className="text-xl sm:text-2xl font-black tracking-tight text-white">
-              Espejo de Realidad Aumentada
+          <div className="space-y-2 max-w-lg">
+            <h3 className="text-2xl sm:text-3xl font-serif tracking-wider text-white">
+              <span>Probador en Vivo </span>
+              <span className="italic font-normal text-[#C5B59E]">Lucy 2.5</span>
             </h3>
-            <p className="text-xs sm:text-sm text-slate-400 font-light leading-relaxed">
-              Pruébate <strong className="text-white font-semibold">{garmentName}</strong> en directo frente a tu cámara con física de caída y movimiento anatómico.
+            <p className="text-xs sm:text-sm text-[#C5B59E]/80 font-light leading-relaxed">
+              Pruébate <strong className="text-white font-medium">{garmentName}</strong> en video en tiempo real
+              frente a tu cámara con la IA generativa de Decart AI.
             </p>
           </div>
 
-          {/* Información de Privacidad */}
-          <div className="flex items-center gap-2 px-3.5 py-1.5 bg-white/5 border border-white/10 rounded-xl text-xs text-slate-400">
-            <ShieldCheck className="w-4 h-4 text-emerald-400 shrink-0" />
-            <span>Privacidad garantizada: Tu cámara no se graba ni se transmite por internet.</span>
+          {/* Badges de capacidades técnicas AURA */}
+          <div className="flex flex-wrap items-center justify-center gap-2 text-[10px] font-serif tracking-wider uppercase text-[#E8DDCB]">
+            <span className="px-3.5 py-1.5 bg-[#24221F] border border-[#3A3632] rounded-xs">⚡ 30 FPS en Vivo</span>
+            <span className="px-3.5 py-1.5 bg-[#24221F] border border-[#3A3632] rounded-xs">👗 Drapeado de Atelier</span>
+            <span className="px-3.5 py-1.5 bg-[#24221F] border border-[#3A3632] rounded-xs">HD 1280×720</span>
           </div>
 
           {error && (
@@ -646,23 +291,23 @@ export const GarmentARLiveViewer: React.FC<GarmentARLiveViewerProps> = ({
             </div>
           )}
 
-          {/* Botones de Acción */}
+          {/* Botones de acción principales AURA */}
           <div className="flex flex-col sm:flex-row items-center gap-3 pt-2">
             <button
               type="button"
-              onClick={startCamera}
-              disabled={cameraStarting}
-              className="px-6 py-3 bg-gradient-to-r from-emerald-500 to-teal-600 hover:opacity-95 text-white rounded-2xl text-xs font-black tracking-wider uppercase transition flex items-center gap-2.5 shadow-xl shadow-emerald-500/25 cursor-pointer disabled:opacity-50"
+              onClick={startLucy}
+              disabled={connecting}
+              className="px-8 py-3.5 bg-gradient-to-r from-[#9B7B54] via-[#8E7F6B] to-[#83653F] hover:opacity-95 text-white rounded-xs border border-[#BFA888]/30 text-xs font-serif font-medium tracking-[0.2em] uppercase transition flex items-center gap-2.5 shadow-xl shadow-[#9B7B54]/25 cursor-pointer disabled:opacity-50"
             >
-              {cameraStarting ? (
+              {connecting ? (
                 <>
-                  <RefreshCw className="w-4 h-4 animate-spin" />
-                  <span>Conectando Cámara...</span>
+                  <RefreshCw className="w-4 h-4 animate-spin text-white" />
+                  <span>Conectando a Lucy 2.5...</span>
                 </>
               ) : (
                 <>
                   <Play className="w-4 h-4 fill-white" />
-                  <span>Encender Cámara Web y Probar</span>
+                  <span>Encender Cámara y Probar</span>
                 </>
               )}
             </button>
@@ -671,159 +316,132 @@ export const GarmentARLiveViewer: React.FC<GarmentARLiveViewerProps> = ({
               <button
                 type="button"
                 onClick={onCambiarModoFoto}
-                className="px-5 py-3 bg-white/10 hover:bg-white/15 text-slate-300 hover:text-white rounded-2xl text-xs font-bold transition flex items-center gap-2 cursor-pointer"
+                className="px-6 py-3.5 bg-[#1C1A17] hover:bg-[#24221F] text-[#E8DDCB] hover:text-white border border-[#3A3632] rounded-xs text-xs font-serif tracking-[0.15em] uppercase transition flex items-center gap-2 cursor-pointer"
               >
                 <span>Usar Foto de Archivo</span>
                 <ArrowRight className="w-4 h-4" />
               </button>
             )}
           </div>
+
+          <div className="flex items-center gap-2 text-[11px] text-[#A69988]">
+            <ShieldCheck className="w-3.5 h-3.5 text-[#9B7B54]" />
+            <span>Privacidad garantizada: Cámara procesada en tiempo real para la prueba de alta costura.</span>
+          </div>
         </div>
       )}
 
-      {/* ─── CAPAS DE VIDEO Y CANVAS DE AR ─── */}
+      {/* ─── VISTA EN VIVO CON LUCY 2.5 Y STREAM REMOTO ─── */}
       <div className={`absolute inset-0 ${cameraActive ? 'block' : 'hidden'}`}>
+        {/* Video con el render remoto de Lucy 2.5 */}
         <video
-          ref={videoRef}
+          id="video-output"
+          ref={remoteVideoRef}
           playsInline
-          muted
+          autoPlay
           className="w-full h-full object-cover block"
-          style={{ transform: 'scaleX(-1)' }}
         />
-        <canvas
-          ref={canvasRef}
-          className="absolute inset-0 w-full h-full object-cover block pointer-events-none"
-        />
-      </div>
 
-      {/* ─── FLASH EFFECT ─── */}
-      {flashEffect && (
-        <div
-          className="absolute inset-0 bg-white z-30 pointer-events-none animate-pulse"
-          style={{ animationDuration: '150ms' }}
-        />
-      )}
-
-      {/* ─── OVERLAY DE CARGA MEDIAPIPE ─── */}
-      {loadingModel && (
-        <div className="absolute inset-0 bg-slate-950/85 backdrop-blur-sm flex flex-col items-center justify-center text-white z-20 space-y-3">
-          <div className="relative w-16 h-16">
-            <div className="w-16 h-16 rounded-full border-4 border-emerald-500/20 border-t-emerald-500 animate-spin" />
-            <Sparkles className="w-6 h-6 text-emerald-400 absolute inset-0 m-auto animate-pulse" />
+        {/* Indicador de conexión inicial mientras llega el primer frame */}
+        {connecting && !streamingActive && (
+          <div className="absolute inset-0 bg-[#0D0C0B]/90 backdrop-blur-md flex flex-col items-center justify-center p-6 text-center text-white space-y-4">
+            <RefreshCw className="w-10 h-10 text-[#C5B59E] animate-spin" />
+            <div className="space-y-1">
+              <h4 className="text-lg font-serif tracking-wide text-white">Iniciando canal de video con Lucy 2.5</h4>
+              <p className="text-xs text-[#C5B59E]/70 font-light">
+                {estadoConexion}
+              </p>
+            </div>
           </div>
-          <p className="font-bold text-sm tracking-wide">Iniciando Visión Artificial con MediaPipe...</p>
-          <p className="text-[11px] text-slate-400">Cargando modelo neuronal con aceleración GPU</p>
+        )}
+
+        {/* Picture-in-Picture: Cámara local del usuario */}
+        {mostrarPipLocal && (
+          <div className="absolute top-4 right-4 z-30 w-36 sm:w-44 aspect-video rounded-xl overflow-hidden border border-[#9B7B54]/40 shadow-2xl bg-black/60 backdrop-blur-sm">
+            <video
+              ref={localVideoRef}
+              playsInline
+              autoPlay
+              muted
+              className="w-full h-full object-cover"
+              style={{ transform: 'scaleX(-1)' }}
+            />
+            <span className="absolute bottom-1 left-2 text-[9px] font-serif uppercase tracking-widest text-[#E8DDCB] bg-black/70 px-1.5 py-0.5 rounded-xs">
+              Tu Cámara
+            </span>
+          </div>
+        )}
+
+        {/* ─── BARRA DE CONTROL SUPERIOR ─── */}
+        <div className="absolute top-4 left-4 z-30 flex items-center gap-2">
+          <div className="flex items-center gap-2 px-3 py-1.5 bg-[#161513]/80 backdrop-blur-md border border-[#3A3632] rounded-xl text-xs text-white">
+            <div className="w-2.5 h-2.5 rounded-full bg-[#9B7B54] animate-pulse" />
+            <span className="font-serif tracking-wider">Lucy 2.5 Live</span>
+            <span className="text-[9px] text-[#D5C4AC] font-serif uppercase bg-[#9B7B54]/20 px-2 py-0.5 rounded-xs border border-[#9B7B54]/30">
+              Decart AI
+            </span>
+          </div>
+
+          <button
+            type="button"
+            onClick={() => setMostrarPipLocal(!mostrarPipLocal)}
+            className="p-2 bg-[#161513]/80 backdrop-blur-md border border-[#3A3632] hover:bg-[#24221F] rounded-xl text-white transition cursor-pointer"
+            title={mostrarPipLocal ? 'Ocultar cámara original' : 'Mostrar cámara original'}
+          >
+            {mostrarPipLocal ? <EyeOff className="w-4 h-4 text-[#C5B59E]" /> : <Eye className="w-4 h-4 text-[#C5B59E]" />}
+          </button>
         </div>
-      )}
 
-      {/* ─── OVERLAYS Y CONTROLES CUANDO LA CÁMARA ESTÁ ACTIVA ─── */}
-      {cameraActive && (
-        <>
-          {/* BADGE SUPERIOR IZQUIERDO: ESTADO */}
-          <div className="absolute top-4 left-4 z-10 flex flex-col gap-2">
-            <div className="flex items-center gap-2">
-              <div className="bg-black/70 backdrop-blur-md px-3.5 py-1.5 rounded-2xl border border-white/15 flex items-center gap-2 text-white shadow-lg">
-                <div
-                  className={`w-2.5 h-2.5 rounded-full ${
-                    bodyDetected ? 'bg-emerald-400 animate-ping' : 'bg-rose-500 animate-pulse'
-                  }`}
-                />
-                <span className="text-xs font-black tracking-wide">
-                  {bodyDetected ? 'Cuerpo Detectado en Vivo' : 'Buscando postura...'}
-                </span>
-              </div>
-
-              <span className="px-2.5 py-1 bg-emerald-500/20 text-emerald-300 border border-emerald-500/40 rounded-xl text-[10px] font-black uppercase tracking-wider backdrop-blur-md">
-                🔴 AR 60 FPS
-              </span>
+        {/* ─── BARRA DE PROMPT DINÁMICO E INTERACCIÓN INFERIOR ─── */}
+        <div className="absolute bottom-4 inset-x-4 z-30 flex flex-col gap-2 max-w-2xl mx-auto">
+          {/* Formulario de ajuste de Prompt en vivo */}
+          <form
+            onSubmit={handleActualizarPrompt}
+            className="flex items-center gap-2 bg-[#161513]/90 backdrop-blur-xl p-2 rounded-xl border border-[#3A3632] shadow-2xl"
+          >
+            <div className="pl-2 text-[#9B7B54]">
+              <Sliders className="w-4 h-4" />
             </div>
+            <input
+              type="text"
+              value={nuevoPrompt}
+              onChange={(e) => setNuevoPrompt(e.target.value)}
+              placeholder="Instrucción de atelier en vivo (ej: 'Cambiar tejido a seda negra', 'Ajustar caída')..."
+              className="flex-1 bg-transparent text-xs text-white placeholder-[#C5B59E]/40 focus:outline-none font-light"
+            />
+            <button
+              type="submit"
+              disabled={enviandoPrompt || !nuevoPrompt.trim()}
+              className="px-3.5 py-1.5 bg-[#9B7B54] hover:bg-[#83653F] disabled:opacity-40 text-white rounded-xs text-xs font-serif tracking-widest uppercase transition flex items-center gap-1 cursor-pointer"
+            >
+              {enviandoPrompt ? <RefreshCw className="w-3.5 h-3.5 animate-spin" /> : <Send className="w-3.5 h-3.5" />}
+              <span className="hidden sm:inline">Aplicar</span>
+            </button>
+          </form>
 
-            <div className="bg-black/60 backdrop-blur-md px-3 py-1 rounded-xl border border-white/10 text-white text-[11px] max-w-xs truncate flex items-center gap-1.5">
-              <span className="text-emerald-400 font-bold">Probando:</span>
-              <span className="truncate">{garmentName}</span>
-            </div>
-          </div>
-
-          {/* CONTROLES SUPERIORES DERECHOS: Landmarks, Esqueleto, Audio y Apagar Cámara */}
-          <div className="absolute top-4 right-4 z-10 flex items-center gap-2">
-            <div className="flex items-center gap-1.5 bg-black/70 backdrop-blur-md p-1.5 rounded-2xl border border-white/15 text-white shadow-lg">
-              <button
-                type="button"
-                onClick={() => setShowLandmarks(!showLandmarks)}
-                title={showLandmarks ? 'Ocultar Puntos IA' : 'Mostrar Puntos IA'}
-                className={`px-2.5 py-1 rounded-xl text-xs font-bold transition flex items-center gap-1 cursor-pointer ${
-                  showLandmarks ? 'bg-amber-600 text-white' : 'text-slate-400 hover:text-white'
-                }`}
-              >
-                {showLandmarks ? <Eye className="w-3.5 h-3.5" /> : <EyeOff className="w-3.5 h-3.5" />}
-                <span className="hidden sm:inline">Puntos</span>
-              </button>
-
-              <button
-                type="button"
-                onClick={() => setShowSkeleton(!showSkeleton)}
-                title={showSkeleton ? 'Ocultar Esqueleto' : 'Mostrar Esqueleto'}
-                className={`px-2.5 py-1 rounded-xl text-xs font-bold transition flex items-center gap-1 cursor-pointer ${
-                  showSkeleton ? 'bg-cyan-600 text-white' : 'text-slate-400 hover:text-white'
-                }`}
-              >
-                {showSkeleton ? <Eye className="w-3.5 h-3.5" /> : <EyeOff className="w-3.5 h-3.5" />}
-                <span className="hidden sm:inline">Esqueleto</span>
-              </button>
-
-              <button
-                type="button"
-                onClick={() => setSoundEnabled(!soundEnabled)}
-                title={soundEnabled ? 'Silenciar Efectos' : 'Activar Efectos'}
-                className="p-1.5 rounded-xl text-slate-400 hover:text-white hover:bg-white/10 transition cursor-pointer"
-              >
-                {soundEnabled ? <Volume2 className="w-4 h-4" /> : <VolumeX className="w-4 h-4" />}
-              </button>
-
-              <div className="w-px h-4 bg-white/20 mx-0.5" />
-
-              {/* Botón explícito para APAGAR CÁMARA */}
-              <button
-                type="button"
-                onClick={stopCamera}
-                title="Apagar Cámara Web"
-                className="px-2.5 py-1 rounded-xl text-xs font-bold bg-rose-600/80 hover:bg-rose-600 text-white transition flex items-center gap-1 cursor-pointer"
-              >
-                <Square className="w-3.5 h-3.5 fill-white" />
-                <span className="hidden sm:inline">Apagar</span>
-              </button>
-            </div>
-
-            {onCerrar && (
-              <button
-                type="button"
-                onClick={handleCerrarTodo}
-                className="w-9 h-9 rounded-full bg-black/70 hover:bg-black/90 backdrop-blur-md text-white flex items-center justify-center border border-white/20 transition cursor-pointer"
-              >
-                <X className="w-5 h-5" />
-              </button>
-            )}
-          </div>
-
-          {/* BARRA INFERIOR: CAPTURA DE FOTO */}
-          <div className="absolute bottom-5 z-10 flex items-center justify-center gap-3 bg-black/80 backdrop-blur-md px-5 py-2.5 rounded-2xl border border-white/15 text-white shadow-2xl">
-            <div className="hidden sm:flex items-center gap-2 text-xs text-slate-300">
-              <Sparkles className="w-4 h-4 text-emerald-400" />
-              <span>Física de caída de tela activada</span>
-            </div>
+          {/* Barra de acciones rápidas */}
+          <div className="flex items-center justify-between gap-2 px-1">
+            <button
+              type="button"
+              onClick={tomarFoto}
+              className="px-4 py-2 bg-[#1C1A17]/90 hover:bg-[#24221F] border border-[#3A3632] text-[#E8DDCB] rounded-xs text-xs font-serif tracking-wider uppercase flex items-center gap-1.5 transition cursor-pointer shadow-lg"
+            >
+              <Download className="w-3.5 h-3.5 text-[#9B7B54]" />
+              <span>Capturar Silueta</span>
+            </button>
 
             <button
               type="button"
-              onClick={handleCapturePhoto}
-              disabled={!bodyDetected}
-              className="px-5 py-2.5 bg-gradient-to-r from-emerald-500 to-teal-600 hover:opacity-95 text-white rounded-xl text-xs font-black transition flex items-center gap-2 shadow-lg shadow-emerald-500/25 cursor-pointer disabled:opacity-40 disabled:cursor-not-allowed"
+              onClick={stopAll}
+              className="px-4 py-2 bg-[#1C1A17]/90 hover:bg-rose-950/80 border border-rose-900/40 text-rose-300 rounded-xs text-xs font-serif tracking-wider uppercase flex items-center gap-1.5 transition cursor-pointer shadow-lg"
             >
-              <Camera className="w-4 h-4" />
-              <span>Tomar Foto con Prenda</span>
+              <Square className="w-3 h-3 fill-rose-400" />
+              <span>Desconectar</span>
             </button>
           </div>
-        </>
-      )}
+        </div>
+      </div>
     </div>
   );
 };
+

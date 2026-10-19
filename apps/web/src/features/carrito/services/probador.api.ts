@@ -62,4 +62,13 @@ export const probadorApi = {
     const { data } = await api.post<Generar3DResponse>('/probador/generar-3d', payload);
     return data;
   },
+
+  // Obtener token para Decart AI (Lucy 2.5 Realtime Try-On)
+  obtenerTokenDecart: async (): Promise<{ configured: boolean; apiKey: string | null; message?: string }> => {
+    const { data } = await api.post<{ configured: boolean; apiKey: string | null; message?: string }>(
+      '/probador/realtime-token',
+    );
+    return data;
+  },
 };
+
