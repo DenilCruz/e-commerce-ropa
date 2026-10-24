@@ -8,8 +8,12 @@ import { ConfigService } from '@nestjs/config';
 import { DataSource } from 'typeorm';
 import { GenerarReporteDinamicoDto, ProveedorIA } from './dto/dynamic-reports.dto';
 
+const MAX_REPORTES_SIMULTANEOS = 3;
+
 @Injectable()
 export class DynamicReportsService {
+  private reportesEnCurso = 0;
+
   private readonly logger = new Logger(DynamicReportsService.name);
 
   constructor(
@@ -249,9 +253,14 @@ EJEMPLOS DE REFERENCIA (FEW-SHOT):
    * The role can only read the business tables, and row-level security limits it to the active store.
    */
   private async ejecutarComoSoloLectura(sql: string): Promise<any[]> {
+    // Each AI query can hold a pooled connection for up to the statement timeout
+    if (this.reportesEnCurso >= MAX_REPORTES_SIMULTANEOS) {
+      throw new BadRequestException('Hay demasiados reportes ejecutándose. Intenta de nuevo en unos segundos.');
+    }
+    this.reportesEnCurso++;
     const queryRunner = this.dataSource.createQueryRunner();
-    await queryRunner.connect();
     try {
+      await queryRunner.connect();
       await queryRunner.startTransaction();
       await queryRunner.query('SET LOCAL ROLE aura_reports');
       await queryRunner.query("SET LOCAL statement_timeout = '10s'");
@@ -259,6 +268,7 @@ EJEMPLOS DE REFERENCIA (FEW-SHOT):
     } finally {
       await queryRunner.rollbackTransaction().catch(() => undefined);
       await queryRunner.release();
+      this.reportesEnCurso--;
     }
   }
 
