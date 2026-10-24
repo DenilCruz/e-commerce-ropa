@@ -24,6 +24,10 @@ export class JwtStrategy extends PassportStrategy(Strategy) {
       throw new UnauthorizedException('Tu sesión es de una versión anterior. Inicia sesión nuevamente.');
     }
 
+    // The signed claim selects the store; it must be active before querying (row-level security)
+    TenantContext.set(payload.tid);
+    TenantContext.setUser(payload.sub);
+
     // The role always comes from the live membership, not from the token claim
     const membership = await this.memberships.findOne({
       where: { usuarioId: payload.sub, tiendaId: payload.tid, activo: true },
@@ -33,7 +37,6 @@ export class JwtStrategy extends PassportStrategy(Strategy) {
       throw new UnauthorizedException('Ya no tienes acceso a esta tienda.');
     }
 
-    TenantContext.set(payload.tid);
     return {
       userId: payload.sub,
       email: payload.email,

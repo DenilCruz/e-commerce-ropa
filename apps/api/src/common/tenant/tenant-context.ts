@@ -3,6 +3,7 @@ import { UnauthorizedException } from '@nestjs/common';
 
 interface TenantStore {
   tenantId?: string;
+  userId?: string;
 }
 
 const storage = new AsyncLocalStorage<TenantStore>();
@@ -16,6 +17,15 @@ export const TenantContext = {
   set(tenantId: string): void {
     const store = storage.getStore();
     if (store) store.tenantId = tenantId;
+  },
+
+  setUser(userId: string): void {
+    const store = storage.getStore();
+    if (store) store.userId = userId;
+  },
+
+  getUser(): string | undefined {
+    return storage.getStore()?.userId;
   },
 
   get(): string | undefined {
