@@ -4,6 +4,7 @@ jest.mock('@nestjs/typeorm', () => ({
 
 const sharp = require('sharp');
 import { ArchivosService } from '../../src/modules/uploads/uploads.service';
+import { TenantContext } from '../../src/common/tenant/tenant-context';
 
 describe('ArchivosService (Unit Tests)', () => {
   let service: ArchivosService;
@@ -12,6 +13,14 @@ describe('ArchivosService (Unit Tests)', () => {
   let mockRepositorioImagenProducto: any;
   let mockRepositorioCategoria: any;
   let mockRepositorioUsuario: any;
+  const TEST_TENANT = 'tenant-test';
+  beforeEach(() => {
+    jest.spyOn(TenantContext, 'require').mockReturnValue(TEST_TENANT);
+  });
+  afterEach(() => {
+    jest.restoreAllMocks();
+  });
+
 
   beforeEach(() => {
     mockConfigService = {

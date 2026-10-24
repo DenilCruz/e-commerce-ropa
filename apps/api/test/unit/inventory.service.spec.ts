@@ -4,11 +4,20 @@ jest.mock('@nestjs/typeorm', () => ({
 
 import { BadRequestException, NotFoundException } from '@nestjs/common';
 import { InventarioService } from '../../src/modules/inventario/inventory.service';
+import { TenantContext } from '../../src/common/tenant/tenant-context';
 
 describe('InventarioService (Unit Tests)', () => {
   let service: InventarioService;
   let mockVariantRepository: any;
   let mockDataSource: any;
+  const TEST_TENANT = 'tenant-test';
+  beforeEach(() => {
+    jest.spyOn(TenantContext, 'require').mockReturnValue(TEST_TENANT);
+  });
+  afterEach(() => {
+    jest.restoreAllMocks();
+  });
+
 
   beforeEach(() => {
     mockVariantRepository = {

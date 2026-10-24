@@ -15,8 +15,14 @@ import { CategoriaEntity } from '../categorias/entities/category.entity';
 import { UserEntity } from '../usuarios/entities/user.entity';
 import { ArchivoRespuestaDto, EstadoCloudinaryDto } from './dto/archivo-respuesta.dto';
 
+import { TenantContext } from '../../common/tenant/tenant-context';
+
 @Injectable()
 export class ArchivosService {
+  private get tid(): string {
+    return TenantContext.require();
+  }
+
   private readonly logger = new Logger(ArchivosService.name);
   private readonly uploadsLocalPath: string;
 
@@ -278,16 +284,18 @@ export class ArchivosService {
     filtroUso?: 'todos' | 'en_uso' | 'obsoleto',
   ): Promise<any[]> {
     // 1. Obtener todas las imágenes registradas en la tabla archivo
-    const qb = this.repositorioArchivo.createQueryBuilder('archivo');
+    const qb = this.repositorioArchivo
+      .createQueryBuilder('archivo')
+      .where('archivo.tenantId = :tid', { tid: this.tid });
     if (categoria && categoria !== 'todas') {
-      qb.where('archivo.categoria = :categoria', { categoria });
+      qb.andWhere('archivo.categoria = :categoria', { categoria });
     }
     qb.orderBy('archivo.creado_en', 'DESC');
     const archivosRegistrados = await qb.getMany();
 
     // 2. Obtener imágenes vinculadas en la plataforma
-    const imagenesProductos = await this.repositorioImagenProducto.find({ relations: ['producto'] });
-    const categorias = await this.repositorioCategoria.find();
+    const imagenesProductos = await this.repositorioImagenProducto.find({ where: { tenantId: this.tid }, relations: ['producto'] });
+    const categorias = await this.repositorioCategoria.find({ where: { tenantId: this.tid } });
     const usuarios = await this.repositorioUsuario.find();
 
     // Crear mapas de búsqueda de URLs vinculadas
@@ -383,9 +391,9 @@ export class ArchivosService {
     // Buscar en tabla de archivos por ID, URL o publicId
     let archivo = await this.repositorioArchivo.findOne({
       where: [
-        { id: identificador },
-        { url: identificador },
-        { publicId: identificador },
+        { id: identificador, tenantId: this.tid },
+        { url: identificador, tenantId: this.tid },
+        { publicId: identificador, tenantId: this.tid },
       ],
     });
 
@@ -428,7 +436,7 @@ export class ArchivosService {
 
     // 3. Eliminar de imagen_producto si existe
     const imgProd = await this.repositorioImagenProducto.findOne({
-      where: [{ id: identificador }, { url: urlTarget }],
+      where: [{ id: identificador, tenantId: this.tid }, { url: urlTarget, tenantId: this.tid }],
     });
     if (imgProd) {
       await this.repositorioImagenProducto.remove(imgProd);

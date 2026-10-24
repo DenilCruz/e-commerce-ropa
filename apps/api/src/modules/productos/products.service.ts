@@ -9,8 +9,14 @@ import { CategoriaEntity } from '../categorias/entities/category.entity';
 import { SizeEntity } from './entities/size.entity';
 import { ColorEntity } from './entities/color.entity';
 
+import { TenantContext } from '../../common/tenant/tenant-context';
+
 @Injectable()
 export class ProductosService {
+  private get tid(): string {
+    return TenantContext.require();
+  }
+
   constructor(
     @InjectRepository(ProductEntity)
     private readonly repositorioProducto: Repository<ProductEntity>,
@@ -42,6 +48,7 @@ export class ProductosService {
 
   async obtenerTodos(categoriaId?: string, busqueda?: string, ordenarPor?: string): Promise<ProductEntity[]> {
     const qb = this.repositorioProducto.createQueryBuilder('producto')
+      .where('producto.tenantId = :tid', { tid: this.tid })
       .leftJoinAndSelect('producto.categoria', 'categoria')
       .leftJoinAndSelect('producto.marca', 'marca')
       .leftJoinAndSelect('producto.variantes', 'variantes')
@@ -72,7 +79,7 @@ export class ProductosService {
 
   async obtenerPorId(id: string): Promise<ProductEntity> {
     const producto = await this.repositorioProducto.findOne({
-      where: { id },
+      where: { id, tenantId: this.tid },
       relations: ['categoria', 'marca', 'variantes', 'variantes.talla', 'variantes.color', 'imagenes'],
     });
 
@@ -88,6 +95,7 @@ export class ProductosService {
       where: {
         categoriaId: producto.categoriaId,
         activo: true,
+        tenantId: this.tid,
       },
       relations: ['categoria', 'marca', 'variantes', 'variantes.talla', 'variantes.color', 'imagenes'],
       take: 5,
