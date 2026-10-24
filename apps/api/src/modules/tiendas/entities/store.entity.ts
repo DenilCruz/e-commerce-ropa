@@ -18,6 +18,12 @@ export class StoreEntity {
   @Column({ type: 'varchar', length: 30, default: 'ACTIVA' })
   estado: string;
 
+  @Column({ type: 'varchar', length: 30, default: 'FREE_TRIAL' })
+  plan: string;
+
+  @Column({ type: 'uuid', name: 'propietario_id', nullable: true })
+  propietarioId: string | null;
+
   @CreateDateColumn({ name: 'creado_en', type: 'timestamp' })
   creadoEn: Date;
 }

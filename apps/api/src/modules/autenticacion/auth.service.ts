@@ -17,6 +17,8 @@ import { RoleEntity } from '../usuarios/entities/role.entity';
 import { TokenEntity, TipoToken } from './entities/token.entity';
 import { MailService } from '../mail/mail.service';
 import { UserStoreEntity } from '../tiendas/entities/user-store.entity';
+import { StoresService } from '../tiendas/stores.service';
+import { CrearTiendaDto } from '../tiendas/dto/crear-tienda.dto';
 import { TenantContext } from '../../common/tenant/tenant-context';
 
 import { RegistroDto } from './dto/registro.dto';
@@ -43,6 +45,7 @@ export class AuthService {
     private readonly configService: ConfigService,
     private readonly mailService: MailService,
     private readonly dataSource: DataSource,
+    private readonly storesService: StoresService,
   ) {}
 
   // =========================================================================
@@ -55,7 +58,7 @@ export class AuthService {
     // 1. Validar que no exista un usuario con ese correo
     const existe = await this.userRepo.findOne({ where: { correo: correoNormalizado } });
     if (existe) {
-      throw new BadRequestException('El correo electrónico ya se encuentra registrado.');
+      return this.unirseATiendaConCuentaExistente(existe, dto.contrasena, tenantId);
     }
 
     // 2. Buscar o asignar rol por defecto 'CLIENTE'
@@ -423,6 +426,109 @@ export class AuthService {
         id: tokenRecord.usuario.id,
         correo: tokenRecord.usuario.correo,
         emailVerificado: true,
+      },
+    };
+  }
+
+  // =========================================================================
+  // MULTI-TIENDA: MISMO CORREO EN VARIAS TIENDAS
+  // =========================================================================
+
+  /** The email already has an account: it joins this store as CLIENTE after proving the account password. */
+  private async unirseATiendaConCuentaExistente(usuario: UserEntity, contrasena: string, tenantId: string) {
+    const yaEsMiembro = await this.membershipRepo.exist({
+      where: { usuarioId: usuario.id, tiendaId: tenantId },
+    });
+    if (yaEsMiembro) {
+      throw new BadRequestException('El correo electrónico ya se encuentra registrado.');
+    }
+
+    const contrasenaValida = await bcrypt.compare(contrasena, usuario.contrasena);
+    if (!contrasenaValida) {
+      throw new BadRequestException(
+        'Este correo ya tiene una cuenta. Para unirte a esta tienda usa la contraseña de tu cuenta existente.',
+      );
+    }
+
+    const rolCliente = await this.roleRepo.findOne({ where: { nombre: 'CLIENTE' } });
+    if (!rolCliente) {
+      throw new BadRequestException('El rol CLIENTE no existe en el sistema.');
+    }
+
+    const queryRunner = this.dataSource.createQueryRunner();
+    await queryRunner.connect();
+    await queryRunner.startTransaction();
+    try {
+      await queryRunner.manager.save(
+        queryRunner.manager.create(UserStoreEntity, {
+          usuarioId: usuario.id,
+          tiendaId: tenantId,
+          rolId: rolCliente.id,
+        }),
+      );
+      await queryRunner.manager.query(
+        `INSERT INTO cliente (usuario_id, tenant_id) VALUES ($1, $2) ON CONFLICT (tenant_id, usuario_id) DO NOTHING`,
+        [usuario.id, tenantId],
+      );
+      await queryRunner.commitTransaction();
+    } catch (error) {
+      await queryRunner.rollbackTransaction();
+      this.logger.error('Error al unir la cuenta existente a la tienda:', error);
+      throw new BadRequestException('No se pudo unir tu cuenta a esta tienda.');
+    } finally {
+      await queryRunner.release();
+    }
+
+    return {
+      message: 'Tu cuenta existente se unió a esta tienda. Ya puedes iniciar sesión.',
+      usuario: {
+        id: usuario.id,
+        nombre: usuario.nombre,
+        apellido: usuario.apellido,
+        correo: usuario.correo,
+        rol: rolCliente.nombre,
+        emailVerificado: usuario.emailVerificado,
+      },
+    };
+  }
+
+  async listarMisTiendas(usuarioId: string) {
+    return this.storesService.listarMias(usuarioId);
+  }
+
+  /** Switches the active store: same person, new session scoped to the chosen store. */
+  async seleccionarTienda(usuarioId: string, tiendaId: string) {
+    const membresia = await this.storesService.obtenerMembresia(usuarioId, tiendaId);
+    return this.construirSesion(usuarioId, tiendaId, membresia.rol?.nombre || 'CLIENTE', 'Tienda activa cambiada.');
+  }
+
+  /** Subscribes a new store for the logged user and returns a session already inside it. */
+  async crearTienda(usuarioId: string, dto: CrearTiendaDto) {
+    const tienda = await this.storesService.crear(usuarioId, dto);
+    const sesion = await this.construirSesion(usuarioId, tienda.id, 'ADMIN', 'Tienda creada exitosamente.');
+    return {
+      ...sesion,
+      tienda: { id: tienda.id, nombre: tienda.nombre, slug: tienda.slug, plan: tienda.plan },
+    };
+  }
+
+  private async construirSesion(usuarioId: string, tenantId: string, rolEnTienda: string, message: string) {
+    const usuario = await this.userRepo.findOne({ where: { id: usuarioId } });
+    if (!usuario) {
+      throw new UnauthorizedException('Usuario no válido o inactivo.');
+    }
+    const tokens = await this.generarTokens(usuario, tenantId, rolEnTienda);
+    return {
+      message,
+      ...tokens,
+      usuario: {
+        id: usuario.id,
+        nombre: usuario.nombre,
+        apellido: usuario.apellido,
+        correo: usuario.correo,
+        rol: rolEnTienda,
+        tenantId,
+        emailVerificado: usuario.emailVerificado,
       },
     };
   }

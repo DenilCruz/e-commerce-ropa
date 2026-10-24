@@ -14,6 +14,11 @@ export const TenantContext = {
     return storage.run({}, fn);
   },
 
+  /** Runs fn as a specific tenant and user (provisioning a store that is not the request's one). */
+  runAs<T>(tenantId: string, userId: string | undefined, fn: () => T): T {
+    return storage.run({ tenantId, userId }, fn);
+  },
+
   set(tenantId: string): void {
     const store = storage.getStore();
     if (store) store.tenantId = tenantId;
