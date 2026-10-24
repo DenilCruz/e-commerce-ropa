@@ -1,4 +1,10 @@
-import { BadRequestException, ForbiddenException, Injectable, NotFoundException } from '@nestjs/common';
+import {
+  BadRequestException,
+  ConflictException,
+  ForbiddenException,
+  Injectable,
+  NotFoundException,
+} from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { DataSource, Repository } from 'typeorm';
 import { StoreEntity } from './entities/store.entity';
@@ -10,6 +16,12 @@ import { CrearTiendaDto } from './dto/crear-tienda.dto';
 import { TenantContext } from '../../common/tenant/tenant-context';
 
 export const PLAN_INICIAL = 'FREE_TRIAL';
+const MAX_INTENTOS_SLUG = 3;
+
+/** Postgres unique violation on the store slug. */
+export function esSlugDuplicado(error: any): boolean {
+  return error?.code === '23505' && String(error?.constraint ?? error?.detail ?? '').includes('slug');
+}
 
 /** Turns a store name into a URL-safe slug: "Moda Luna!" -> "moda-luna". */
 export function generarSlugBase(nombre: string): string {
@@ -85,9 +97,22 @@ export class StoresService {
     if (!rolAdmin) throw new BadRequestException('El rol ADMIN no existe en el sistema.');
 
     const nombre = dto.nombre.trim();
-    const slug = await this.slugDisponible(generarSlugBase(nombre));
 
-    // The new store is a different tenant than the request's one: provision it under its own context
+    // Two sign-ups with the same name can pick the same slug at once: the loser retries with the next one
+    for (let intento = 1; intento <= MAX_INTENTOS_SLUG; intento++) {
+      const slug = await this.slugDisponible(generarSlugBase(nombre));
+      try {
+        return await this.aprovisionar(usuarioId, rolAdmin.id, nombre, slug);
+      } catch (error) {
+        if (!esSlugDuplicado(error)) throw error;
+      }
+    }
+    throw new ConflictException('No se pudo reservar un identificador para la tienda. Inténtalo de nuevo.');
+  }
+
+  /** Creates the tenant and its workspace in one transaction, under the new tenant's own context. */
+  private async aprovisionar(usuarioId: string, rolAdminId: string, nombre: string, slug: string): Promise<StoreEntity> {
+    // The new store is a different tenant than the request's one
     const tiendaId = (await this.dataSource.query('SELECT uuid_generate_v4() AS id'))[0].id as string;
 
     return TenantContext.runAs(tiendaId, usuarioId, async () => {
@@ -108,7 +133,7 @@ export class StoresService {
           queryRunner.manager.create(UserStoreEntity, {
             usuarioId,
             tiendaId: tienda.id,
-            rolId: rolAdmin.id,
+            rolId: rolAdminId,
           }),
         );
         await queryRunner.manager.save(
