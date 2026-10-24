@@ -121,6 +121,43 @@ describe('AuthService (multi-store)', () => {
     });
   });
 
+  describe('registro of a brand new account', () => {
+    const originalEnv = process.env.NODE_ENV;
+    const dto: any = { nombre: 'Nuevo', apellido: 'Usuario', correo: 'nuevo@luna.test', contrasena: PASSWORD };
+
+    beforeEach(() => {
+      userRepo.findOne.mockResolvedValue(null);
+      mailService.enviarEmailBienvenida = jest.fn().mockResolvedValue(undefined);
+      manager.save.mockImplementation(async (e: any) => ({ id: 'new-user', ...e }));
+    });
+    afterEach(() => {
+      process.env.NODE_ENV = originalEnv;
+    });
+
+    it('never returns the verification token in production: it only travels by email', async () => {
+      process.env.NODE_ENV = 'production';
+
+      const result: any = await enStore(() => service.registro(dto));
+
+      expect(result.tokenVerificacion).toBeUndefined();
+      expect(result.enlaceVerificacion).toBeUndefined();
+      expect(mailService.enviarEmailVerificacion).toHaveBeenCalledWith(
+        'nuevo@luna.test',
+        'Nuevo',
+        expect.any(String),
+      );
+    });
+
+    it('keeps the development shortcut outside production', async () => {
+      process.env.NODE_ENV = 'development';
+
+      const result: any = await enStore(() => service.registro(dto));
+
+      expect(result.tokenVerificacion).toEqual(expect.any(String));
+      expect(result.enlaceVerificacion).toContain('/verificar-email?token=');
+    });
+  });
+
   describe('login', () => {
     it('refuses a user who is not a member of the store being logged into', async () => {
       membershipRepo.findOne.mockResolvedValue(null);

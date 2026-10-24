@@ -144,7 +144,14 @@ export class AuthService {
         .catch((err) => this.logger.error('Error enviando email de bienvenida:', err));
 
       const appUrl = this.configService.get<string>('appUrl') || 'http://localhost:5173';
-      const enlaceVerificacion = `${appUrl}/verificar-email?token=${tokenValor}`;
+
+      // The token must reach the person only through their mailbox: returning it here would let
+      // anyone verify an email address they do not own. Outside production it is kept as a shortcut,
+      // since the development mailbox is not a real inbox.
+      const atajoDeDesarrollo =
+        process.env.NODE_ENV !== 'production'
+          ? { enlaceVerificacion: `${appUrl}/verificar-email?token=${tokenValor}`, tokenVerificacion: tokenValor }
+          : {};
 
       return {
         message: 'Usuario registrado exitosamente. Se ha enviado un correo con el enlace de verificación.',
@@ -156,8 +163,7 @@ export class AuthService {
           rol: rolCliente.nombre,
           emailVerificado: usuarioGuardado.emailVerificado,
         },
-        enlaceVerificacion,
-        tokenVerificacion: tokenValor,
+        ...atajoDeDesarrollo,
       };
     } catch (error) {
       await queryRunner.rollbackTransaction();
