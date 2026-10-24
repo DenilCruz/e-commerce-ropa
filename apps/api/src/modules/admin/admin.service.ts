@@ -7,6 +7,8 @@ import { UserEntity } from '../usuarios/entities/user.entity';
 import { ProductEntity } from '../productos/entities/product.entity';
 import { ProductVariantEntity } from '../productos/entities/product-variant.entity';
 import { ReporteVentasFiltroDto } from './dto/reporte-ventas-filtro.dto';
+import { UserStoreEntity } from '../tiendas/entities/user-store.entity';
+import { TenantContext } from '../../common/tenant/tenant-context';
 
 @Injectable()
 export class AdminService {
@@ -21,7 +23,13 @@ export class AdminService {
     private readonly productRepository: Repository<ProductEntity>,
     @InjectRepository(ProductVariantEntity)
     private readonly variantRepository: Repository<ProductVariantEntity>,
+    @InjectRepository(UserStoreEntity)
+    private readonly membershipRepository: Repository<UserStoreEntity>,
   ) {}
+
+  private get tid(): string {
+    return TenantContext.require();
+  }
 
   // =========================================================================
   // HU-89: DASHBOARD CON VENTAS DEL DÍA / MES
@@ -49,7 +57,8 @@ export class AdminService {
     // 1. Ventas Hoy
     const ordenesHoy = await this.orderRepository
       .createQueryBuilder('o')
-      .where('o.fecha BETWEEN :inicio AND :fin', { inicio: inicioHoy, fin: finHoy })
+      .where('o.tenantId = :tid', { tid: this.tid })
+      .andWhere('o.fecha BETWEEN :inicio AND :fin', { inicio: inicioHoy, fin: finHoy })
       .andWhere('o.estado != :cancelado', { cancelado: 'CANCELADO' })
       .getMany();
 
@@ -59,7 +68,8 @@ export class AdminService {
     // 2. Ventas Mes Actual
     const ordenesMes = await this.orderRepository
       .createQueryBuilder('o')
-      .where('o.fecha BETWEEN :inicio AND :fin', { inicio: inicioMes, fin: finMes })
+      .where('o.tenantId = :tid', { tid: this.tid })
+      .andWhere('o.fecha BETWEEN :inicio AND :fin', { inicio: inicioMes, fin: finMes })
       .andWhere('o.estado != :cancelado', { cancelado: 'CANCELADO' })
       .getMany();
 
@@ -70,7 +80,8 @@ export class AdminService {
     // 3. Ventas Mes Anterior (para cálculo de % de crecimiento)
     const ordenesMesAnterior = await this.orderRepository
       .createQueryBuilder('o')
-      .where('o.fecha BETWEEN :inicio AND :fin', { inicio: inicioMesAnterior, fin: finMesAnterior })
+      .where('o.tenantId = :tid', { tid: this.tid })
+      .andWhere('o.fecha BETWEEN :inicio AND :fin', { inicio: inicioMesAnterior, fin: finMesAnterior })
       .andWhere('o.estado != :cancelado', { cancelado: 'CANCELADO' })
       .getMany();
 
@@ -81,7 +92,8 @@ export class AdminService {
     // 4. Tendencia de Ventas (últimos 30 días día a día)
     const ordenes30Dias = await this.orderRepository
       .createQueryBuilder('o')
-      .where('o.fecha >= :inicio', { inicio: inicio30Dias })
+      .where('o.tenantId = :tid', { tid: this.tid })
+      .andWhere('o.fecha >= :inicio', { inicio: inicio30Dias })
       .andWhere('o.estado != :cancelado', { cancelado: 'CANCELADO' })
       .orderBy('o.fecha', 'ASC')
       .getMany();
@@ -116,6 +128,7 @@ export class AdminService {
       .select('o.estado', 'estado')
       .addSelect('COUNT(o.id)', 'cantidad')
       .addSelect('SUM(o.total)', 'total')
+      .where('o.tenantId = :tid', { tid: this.tid })
       .groupBy('o.estado')
       .getRawMany();
 
@@ -126,9 +139,9 @@ export class AdminService {
     }));
 
     // 6. Totales Generales Históricos
-    const totalOrdenesHistoricas = await this.orderRepository.count();
-    const totalUsuariosRegistrados = await this.userRepository.count();
-    const totalProductosActivos = await this.productRepository.count({ where: { activo: true } });
+    const totalOrdenesHistoricas = await this.orderRepository.count({ where: { tenantId: this.tid } });
+    const totalUsuariosRegistrados = await this.membershipRepository.count({ where: { tiendaId: this.tid } });
+    const totalProductosActivos = await this.productRepository.count({ where: { activo: true, tenantId: this.tid } });
 
     return {
       ventasHoy: {
@@ -160,7 +173,8 @@ export class AdminService {
     const resultados = await this.orderItemRepository
       .createQueryBuilder('item')
       .innerJoin('item.notaventa', 'orden')
-      .where('orden.estado != :cancelado', { cancelado: 'CANCELADO' })
+      .where('item.tenantId = :tid', { tid: this.tid })
+      .andWhere('orden.estado != :cancelado', { cancelado: 'CANCELADO' })
       .select('item.producto_id', 'productoId')
       .addSelect('MAX(item.nombre_producto)', 'nombre')
       .addSelect('SUM(item.cantidad)', 'unidadesVendidas')
@@ -173,6 +187,7 @@ export class AdminService {
     if (!resultados || resultados.length === 0) {
       // Si no hay ventas registradas aún, traemos los productos destacados o primeros con stock
       const productos = await this.productRepository.find({
+        where: { tenantId: this.tid },
         take: limite,
         relations: ['categoria', 'variantes', 'imagenes'],
       });
@@ -196,7 +211,7 @@ export class AdminService {
     // Enriquecer con información del producto (categoría, imagen y stock total)
     const productosIds = resultados.map((r) => r.productoId).filter(Boolean);
     const productosInfo = await this.productRepository.find({
-      where: { id: In(productosIds) },
+      where: { id: In(productosIds), tenantId: this.tid },
       relations: ['categoria', 'variantes', 'imagenes'],
     });
 
@@ -231,7 +246,8 @@ export class AdminService {
       .leftJoinAndSelect('v.color', 'c')
       .leftJoinAndSelect('p.categoria', 'cat')
       .leftJoinAndSelect('p.imagenes', 'img')
-      .where('v.stock <= v.stock_minimo')
+      .where('v.tenantId = :tid', { tid: this.tid })
+      .andWhere('v.stock <= v.stock_minimo')
       .andWhere('v.activa = true')
       .orderBy('v.stock', 'ASC')
       .addOrderBy('p.nombre', 'ASC')
@@ -265,7 +281,8 @@ export class AdminService {
       .leftJoinAndSelect('orden.usuario', 'usuario')
       .leftJoinAndSelect('orden.cupon', 'cupon')
       .leftJoinAndSelect('orden.items', 'items')
-      .leftJoinAndSelect('orden.pago', 'pago');
+      .leftJoinAndSelect('orden.pago', 'pago')
+      .where('orden.tenantId = :tid', { tid: this.tid });
 
     // Filtro por Fecha Inicio
     if (filtros.fechaInicio) {
@@ -384,9 +401,15 @@ export class AdminService {
   // =========================================================================
   async obtenerUsuariosNuevosPorMes(mesesAtras: number = 6) {
     const ahora = new Date();
-    const totalUsuarios = await this.userRepository.count();
-    const totalVerificados = await this.userRepository.count({ where: { emailVerificado: true } });
-    const totalActivos = await this.userRepository.count({ where: { activo: true } });
+    const miembros = () =>
+      this.membershipRepository
+        .createQueryBuilder('m')
+        .innerJoin('m.usuario', 'u')
+        .where('m.tiendaId = :tid', { tid: this.tid });
+
+    const totalUsuarios = await miembros().getCount();
+    const totalVerificados = await miembros().andWhere('u.emailVerificado = true').getCount();
+    const totalActivos = await miembros().andWhere('u.activo = true').andWhere('m.activo = true').getCount();
 
     // Calculamos los últimos N meses
     const mesesData: { mes: string; label: string; fechaInicio: Date; fechaFin: Date }[] = [];
@@ -402,14 +425,13 @@ export class AdminService {
 
     const desgloseMensual = await Promise.all(
       mesesData.map(async (m) => {
-        const total = await this.userRepository
-          .createQueryBuilder('u')
-          .where('u.creadoEn BETWEEN :inicio AND :fin', { inicio: m.fechaInicio, fin: m.fechaFin })
+        // "Nuevos" = personas que se unieron a esta tienda en el mes
+        const total = await miembros()
+          .andWhere('m.creadoEn BETWEEN :inicio AND :fin', { inicio: m.fechaInicio, fin: m.fechaFin })
           .getCount();
 
-        const verificados = await this.userRepository
-          .createQueryBuilder('u')
-          .where('u.creadoEn BETWEEN :inicio AND :fin', { inicio: m.fechaInicio, fin: m.fechaFin })
+        const verificados = await miembros()
+          .andWhere('m.creadoEn BETWEEN :inicio AND :fin', { inicio: m.fechaInicio, fin: m.fechaFin })
           .andWhere('u.emailVerificado = true')
           .getCount();
 
@@ -429,10 +451,11 @@ export class AdminService {
       anterior > 0 ? ((actual - anterior) / anterior) * 100 : actual > 0 ? 100 : 0;
 
     // Últimos 10 usuarios registrados
-    const ultimosUsuarios = await this.userRepository.find({
+    const ultimasMembresias = await this.membershipRepository.find({
+      where: { tiendaId: this.tid },
       order: { creadoEn: 'DESC' },
       take: 10,
-      relations: ['rol'],
+      relations: ['usuario', 'rol'],
     });
 
     return {
@@ -445,14 +468,14 @@ export class AdminService {
         crecimientoVsMesAnterior: Number(crecimientoVsMesAnterior.toFixed(1)),
       },
       desgloseMensual,
-      ultimosUsuarios: ultimosUsuarios.map((u) => ({
-        id: u.id,
-        nombre: `${u.nombre} ${u.apellido}`.trim(),
-        correo: u.correo,
-        rol: u.rol?.nombre || 'CLIENTE',
-        emailVerificado: u.emailVerificado,
-        activo: u.activo,
-        creadoEn: u.creadoEn,
+      ultimosUsuarios: ultimasMembresias.map((m) => ({
+        id: m.usuario.id,
+        nombre: `${m.usuario.nombre} ${m.usuario.apellido}`.trim(),
+        correo: m.usuario.correo,
+        rol: m.rol?.nombre || 'CLIENTE',
+        emailVerificado: m.usuario.emailVerificado,
+        activo: m.usuario.activo && m.activo,
+        creadoEn: m.creadoEn,
       })),
     };
   }
@@ -469,7 +492,8 @@ export class AdminService {
     // 1. Obtener órdenes reales no canceladas de los últimos 60 días
     const ordenes = await this.orderRepository
       .createQueryBuilder('o')
-      .where('o.fecha >= :inicio', { inicio: inicio60Dias })
+      .where('o.tenantId = :tid', { tid: this.tid })
+      .andWhere('o.fecha >= :inicio', { inicio: inicio60Dias })
       .andWhere('o.estado != :cancelado', { cancelado: 'CANCELADO' })
       .orderBy('o.fecha', 'ASC')
       .getMany();
@@ -588,7 +612,8 @@ export class AdminService {
     // 1. Obtener todas las órdenes agrupadas por usuario_id
     const ordenesPorUsuario = await this.orderRepository
       .createQueryBuilder('o')
-      .where('o.estado != :cancelado', { cancelado: 'CANCELADO' })
+      .where('o.tenantId = :tid', { tid: this.tid })
+      .andWhere('o.estado != :cancelado', { cancelado: 'CANCELADO' })
       .select('o.usuario_id', 'usuarioId')
       .addSelect('COUNT(o.id)', 'totalCompras')
       .addSelect('SUM(o.total)', 'gastoTotal')
@@ -608,10 +633,13 @@ export class AdminService {
     });
 
     // 2. Obtener clientes con rol CLIENTE
-    const clientes = await this.userRepository
-      .createQueryBuilder('u')
-      .innerJoin('u.rol', 'r', "r.nombre = 'CLIENTE'")
+    const membresiasCliente = await this.membershipRepository
+      .createQueryBuilder('m')
+      .innerJoinAndSelect('m.usuario', 'u')
+      .innerJoin('m.rol', 'r', "r.nombre = 'CLIENTE'")
+      .where('m.tiendaId = :tid', { tid: this.tid })
       .getMany();
+    const clientes = membresiasCliente.map((m) => m.usuario);
 
     const clientesAnalizados = clientes.map((c) => {
       const stats = mapaOrdenes.get(c.id);
@@ -698,7 +726,8 @@ export class AdminService {
       .createQueryBuilder('d1')
       .innerJoin(OrderItemEntity, 'd2', 'd1.notaventa_id = d2.notaventa_id AND d1.producto_id < d2.producto_id')
       .innerJoin('d1.notaventa', 'nv')
-      .where('nv.estado != :cancelado', { cancelado: 'CANCELADO' })
+      .where('d1.tenantId = :tid', { tid: this.tid })
+      .andWhere('nv.estado != :cancelado', { cancelado: 'CANCELADO' })
       .select('d1.producto_id', 'productoAId')
       .addSelect('MAX(d1.nombre_producto)', 'productoANombre')
       .addSelect('d2.producto_id', 'productoBId')

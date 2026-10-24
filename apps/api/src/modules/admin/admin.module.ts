@@ -10,6 +10,7 @@ import { ProductEntity } from '../productos/entities/product.entity';
 import { ProductVariantEntity } from '../productos/entities/product-variant.entity';
 import { CouponEntity } from '../cupones/entities/coupon.entity';
 import { PaymentEntity } from '../pagos/entities/payment.entity';
+import { StoresModule } from '../tiendas/stores.module';
 
 @Module({
   imports: [
@@ -22,6 +23,7 @@ import { PaymentEntity } from '../pagos/entities/payment.entity';
       CouponEntity,
       PaymentEntity,
     ]),
+    StoresModule,
   ],
   controllers: [AdminController],
   providers: [AdminService, DynamicReportsService],
