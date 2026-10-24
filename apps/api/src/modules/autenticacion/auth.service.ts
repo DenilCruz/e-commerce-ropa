@@ -22,6 +22,7 @@ import { UserStoreEntity } from '../tiendas/entities/user-store.entity';
 import { StoresService } from '../tiendas/stores.service';
 import { CrearTiendaDto } from '../tiendas/dto/crear-tienda.dto';
 import { TenantContext } from '../../common/tenant/tenant-context';
+import { exponerAtajoDeVerificacion } from '../../common/config/dev-shortcuts';
 
 import { RegistroDto } from './dto/registro.dto';
 import { LoginDto } from './dto/login.dto';
@@ -146,10 +147,9 @@ export class AuthService {
       const appUrl = this.configService.get<string>('appUrl') || 'http://localhost:5173';
 
       // The token must reach the person only through their mailbox: returning it here would let
-      // anyone verify an email address they do not own. Outside production it is kept as a shortcut,
-      // since the development mailbox is not a real inbox.
+      // anyone verify an email address they do not own, so it is closed unless the shortcut is enabled.
       const atajoDeDesarrollo =
-        process.env.NODE_ENV !== 'production'
+        exponerAtajoDeVerificacion()
           ? { enlaceVerificacion: `${appUrl}/verificar-email?token=${tokenValor}`, tokenVerificacion: tokenValor }
           : {};
 
@@ -488,8 +488,8 @@ export class AuthService {
       message: `Te enviamos un correo de verificación a ${usuario.correo}.`,
       correo: usuario.correo,
     };
-    // Outside production the link is returned too, because the development mailbox is not a real inbox
-    if (process.env.NODE_ENV !== 'production') {
+    // The link is returned only when the development shortcut is explicitly enabled
+    if (exponerAtajoDeVerificacion()) {
       const appUrl = this.configService.get<string>('appUrl') || 'http://localhost:5173';
       respuesta.enlaceVerificacion = `${appUrl}/verificar-email?token=${tokenValor}`;
     }

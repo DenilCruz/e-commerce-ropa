@@ -122,7 +122,7 @@ describe('AuthService (multi-store)', () => {
   });
 
   describe('registro of a brand new account', () => {
-    const originalEnv = process.env.NODE_ENV;
+    const originalFlag = process.env.EXPOSE_VERIFICATION_LINK;
     const dto: any = { nombre: 'Nuevo', apellido: 'Usuario', correo: 'nuevo@luna.test', contrasena: PASSWORD };
 
     beforeEach(() => {
@@ -131,11 +131,12 @@ describe('AuthService (multi-store)', () => {
       manager.save.mockImplementation(async (e: any) => ({ id: 'new-user', ...e }));
     });
     afterEach(() => {
-      process.env.NODE_ENV = originalEnv;
+      if (originalFlag === undefined) delete process.env.EXPOSE_VERIFICATION_LINK;
+      else process.env.EXPOSE_VERIFICATION_LINK = originalFlag;
     });
 
-    it('never returns the verification token in production: it only travels by email', async () => {
-      process.env.NODE_ENV = 'production';
+    it('does not return the verification token by default: it only travels by email', async () => {
+      delete process.env.EXPOSE_VERIFICATION_LINK;
 
       const result: any = await enStore(() => service.registro(dto));
 
@@ -148,8 +149,18 @@ describe('AuthService (multi-store)', () => {
       );
     });
 
-    it('keeps the development shortcut outside production', async () => {
-      process.env.NODE_ENV = 'development';
+    it('does not open the shortcut because NODE_ENV is unset or unusual', async () => {
+      delete process.env.EXPOSE_VERIFICATION_LINK;
+      process.env.NODE_ENV = 'staging';
+
+      const result: any = await enStore(() => service.registro(dto));
+
+      expect(result.tokenVerificacion).toBeUndefined();
+      expect(result.enlaceVerificacion).toBeUndefined();
+    });
+
+    it('returns the token and link only when the development shortcut is explicitly enabled', async () => {
+      process.env.EXPOSE_VERIFICATION_LINK = 'true';
 
       const result: any = await enStore(() => service.registro(dto));
 
@@ -182,9 +193,10 @@ describe('AuthService (multi-store)', () => {
   });
 
   describe('reenviarVerificacion', () => {
-    const originalEnv = process.env.NODE_ENV;
+    const originalFlag = process.env.EXPOSE_VERIFICATION_LINK;
     afterEach(() => {
-      process.env.NODE_ENV = originalEnv;
+      if (originalFlag === undefined) delete process.env.EXPOSE_VERIFICATION_LINK;
+      else process.env.EXPOSE_VERIFICATION_LINK = originalFlag;
     });
 
     let recentQuery: { getOne: jest.Mock };
@@ -218,7 +230,7 @@ describe('AuthService (multi-store)', () => {
     });
 
     it('invalidates the previous links, stores a new 24 hour token and emails it', async () => {
-      process.env.NODE_ENV = 'development';
+      delete process.env.EXPOSE_VERIFICATION_LINK;
 
       const result = await service.reenviarVerificacion('user-1');
 
@@ -233,14 +245,15 @@ describe('AuthService (multi-store)', () => {
       expect(result.message).toContain(usuario.correo);
     });
 
-    it('returns the link only outside production', async () => {
-      process.env.NODE_ENV = 'development';
-      const dev = await service.reenviarVerificacion('user-1');
-      expect(dev.enlaceVerificacion).toContain('/verificar-email?token=');
+    it('returns the link only when the development shortcut is explicitly enabled', async () => {
+      process.env.EXPOSE_VERIFICATION_LINK = 'true';
+      const open = await service.reenviarVerificacion('user-1');
+      expect(open.enlaceVerificacion).toContain('/verificar-email?token=');
 
-      process.env.NODE_ENV = 'production';
-      const prod = await service.reenviarVerificacion('user-1');
-      expect(prod.enlaceVerificacion).toBeUndefined();
+      delete process.env.EXPOSE_VERIFICATION_LINK;
+      process.env.NODE_ENV = 'development';
+      const closed = await service.reenviarVerificacion('user-1');
+      expect(closed.enlaceVerificacion).toBeUndefined();
     });
   });
 
