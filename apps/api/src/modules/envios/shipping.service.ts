@@ -16,8 +16,14 @@ import { ActualizarMetodoEnvioDto } from './dto/actualizar-metodo-envio.dto';
 import { CotizarEnvioDto } from './dto/cotizar-envio.dto';
 import { ActualizarEstadoEnvioDto } from './dto/actualizar-estado-envio.dto';
 
+import { TenantContext } from '../../common/tenant/tenant-context';
+
 @Injectable()
 export class ShippingService {
+  private get tid(): string {
+    return TenantContext.require();
+  }
+
   private readonly logger = new Logger(ShippingService.name);
 
   constructor(
@@ -176,9 +182,11 @@ export class ShippingService {
       .leftJoinAndSelect('o.usuario', 'u')
       .leftJoinAndSelect('o.items', 'items')
       .leftJoinAndSelect('items.producto', 'p')
-      .where('UPPER(e.numeroTracking) = :termino', { termino })
-      .orWhere('UPPER(o.nro) = :termino', { termino })
-      .orWhere('e.id::text = :terminoOriginal', { terminoOriginal: codigo.trim() })
+      .where('e.tenantId = :tid', { tid: this.tid })
+      .andWhere(
+        '(UPPER(e.numeroTracking) = :termino OR UPPER(o.nro) = :termino OR e.id::text = :terminoOriginal)',
+        { termino, terminoOriginal: codigo.trim() },
+      )
       .getOne();
 
     if (!envio) {
@@ -323,7 +331,7 @@ export class ShippingService {
     adminId?: string,
   ) {
     const envio = await this.shippingRepo.findOne({
-      where: { id: envioId },
+      where: { id: envioId, tenantId: this.tid },
       relations: ['notaventa'],
     });
 
@@ -412,6 +420,7 @@ export class ShippingService {
       .leftJoinAndSelect('e.metodoEnvio', 'me')
       .leftJoinAndSelect('e.notaventa', 'o')
       .leftJoinAndSelect('o.usuario', 'u')
+      .where('e.tenantId = :tid', { tid: this.tid })
       .orderBy('e.creadoEn', 'DESC');
 
     if (filtros?.estado && filtros.estado !== 'TODOS') {

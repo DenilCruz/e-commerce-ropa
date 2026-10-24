@@ -4,6 +4,7 @@ jest.mock('@nestjs/typeorm', () => ({
 
 import { BadRequestException, NotFoundException } from '@nestjs/common';
 import { FavoritosService } from '../../src/modules/listadedeseos/wishlist.service';
+import { TenantContext } from '../../src/common/tenant/tenant-context';
 
 describe('FavoritosService (Unit Tests)', () => {
   let service: FavoritosService;
@@ -14,6 +15,14 @@ describe('FavoritosService (Unit Tests)', () => {
   const dummyUsuarioId = '11111111-1111-1111-1111-111111111111';
   const dummyProductoId = '22222222-2222-2222-2222-222222222222';
   const dummyVarianteId = '33333333-3333-3333-3333-333333333333';
+  const TEST_TENANT = 'tenant-test';
+  beforeEach(() => {
+    jest.spyOn(TenantContext, 'require').mockReturnValue(TEST_TENANT);
+  });
+  afterEach(() => {
+    jest.restoreAllMocks();
+  });
+
 
   beforeEach(() => {
     jest.clearAllMocks();
@@ -86,7 +95,7 @@ describe('FavoritosService (Unit Tests)', () => {
       expect(resultado).toEqual(mockFavoritos);
       expect(mockRepositorioFavoritos.find).toHaveBeenCalledWith(
         expect.objectContaining({
-          where: { usuarioId: dummyUsuarioId },
+          where: { usuarioId: dummyUsuarioId, tenantId: TEST_TENANT },
           relations: expect.arrayContaining([
             'producto',
             'producto.imagenes',

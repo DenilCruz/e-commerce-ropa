@@ -4,11 +4,20 @@ jest.mock('@nestjs/typeorm', () => ({
 
 import { BadRequestException, ForbiddenException, NotFoundException } from '@nestjs/common';
 import { ResenasService } from '../../src/modules/reseñas/reviews.service';
+import { TenantContext } from '../../src/common/tenant/tenant-context';
 
 describe('ResenasService (Unit Tests)', () => {
   let service: ResenasService;
   let mockRepositorioResena: any;
   let mockDataSource: any;
+  const TEST_TENANT = 'tenant-test';
+  beforeEach(() => {
+    jest.spyOn(TenantContext, 'require').mockReturnValue(TEST_TENANT);
+  });
+  afterEach(() => {
+    jest.restoreAllMocks();
+  });
+
 
   beforeEach(() => {
     mockRepositorioResena = {

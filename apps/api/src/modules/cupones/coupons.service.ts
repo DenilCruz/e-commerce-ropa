@@ -14,8 +14,14 @@ import { CrearCuponDto } from './dto/crear-cupon.dto';
 import { ActualizarCuponDto } from './dto/actualizar-cupon.dto';
 import { AplicarCuponDto } from './dto/aplicar-cupon.dto';
 
+import { TenantContext } from '../../common/tenant/tenant-context';
+
 @Injectable()
 export class CouponsService {
+  private get tid(): string {
+    return TenantContext.require();
+  }
+
   private readonly logger = new Logger(CouponsService.name);
 
   constructor(
@@ -34,6 +40,7 @@ export class CouponsService {
     // Validar unicidad de código
     const existe = await this.couponRepo.findOne({
       where: {
+        tenantId: this.tid,
         codigo: Raw((alias) => `UPPER(${alias}) = :codigo`, {
           codigo: codigoNormalizado,
         }),
@@ -86,12 +93,14 @@ export class CouponsService {
   // LISTAR CUPONES (ADMIN / PÚBLICO)
   // =========================================================================
   async listarCupones(soloActivos: boolean = false) {
-    const query = this.couponRepo.createQueryBuilder('c');
+    const query = this.couponRepo
+      .createQueryBuilder('c')
+      .where('c.tenantId = :tid', { tid: this.tid });
 
     if (soloActivos) {
       const ahora = new Date();
       query
-        .where('c.activo = :activo', { activo: true })
+        .andWhere('c.activo = :activo', { activo: true })
         .andWhere('c.fecha_inicio <= :ahora', { ahora })
         .andWhere('c.fecha_fin >= :ahora', { ahora });
     }
@@ -104,7 +113,7 @@ export class CouponsService {
   // OBTENER CUPÓN POR ID
   // =========================================================================
   async obtenerCuponPorId(id: string) {
-    const cupon = await this.couponRepo.findOne({ where: { id } });
+    const cupon = await this.couponRepo.findOne({ where: { id, tenantId: this.tid } });
     if (!cupon) {
       throw new NotFoundException(`No se encontró el cupón con ID "${id}".`);
     }
@@ -122,6 +131,7 @@ export class CouponsService {
       if (codigoNormalizado !== cupon.codigo) {
         const existe = await this.couponRepo.findOne({
           where: {
+            tenantId: this.tid,
             codigo: Raw((alias) => `UPPER(${alias}) = :codigo`, {
               codigo: codigoNormalizado,
             }),
@@ -203,6 +213,7 @@ export class CouponsService {
     // 1. Verificar si existe
     const cupon = await this.couponRepo.findOne({
       where: {
+        tenantId: this.tid,
         codigo: Raw((alias) => `UPPER(${alias}) = :codigo`, {
           codigo: codigoBuscado,
         }),
@@ -256,6 +267,7 @@ export class CouponsService {
     if (usuarioId && cupon.usosPorUsuario > 0) {
       const usosDelUsuario = await this.couponUsageRepo.count({
         where: {
+          tenantId: this.tid,
           cuponId: cupon.id,
           usuarioId: usuarioId,
         },

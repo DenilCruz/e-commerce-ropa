@@ -7,8 +7,14 @@ import { CartService } from '../carrito/cart.service';
 import { AgregarFavoritoDto } from './dto/agregar-favorito.dto';
 import { MoverFavoritoAlCarritoDto } from './dto/mover-favorito-carrito.dto';
 
+import { TenantContext } from '../../common/tenant/tenant-context';
+
 @Injectable()
 export class FavoritosService {
+  private get tid(): string {
+    return TenantContext.require();
+  }
+
   constructor(
     @InjectRepository(WishlistEntity)
     private readonly repositorioFavoritos: Repository<WishlistEntity>,
@@ -24,6 +30,7 @@ export class FavoritosService {
     // Verificar si ya existe en favoritos para prevenir duplicados
     const existe = await this.repositorioFavoritos.findOne({
       where: {
+        tenantId: this.tid,
         usuarioId: datos.usuarioId,
         productoId: datos.productoId,
       },
@@ -42,7 +49,7 @@ export class FavoritosService {
    */
   async obtenerPorUsuario(usuarioId: string): Promise<WishlistEntity[]> {
     return await this.repositorioFavoritos.find({
-      where: { usuarioId },
+      where: { usuarioId, tenantId: this.tid },
       relations: [
         'producto',
         'producto.imagenes',
@@ -60,7 +67,7 @@ export class FavoritosService {
    */
   async eliminar(usuarioId: string, productoId: string): Promise<{ mensaje: string }> {
     const favorito = await this.repositorioFavoritos.findOne({
-      where: { usuarioId, productoId },
+      where: { usuarioId, productoId, tenantId: this.tid },
     });
 
     if (!favorito) {
@@ -76,7 +83,7 @@ export class FavoritosService {
    */
   async limpiarTodos(usuarioId: string): Promise<{ eliminados: number; mensaje: string }> {
     const favoritos = await this.repositorioFavoritos.find({
-      where: { usuarioId },
+      where: { usuarioId, tenantId: this.tid },
     });
 
     if (favoritos.length === 0) {
@@ -101,7 +108,7 @@ export class FavoritosService {
   }> {
     // 1. Verificar existencia en la lista de favoritos
     const favorito = await this.repositorioFavoritos.findOne({
-      where: { usuarioId: datos.usuarioId, productoId: datos.productoId },
+      where: { usuarioId: datos.usuarioId, productoId: datos.productoId, tenantId: this.tid },
       relations: ['producto'],
     });
 
@@ -115,6 +122,7 @@ export class FavoritosService {
       // Buscar primera variante activa con stock disponible
       const varianteDisponible = await this.repositorioVariantes.findOne({
         where: {
+          tenantId: this.tid,
           productoId: datos.productoId,
           activa: true,
         },
