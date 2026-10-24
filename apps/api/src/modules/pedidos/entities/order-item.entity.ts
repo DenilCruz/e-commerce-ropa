@@ -14,6 +14,9 @@ export class OrderItemEntity {
   @PrimaryGeneratedColumn('uuid')
   id: string;
 
+  @Column({ type: 'uuid', name: 'tenant_id' })
+  tenantId: string;
+
   @Column({ type: 'uuid', name: 'notaventa_id' })
   notaventaId: string;
 

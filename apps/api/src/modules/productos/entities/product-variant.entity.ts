@@ -8,6 +8,9 @@ export class ProductVariantEntity {
   @PrimaryGeneratedColumn('uuid')
   id: string;
 
+  @Column({ type: 'uuid', name: 'tenant_id' })
+  tenantId: string;
+
   @Column({ type: 'uuid', name: 'producto_id' })
   productoId: string;
 
@@ -17,7 +20,7 @@ export class ProductVariantEntity {
   @Column({ type: 'uuid', name: 'color_id', nullable: true })
   colorId: string;
 
-  @Column({ type: 'varchar', length: 50, unique: true })
+  @Column({ type: 'varchar', length: 50 })
   sku: string;
 
   @Column({ type: 'int', default: 0 })

@@ -16,8 +16,8 @@ Objective: convert AURA from a single store to a multi-tenant SaaS (shared DB wi
 
 ## Tasks
 
-- T1 (S4, S5, S6, S8): SQL migration + `01_init_schema.sql` update + AURA backfill, validated on a scratch DB. Route: inline. Commit: see git log (feat(db): add multi-tenant migration).
-- T2 (S5, S6): Update TypeORM entities with `tenantId` and add `usuario_tienda` entity. Route: inline. Commit: pending.
+- T1 (S4, S5, S6, S8): SQL migration `database/03_multi_tenant.sql` (01_init_schema.sql stays untouched; 03 runs after it on fresh DBs) + AURA backfill, validated on scratch DBs. Reviewed and approved; advisory: add an automated migration test in T6. Route: inline. Commit: see git log (feat(db): add multi-tenant migration).
+- T2 (S5, S6): Update TypeORM entities with `tenantId` and add `usuario_tienda` entity. Route: inline. Commit: feat(api) tenant entities. Note: entities alone do not run against the migrated DB; T3 must fill tenant_id on insert before the migration is applied to the dev DB.
 - T3 (S7): Tenant context in the API (JWT claim, guard, automatic filter in repositories/queries). Route: inline. Commit: pending.
 - T4 (S2, S3): Store registration with provisioning, list my stores, switch active store (new JWT). Route: inline. Commit: pending.
 - T5 (S7): RLS policies + per-request `SET LOCAL app.tenant_id`. Route: inline. Commit: pending.

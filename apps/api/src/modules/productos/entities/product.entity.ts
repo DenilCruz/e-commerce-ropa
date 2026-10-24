@@ -9,6 +9,9 @@ export class ProductEntity {
   @PrimaryGeneratedColumn('uuid')
   id: string;
 
+  @Column({ type: 'uuid', name: 'tenant_id' })
+  tenantId: string;
+
   @Column({ type: 'uuid', name: 'categoria_id' })
   categoriaId: string;
 

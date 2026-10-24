@@ -19,7 +19,10 @@ export class OrderEntity {
   @PrimaryGeneratedColumn('uuid')
   id: string;
 
-  @Column({ type: 'varchar', length: 20, unique: true })
+  @Column({ type: 'uuid', name: 'tenant_id' })
+  tenantId: string;
+
+  @Column({ type: 'varchar', length: 20 })
   nro: string;
 
   @Column({ type: 'uuid', name: 'usuario_id' })
@@ -30,9 +33,6 @@ export class OrderEntity {
 
   @Column({ type: 'uuid', name: 'caja_id', nullable: true })
   cajaId: string;
-
-  @Column({ type: 'uuid', name: 'tienda_id', nullable: true })
-  tiendaId: string;
 
   @Column({ type: 'uuid', name: 'direccion_id', nullable: true })
   direccionId: string;

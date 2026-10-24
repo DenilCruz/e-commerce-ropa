@@ -16,6 +16,9 @@ export class ShippingEntity {
   @PrimaryGeneratedColumn('uuid')
   id: string;
 
+  @Column({ type: 'uuid', name: 'tenant_id' })
+  tenantId: string;
+
   @Column({ type: 'uuid', name: 'notaventa_id', unique: true })
   notaventaId: string;
 

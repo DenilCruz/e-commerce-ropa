@@ -15,7 +15,10 @@ export class CouponEntity {
   @PrimaryGeneratedColumn('uuid')
   id: string;
 
-  @Column({ type: 'varchar', length: 50, unique: true })
+  @Column({ type: 'uuid', name: 'tenant_id' })
+  tenantId: string;
+
+  @Column({ type: 'varchar', length: 50 })
   codigo: string;
 
   @Column({ type: 'varchar', length: 255, nullable: true })
