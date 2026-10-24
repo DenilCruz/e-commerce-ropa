@@ -38,10 +38,15 @@ DECLARE
         'carrito', 'detalle_carrito', 'cupon', 'cupon_uso',
         'nota_venta', 'detalle_nota_venta', 'pago', 'historial_venta', 'envio',
         'nota_compra', 'detalle_nota_compra', 'promocion', 'detalle_promocion',
-        'devolucion', 'detalle_devolucion', 'resena', 'favorito', 'bitacora'
+        'devolucion', 'detalle_devolucion', 'resena', 'favorito', 'bitacora', 'archivo'
     ];
 BEGIN
     FOREACH t IN ARRAY tablas LOOP
+        -- 'archivo' no existe en 01_init_schema.sql; solo se migra si la tabla existe
+        IF to_regclass('public.' || quote_ident(t)) IS NULL THEN
+            CONTINUE;
+        END IF;
+
         -- Tablas que ya tenían tienda_id: se renombra para unificar el nombre
         IF EXISTS (SELECT 1 FROM information_schema.columns
                    WHERE table_schema = 'public' AND table_name = t AND column_name = 'tienda_id') THEN
