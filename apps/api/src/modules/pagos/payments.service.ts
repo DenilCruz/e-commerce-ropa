@@ -36,8 +36,14 @@ const METODO_TARJETA_ID = '5d6c0b39-63f4-4cb1-b0df-66aa706e44e5';
 const METODO_CONTRA_ENTREGA_ID = '17817d50-a056-4697-a572-bf7145b63646';
 const METODO_QR_ID = 'dcb8cd5b-18f8-43c7-a7b6-44dfa1beae69';
 
+import { TenantContext } from '../../common/tenant/tenant-context';
+
 @Injectable()
 export class PaymentsService {
+  private get tid(): string {
+    return TenantContext.require();
+  }
+
   private readonly logger = new Logger(PaymentsService.name);
   private stripe: Stripe;
 
@@ -321,7 +327,10 @@ export class PaymentsService {
 
     // Verificar si la orden ya fue creada previamente
     const pagoExistente = await this.paymentRepo.findOne({
-      where: [{ idTransaccion: paymentIntentId }, { idTransaccion: session.id }],
+      where: [
+          { idTransaccion: paymentIntentId, tenantId: this.tid },
+          { idTransaccion: session.id, tenantId: this.tid },
+        ],
       relations: ['notaventa', 'notaventa.items', 'metodoPago', 'notaventa.envio', 'notaventa.historial'],
     });
 
@@ -371,7 +380,7 @@ export class PaymentsService {
       for (const item of cart.items) {
         // Bloqueo Pesimista (SELECT ... FOR UPDATE) directo sobre la variante sin JOINs para PostgreSQL
         const varianteBloqueada = await queryRunner.manager.findOne(ProductVariantEntity, {
-          where: { id: item.varianteId },
+          where: { id: item.varianteId, tenantId: this.tid },
           lock: { mode: 'pessimistic_write' },
         });
 
@@ -387,7 +396,7 @@ export class PaymentsService {
 
         // Cargar detalles descriptivos sin outer join lock
         const varianteInfo = await queryRunner.manager.findOne(ProductVariantEntity, {
-          where: { id: item.varianteId },
+          where: { id: item.varianteId, tenantId: this.tid },
           relations: ['producto', 'talla', 'color'],
         });
 
@@ -532,7 +541,7 @@ export class PaymentsService {
 
     if (!cart.items || cart.items.length === 0) {
       const pagoExistente = await this.paymentRepo.findOne({
-        where: { idTransaccion: dto.paymentIntentId },
+        where: { idTransaccion: dto.paymentIntentId, tenantId: this.tid },
         relations: ['notaventa', 'notaventa.items', 'metodoPago', 'notaventa.envio'],
       });
 
@@ -571,7 +580,7 @@ export class PaymentsService {
       for (const item of cart.items) {
         // Bloqueo Pesimista (SELECT ... FOR UPDATE) directo sobre la variante sin JOINs para PostgreSQL
         const varianteBloqueada = await queryRunner.manager.findOne(ProductVariantEntity, {
-          where: { id: item.varianteId },
+          where: { id: item.varianteId, tenantId: this.tid },
           lock: { mode: 'pessimistic_write' },
         });
 
@@ -587,7 +596,7 @@ export class PaymentsService {
 
         // Cargar detalles descriptivos sin outer join lock
         const varianteInfo = await queryRunner.manager.findOne(ProductVariantEntity, {
-          where: { id: item.varianteId },
+          where: { id: item.varianteId, tenantId: this.tid },
           relations: ['producto', 'talla', 'color'],
         });
 
@@ -745,7 +754,7 @@ export class PaymentsService {
       for (const item of cart.items) {
         // Bloqueo Pesimista (SELECT ... FOR UPDATE) directo sobre la variante sin JOINs para PostgreSQL
         const varianteBloqueada = await queryRunner.manager.findOne(ProductVariantEntity, {
-          where: { id: item.varianteId },
+          where: { id: item.varianteId, tenantId: this.tid },
           lock: { mode: 'pessimistic_write' },
         });
 
@@ -761,7 +770,7 @@ export class PaymentsService {
 
         // Cargar detalles descriptivos sin outer join lock
         const varianteInfo = await queryRunner.manager.findOne(ProductVariantEntity, {
-          where: { id: item.varianteId },
+          where: { id: item.varianteId, tenantId: this.tid },
           relations: ['producto', 'talla', 'color'],
         });
 
@@ -912,7 +921,7 @@ export class PaymentsService {
       for (const item of cart.items) {
         // Bloqueo Pesimista (SELECT ... FOR UPDATE) directo sobre la variante sin JOINs para PostgreSQL
         const varianteBloqueada = await queryRunner.manager.findOne(ProductVariantEntity, {
-          where: { id: item.varianteId },
+          where: { id: item.varianteId, tenantId: this.tid },
           lock: { mode: 'pessimistic_write' },
         });
 
@@ -928,7 +937,7 @@ export class PaymentsService {
 
         // Cargar detalles descriptivos sin outer join lock
         const varianteInfo = await queryRunner.manager.findOne(ProductVariantEntity, {
-          where: { id: item.varianteId },
+          where: { id: item.varianteId, tenantId: this.tid },
           relations: ['producto', 'talla', 'color'],
         });
 
@@ -1047,7 +1056,7 @@ export class PaymentsService {
   // =========================================================================
   async consultarEstadoPago(usuarioId: string, ordenId: string, userRole?: string) {
     const orden = await this.orderRepo.findOne({
-      where: { id: ordenId },
+      where: { id: ordenId, tenantId: this.tid },
       relations: [
         'pago',
         'pago.metodoPago',
@@ -1080,7 +1089,7 @@ export class PaymentsService {
   // =========================================================================
   async reembolsarPago(adminId: string, ordenId: string, dto: ReembolsarPagoDto) {
     const orden = await this.orderRepo.findOne({
-      where: { id: ordenId },
+      where: { id: ordenId, tenantId: this.tid },
       relations: ['pago', 'pago.metodoPago', 'items', 'envio'],
     });
 
@@ -1201,7 +1210,7 @@ export class PaymentsService {
     tipoEnvio?: string,
   ) {
     let cart = await this.cartRepo.findOne({
-      where: { usuarioId },
+      where: { usuarioId, tenantId: this.tid },
       relations: [
         'items',
         'items.variante',
@@ -1228,7 +1237,7 @@ export class PaymentsService {
     let descuento = 0;
 
     if (cuponId) {
-      cupon = await this.couponRepo.findOne({ where: { id: cuponId, activo: true } });
+      cupon = await this.couponRepo.findOne({ where: { id: cuponId, activo: true, tenantId: this.tid } });
       if (cupon) {
         if (cupon.tipo === 'PORCENTAJE') {
           descuento = (subtotal * Number(cupon.valor)) / 100;
