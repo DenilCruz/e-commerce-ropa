@@ -1,4 +1,4 @@
-import { Module } from '@nestjs/common';
+import { MiddlewareConsumer, Module, NestModule } from '@nestjs/common';
 import { ConfigModule, ConfigService } from '@nestjs/config';
 import { configuration } from './config/configuration';
 
@@ -21,6 +21,8 @@ import { MailModule } from './modules/mail/mail.module';
 import { AdminModule } from './modules/admin/admin.module';
 import { ProbadorModule } from './modules/probador/probador.module';
 import { StoresModule } from './modules/tiendas/stores.module';
+import { TenantMiddleware } from './modules/tiendas/tenant.middleware';
+import { TenantSubscriber } from './common/tenant/tenant.subscriber';
 
 @Module({
   imports: [
@@ -39,6 +41,7 @@ import { StoresModule } from './modules/tiendas/stores.module';
         password: configService.get<string>('database.password'),
         database: configService.get<string>('database.name'),
         autoLoadEntities: true,
+        subscribers: [TenantSubscriber],
         synchronize: false,
       }),
     }),
@@ -61,4 +64,8 @@ import { StoresModule } from './modules/tiendas/stores.module';
     StoresModule,
   ],
 })
-export class AppModule {}
+export class AppModule implements NestModule {
+  configure(consumer: MiddlewareConsumer) {
+    consumer.apply(TenantMiddleware).forRoutes('*');
+  }
+}

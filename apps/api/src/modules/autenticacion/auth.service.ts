@@ -16,6 +16,8 @@ import { UserEntity } from '../usuarios/entities/user.entity';
 import { RoleEntity } from '../usuarios/entities/role.entity';
 import { TokenEntity, TipoToken } from './entities/token.entity';
 import { MailService } from '../mail/mail.service';
+import { UserStoreEntity } from '../tiendas/entities/user-store.entity';
+import { TenantContext } from '../../common/tenant/tenant-context';
 
 import { RegistroDto } from './dto/registro.dto';
 import { LoginDto } from './dto/login.dto';
@@ -35,6 +37,8 @@ export class AuthService {
     private readonly roleRepo: Repository<RoleEntity>,
     @InjectRepository(TokenEntity)
     private readonly tokenRepo: Repository<TokenEntity>,
+    @InjectRepository(UserStoreEntity)
+    private readonly membershipRepo: Repository<UserStoreEntity>,
     private readonly jwtService: JwtService,
     private readonly configService: ConfigService,
     private readonly mailService: MailService,
@@ -46,6 +50,7 @@ export class AuthService {
   // =========================================================================
   async registro(dto: RegistroDto) {
     const correoNormalizado = dto.correo.toLowerCase().trim();
+    const tenantId = TenantContext.require();
 
     // 1. Validar que no exista un usuario con ese correo
     const existe = await this.userRepo.findOne({ where: { correo: correoNormalizado } });
@@ -94,10 +99,19 @@ export class AuthService {
 
       const usuarioGuardado = await queryRunner.manager.save(nuevoUsuario);
 
+      // El comprador pertenece a la tienda donde se registra
+      await queryRunner.manager.save(
+        queryRunner.manager.create(UserStoreEntity, {
+          usuarioId: usuarioGuardado.id,
+          tiendaId: tenantId,
+          rolId: rolCliente.id,
+        }),
+      );
+
       // Crear registro en tabla cliente si aplica
       await queryRunner.manager.query(
-        `INSERT INTO cliente (usuario_id) VALUES ($1) ON CONFLICT (usuario_id) DO NOTHING`,
-        [usuarioGuardado.id],
+        `INSERT INTO cliente (usuario_id, tenant_id) VALUES ($1, $2) ON CONFLICT (tenant_id, usuario_id) DO NOTHING`,
+        [usuarioGuardado.id, tenantId],
       );
 
       // 5. Generar token de verificación de email (válido por 24 horas)
@@ -173,12 +187,23 @@ export class AuthService {
       throw new UnauthorizedException('Credenciales de acceso incorrectas.');
     }
 
+    // El usuario debe ser miembro de la tienda en la que inicia sesión
+    const tenantId = TenantContext.require();
+    const membresia = await this.membershipRepo.findOne({
+      where: { usuarioId: usuario.id, tiendaId: tenantId, activo: true },
+      relations: ['rol'],
+    });
+    if (!membresia) {
+      throw new UnauthorizedException('No tienes acceso a esta tienda.');
+    }
+    const rolEnTienda = membresia.rol?.nombre || 'CLIENTE';
+
     // Actualizar último login
     usuario.ultimoLogin = new Date();
     await this.userRepo.save(usuario);
 
     // Generar Access Token y Refresh Token
-    const tokens = await this.generarTokens(usuario);
+    const tokens = await this.generarTokens(usuario, tenantId, rolEnTienda);
 
     return {
       message: 'Inicio de sesión exitoso.',
@@ -188,7 +213,8 @@ export class AuthService {
         nombre: usuario.nombre,
         apellido: usuario.apellido,
         correo: usuario.correo,
-        rol: usuario.rol?.nombre || 'CLIENTE',
+        rol: rolEnTienda,
+        tenantId,
         emailVerificado: usuario.emailVerificado,
       },
     };
@@ -341,12 +367,23 @@ export class AuthService {
       throw new UnauthorizedException('Usuario no válido o inactivo.');
     }
 
-    // 4. Marcar el token anterior como usado (rotación de tokens)
+    // 4. La renovación conserva la tienda del token y exige que la membresía siga activa
+    const membresia = payload.tid
+      ? await this.membershipRepo.findOne({
+          where: { usuarioId: usuario.id, tiendaId: payload.tid, activo: true },
+          relations: ['rol'],
+        })
+      : null;
+    if (!membresia) {
+      throw new UnauthorizedException('Ya no tienes acceso a esta tienda. Inicia sesión nuevamente.');
+    }
+
+    // 5. Marcar el token anterior como usado (rotación de tokens)
     tokenRecord.usado = true;
     await this.tokenRepo.save(tokenRecord);
 
-    // 5. Generar nuevos tokens
-    const tokens = await this.generarTokens(usuario);
+    // 6. Generar nuevos tokens
+    const tokens = await this.generarTokens(usuario, payload.tid, membresia.rol?.nombre || 'CLIENTE');
 
     return {
       message: 'Tokens renovados exitosamente.',
@@ -393,11 +430,12 @@ export class AuthService {
   // =========================================================================
   // MÉTODOS AUXILIARES
   // =========================================================================
-  private async generarTokens(usuario: UserEntity) {
+  private async generarTokens(usuario: UserEntity, tenantId: string, rolEnTienda: string) {
     const payload = {
       sub: usuario.id,
       email: usuario.correo,
-      role: usuario.rol?.nombre || 'CLIENTE',
+      tid: tenantId,
+      role: rolEnTienda,
       jti: crypto.randomUUID(),
     };
 

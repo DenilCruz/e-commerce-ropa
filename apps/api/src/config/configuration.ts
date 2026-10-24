@@ -2,6 +2,7 @@ export const configuration = () => ({
   port: parseInt(process.env.PORT || '3000', 10),
   appUrl: process.env.APP_URL || 'http://localhost:5173',
   apiUrl: process.env.API_URL || 'http://localhost:3000/api/v1',
+  defaultTenantSlug: process.env.DEFAULT_TENANT_SLUG || 'aura',
   database: {
     host: process.env.DB_HOST || 'localhost',
     port: parseInt(process.env.DB_PORT || '5432', 10),

@@ -9,6 +9,9 @@ export class StoreEntity {
   @Column({ type: 'varchar', length: 100 })
   nombre: string;
 
+  @Column({ type: 'varchar', length: 60, unique: true })
+  slug: string;
+
   @Column({ type: 'timestamp', default: () => 'NOW()' })
   fecha: Date;
 
