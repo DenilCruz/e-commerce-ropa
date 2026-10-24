@@ -296,7 +296,11 @@ export class ArchivosService {
     // 2. Obtener imágenes vinculadas en la plataforma
     const imagenesProductos = await this.repositorioImagenProducto.find({ where: { tenantId: this.tid }, relations: ['producto'] });
     const categorias = await this.repositorioCategoria.find({ where: { tenantId: this.tid } });
-    const usuarios = await this.repositorioUsuario.find();
+    // Only people who belong to this store: their avatars are the only ones that can mark a file as in use
+    const usuarios = await this.repositorioUsuario
+      .createQueryBuilder('u')
+      .innerJoin('usuario_tienda', 'm', 'm.usuario_id = u.id AND m.tienda_id = :tid', { tid: this.tid })
+      .getMany();
 
     // Crear mapas de búsqueda de URLs vinculadas
     const mapUrlsProductos = new Map<string, string>();

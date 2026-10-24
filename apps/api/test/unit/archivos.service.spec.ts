@@ -57,6 +57,10 @@ describe('ArchivosService (Unit Tests)', () => {
 
     mockRepositorioUsuario = {
       find: jest.fn().mockResolvedValue([]),
+      createQueryBuilder: jest.fn().mockReturnValue({
+        innerJoin: jest.fn().mockReturnThis(),
+        getMany: jest.fn().mockResolvedValue([]),
+      }),
     };
 
     service = new ArchivosService(
