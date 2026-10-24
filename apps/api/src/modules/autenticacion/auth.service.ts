@@ -1,6 +1,8 @@
 import {
   Injectable,
   BadRequestException,
+  HttpException,
+  HttpStatus,
   UnauthorizedException,
   NotFoundException,
   Logger,
@@ -428,6 +430,64 @@ export class AuthService {
         emailVerificado: true,
       },
     };
+  }
+
+  // =========================================================================
+  // REENVÍO DEL CORREO DE VERIFICACIÓN
+  // =========================================================================
+  async reenviarVerificacion(usuarioId: string) {
+    const usuario = await this.userRepo.findOne({ where: { id: usuarioId } });
+    if (!usuario) {
+      throw new UnauthorizedException('Usuario no válido o inactivo.');
+    }
+    if (usuario.emailVerificado) {
+      throw new BadRequestException('Tu correo electrónico ya está verificado.');
+    }
+
+    // Avoid mail flooding: one new link per minute
+    // creado_en is stamped by the database clock, so recency is measured with that same clock
+    const reciente = await this.tokenRepo
+      .createQueryBuilder('t')
+      .where('t.usuarioId = :usuarioId', { usuarioId })
+      .andWhere('t.tipo = :tipo', { tipo: TipoToken.VERIFICACION_EMAIL })
+      .andWhere('t.usado = false')
+      .andWhere("t.creadoEn > NOW() - INTERVAL '60 seconds'")
+      .getOne();
+    if (reciente) {
+      throw new HttpException(
+        'Ya te enviamos un correo hace instantes. Espera un minuto antes de pedir otro.',
+        HttpStatus.TOO_MANY_REQUESTS,
+      );
+    }
+
+    // Only the newest link works
+    await this.tokenRepo.update({ usuarioId, tipo: TipoToken.VERIFICACION_EMAIL, usado: false }, { usado: true });
+
+    const tokenValor = crypto.randomUUID();
+    await this.tokenRepo.save(
+      this.tokenRepo.create({
+        usuarioId,
+        tipo: TipoToken.VERIFICACION_EMAIL,
+        valor: tokenValor,
+        expiraEn: new Date(Date.now() + 24 * 60 * 60 * 1000),
+        usado: false,
+      }),
+    );
+
+    this.mailService
+      .enviarEmailVerificacion(usuario.correo, usuario.nombre, tokenValor)
+      .catch((err) => this.logger.error('Error enviando email de verificación:', err));
+
+    const respuesta: { message: string; correo: string; enlaceVerificacion?: string } = {
+      message: `Te enviamos un correo de verificación a ${usuario.correo}.`,
+      correo: usuario.correo,
+    };
+    // Outside production the link is returned too, because the development mailbox is not a real inbox
+    if (process.env.NODE_ENV !== 'production') {
+      const appUrl = this.configService.get<string>('appUrl') || 'http://localhost:5173';
+      respuesta.enlaceVerificacion = `${appUrl}/verificar-email?token=${tokenValor}`;
+    }
+    return respuesta;
   }
 
   // =========================================================================

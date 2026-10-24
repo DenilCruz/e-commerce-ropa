@@ -4,6 +4,7 @@ import { Check, ChevronDown, Plus, Store } from 'lucide-react';
 import { useAuthStore } from '../../../store/auth.store';
 import { Modal } from '../../../components/ui/Modal';
 import { Button } from '../../../components/ui/Button';
+import { authApi } from '../../autenticacion/services/auth.api';
 import { tiendasApi } from '../services/tiendas.api';
 import { MiTienda, SesionTiendaResponse } from '../types';
 
@@ -34,6 +35,9 @@ export const StoreSwitcher: React.FC = () => {
   const [nombre, setNombre] = useState('');
   const [error, setError] = useState<string | null>(null);
   const [enviando, setEnviando] = useState(false);
+  const [sinVerificar, setSinVerificar] = useState(false);
+  const [reenviando, setReenviando] = useState(false);
+  const [aviso, setAviso] = useState<{ texto: string; enlace?: string } | null>(null);
   const contenedor = useRef<HTMLDivElement>(null);
 
   const { data: tiendas = [] } = useQuery<MiTienda[]>({
@@ -79,9 +83,25 @@ export const StoreSwitcher: React.FC = () => {
     setEnviando(true);
     try {
       aplicarSesion(await tiendasApi.crear({ nombre: nombre.trim() }), '/admin');
-    } catch (err) {
+    } catch (err: any) {
       setError(mensajeDeError(err));
+      setSinVerificar(err?.response?.status === 403);
       setEnviando(false);
+    }
+  };
+
+  const reenviarVerificacion = async () => {
+    setReenviando(true);
+    setAviso(null);
+    try {
+      const res = await authApi.reenviarVerificacion();
+      setError(null);
+      setAviso({ texto: res.message, enlace: res.enlaceVerificacion });
+    } catch (err) {
+      setAviso(null);
+      setError(mensajeDeError(err));
+    } finally {
+      setReenviando(false);
     }
   };
 
@@ -159,6 +179,29 @@ export const StoreSwitcher: React.FC = () => {
             />
           </div>
           {error && <p className="text-sm text-red-600">{error}</p>}
+          {sinVerificar && (
+            <div className="space-y-2 rounded-lg border border-[#E7E1D7] bg-[#FAF8F5] p-3">
+              <p className="text-sm text-stone-700">
+                Para crear una tienda necesitamos confirmar que tu correo es real. Te enviamos un enlace de verificación.
+              </p>
+              <Button type="button" variant="outline" onClick={reenviarVerificacion} disabled={reenviando}>
+                {reenviando ? 'Enviando…' : 'Enviar correo de verificación'}
+              </Button>
+              {aviso && (
+                <div className="space-y-1">
+                  <p className="text-sm text-green-700">{aviso.texto}</p>
+                  {aviso.enlace && (
+                    <p className="text-xs text-stone-600">
+                      Entorno de desarrollo:{' '}
+                      <a href={aviso.enlace} className="underline text-[#9B7B54]">
+                        abrir el enlace de verificación
+                      </a>
+                    </p>
+                  )}
+                </div>
+              )}
+            </div>
+          )}
           <div className="flex justify-end gap-2">
             <Button type="button" variant="outline" onClick={() => setModalCrear(false)}>
               Cancelar

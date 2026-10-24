@@ -2,7 +2,7 @@ jest.mock('@nestjs/typeorm', () => ({
   InjectRepository: () => () => {},
 }));
 
-import { BadRequestException, UnauthorizedException } from '@nestjs/common';
+import { BadRequestException, HttpException, HttpStatus, UnauthorizedException } from '@nestjs/common';
 import * as bcrypt from 'bcryptjs';
 import { AuthService } from '../../src/modules/autenticacion/auth.service';
 import { TenantContext } from '../../src/common/tenant/tenant-context';
@@ -19,6 +19,7 @@ describe('AuthService (multi-store)', () => {
   let tokenRepo: any;
   let membershipRepo: any;
   let jwtService: any;
+  let mailService: any;
   let manager: any;
   let runner: any;
   let signedPayloads: any[];
@@ -76,6 +77,8 @@ describe('AuthService (multi-store)', () => {
       manager,
     };
 
+    mailService = { enviarEmailVerificacion: jest.fn().mockResolvedValue(undefined) };
+
     service = new AuthService(
       userRepo,
       roleRepo,
@@ -83,7 +86,7 @@ describe('AuthService (multi-store)', () => {
       membershipRepo,
       jwtService,
       { get: jest.fn() } as any,
-      {} as any,
+      mailService,
       { createQueryRunner: jest.fn(() => runner) } as any,
       {} as any,
     );
@@ -138,6 +141,69 @@ describe('AuthService (multi-store)', () => {
         expect(payload).toMatchObject({ sub: 'user-1', tid: TENANT, role: 'ADMIN' });
       }
       expect(result.usuario).toMatchObject({ rol: 'ADMIN', tenantId: TENANT });
+    });
+  });
+
+  describe('reenviarVerificacion', () => {
+    const originalEnv = process.env.NODE_ENV;
+    afterEach(() => {
+      process.env.NODE_ENV = originalEnv;
+    });
+
+    let recentQuery: { getOne: jest.Mock };
+
+    beforeEach(() => {
+      usuario.emailVerificado = false;
+      recentQuery = { getOne: jest.fn().mockResolvedValue(null) };
+      const chain: any = {
+        where: jest.fn().mockReturnThis(),
+        andWhere: jest.fn().mockReturnThis(),
+        getOne: recentQuery.getOne,
+      };
+      tokenRepo.createQueryBuilder = jest.fn().mockReturnValue(chain);
+    });
+
+    it('refuses when the email is already verified', async () => {
+      usuario.emailVerificado = true;
+
+      await expect(service.reenviarVerificacion('user-1')).rejects.toThrow('ya está verificado');
+      expect(mailService.enviarEmailVerificacion).not.toHaveBeenCalled();
+    });
+
+    it('answers 429 when a link was already sent less than a minute ago', async () => {
+      recentQuery.getOne.mockResolvedValue({ valor: 'reciente' });
+
+      const error: any = await service.reenviarVerificacion('user-1').catch((e) => e);
+
+      expect(error).toBeInstanceOf(HttpException);
+      expect(error.getStatus()).toBe(HttpStatus.TOO_MANY_REQUESTS);
+      expect(mailService.enviarEmailVerificacion).not.toHaveBeenCalled();
+    });
+
+    it('invalidates the previous links, stores a new 24 hour token and emails it', async () => {
+      process.env.NODE_ENV = 'development';
+
+      const result = await service.reenviarVerificacion('user-1');
+
+      expect(tokenRepo.update).toHaveBeenCalledWith(
+        expect.objectContaining({ usuarioId: 'user-1', usado: false }),
+        { usado: true },
+      );
+      const stored = tokenRepo.save.mock.calls[0][0];
+      expect(stored.tipo).toBe('VERIFICACION_EMAIL');
+      expect(stored.expiraEn.getTime() - Date.now()).toBeGreaterThan(23 * 60 * 60 * 1000);
+      expect(mailService.enviarEmailVerificacion).toHaveBeenCalledWith(usuario.correo, usuario.nombre, stored.valor);
+      expect(result.message).toContain(usuario.correo);
+    });
+
+    it('returns the link only outside production', async () => {
+      process.env.NODE_ENV = 'development';
+      const dev = await service.reenviarVerificacion('user-1');
+      expect(dev.enlaceVerificacion).toContain('/verificar-email?token=');
+
+      process.env.NODE_ENV = 'production';
+      const prod = await service.reenviarVerificacion('user-1');
+      expect(prod.enlaceVerificacion).toBeUndefined();
     });
   });
 

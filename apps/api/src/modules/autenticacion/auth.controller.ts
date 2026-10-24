@@ -155,6 +155,23 @@ export class AuthController {
     return this.authService.verificarEmail({ token });
   }
 
+  @Post('reenviar-verificacion')
+  @UseGuards(JwtAuthGuard)
+  @ApiBearerAuth()
+  @HttpCode(HttpStatus.OK)
+  @ApiOperation({
+    summary: 'Reenviar el correo de verificación',
+    description:
+      'Invalida los enlaces anteriores y envía uno nuevo (válido 24 horas) al correo del usuario autenticado. ' +
+      'Máximo uno por minuto. Fuera de producción también devuelve el enlace.',
+  })
+  @ApiResponse({ status: 200, description: 'Correo de verificación enviado.' })
+  @ApiResponse({ status: 400, description: 'El correo ya está verificado.' })
+  @ApiResponse({ status: 429, description: 'Se pidió otro correo hace menos de un minuto.' })
+  async reenviarVerificacion(@CurrentUser() usuario: any) {
+    return this.authService.reenviarVerificacion(usuario.userId);
+  }
+
   // =========================================================================
   // PERFIL AUTENTICADO
   // =========================================================================
