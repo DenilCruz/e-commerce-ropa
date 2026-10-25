@@ -1241,6 +1241,10 @@ export class PaymentsService {
     metodoEnvioId?: string,
     tipoEnvio?: string,
   ) {
+    if (metodoEnvioId && !(await this.shippingMethodRepo.count({ where: { id: metodoEnvioId } }))) {
+      throw new BadRequestException('El método de envío indicado no existe.');
+    }
+
     let cart = await this.cartRepo.findOne({
       where: { usuarioId, tenantId: this.tid },
       relations: [
