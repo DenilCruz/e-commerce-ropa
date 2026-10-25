@@ -1,4 +1,4 @@
-import { ConflictException, Injectable } from '@nestjs/common';
+import { ConflictException, Injectable, Logger, Optional } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { DataSource, Repository } from 'typeorm';
 import { OrderEntity } from '../pedidos/entities/order.entity';
@@ -8,6 +8,7 @@ import { PaymentEntity } from '../pagos/entities/payment.entity';
 import { PaymentMethodEntity } from '../pagos/entities/payment-method.entity';
 import { ProductVariantEntity } from '../productos/entities/product-variant.entity';
 import { TenantContext } from '../../common/tenant/tenant-context';
+import { PushService } from '../notificaciones/push.service';
 import { CrearVentaPosDto } from './dto/crear-venta-pos.dto';
 
 export interface StockConflictItem {
@@ -28,7 +29,13 @@ export class PosSalesService {
     @InjectRepository(PaymentMethodEntity)
     private readonly paymentMethodRepo: Repository<PaymentMethodEntity>,
     private readonly dataSource: DataSource,
+    @Optional() private readonly push?: PushService,
   ) {}
+
+  private readonly logger = new Logger(PosSalesService.name);
+
+  /** A sale this much older than the server clock was made offline and only now arrived. */
+  private static readonly UMBRAL_SIN_CONEXION_MS = 60_000;
 
   private get tid(): string {
     return TenantContext.require();
@@ -176,6 +183,17 @@ export class PosSalesService {
       );
 
       await queryRunner.commitTransaction();
+
+      if (dto.vendidoEn && ahora.getTime() - fecha.getTime() > PosSalesService.UMBRAL_SIN_CONEXION_MS) {
+        // Fire and forget: the sale is already saved, a notification can only fail on its own
+        void this.push
+          ?.notificarTienda({
+            titulo: 'Venta sincronizada',
+            cuerpo: `${nro} por $${total.toFixed(2)}: se hizo sin conexión y ya está registrada.`,
+            url: '/admin/pedidos',
+          })
+          .catch((err: Error) => this.logger.warn(`Notificación no enviada: ${err.message}`));
+      }
 
       return {
         ordenId: orden.id,

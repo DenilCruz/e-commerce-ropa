@@ -2,6 +2,7 @@ import React, { useMemo, useRef, useState } from 'react';
 import { Minus, Plus, Search, Store, X } from 'lucide-react';
 import { toast } from 'sonner';
 import { getImageUrl, cn } from '../../../lib/utils';
+import { BotonNotificaciones } from '../components/BotonNotificaciones';
 import { ColaSincronizacion } from '../components/ColaSincronizacion';
 import { IndicadorConexion } from '../components/IndicadorConexion';
 import { useVentasPos } from '../hooks/useVentasPos';
@@ -89,6 +90,7 @@ export const AdminPosPage: React.FC = () => {
           </h1>
           <p className="mt-1 text-sm text-gray-500">Ventas de mostrador en efectivo. Funciona sin internet y sincroniza al volver.</p>
         </div>
+        <div className="flex flex-col gap-3 lg:items-end">
         <IndicadorConexion
           isOnline={pos.isOnline}
           pendientes={pos.pendientes}
@@ -96,6 +98,8 @@ export const AdminPosPage: React.FC = () => {
           actualizadoEn={pos.actualizadoEn}
           onSincronizar={pos.sincronizarAhora}
         />
+        <BotonNotificaciones />
+        </div>
       </header>
 
       {!pos.sesion && (

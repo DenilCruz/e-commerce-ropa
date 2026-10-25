@@ -61,6 +61,8 @@ export default defineConfig({
         navigateFallback: '/index.html',
         navigateFallbackDenylist: [/^\/api\//, /^\/uploads\//, /^\/docs/],
         cleanupOutdatedCaches: true,
+        // Web Push handlers (push and notificationclick) live in public/push-sw.js
+        importScripts: ['push-sw.js'],
         runtimeCaching: [
           {
             urlPattern: /^https:\/\/fonts\.(googleapis|gstatic)\.com\/.*/,

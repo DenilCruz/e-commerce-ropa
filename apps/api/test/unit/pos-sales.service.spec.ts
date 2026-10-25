@@ -19,9 +19,11 @@ describe('PosSalesService', () => {
   let saved: any[];
   let locked: string[];
   let existingOrder: any;
+  let push: { notificarTienda: jest.Mock };
 
   beforeEach(() => {
     jest.spyOn(TenantContext, 'require').mockReturnValue('tenant-luna');
+    push = { notificarTienda: jest.fn().mockResolvedValue(1) };
     variants = {
       [V1]: { id: V1, productoId: 'p1', stock: 3, precioExtra: 5, activa: true, producto: { nombre: 'Solera', precio: 100 }, talla: { nombre: 'M' }, color: { nombre: 'Rojo' } },
       [V2]: { id: V2, productoId: 'p2', stock: 1, precioExtra: 0, activa: true, producto: { nombre: 'Blusa', precio: 50 }, talla: { nombre: 'S' }, color: { nombre: 'Azul' } },
@@ -53,7 +55,7 @@ describe('PosSalesService', () => {
     };
     const builder: any = { where: jest.fn().mockReturnThis(), getOne: jest.fn().mockResolvedValue({ id: 'efectivo-id' }) };
     const paymentMethodRepo = { createQueryBuilder: jest.fn().mockReturnValue(builder), findOne: jest.fn() };
-    service = new PosSalesService(paymentMethodRepo as any, { createQueryRunner: () => qr } as any);
+    service = new PosSalesService(paymentMethodRepo as any, { createQueryRunner: () => qr } as any, push as any);
   });
 
   afterEach(() => jest.restoreAllMocks());
@@ -118,6 +120,31 @@ describe('PosSalesService', () => {
     const before = Date.now();
     await sell([{ varianteId: V2, cantidad: 1 }], { vendidoEn: new Date(before + 86_400_000).toISOString() });
     expect(new Date(dated()[1][1]).getTime()).toBeLessThan(before + 5000);
+  });
+
+  it('tells the store\'s browsers when a sale made offline reaches the server', async () => {
+    const haceDiezMinutos = new Date(Date.now() - 10 * 60_000).toISOString();
+
+    await sell([{ varianteId: V2, cantidad: 1 }], { vendidoEn: haceDiezMinutos });
+
+    expect(push.notificarTienda).toHaveBeenCalledWith(
+      expect.objectContaining({ titulo: 'Venta sincronizada', cuerpo: expect.stringMatching(/NV-\d{4}-00007.*\$50\.00/), url: '/admin/pedidos' }),
+    );
+  });
+
+  it('stays quiet for a sale made just now, since nobody is waiting for it', async () => {
+    await sell([{ varianteId: V2, cantidad: 1 }], { vendidoEn: new Date().toISOString() });
+    await sell([{ varianteId: V1, cantidad: 1 }]);
+
+    expect(push.notificarTienda).not.toHaveBeenCalled();
+  });
+
+  it('never fails the sale because a notification failed', async () => {
+    push.notificarTienda.mockRejectedValue(new Error('push down'));
+
+    await expect(sell([{ varianteId: V2, cantidad: 1 }], { vendidoEn: new Date(Date.now() - 600_000).toISOString() })).resolves.toMatchObject({
+      nroOrden: expect.any(String),
+    });
   });
 
   it('leaves the date to the database when the sale carries none', async () => {

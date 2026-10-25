@@ -12,6 +12,7 @@ import { CartModule } from './modules/carrito/cart.module';
 import { OrdersModule } from './modules/pedidos/orders.module';
 import { PaymentsModule } from './modules/pagos/payments.module';
 import { PosSalesModule } from './modules/ventas/pos-sales.module';
+import { NotificacionesModule } from './modules/notificaciones/notificaciones.module';
 import { ShippingModule } from './modules/envios/shipping.module';
 import { ReviewsModule } from './modules/reseñas/reviews.module';
 import { CouponsModule } from './modules/cupones/coupons.module';
@@ -55,6 +56,7 @@ import { TenantSubscriber } from './common/tenant/tenant.subscriber';
     OrdersModule,
     PaymentsModule,
     PosSalesModule,
+    NotificacionesModule,
     ShippingModule,
     ReviewsModule,
     CouponsModule,
