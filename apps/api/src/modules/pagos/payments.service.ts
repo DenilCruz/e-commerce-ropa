@@ -46,6 +46,7 @@ export class PaymentsService {
 
   private readonly logger = new Logger(PaymentsService.name);
   private stripe: Stripe;
+  private readonly stripeEnPruebas: boolean;
 
   constructor(
     @InjectRepository(PaymentEntity)
@@ -83,9 +84,24 @@ export class PaymentsService {
       process.env.STRIPE_SECRET_KEY ||
       '';
 
+    this.stripeEnPruebas = secretKey.startsWith('sk_test_');
     this.stripe = new StripeClient(secretKey, {
       apiVersion: '2026-08-26.dahlia',
     });
+  }
+
+  /** A Stripe payment only counts for the store and user it was created for (checked before reading any order). */
+  private verificarPropietarioDelPago(metadata: Stripe.Metadata | null | undefined, usuarioId: string): void {
+    if (metadata?.tenantId !== this.tid || metadata?.usuarioId !== usuarioId) {
+      throw new ForbiddenException('Este pago no corresponde a tu compra en esta tienda.');
+    }
+  }
+
+  /** The amount Stripe collected must be the total of the cart being paid. */
+  private verificarMontoPagado(pagadoEnCentavos: number | null | undefined, totalFinal: number): void {
+    if (pagadoEnCentavos !== Math.round(totalFinal * 100)) {
+      throw new BadRequestException('El monto pagado no coincide con el total de tu carrito.');
+    }
   }
 
   // =========================================================================
@@ -128,6 +144,7 @@ export class PaymentsService {
         payment_method_types: ['card'],
         description: `Compra AURA - Cliente ${usuario?.correo || usuarioId}`,
         metadata: {
+          tenantId: this.tid,
           usuarioId,
           cuponId: cupon ? cupon.id : '',
           subtotal: subtotal.toString(),
@@ -256,6 +273,7 @@ export class PaymentsService {
           },
         ],
         metadata: {
+          tenantId: this.tid,
           usuarioId,
           cuponId: cupon ? cupon.id : '',
           subtotal: subtotal.toString(),
@@ -313,6 +331,8 @@ export class PaymentsService {
       throw new BadRequestException(`No se pudo verificar la sesión de Stripe: ${err.message}`);
     }
 
+    this.verificarPropietarioDelPago(session.metadata, usuarioId);
+
     if (session.status !== 'complete' && session.payment_status !== 'paid') {
       return {
         status: session.status,
@@ -355,6 +375,7 @@ export class PaymentsService {
 
     const { subtotal, descuento, envio, totalFinal, cart, cupon } =
       await this.calcularTotalesCarrito(usuarioId, cuponId, metodoEnvioId, tipoEnvio);
+    this.verificarMontoPagado(session.amount_total, totalFinal);
 
     const queryRunner = this.dataSource.createQueryRunner();
     await queryRunner.connect();
@@ -518,9 +539,11 @@ export class PaymentsService {
       paymentIntent = await this.stripe.paymentIntents.retrieve(dto.paymentIntentId);
 
       // Si el PaymentIntent aún no fue confirmado por el cliente (ej. checkout mobile o directo)
+      // Solo con claves de prueba de Stripe: con claves reales la tarjeta de prueba no cobra nada
       if (
-        paymentIntent.status === 'requires_payment_method' ||
-        paymentIntent.status === 'requires_confirmation'
+        this.stripeEnPruebas &&
+        (paymentIntent.status === 'requires_payment_method' ||
+          paymentIntent.status === 'requires_confirmation')
       ) {
         paymentIntent = await this.stripe.paymentIntents.confirm(paymentIntent.id, {
           payment_method: 'pm_card_visa',
@@ -535,6 +558,8 @@ export class PaymentsService {
         `El pago en Stripe no fue completado exitosamente. Estado actual: ${paymentIntent.status}`,
       );
     }
+
+    this.verificarPropietarioDelPago(paymentIntent.metadata, usuarioId);
 
     const { subtotal, descuento, envio, totalFinal, cart, cupon } =
       await this.calcularTotalesCarrito(usuarioId, dto.cuponId, dto.metodoEnvioId, dto.tipoEnvio);
@@ -551,6 +576,8 @@ export class PaymentsService {
 
       throw new BadRequestException('El carrito está vacío o la orden ya fue procesada.');
     }
+
+    this.verificarMontoPagado(paymentIntent.amount_received, totalFinal);
 
     const queryRunner = this.dataSource.createQueryRunner();
     await queryRunner.connect();
