@@ -45,7 +45,7 @@ todavía no existe (ver la sección 7).
 |---|---|---|
 | A1 | En el paso 6, otra venta se llevó parte del stock antes (dos vendedores sin conexión vendieron la última prenda) | El servidor revierte la transacción y responde 409 con `codigo: STOCK_CONFLICT` y, por cada prenda faltante, lo solicitado y lo disponible. La venta pasa a `CONFLICTO` ("Venta en conflicto / quiebre de stock"). El vendedor elige: vender solo lo disponible, reintentar tras reponer stock o cancelar. |
 | A2 | En el paso 5, no hay red, el servidor no responde (5xx) o la sesión expiró (401) | La venta vuelve a `PENDIENTE` con el motivo del último intento y la sincronización se detiene para no romper el orden ni saturar. Se reintenta sola con espera creciente (5 s, 10 s, 20 s, 40 s, hasta 60 s). |
-| A3 | En el paso 6, el servidor registró la venta pero la respuesta se perdió | La venta sigue `PENDIENTE`. El reintento usa el mismo UUID: el servidor devuelve la respuesta guardada (cabecera `Idempotent-Replay: true`) y no registra otra venta. |
+| A3 | En el paso 6, el servidor registró la venta pero la respuesta se perdió | La venta sigue `PENDIENTE`. El reintento usa el mismo UUID: el servidor devuelve la respuesta guardada (cabecera `Idempotent-Replay: true`) y no registra otra venta. Aunque el servidor hubiera perdido ese registro, el pedido guarda la clave y la base de datos impide un segundo pedido con ella: se devuelve el que ya existe. |
 | A4 | En el paso 4, el vendedor pulsa el botón varias veces seguidas | Un bloqueo síncrono en la pantalla deja pasar solo la primera pulsación: se crea una sola venta. |
 | A5 | En el paso 5, la misma clave llega mientras la primera petición aún se procesa | 409 sin código de stock y con `Retry-After`: el cliente la trata como reintentable, no como conflicto. |
 | A6 | En el paso 5, la misma clave llega con un cuerpo distinto | 422. La venta pasa a `ERROR` con el mensaje del servidor; el vendedor puede reintentar o cancelar. |
@@ -56,6 +56,8 @@ todavía no existe (ver la sección 7).
 | A11 | La petición llega sin `Idempotency-Key` | 400. Sin la clave, un reintento duplicaría la venta. |
 | A12 | El vendedor quiere cobrar con tarjeta o QR sin conexión | No se ofrece: esos cobros exigen comunicación inmediata con la pasarela. La pantalla solo vende en efectivo y lo dice. |
 | A13 | El equipo nunca descargó el catálogo | La pantalla explica que debe conectarse una vez para descargarlo. |
+| A14 | En el paso 4, la copia local del catálogo tiene más de 7 días (límite configurable) y no hay conexión | `CatalogoVencidoError`: no se guarda la venta y se pide conectarse para renovar la copia. Con conexión, la copia se renueva sola. |
+| A15 | Una venta guardada lleva más de 7 días sin enviarse | Se marca "Antigua" en la cola, pero nunca se borra: se envía igual al conectarse. |
 
 ## 2. Modelo de dominio (Hito 1)
 
@@ -451,6 +453,9 @@ classDiagram
 | Registro atómico de la venta, bloqueo en orden de id, 409 por prenda faltante | `apps/api/src/modules/ventas/pos-sales.service.ts` (`registrar`) | `apps/api/test/unit/pos-sales.service.spec.ts` |
 | Endpoint, roles y clave obligatoria | `apps/api/src/modules/ventas/pos-sales.controller.ts`, `dto/crear-venta-pos.dto.ts` | `pos-sales.service.spec.ts` (controlador sin clave responde 400) |
 | Idempotencia (reclamo, reproducción, 409, 422, liberación al fallar) | `apps/api/src/common/idempotency/idempotency.interceptor.ts`, `database/07_idempotencia.sql` | `apps/api/test/unit/idempotency.interceptor.spec.ts` |
+| Cero duplicados garantizado en la base de datos (clave en el pedido, índice único, bloqueo por clave) | `database/08_nota_venta_clave.sql`, `pos-sales.service.ts` (`registrar`, `buscarPorClave`, `resumenDe`) | `pos-sales.service.spec.ts` (clave guardada, bloqueo, pedido existente, violación del índice) y prueba HTTP contra PostgreSQL |
+| Límite de tiempo de los datos locales (7 días configurables) | `apps/web/src/features/ventas-pos/services/retencion.ts`, fecha del catálogo en `ventasLocales.ts` (`leerActualizacionCatalogo`) | `__tests__/retencion.test.ts` (7 pruebas) |
+| Fotos disponibles sin conexión | `services/imagenes.ts` (`precargarImagenes`), caché `aura-imagenes` del service worker | `__tests__/imagenes.test.ts` (5 pruebas) y prueba en navegador |
 | Stock agotado como 409 también en los cobros del carrito | `apps/api/src/modules/pagos/payments.service.ts` | `apps/api/test/unit/payments.stock-conflict.spec.ts` |
 | Copia local del catálogo, cola, reserva de stock, estados | `apps/web/src/features/ventas-pos/services/ventasLocales.ts`, `posDb.ts` | `__tests__/ventasLocales.test.ts` (19 pruebas, con `fake-indexeddb`) |
 | Sincronización ordenada y clasificación de fallos | `services/sincronizador.ts`, `services/enviarVenta.ts` | `__tests__/sincronizador.test.ts` (13 pruebas) |
@@ -478,9 +483,14 @@ Las pruebas de la API se ejecutan con `npx jest` en `apps/api`; las de la web co
   vendedor vio sin conexión es solo informativo.
 - **Solo efectivo.** Tarjeta y QR no funcionan sin conexión (el plan lo exige: validan con la pasarela en el momento).
 - **Vendedor.** Es un usuario `ADMIN`, porque el panel de administración hoy solo admite ese rol.
-- **Cliente móvil.** La cola local con SQLite en la aplicación móvil todavía no está hecha; este documento describe el
-  cliente web.
-- **Notificaciones push.** El plan las menciona en el Pilar 2; no están implementadas.
-- **Riesgo conocido de la revisión.** Si la venta se confirma pero falla el guardado de la respuesta bajo la clave, el
-  interceptor libera la clave y un reintento podría registrar la venta dos veces. Una solución completa guarda la
-  respuesta dentro de la misma transacción de la venta; queda como mejora.
+- **Cliente móvil y notificaciones push.** Se documentan en la sección 8 cuando estén completos.
+- **Persistencia con tiempo limitado.** El docente pidió que los datos locales no sean indefinidos y que el negocio fije el
+  plazo (horas o días, normalmente hasta siete). El plazo es `RETENCION_DIAS` (7 por defecto, cambiable con
+  `VITE_POS_RETENCION_DIAS`; admite fracciones, por ejemplo 0,5 = 12 horas). La copia del catálogo vencida impide vender
+  sin conexión; las ventas guardadas muy antiguas se señalan pero nunca se descartan, porque descartarlas perdería dinero.
+- **Cero duplicados.** Lo garantizan tres capas: el bloqueo de doble pulsación en pantalla, el registro de la clave en la
+  tabla `idempotencia` y, como última barrera, la clave guardada en el propio pedido con un índice único por tienda. Un
+  fallo al guardar la respuesta, una clave huérfana tomada a los 2 minutos o un reintento concurrente devuelven el pedido
+  que ya existe en lugar de crear otro.
+- **Fotos.** Las fotos principales de los productos se descargan en segundo plano cuando se renueva la copia del
+  catálogo, y se muestran sin conexión. Una foto que nunca se cargó con conexión no estará disponible.
