@@ -34,7 +34,7 @@ export class PosSalesService {
     return TenantContext.require();
   }
 
-  async registrar(vendedorId: string, dto: CrearVentaPosDto) {
+  async registrar(vendedorId: string, dto: CrearVentaPosDto, clave: string) {
     // One line per variant, locked in id order: two sales that share variants cannot deadlock
     const solicitado = new Map<string, number>();
     for (const item of dto.items) {
@@ -47,6 +47,15 @@ export class PosSalesService {
     await queryRunner.startTransaction();
 
     try {
+      // The key is the identity of the sale: one execution at a time per key, and a key that already
+      // produced an order gives that order back instead of selling again (even if the interceptor lost track of it)
+      await queryRunner.query('SELECT pg_advisory_xact_lock(hashtext($1))', [`pos-clave:${this.tid}:${clave}`]);
+      const existente = await this.buscarPorClave(queryRunner, clave);
+      if (existente) {
+        await queryRunner.rollbackTransaction();
+        return this.resumenDe(existente);
+      }
+
       const bloqueadas: ProductVariantEntity[] = [];
       const conflictos: StockConflictItem[] = [];
       for (const id of ids) {
@@ -123,6 +132,7 @@ export class PosSalesService {
           costoEnvio: 0,
           total,
           estado: 'COMPLETADO',
+          claveIdempotencia: clave,
         }),
       );
       if (dto.vendidoEn) {
@@ -183,12 +193,45 @@ export class PosSalesService {
         })),
         pago: { id: pago.id, metodo: 'Efectivo', monto: total, estado: 'APROBADO' },
       };
-    } catch (err) {
+    } catch (err: any) {
       await queryRunner.rollbackTransaction();
+      // The unique index on the key is the last barrier: if it fires, the sale already exists
+      if (err?.code === '23505' && String(err.message).includes('uq_nota_venta_clave')) {
+        const existente = await this.buscarPorClave(queryRunner, clave);
+        if (existente) return this.resumenDe(existente);
+      }
       throw err;
     } finally {
       await queryRunner.release();
     }
+  }
+
+  private buscarPorClave(queryRunner: { manager: any }, clave: string): Promise<OrderEntity | null> {
+    return queryRunner.manager.findOne(OrderEntity, {
+      where: { tenantId: this.tid, claveIdempotencia: clave },
+      relations: ['items', 'pago'],
+    });
+  }
+
+  /** The response of a registered sale, rebuilt from what is stored. */
+  private resumenDe(orden: OrderEntity) {
+    const total = Number(orden.total);
+    return {
+      ordenId: orden.id,
+      nroOrden: orden.nro,
+      fecha: new Date(orden.fecha).toISOString(),
+      total,
+      items: (orden.items ?? []).map((l) => ({
+        varianteId: l.varianteId,
+        nombre: l.nombreProducto,
+        talla: l.talla,
+        color: l.color,
+        cantidad: l.cantidad,
+        precio: Number(l.precio),
+        subtotal: Number(l.subtotal),
+      })),
+      pago: { id: orden.pago?.id, metodo: 'Efectivo', monto: total, estado: 'APROBADO' },
+    };
   }
 
   /** Product, size and color names, read without a lock (a locked read cannot join). */

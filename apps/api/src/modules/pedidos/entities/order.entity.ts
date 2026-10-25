@@ -25,6 +25,10 @@ export class OrderEntity {
   @Column({ type: 'varchar', length: 20 })
   nro: string;
 
+  /** Idempotency-Key of the counter sale that created this order (unique per store). */
+  @Column({ type: 'uuid', name: 'clave_idempotencia', nullable: true })
+  claveIdempotencia: string | null;
+
   @Column({ type: 'uuid', name: 'usuario_id' })
   usuarioId: string;
 

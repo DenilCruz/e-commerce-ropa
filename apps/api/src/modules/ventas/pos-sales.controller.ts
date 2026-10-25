@@ -36,6 +36,6 @@ export class PosSalesController {
     if (!idempotencyKey) {
       throw new BadRequestException('Idempotency-Key es obligatoria para registrar una venta.');
     }
-    return this.posSalesService.registrar(vendedorId, dto);
+    return this.posSalesService.registrar(vendedorId, dto, idempotencyKey);
   }
 }
