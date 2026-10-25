@@ -3,6 +3,7 @@ import { api } from '../../../services/api';
 import {
   EstadoNotificaciones,
   claveVapidABytes,
+  cuerpoSuscripcion,
   estadoNotificaciones,
   navegadorSoportaPush,
 } from '../services/notificaciones';
@@ -46,7 +47,7 @@ export function useNotificaciones() {
       const suscripcion =
         (await registro.pushManager.getSubscription()) ??
         (await registro.pushManager.subscribe({ userVisibleOnly: true, applicationServerKey: claveVapidABytes(data.clave) }));
-      await api.post('/push/suscripcion', suscripcion.toJSON());
+      await api.post('/push/suscripcion', cuerpoSuscripcion(suscripcion.toJSON() as any));
       await leer();
     } finally {
       setTrabajando(false);

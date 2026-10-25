@@ -54,6 +54,7 @@ export class PushService {
           entregadas += 1;
         } else if ([404, 410].includes((r.reason as any)?.statusCode)) {
           // The browser unsubscribed or the subscription expired: it will never work again
+          this.logger.log(`Suscripción retirada: el servicio de push respondió ${(r.reason as any).statusCode}.`);
           await this.repo.delete({ id: suscripciones[i].id });
         } else {
           this.logger.warn(`No se pudo enviar la notificación: ${(r.reason as Error)?.message}`);

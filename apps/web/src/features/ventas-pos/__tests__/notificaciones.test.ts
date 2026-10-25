@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { claveVapidABytes, estadoNotificaciones } from '../services/notificaciones';
+import { claveVapidABytes, cuerpoSuscripcion, estadoNotificaciones } from '../services/notificaciones';
 
 describe('claveVapidABytes', () => {
   it('turns the URL-safe base64 public key into the bytes the browser asks for', () => {
@@ -30,5 +30,13 @@ describe('estadoNotificaciones', () => {
     expect(estadoNotificaciones(todo)).toBe('DISPONIBLE');
     expect(estadoNotificaciones({ ...todo, permiso: 'granted' })).toBe('DISPONIBLE');
     expect(estadoNotificaciones({ ...todo, permiso: 'granted', suscrito: true })).toBe('ACTIVAS');
+  });
+});
+
+describe('cuerpoSuscripcion', () => {
+  it('sends only what the server accepts: the browser adds expirationTime, which the API rejects', () => {
+    const json = { endpoint: 'https://push.example/1', expirationTime: null, keys: { p256dh: 'k', auth: 'a' } };
+
+    expect(cuerpoSuscripcion(json)).toEqual({ endpoint: 'https://push.example/1', keys: { p256dh: 'k', auth: 'a' } });
   });
 });

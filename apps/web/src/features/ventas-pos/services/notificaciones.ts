@@ -26,3 +26,8 @@ export function claveVapidABytes(base64url: string): Uint8Array<ArrayBuffer> {
 export function navegadorSoportaPush(): boolean {
   return typeof window !== 'undefined' && 'serviceWorker' in navigator && 'PushManager' in window && 'Notification' in window;
 }
+
+/** The body of POST /push/suscripcion: the API refuses any other field the browser adds (expirationTime). */
+export function cuerpoSuscripcion(json: { endpoint?: string; keys?: Record<string, string> }) {
+  return { endpoint: json.endpoint, keys: { p256dh: json.keys?.p256dh, auth: json.keys?.auth } };
+}
