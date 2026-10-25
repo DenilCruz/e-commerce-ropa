@@ -8,6 +8,7 @@ import { CrearColorDto } from './dto/crear-color.dto';
 import { CategoriaEntity } from '../categorias/entities/category.entity';
 import { SizeEntity } from './entities/size.entity';
 import { ColorEntity } from './entities/color.entity';
+import { BrandEntity } from './entities/brand.entity';
 
 import { TenantContext } from '../../common/tenant/tenant-context';
 
@@ -22,9 +23,22 @@ export class ProductosService {
     private readonly repositorioProducto: Repository<ProductEntity>,
     @InjectRepository(SizeEntity) private readonly repositorioTalla: Repository<SizeEntity>,
     @InjectRepository(ColorEntity) private readonly repositorioColor: Repository<ColorEntity>,
+    @InjectRepository(CategoriaEntity) private readonly repositorioCategoria: Repository<CategoriaEntity>,
+    @InjectRepository(BrandEntity) private readonly repositorioMarca: Repository<BrandEntity>,
   ) {}
 
+  /** Foreign keys ignore row-level security, so category and brand must be checked against the active store. */
+  private async validarReferencias(categoriaId?: string, marcaId?: string): Promise<void> {
+    if (categoriaId && !(await this.repositorioCategoria.count({ where: { id: categoriaId, tenantId: this.tid } }))) {
+      throw new BadRequestException('La categoría indicada no existe en esta tienda.');
+    }
+    if (marcaId && !(await this.repositorioMarca.count({ where: { id: marcaId, tenantId: this.tid } }))) {
+      throw new BadRequestException('La marca indicada no existe en esta tienda.');
+    }
+  }
+
   async crear(datos: CrearProductoDto): Promise<ProductEntity> {
+    await this.validarReferencias(datos.categoriaId, datos.marcaId);
     // TypeORM automáticamente insertará las variantes y las imágenes gracias a { cascade: true }
     // en la entidad si vienen incluidas en el DTO.
     const nuevoProducto = this.repositorioProducto.create(datos);
@@ -105,6 +119,7 @@ export class ProductosService {
 
   async actualizar(id: string, datos: ActualizarProductoDto): Promise<ProductEntity> {
     const producto = await this.obtenerPorId(id); // Verificamos si existe
+    await this.validarReferencias(datos.categoriaId, datos.marcaId);
 
     // Actualizamos los datos
     const productoActualizado = this.repositorioProducto.merge(producto, datos);
