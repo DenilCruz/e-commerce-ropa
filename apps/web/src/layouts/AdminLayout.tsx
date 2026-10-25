@@ -13,6 +13,7 @@ import {
   Ticket,
   Users,
   Image as ImageIcon,
+  Store,
   Star,
   ArrowLeft,
 } from 'lucide-react';
@@ -26,6 +27,7 @@ export const AdminLayout: React.FC = () => {
     { to: '/admin/productos', label: 'Productos', icon: Shirt },
     { to: '/admin/categorias', label: 'Categorías', icon: FolderTree },
     { to: '/admin/inventario', label: 'Inventario', icon: Boxes },
+    { to: '/admin/ventas', label: 'Punto de Venta', icon: Store },
     { to: '/admin/pedidos', label: 'Pedidos', icon: ShoppingBag },
     { to: '/admin/envios', label: 'Envíos y Despachos', icon: Truck },
     { to: '/admin/cupones', label: 'Cupones', icon: Ticket },

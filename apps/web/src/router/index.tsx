@@ -37,6 +37,7 @@ import { AdminCategoriesPage } from '../features/admin/categorias/AdminCategorie
 import { AdminFilesPage } from '../features/admin/archivos/pages/AdminFilesPage';
 import { AdminReviewsPage } from '../features/admin/resenas/pages/AdminReviewsPage';
 import { AdminShippingPage } from '../features/admin/envios/pages/AdminShippingPage';
+import { AdminPosPage } from '../features/ventas-pos/pages/AdminPosPage';
 import { TrackingPage } from '../features/envios/pages/TrackingPage';
 
 export const AppRouter: React.FC = () => {
@@ -85,6 +86,7 @@ export const AppRouter: React.FC = () => {
           <Route path="categorias" element={<AdminCategoriesPage />} />
           <Route path="inventario" element={<AdminInventoryPage />} />
           <Route path="cupones" element={<AdminCouponsPage />} />
+          <Route path="ventas" element={<AdminPosPage />} />
           <Route path="pedidos" element={<AdminOrdersPage />} />
           <Route path="envios" element={<AdminShippingPage />} />
           <Route path="usuarios" element={<AdminUsersPage />} />

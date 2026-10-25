@@ -2,6 +2,7 @@ import { beforeEach, describe, expect, it } from 'vitest';
 import { cerrarDb, uuidV4 } from '../services/posDb';
 import {
   StockLocalInsuficienteError,
+  borrarSincronizadas,
   cancelarVenta,
   crearVenta,
   guardarCatalogo,
@@ -207,6 +208,18 @@ describe('life of a queued sale', () => {
     expect(await reemplazarItems(creada.id, [])).toBeNull();
     expect(await listarVentas(T1)).toHaveLength(0);
     expect(await stockLocal('v-a')).toBe(5);
+  });
+});
+
+describe('clearing synced sales', () => {
+  it('removes only the synced ones of the store and keeps the rest', async () => {
+    await guardarCatalogo(T1, [producto('a', 9)]);
+    const hecha = await crearVenta(venta('v-a', 1));
+    const pendiente = await crearVenta(venta('v-a', 1));
+    await marcarSincronizada(hecha.id, { ordenId: 'o', ordenNro: 'NV-1' });
+
+    expect(await borrarSincronizadas(T1)).toBe(1);
+    expect((await listarVentas(T1)).map((v) => v.id)).toEqual([pendiente.id]);
   });
 });
 

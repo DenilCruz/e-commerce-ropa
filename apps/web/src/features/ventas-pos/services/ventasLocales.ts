@@ -277,3 +277,14 @@ export async function resumenCola(tenantId: string): Promise<Record<EstadoVentaL
   for (const v of await listarVentas(tenantId)) cuenta[v.estado] += 1;
   return cuenta;
 }
+
+/** Clears the list of sales the server already registered; they hold no stock and need no action. */
+export async function borrarSincronizadas(tenantId: string): Promise<number> {
+  return transaccion([STORE_VENTAS], 'readwrite', async (tx) => {
+    const store = tx.objectStore(STORE_VENTAS);
+    const ventas: VentaLocal[] = await pedido(store.index('tenantId').getAll(tenantId));
+    const hechas = ventas.filter((v) => v.estado === 'SINCRONIZADA');
+    for (const v of hechas) store.delete(v.id);
+    return hechas.length;
+  });
+}
