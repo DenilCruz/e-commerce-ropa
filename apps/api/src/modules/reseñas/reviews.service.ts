@@ -112,6 +112,15 @@ export class ResenasService {
    * Permite registrar una compra ficticia rápida de un producto para que el evaluador pueda probar la reseña sin pasar por pasarela de pago.
    */
   async simularCompraParaPruebas(productoId: string, usuarioId: string): Promise<{ exito: boolean; mensaje: string }> {
+    // El detalle de la venta referencia el producto por clave foránea (sin RLS): debe ser de esta tienda
+    const producto = await this.dataSource.query(
+      'SELECT id FROM producto WHERE id = $1 AND tenant_id = $2',
+      [productoId, this.tid],
+    );
+    if (!producto || producto.length === 0) {
+      throw new NotFoundException('El producto no existe en esta tienda.');
+    }
+
     const nroVenta = `TEST-${Date.now().toString().slice(-6)}`;
 
     // Crear nota de venta de prueba
