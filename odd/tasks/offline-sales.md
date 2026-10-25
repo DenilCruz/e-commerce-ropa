@@ -28,3 +28,4 @@ Objective: a seller registers a sale in the browser with no internet, it is queu
 
 - L1 (2026-10-25, user): "mejor la opcion recomendad aunque haya que crear cosas, si eso resuelve lo que pide el docente y no dejamos huecos entonces hazlo" (answering: new POS screen + `POST /ventas/offline`-style endpoint with items in the body, then IndexedDB queue in web, then mobile SQLite).
 - Context: idempotency interceptor + stock 409 on card/cash/QR charges done and verified over HTTP (8206287). Mobile SQLite client, CU-02 ICONIX document and the user manual remain for later tasks of Pilar 2.
+- 2026-10-25: docs/iconix/CU-02-venta-offline-sincronizacion.md written (ficha, 13 rainy-day flows, domain, robustness, 5 sequences, classes, traceability, limits); its 8 Mermaid diagrams parse. Honest limits recorded there: no vector timestamps (arrival order decides), mobile SQLite pending, no push, known idempotency-release advisory.
