@@ -1,4 +1,4 @@
-import { HttpException, Injectable, NestMiddleware } from '@nestjs/common';
+import { ForbiddenException, HttpException, Injectable, NestMiddleware } from '@nestjs/common';
 import { JwtService } from '@nestjs/jwt';
 import { NextFunction, Request, Response } from 'express';
 import { TenantContext } from '../../common/tenant/tenant-context';
@@ -7,6 +7,7 @@ import { TenantResolverService } from './tenant-resolver.service';
 /**
  * Opens the per-request tenant context.
  * Priority: the store inside a valid session token, then the X-Tenant-Slug header, then the default store.
+ * A header that names a different store than a valid token is rejected with 403.
  * Protected routes re-check the membership afterwards (JwtStrategy); this step only decides which
  * store's public data a logged-in user sees on public routes.
  */
@@ -25,10 +26,17 @@ export class TenantMiddleware implements NestMiddleware {
   private async attachTenant(req: Request, res: Response, next: NextFunction): Promise<void> {
     const session = this.readSession(req);
 
+    const slug = req.headers['x-tenant-slug'] as string | undefined;
     let tenantId: string;
     try {
-      tenantId =
-        session?.tenantId ?? (await this.resolver.resolveSlug(req.headers['x-tenant-slug'] as string | undefined));
+      if (session?.tenantId && slug) {
+        if ((await this.resolver.resolveSlug(slug)) !== session.tenantId) {
+          throw new ForbiddenException('La tienda indicada no coincide con tu sesión.');
+        }
+        tenantId = session.tenantId;
+      } else {
+        tenantId = session?.tenantId ?? (await this.resolver.resolveSlug(slug));
+      }
     } catch (err) {
       if (res.headersSent) return;
       const status = err instanceof HttpException ? err.getStatus() : 500;

@@ -38,13 +38,31 @@ describe('TenantMiddleware', () => {
     expect(result.tenantId).toBe('tenant-from-slug');
   });
 
-  it('uses the store inside a valid token, even on public routes, and ignores the header', async () => {
+  it('uses the store inside a valid token, even on public routes, without asking for a header', async () => {
+    const token = jwt.sign({ sub: 'user-1', tid: 'tenant-from-token' });
+
+    const result = await run({ authorization: `Bearer ${token}` });
+
+    expect(result).toEqual({ tenantId: 'tenant-from-token', userId: 'user-1' });
+    expect(resolver.resolveSlug).not.toHaveBeenCalled();
+  });
+
+  it('accepts a header that names the same store as the token', async () => {
+    resolver.resolveSlug.mockResolvedValue('tenant-from-token');
+    const token = jwt.sign({ sub: 'user-1', tid: 'tenant-from-token' });
+
+    const result = await run({ authorization: `Bearer ${token}`, 'x-tenant-slug': 'luna' });
+
+    expect(result).toEqual({ tenantId: 'tenant-from-token', userId: 'user-1' });
+  });
+
+  it('rejects with 403 a header that names a different store than the token', async () => {
     const token = jwt.sign({ sub: 'user-1', tid: 'tenant-from-token' });
 
     const result = await run({ authorization: `Bearer ${token}`, 'x-tenant-slug': 'aura' });
 
-    expect(result).toEqual({ tenantId: 'tenant-from-token', userId: 'user-1' });
-    expect(resolver.resolveSlug).not.toHaveBeenCalled();
+    expect(resolver.resolveSlug).toHaveBeenCalledWith('aura');
+    expect(result).toEqual({ status: 403 });
   });
 
   it('falls back to the header when the token is invalid or has no store', async () => {
