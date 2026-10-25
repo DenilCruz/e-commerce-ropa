@@ -15,6 +15,7 @@ import { Image } from 'expo-image';
 import { useNavigation } from '@react-navigation/native';
 import { Ionicons } from '@expo/vector-icons';
 import { useAuthStore } from '../../store/auth.store';
+import { StoreSwitcher } from '../../components/StoreSwitcher';
 import { authService } from '../../services/auth.service';
 import { perfilApi, DireccionEnvio } from '../../services/perfil.api';
 import { catalogoApi, Producto } from '../../services/catalogo.api';
@@ -366,6 +367,9 @@ export const ProfileScreen: React.FC = () => {
           </TouchableOpacity>
         </View>
       </View>
+
+      {/* TIENDA ACTIVA Y CAMBIO DE TIENDA (multi-tienda) */}
+      <StoreSwitcher />
 
       {/* SECCIÓN ADMINISTRADOR (Si el usuario tiene rol ADMIN) */}
       {user.rol?.toUpperCase() === 'ADMIN' && (
