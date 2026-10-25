@@ -32,7 +32,7 @@ Objective: a seller registers a sale in the browser with no internet, it is queu
 - [x] T7 (S13): retention window (default 7 days, configurable): an expired catalog snapshot blocks new offline sales; old pending sales are flagged. Web. Route: inline. 49 Vitest tests in total. Verified in Chromium: an 8-day snapshot shows "vencido", an offline sale is refused with the message, the snapshot renews itself when the connection returns. The snapshot date now lives in IndexedDB (meta store), not localStorage.
 - [x] T8 (S1, S11): product photos available offline: the snapshot precaches the images. Route: inline. Verified in Chromium with the network cut: 43 of 43 photos drawn after an offline reload.
 - [ ] T9 (S14): Web Push (VAPID keys, subscription table and endpoints, custom service worker handlers, enable button, notification when an offline sale syncs). Route: inline.
-- [ ] T10 (S12, S3-S6, S13): mobile client: SQLite queue + catalog snapshot + sync + POS screen in apps/mobile. Route: delegated (context backstop), one bounded writer; parent reviews the diff and commits.
+- [x] T10 (S12, S3-S6, S13): mobile client: SQLite queue + catalog snapshot + sync + POS screen in apps/mobile. Route: delegated (context backstop), one bounded writer; parent reviews the diff and commits. Parent spot check: diff inside the allowed surfaces, `pnpm test` 61 tests OK, `tsc` 0 errors. NOT run on a device or emulator (expo-sqlite itself, layout, NetInfo reconnect untested); an Expo prebuild / new dev client may be needed for the expo-sqlite plugin.
 - [ ] T11: user manual of the offline POS (plan 3.3) and CU-02 document updated with T6-T10. Route: inline.
 
 ## Log

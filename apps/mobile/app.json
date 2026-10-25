@@ -7,14 +7,17 @@
     "userInterfaceStyle": "light",
     "android": {
       "package": "com.aura.ecommerce",
-      "permissions": ["INTERNET"]
+      "permissions": [
+        "INTERNET"
+      ]
     },
     "ios": {
       "supportsTablet": true
     },
     "plugins": [
       "expo-image",
-      "expo-status-bar"
+      "expo-status-bar",
+      "expo-sqlite"
     ]
   }
 }

@@ -7,7 +7,8 @@
     "start": "npx expo start",
     "android": "npx expo start --android",
     "ios": "npx expo start --ios",
-    "web": "npx expo start --web"
+    "web": "npx expo start --web",
+    "test": "vitest run"
   },
   "dependencies": {
     "@babel/runtime": "^7.20.0",
@@ -23,6 +24,7 @@
     "expo": "~57.0.24",
     "expo-image": "~57.0.5",
     "expo-image-picker": "^57.0.19",
+    "expo-sqlite": "~57.0.4",
     "expo-status-bar": "~57.0.1",
     "react": "19.2.3",
     "react-hook-form": "^7.51.1",
@@ -35,6 +37,7 @@
   "devDependencies": {
     "@babel/core": "^7.20.0",
     "@types/react": "~19.2.18",
-    "typescript": "^6.0.3"
+    "typescript": "^6.0.3",
+    "vitest": "^2.1.9"
   }
 }

@@ -7,6 +7,7 @@ export type RootStackParamList = {
   Tracking: { orderId?: string; codigo?: string } | undefined;
   Probador: { producto?: any } | undefined;
   ConsultasIA: undefined;
+  PuntoDeVenta: undefined;
 };
 
 export type AuthStackParamList = {

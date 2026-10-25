@@ -413,6 +413,15 @@ export const ProfileScreen: React.FC = () => {
               <Ionicons name="chevron-forward" size={16} color="#c7d2fe" style={{ marginLeft: 'auto' }} />
             </TouchableOpacity>
 
+            <TouchableOpacity
+              style={[styles.adminPrimaryBtn, { backgroundColor: '#047857', borderColor: '#065f46' }]}
+              onPress={() => navigation.navigate('PuntoDeVenta')}
+            >
+              <Ionicons name="cash-outline" size={16} color="#fff" style={{ marginRight: 8 }} />
+              <Text style={styles.adminPrimaryBtnText}>Punto de venta (funciona sin internet)</Text>
+              <Ionicons name="chevron-forward" size={16} color="#a7f3d0" style={{ marginLeft: 'auto' }} />
+            </TouchableOpacity>
+
             <View style={styles.adminShortcutsRow}>
               <TouchableOpacity
                 style={styles.adminShortcut}

@@ -10,6 +10,7 @@ import { CheckoutScreen } from '../screens/checkout/CheckoutScreen';
 import { TrackingScreen } from '../screens/envios/TrackingScreen';
 import { ProbadorScreen } from '../screens/probador/ProbadorScreen';
 import { ConsultasIAScreen } from '../screens/admin/ConsultasIAScreen';
+import { PuntoDeVentaScreen } from '../screens/ventas/PuntoDeVentaScreen';
 
 const Stack = createNativeStackNavigator<RootStackParamList>();
 
@@ -25,6 +26,7 @@ export const RootNavigator: React.FC = () => {
         <Stack.Screen name="Tracking" component={TrackingScreen} />
         <Stack.Screen name="Probador" component={ProbadorScreen} />
         <Stack.Screen name="ConsultasIA" component={ConsultasIAScreen} />
+        <Stack.Screen name="PuntoDeVenta" component={PuntoDeVentaScreen} />
       </Stack.Navigator>
     </NavigationContainer>
   );
