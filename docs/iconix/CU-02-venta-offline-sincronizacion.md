@@ -483,7 +483,7 @@ Las pruebas de la API se ejecutan con `npx jest` en `apps/api`; las de la web co
   vendedor vio sin conexión es solo informativo.
 - **Solo efectivo.** Tarjeta y QR no funcionan sin conexión (el plan lo exige: validan con la pasarela en el momento).
 - **Vendedor.** Es un usuario `ADMIN`, porque el panel de administración hoy solo admite ese rol.
-- **Cliente móvil y notificaciones push.** Se documentan en la sección 8 cuando estén completos.
+- **Cliente móvil y notificaciones push.** Se documentan en la sección 8.
 - **Persistencia con tiempo limitado.** El docente pidió que los datos locales no sean indefinidos y que el negocio fije el
   plazo (horas o días, normalmente hasta siete). El plazo es `RETENCION_DIAS` (7 por defecto, cambiable con
   `VITE_POS_RETENCION_DIAS`; admite fracciones, por ejemplo 0,5 = 12 horas). La copia del catálogo vencida impide vender
@@ -494,3 +494,69 @@ Las pruebas de la API se ejecutan con `npx jest` en `apps/api`; las de la web co
   que ya existe en lugar de crear otro.
 - **Fotos.** Las fotos principales de los productos se descargan en segundo plano cuando se renueva la copia del
   catálogo, y se muestran sin conexión. Una foto que nunca se cargó con conexión no estará disponible.
+
+## 8. Cliente móvil y notificaciones push
+
+### 8.1 Aplicación móvil (SQLite)
+
+El docente pidió persistencia local en el móvil con SQLite. La aplicación móvil replica el comportamiento del cliente web:
+
+| Elemento | Dónde está |
+|---|---|
+| Esquema SQLite versionado (`PRAGMA user_version`), cola de ventas, copia del catálogo, fecha de renovación | `apps/mobile/src/services/pos/ventasLocales.ts`, `db.ts`, `dbExpo.ts` |
+| Reserva de stock, conflictos, reintentos y orden de creación (misma lógica que la web) | `ventasLocales.ts`, `conflictos.ts` |
+| Sincronización ordenada y clasificación de fallos | `sincronizador.ts`, `enviarVenta.ts` (`Idempotency-Key` = id de la venta) |
+| Límite de 7 días (`RETENCION_DIAS`) | `retencion.ts` |
+| Pantalla, indicador y cola | `apps/mobile/src/screens/ventas/`, `apps/mobile/src/hooks/useVentasPos.ts`; entrada desde el perfil del administrador |
+
+La lógica del repositorio recibe una interfaz mínima de base de datos (`Db`); en la aplicación la implementa `expo-sqlite`
+y en las pruebas `node:sqlite`. Pruebas: 61 en `apps/mobile` (`pnpm test`) y `tsc` sin errores.
+**No se ejecutó en un teléfono ni en un emulador:** falta comprobar `expo-sqlite` real, el diseño táctil y la
+reconexión con NetInfo, y puede hacer falta `expo prebuild` o un nuevo cliente de desarrollo por el complemento nativo.
+
+### 8.2 Notificaciones push (PWA)
+
+El docente pidió aprovechar las notificaciones de las aplicaciones web progresivas. Cuando una venta hecha sin conexión
+llega al servidor, se avisa a los navegadores suscritos de la tienda.
+
+```mermaid
+sequenceDiagram
+    actor Admin as Administrador
+    participant Boton as BotonNotificaciones
+    participant Hook as useNotificaciones
+    participant SW as ServiceWorker (push-sw.js)
+    participant Ctrl as PushController
+    participant Push as PushService
+    participant Pos as PosSalesService
+    participant Servicio as Servicio de push del navegador
+
+    Admin->>Boton: Activar notificaciones
+    Boton->>Hook: activar()
+    Hook->>Ctrl: GET /push/clave
+    Ctrl-->>Hook: clave pública VAPID
+    Hook->>Hook: Notification.requestPermission()
+    Hook->>SW: pushManager.subscribe(clave)
+    Hook->>Ctrl: POST /push/suscripcion { endpoint, keys }
+    Ctrl->>Push: suscribir(usuarioId, datos)
+    Note over Pos: más tarde, una venta hecha sin conexión llega al servidor
+    Pos->>Push: notificarTienda({ titulo, cuerpo, url })
+    Push->>Servicio: send(suscripción, mensaje)  [Web Push con VAPID]
+    Servicio->>SW: evento push
+    SW->>Admin: muestra la notificación "Venta sincronizada"
+    Admin->>SW: clic en la notificación
+    SW->>Admin: abre /admin/pedidos
+```
+
+| Elemento | Dónde está | Qué lo prueba |
+|---|---|---|
+| Suscripciones por tienda (RLS) | `database/09_push_suscripciones.sql`, `push-subscription.entity.ts` | `push.service.spec.ts` |
+| Envío con VAPID, baja de suscripciones vencidas (404/410) | `apps/api/src/modules/notificaciones/` (`PushService`, `WebPushSender`) | `push.service.spec.ts` (8 pruebas) |
+| Aviso al registrarse una venta hecha sin conexión (más de 60 s de antigüedad) | `pos-sales.service.ts` (`registrar`) | `pos-sales.service.spec.ts` |
+| Botón, permiso y suscripción | `apps/web/src/features/ventas-pos/components/BotonNotificaciones.tsx`, `hooks/useNotificaciones.ts` | `__tests__/notificaciones.test.ts` y prueba en navegador |
+| Manejo del evento `push` y del clic | `apps/web/public/push-sw.js` (cargado por el service worker generado) | Prueba en navegador |
+
+Se verificó en Chromium (perfil persistente, no incógnito, porque el modo incógnito no admite la API Push): el botón
+suscribe, el servidor guarda la suscripción, la notificación de prueba se muestra y, tras sincronizar una venta hecha
+sin conexión, aparece "Venta sincronizada". Requiere `VAPID_PUBLIC_KEY` y `VAPID_PRIVATE_KEY` en el servidor
+(`npx web-push generate-vapid-keys`); sin ellas el botón avisa que falta configurar. Web Push exige HTTPS en producción
+(en `localhost` funciona sin HTTPS).
