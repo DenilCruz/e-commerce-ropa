@@ -5,7 +5,7 @@ import { Repository } from 'typeorm';
 import { v2 as cloudinary, UploadApiResponse } from 'cloudinary';
 const sharp = require('sharp');
 import * as fs from 'fs';
-import { join, extname } from 'path';
+import { join, extname, resolve, sep } from 'path';
 import { v4 as uuidv4 } from 'uuid';
 import { Request } from 'express';
 
@@ -16,6 +16,8 @@ import { UserEntity } from '../usuarios/entities/user.entity';
 import { ArchivoRespuestaDto, EstadoCloudinaryDto } from './dto/archivo-respuesta.dto';
 
 import { TenantContext } from '../../common/tenant/tenant-context';
+
+const UUID_REGEX = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 
 @Injectable()
 export class ArchivosService {
@@ -392,17 +394,27 @@ export class ArchivosService {
    * HU-81: Eliminar imagen obsoleta de Cloudinary, disco local y base de datos
    */
   async eliminarArchivo(identificador: string): Promise<{ exito: boolean; mensaje: string }> {
-    // Buscar en tabla de archivos por ID, URL o publicId
-    let archivo = await this.repositorioArchivo.findOne({
+    // Solo se puede eliminar lo que pertenece a esta tienda: por ID, URL o publicId en la tabla de archivos,
+    // o una imagen de producto de la tienda. Un texto cualquiera nunca llega a Cloudinary ni al disco.
+    // La columna id es UUID: con otro texto Postgres falla, así que solo se busca por id cuando lo es
+    const porId = UUID_REGEX.test(identificador) ? [{ id: identificador, tenantId: this.tid }] : [];
+    const archivo = await this.repositorioArchivo.findOne({
       where: [
-        { id: identificador, tenantId: this.tid },
+        ...porId,
         { url: identificador, tenantId: this.tid },
         { publicId: identificador, tenantId: this.tid },
       ],
     });
+    const imgProd = await this.repositorioImagenProducto.findOne({
+      where: [...porId, { url: identificador, tenantId: this.tid }],
+    });
 
-    let urlTarget = archivo ? archivo.url : identificador;
-    let publicIdTarget = archivo ? archivo.publicId : undefined;
+    if (!archivo && !imgProd) {
+      throw new NotFoundException('El archivo no existe en esta tienda.');
+    }
+
+    const urlTarget: string = archivo ? archivo.url : (imgProd as any).url;
+    const publicIdTarget = archivo ? archivo.publicId : undefined;
 
     // 1. Si está en Cloudinary, destruir en la nube
     if (publicIdTarget) {
@@ -427,8 +439,9 @@ export class ArchivosService {
     // 2. Si es local, eliminar de disco
     if (urlTarget.startsWith('/uploads/')) {
       const subRuta = urlTarget.replace('/uploads/', '');
-      const rutaFisica = join(this.uploadsLocalPath, subRuta);
-      if (fs.existsSync(rutaFisica)) {
+      const rutaFisica = resolve(this.uploadsLocalPath, subRuta);
+      const dentroDeUploads = rutaFisica.startsWith(resolve(this.uploadsLocalPath) + sep);
+      if (dentroDeUploads && fs.existsSync(rutaFisica)) {
         try {
           fs.unlinkSync(rutaFisica);
           this.logger.log(`Archivo local eliminado físicamente: ${rutaFisica}`);
@@ -438,12 +451,12 @@ export class ArchivosService {
       }
     }
 
-    // 3. Eliminar de imagen_producto si existe
-    const imgProd = await this.repositorioImagenProducto.findOne({
-      where: [{ id: identificador, tenantId: this.tid }, { url: urlTarget, tenantId: this.tid }],
-    });
-    if (imgProd) {
-      await this.repositorioImagenProducto.remove(imgProd);
+    // 3. Eliminar de imagen_producto si existe (por la URL del archivo o por el identificador recibido)
+    const imgProdVinculada =
+      imgProd ??
+      (await this.repositorioImagenProducto.findOne({ where: { url: urlTarget, tenantId: this.tid } }));
+    if (imgProdVinculada) {
+      await this.repositorioImagenProducto.remove(imgProdVinculada);
     }
 
     // 4. Eliminar de la tabla archivo
