@@ -2,13 +2,14 @@ import { Module } from '@nestjs/common';
 import { TypeOrmModule } from '@nestjs/typeorm';
 import { WishlistEntity } from './entities/wishlist.entity';
 import { ProductVariantEntity } from '../productos/entities/product-variant.entity';
+import { ProductEntity } from '../productos/entities/product.entity';
 import { CartModule } from '../carrito/cart.module';
 import { FavoritosService } from './wishlist.service';
 import { FavoritosController } from './wishlist.controller';
 
 @Module({
   imports: [
-    TypeOrmModule.forFeature([WishlistEntity, ProductVariantEntity]),
+    TypeOrmModule.forFeature([WishlistEntity, ProductVariantEntity, ProductEntity]),
     CartModule,
   ],
   controllers: [FavoritosController],

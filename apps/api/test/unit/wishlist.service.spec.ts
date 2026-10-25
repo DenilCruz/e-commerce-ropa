@@ -11,6 +11,7 @@ describe('FavoritosService (Unit Tests)', () => {
   let mockRepositorioFavoritos: any;
   let mockRepositorioVariantes: any;
   let mockCartService: any;
+  let mockRepositorioProductos: any;
 
   const dummyUsuarioId = '11111111-1111-1111-1111-111111111111';
   const dummyProductoId = '22222222-2222-2222-2222-222222222222';
@@ -43,14 +44,33 @@ describe('FavoritosService (Unit Tests)', () => {
       agregarItem: jest.fn(),
     };
 
+    // Solo existen los productos de la tienda activa
+    mockRepositorioProductos = {
+      count: jest.fn().mockResolvedValue(1),
+    };
+
     service = new FavoritosService(
       mockRepositorioFavoritos,
       mockRepositorioVariantes,
       mockCartService,
+      mockRepositorioProductos,
     );
   });
 
   describe('HU-76: Guardar productos en favoritos', () => {
+    it('debe rechazar un producto que no pertenece a la tienda activa', async () => {
+      mockRepositorioProductos.count.mockResolvedValue(0);
+
+      await expect(
+        service.agregar({ usuarioId: dummyUsuarioId, productoId: dummyProductoId }),
+      ).rejects.toThrow(NotFoundException);
+
+      expect(mockRepositorioProductos.count).toHaveBeenCalledWith({
+        where: { id: dummyProductoId, tenantId: TEST_TENANT },
+      });
+      expect(mockRepositorioFavoritos.save).not.toHaveBeenCalled();
+    });
+
     it('debe agregar un producto a favoritos exitosamente si no estaba guardado', async () => {
       mockRepositorioFavoritos.findOne.mockResolvedValue(null);
 

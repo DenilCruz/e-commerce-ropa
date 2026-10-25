@@ -3,6 +3,7 @@ import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 import { WishlistEntity } from './entities/wishlist.entity';
 import { ProductVariantEntity } from '../productos/entities/product-variant.entity';
+import { ProductEntity } from '../productos/entities/product.entity';
 import { CartService } from '../carrito/cart.service';
 import { AgregarFavoritoDto } from './dto/agregar-favorito.dto';
 import { MoverFavoritoAlCarritoDto } from './dto/mover-favorito-carrito.dto';
@@ -21,12 +22,22 @@ export class FavoritosService {
     @InjectRepository(ProductVariantEntity)
     private readonly repositorioVariantes: Repository<ProductVariantEntity>,
     private readonly cartService: CartService,
+    @InjectRepository(ProductEntity)
+    private readonly repositorioProductos: Repository<ProductEntity>,
   ) {}
 
   /**
    * HU-76: Guardar un producto en la lista de favoritos del cliente
    */
   async agregar(datos: AgregarFavoritoDto): Promise<WishlistEntity> {
+    // La clave foránea no pasa por RLS: el producto debe ser de la tienda activa
+    const productoDeLaTienda = await this.repositorioProductos.count({
+      where: { id: datos.productoId, tenantId: this.tid },
+    });
+    if (!productoDeLaTienda) {
+      throw new NotFoundException('El producto no existe en esta tienda.');
+    }
+
     // Verificar si ya existe en favoritos para prevenir duplicados
     const existe = await this.repositorioFavoritos.findOne({
       where: {
