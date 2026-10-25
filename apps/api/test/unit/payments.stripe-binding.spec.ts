@@ -126,6 +126,24 @@ describe('PaymentsService Stripe payments are bound to store, user and amount', 
       expect(stripeMock.paymentIntents.confirm).toHaveBeenCalledWith('pi_1', { payment_method: 'pm_card_visa' });
     });
 
+    it('does not auto-confirm an unconfirmed intent that belongs to another store or user', async () => {
+      stripeMock.paymentIntents.retrieve.mockResolvedValue(
+        intent({ status: 'requires_confirmation' }, { tenantId: 'tenant-aura' }),
+      );
+
+      await expect(confirm()).rejects.toThrow(ForbiddenException);
+      expect(stripeMock.paymentIntents.confirm).not.toHaveBeenCalled();
+    });
+
+    it('returns the order already created for the payment instead of creating another one', async () => {
+      stripeMock.paymentIntents.retrieve.mockResolvedValue(intent());
+      paymentRepo.findOne.mockResolvedValue({ notaventa: { id: 'order-1' } });
+      (service as any).formatearRespuestaPago = jest.fn().mockReturnValue({ orden: 'order-1' });
+
+      await expect(confirm()).resolves.toEqual({ orden: 'order-1' });
+      expect(dataSource.createQueryRunner).not.toHaveBeenCalled();
+    });
+
     it('never auto-confirms with a live key and rejects the unpaid intent', async () => {
       secretKey = 'sk_live_123';
       service = build();

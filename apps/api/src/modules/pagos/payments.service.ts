@@ -537,7 +537,14 @@ export class PaymentsService {
 
     try {
       paymentIntent = await this.stripe.paymentIntents.retrieve(dto.paymentIntentId);
+    } catch (err: any) {
+      throw new BadRequestException(`No se pudo verificar la transacción con Stripe: ${err.message}`);
+    }
 
+    // Antes de confirmar nada: un pago ajeno no se toca ni se confirma
+    this.verificarPropietarioDelPago(paymentIntent.metadata, usuarioId);
+
+    try {
       // Si el PaymentIntent aún no fue confirmado por el cliente (ej. checkout mobile o directo)
       // Solo con claves de prueba de Stripe: con claves reales la tarjeta de prueba no cobra nada
       if (
@@ -559,21 +566,19 @@ export class PaymentsService {
       );
     }
 
-    this.verificarPropietarioDelPago(paymentIntent.metadata, usuarioId);
+    // Un pago financia una sola orden: si ya existe, se devuelve esa
+    const pagoExistente = await this.paymentRepo.findOne({
+      where: { idTransaccion: dto.paymentIntentId, tenantId: this.tid },
+      relations: ['notaventa', 'notaventa.items', 'metodoPago', 'notaventa.envio'],
+    });
+    if (pagoExistente) {
+      return this.formatearRespuestaPago(pagoExistente.notaventa, pagoExistente);
+    }
 
     const { subtotal, descuento, envio, totalFinal, cart, cupon } =
       await this.calcularTotalesCarrito(usuarioId, dto.cuponId, dto.metodoEnvioId, dto.tipoEnvio);
 
     if (!cart.items || cart.items.length === 0) {
-      const pagoExistente = await this.paymentRepo.findOne({
-        where: { idTransaccion: dto.paymentIntentId, tenantId: this.tid },
-        relations: ['notaventa', 'notaventa.items', 'metodoPago', 'notaventa.envio'],
-      });
-
-      if (pagoExistente) {
-        return this.formatearRespuestaPago(pagoExistente.notaventa, pagoExistente);
-      }
-
       throw new BadRequestException('El carrito está vacío o la orden ya fue procesada.');
     }
 
