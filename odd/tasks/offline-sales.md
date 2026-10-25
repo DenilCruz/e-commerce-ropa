@@ -19,7 +19,7 @@ Objective: a seller registers a sale in the browser with no internet, it is queu
 ## Tasks
 
 - [x] T1 (S4, S6, S8, S9): POST `/sales/pos` backend: items in body, cash sale, atomic with row locks, 409 per item on stock, Idempotency-Key. Route: inline. 149 tests OK; over HTTP on a scratch DB: replay of the same key = 1 order, 6 parallel sales for the last unit = one 201 and five 409 (stock 0), 8 parallel sales = 8 distinct numbers, device date stored as the same instant NOW() would. Commit: see git log (feat(api): add POST /sales/pos).
-- [ ] T2 (S3, S11): IndexedDB layer in web: sales outbox + catalog snapshot, tests with fake-indexeddb. Route: inline.
+- [x] T2 (S3, S11): IndexedDB layer in web: sales outbox + catalog snapshot, tests with fake-indexeddb. Route: inline. 18 Vitest tests OK (devDependencies vitest + fake-indexeddb added). Decisions: the sale id is its Idempotency-Key; stock is reserved on the device atomically (two offline sales cannot take the last unit); a sale whose items change gets a new id; the queue keeps creation order with a sequence number.
 - [ ] T3 (S3-S6): sync engine: flush on reconnect/interval, states PENDIENTE / SINCRONIZANDO / SINCRONIZADA / CONFLICTO / ERROR, one UUID per sale. Route: inline.
 - [ ] T4 (S2, S5, S7): POS page `/admin/ventas`, connection indicator, pending-queue panel with conflict handling. Route: inline.
 - [ ] T5 (S1, S11): PWA shell (service worker) so the app opens offline; manual offline check in the browser. Route: inline.
