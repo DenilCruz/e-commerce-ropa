@@ -3,6 +3,8 @@ import {
   Post,
   Get,
   Body,
+  Param,
+  ParseUUIDPipe,
   Query,
   UseGuards,
   HttpCode,
@@ -23,6 +25,7 @@ import { RecuperarPasswordDto } from './dto/recuperar-password.dto';
 import { RestablecerPasswordDto } from './dto/restablecer-password.dto';
 import { RefreshTokenDto } from './dto/refresh-token.dto';
 import { VerificarEmailDto } from './dto/verificar-email.dto';
+import { CrearTiendaDto } from '../tiendas/dto/crear-tienda.dto';
 import { JwtAuthGuard } from './guards/jwt-auth.guard';
 import { CurrentUser } from './decorators/current-user.decorator';
 
@@ -152,6 +155,23 @@ export class AuthController {
     return this.authService.verificarEmail({ token });
   }
 
+  @Post('reenviar-verificacion')
+  @UseGuards(JwtAuthGuard)
+  @ApiBearerAuth()
+  @HttpCode(HttpStatus.OK)
+  @ApiOperation({
+    summary: 'Reenviar el correo de verificación',
+    description:
+      'Invalida los enlaces anteriores y envía uno nuevo (válido 24 horas) al correo del usuario autenticado. ' +
+      'Máximo uno por minuto. Fuera de producción también devuelve el enlace.',
+  })
+  @ApiResponse({ status: 200, description: 'Correo de verificación enviado.' })
+  @ApiResponse({ status: 400, description: 'El correo ya está verificado.' })
+  @ApiResponse({ status: 429, description: 'Se pidió otro correo hace menos de un minuto.' })
+  async reenviarVerificacion(@CurrentUser() usuario: any) {
+    return this.authService.reenviarVerificacion(usuario.userId);
+  }
+
   // =========================================================================
   // PERFIL AUTENTICADO
   // =========================================================================
@@ -169,5 +189,50 @@ export class AuthController {
       message: 'Usuario autenticado correctamente.',
       usuario,
     };
+  }
+
+  // =========================================================================
+  // MULTI-TIENDA: MIS TIENDAS, CAMBIO DE TIENDA ACTIVA Y ALTA DE TIENDA
+  // =========================================================================
+  @Get('tiendas')
+  @UseGuards(JwtAuthGuard)
+  @ApiBearerAuth()
+  @ApiOperation({
+    summary: 'Listar las tiendas a las que pertenece el usuario',
+    description: 'Retorna cada tienda con el rol del usuario en ella y marca cuál es la activa.',
+  })
+  @ApiResponse({ status: 200, description: 'Lista de tiendas del usuario.' })
+  async misTiendas(@CurrentUser() usuario: any) {
+    return this.authService.listarMisTiendas(usuario.userId);
+  }
+
+  @Post('tiendas/:id/seleccionar')
+  @UseGuards(JwtAuthGuard)
+  @ApiBearerAuth()
+  @HttpCode(HttpStatus.OK)
+  @ApiOperation({
+    summary: 'Cambiar la tienda activa',
+    description: 'Emite una nueva sesión (tokens) limitada a la tienda elegida, si el usuario pertenece a ella.',
+  })
+  @ApiResponse({ status: 200, description: 'Nueva sesión en la tienda elegida.' })
+  @ApiResponse({ status: 404, description: 'El usuario no pertenece a esa tienda.' })
+  async seleccionarTienda(@CurrentUser() usuario: any, @Param('id', ParseUUIDPipe) tiendaId: string) {
+    return this.authService.seleccionarTienda(usuario.userId, tiendaId);
+  }
+
+  @Post('tiendas')
+  @UseGuards(JwtAuthGuard)
+  @ApiBearerAuth()
+  @HttpCode(HttpStatus.CREATED)
+  @ApiOperation({
+    summary: 'Crear una tienda nueva (suscripción)',
+    description:
+      'Crea el espacio de trabajo de una tienda con plan inicial FREE_TRIAL y convierte al usuario en su ADMIN. ' +
+      'Exige correo verificado. Retorna una sesión ya dentro de la tienda nueva.',
+  })
+  @ApiResponse({ status: 201, description: 'Tienda creada y sesión iniciada en ella.' })
+  @ApiResponse({ status: 403, description: 'El correo del usuario aún no está verificado.' })
+  async crearTienda(@CurrentUser() usuario: any, @Body() dto: CrearTiendaDto) {
+    return this.authService.crearTienda(usuario.userId, dto);
   }
 }

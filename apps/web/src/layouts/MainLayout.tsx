@@ -21,6 +21,7 @@ import { authApi } from '../features/autenticacion/services/auth.api';
 import { obtenerCategorias } from '../features/catalogo/services/catalogo.api';
 import { Categoria } from '../features/catalogo/types';
 import { CartDrawer } from '../components/cart/CartDrawer';
+import { StoreSwitcher } from '../features/tiendas/components/StoreSwitcher';
 
 const ASSETS_URL = (import.meta.env.VITE_API_URL || 'http://localhost:3000/api/v1').replace('/api/v1', '');
 
@@ -286,6 +287,7 @@ export const MainLayout: React.FC = () => {
             {/* USUARIO / SESIÓN */}
             {isAuthenticated && user ? (
               <div className="flex items-center gap-3 pl-2 border-l border-[#E7E1D7]">
+                <StoreSwitcher />
                 <Link
                   to="/perfil"
                   className="flex items-center gap-2 text-xs text-stone-700 hover:text-stone-900 transition-colors py-1"

@@ -12,8 +12,14 @@ import { CrearResenaDto } from './dto/crear-resena.dto';
 import { ActualizarResenaDto } from './dto/actualizar-resena.dto';
 import { EstadoCompraResenaDto } from './dto/verificar-compra.dto';
 
+import { TenantContext } from '../../common/tenant/tenant-context';
+
 @Injectable()
 export class ResenasService {
+  private get tid(): string {
+    return TenantContext.require();
+  }
+
   private readonly logger = new Logger(ResenasService.name);
 
   constructor(
@@ -28,7 +34,7 @@ export class ResenasService {
   async verificarCompraCliente(productoId: string, usuarioId: string): Promise<EstadoCompraResenaDto> {
     // 1. Verificar si ya existe una reseña escrita por el usuario para este producto
     const resenaExistente = await this.repositorioResena.findOne({
-      where: { usuarioId, productoId },
+      where: { usuarioId, productoId, tenantId: this.tid },
       relations: ['usuario'],
     });
 
@@ -39,9 +45,10 @@ export class ResenasService {
        INNER JOIN detalle_nota_venta dnv ON dnv.notaventa_id = nv.id
        WHERE nv.usuario_id = $1 
          AND dnv.producto_id = $2
+         AND nv.tenant_id = $3
          AND nv.estado NOT IN ('CANCELADO', 'RECHAZADO')
        LIMIT 1`,
-      [usuarioId, productoId],
+      [usuarioId, productoId, this.tid],
     );
 
     const comproProducto = Boolean(ventas && ventas.length > 0);
@@ -62,6 +69,7 @@ export class ResenasService {
     // 1. Regla de Negocio: Verificar que no haya reseñado previamente
     const resenaPrevia = await this.repositorioResena.findOne({
       where: {
+        tenantId: this.tid,
         usuarioId: datos.usuarioId,
         productoId: datos.productoId,
       },
@@ -78,9 +86,10 @@ export class ResenasService {
        INNER JOIN detalle_nota_venta dnv ON dnv.notaventa_id = nv.id
        WHERE nv.usuario_id = $1 
          AND dnv.producto_id = $2
+         AND nv.tenant_id = $3
          AND nv.estado NOT IN ('CANCELADO', 'RECHAZADO')
        LIMIT 1`,
-      [datos.usuarioId, datos.productoId],
+      [datos.usuarioId, datos.productoId, this.tid],
     );
 
     if (!ventas || ventas.length === 0) {
@@ -103,23 +112,32 @@ export class ResenasService {
    * Permite registrar una compra ficticia rápida de un producto para que el evaluador pueda probar la reseña sin pasar por pasarela de pago.
    */
   async simularCompraParaPruebas(productoId: string, usuarioId: string): Promise<{ exito: boolean; mensaje: string }> {
+    // El detalle de la venta referencia el producto por clave foránea (sin RLS): debe ser de esta tienda
+    const producto = await this.dataSource.query(
+      'SELECT id FROM producto WHERE id = $1 AND tenant_id = $2',
+      [productoId, this.tid],
+    );
+    if (!producto || producto.length === 0) {
+      throw new NotFoundException('El producto no existe en esta tienda.');
+    }
+
     const nroVenta = `TEST-${Date.now().toString().slice(-6)}`;
 
     // Crear nota de venta de prueba
     const ventaResult = await this.dataSource.query(
-      `INSERT INTO nota_venta (nro, usuario_id, subtotal, total, estado)
-       VALUES ($1, $2, 50.00, 50.00, 'COMPLETADO')
+      `INSERT INTO nota_venta (nro, usuario_id, tenant_id, subtotal, total, estado)
+       VALUES ($1, $2, $3, 50.00, 50.00, 'COMPLETADO')
        RETURNING id`,
-      [nroVenta, usuarioId],
+      [nroVenta, usuarioId, this.tid],
     );
 
     const notaventaId = ventaResult[0].id;
 
     // Crear detalle vinculado al producto
     await this.dataSource.query(
-      `INSERT INTO detalle_nota_venta (notaventa_id, producto_id, cantidad, precio, subtotal, nombre_producto)
-       VALUES ($1, $2, 1, 50.00, 50.00, 'Prenda de prueba para reseña')`,
-      [notaventaId, productoId],
+      `INSERT INTO detalle_nota_venta (notaventa_id, producto_id, tenant_id, cantidad, precio, subtotal, nombre_producto)
+       VALUES ($1, $2, $3, 1, 50.00, 50.00, 'Prenda de prueba para reseña')`,
+      [notaventaId, productoId, this.tid],
     );
 
     return {
@@ -133,7 +151,7 @@ export class ResenasService {
    */
   async obtenerPorProducto(productoId: string): Promise<ReviewEntity[]> {
     return await this.repositorioResena.find({
-      where: { productoId, aprobada: true },
+      where: { productoId, aprobada: true, tenantId: this.tid },
       relations: ['usuario'],
       order: { creadoEn: 'DESC' },
     });
@@ -148,7 +166,7 @@ export class ResenasService {
     distribucion: { [key: number]: number };
   }> {
     const resenas = await this.repositorioResena.find({
-      where: { productoId, aprobada: true },
+      where: { productoId, aprobada: true, tenantId: this.tid },
     });
 
     const total = resenas.length;
@@ -183,7 +201,7 @@ export class ResenasService {
    */
   async actualizar(id: string, datos: ActualizarResenaDto, usuarioId?: string): Promise<ReviewEntity> {
     const resena = await this.repositorioResena.findOne({ 
-      where: { id },
+      where: { id, tenantId: this.tid },
       relations: ['usuario'],
     });
 
@@ -211,7 +229,7 @@ export class ResenasService {
    * HU-68 & HU-69: Eliminar reseña (por el cliente autor o por el admin)
    */
   async eliminar(id: string, usuarioId?: string, esAdmin: boolean = false): Promise<void> {
-    const resena = await this.repositorioResena.findOne({ where: { id } });
+    const resena = await this.repositorioResena.findOne({ where: { id, tenantId: this.tid } });
     if (!resena) {
       throw new NotFoundException(`Reseña con ID ${id} no encontrada.`);
     }
@@ -232,6 +250,7 @@ export class ResenasService {
       .createQueryBuilder('resena')
       .leftJoinAndSelect('resena.usuario', 'usuario')
       .leftJoinAndSelect('resena.producto', 'producto')
+      .where('resena.tenantId = :tid', { tid: this.tid })
       .orderBy('resena.creado_en', 'DESC');
 
     if (estado === 'aprobadas') {
@@ -255,7 +274,7 @@ export class ResenasService {
    * HU-69: Alternar estado de aprobación (ocultar spam u ofensas)
    */
   async toggleAprobada(id: string): Promise<ReviewEntity> {
-    const resena = await this.repositorioResena.findOne({ where: { id } });
+    const resena = await this.repositorioResena.findOne({ where: { id, tenantId: this.tid } });
     if (!resena) {
       throw new NotFoundException(`Reseña con ID ${id} no encontrada.`);
     }

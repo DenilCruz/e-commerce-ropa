@@ -4,6 +4,7 @@ jest.mock('@nestjs/typeorm', () => ({
 
 const sharp = require('sharp');
 import { ArchivosService } from '../../src/modules/uploads/uploads.service';
+import { TenantContext } from '../../src/common/tenant/tenant-context';
 
 describe('ArchivosService (Unit Tests)', () => {
   let service: ArchivosService;
@@ -12,6 +13,14 @@ describe('ArchivosService (Unit Tests)', () => {
   let mockRepositorioImagenProducto: any;
   let mockRepositorioCategoria: any;
   let mockRepositorioUsuario: any;
+  const TEST_TENANT = 'tenant-test';
+  beforeEach(() => {
+    jest.spyOn(TenantContext, 'require').mockReturnValue(TEST_TENANT);
+  });
+  afterEach(() => {
+    jest.restoreAllMocks();
+  });
+
 
   beforeEach(() => {
     mockConfigService = {
@@ -48,6 +57,10 @@ describe('ArchivosService (Unit Tests)', () => {
 
     mockRepositorioUsuario = {
       find: jest.fn().mockResolvedValue([]),
+      createQueryBuilder: jest.fn().mockReturnValue({
+        innerJoin: jest.fn().mockReturnThis(),
+        getMany: jest.fn().mockResolvedValue([]),
+      }),
     };
 
     service = new ArchivosService(
@@ -187,6 +200,58 @@ describe('ArchivosService (Unit Tests)', () => {
 
       expect(res.exito).toBe(true);
       expect(mockRepositorioArchivo.remove).toHaveBeenCalledWith(archivo);
+    });
+
+    describe('archivos de otra tienda', () => {
+      const { NotFoundException } = require('@nestjs/common');
+      const cloudinary = require('cloudinary').v2;
+      let destroy: jest.SpyInstance;
+      let unlink: jest.SpyInstance;
+
+      beforeEach(() => {
+        mockRepositorioArchivo.findOne.mockResolvedValue(null);
+        mockRepositorioImagenProducto.findOne.mockResolvedValue(null);
+        destroy = jest.spyOn(cloudinary.uploader, 'destroy').mockResolvedValue({ result: 'ok' });
+        unlink = jest.spyOn(require('fs'), 'unlinkSync').mockImplementation(() => undefined);
+        jest.spyOn(require('fs'), 'existsSync').mockReturnValue(true);
+      });
+
+      it('no destruye en Cloudinary una URL que no es de esta tienda', async () => {
+        await expect(
+          service.eliminarArchivo('https://res.cloudinary.com/demo/image/upload/v1/ecommerce/otra-tienda/foto.webp'),
+        ).rejects.toThrow(NotFoundException);
+
+        expect(destroy).not.toHaveBeenCalled();
+      });
+
+      it('no borra del disco una ruta local que no es de esta tienda', async () => {
+        await expect(service.eliminarArchivo('/uploads/otra-tienda/foto.webp')).rejects.toThrow(NotFoundException);
+        await expect(service.eliminarArchivo('/uploads/../../etc/passwd')).rejects.toThrow(NotFoundException);
+
+        expect(unlink).not.toHaveBeenCalled();
+      });
+
+      it('solo busca por id cuando el identificador es un UUID (Postgres rechaza otros textos con error 500)', async () => {
+        await expect(service.eliminarArchivo('/uploads/otra-tienda/foto.webp')).rejects.toThrow(NotFoundException);
+        const dondeTexto = mockRepositorioArchivo.findOne.mock.calls[0][0].where;
+        expect(dondeTexto.some((c: any) => 'id' in c)).toBe(false);
+        expect(mockRepositorioImagenProducto.findOne.mock.calls[0][0].where.some((c: any) => 'id' in c)).toBe(false);
+
+        mockRepositorioArchivo.findOne.mockClear();
+        const uuid = '7288bd3e-2d1d-4e16-a4e6-4c038c8e20d7';
+        await expect(service.eliminarArchivo(uuid)).rejects.toThrow(NotFoundException);
+        expect(mockRepositorioArchivo.findOne.mock.calls[0][0].where).toContainEqual({ id: uuid, tenantId: TEST_TENANT });
+      });
+
+      it('sigue eliminando una imagen de producto de esta tienda que no figura en la tabla de archivos', async () => {
+        const imagen = { id: 'img-1', url: '/uploads/productos/vestido.webp' };
+        mockRepositorioImagenProducto.findOne.mockResolvedValue(imagen);
+
+        const res = await service.eliminarArchivo('/uploads/productos/vestido.webp');
+
+        expect(res.exito).toBe(true);
+        expect(mockRepositorioImagenProducto.remove).toHaveBeenCalledWith(imagen);
+      });
     });
   });
 });

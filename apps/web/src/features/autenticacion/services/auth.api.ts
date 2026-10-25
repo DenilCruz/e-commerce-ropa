@@ -36,6 +36,11 @@ export const authApi = {
     return res.data;
   },
 
+  reenviarVerificacion: async (): Promise<{ message: string; correo: string; enlaceVerificacion?: string }> => {
+    const res = await api.post('/auth/reenviar-verificacion');
+    return res.data;
+  },
+
   verificarEmail: async (data: VerificarEmailRequest): Promise<{ message: string; usuario: Partial<UserProfile> }> => {
     const res = await api.post('/auth/verificar-email', data);
     return res.data;

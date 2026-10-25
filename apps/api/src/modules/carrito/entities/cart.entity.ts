@@ -16,7 +16,10 @@ export class CartEntity {
   @PrimaryGeneratedColumn('uuid')
   id: string;
 
-  @Column({ type: 'uuid', name: 'usuario_id', unique: true })
+  @Column({ type: 'uuid', name: 'tenant_id' })
+  tenantId: string;
+
+  @Column({ type: 'uuid', name: 'usuario_id' })
   usuarioId: string;
 
   @Column({ type: 'decimal', precision: 10, scale: 2, default: 0 })

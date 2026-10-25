@@ -10,6 +10,7 @@ import { UserEntity } from '../usuarios/entities/user.entity';
 import { RoleEntity } from '../usuarios/entities/role.entity';
 import { TokenEntity } from './entities/token.entity';
 import { MailModule } from '../mail/mail.module';
+import { StoresModule } from '../tiendas/stores.module';
 import { JwtStrategy } from './strategies/jwt.strategy';
 import { RefreshStrategy } from './strategies/refresh.strategy';
 import { JwtAuthGuard } from './guards/jwt-auth.guard';
@@ -30,6 +31,7 @@ import { RolesGuard } from './guards/roles.guard';
       }),
     }),
     MailModule,
+    StoresModule,
   ],
   controllers: [AuthController],
   providers: [

@@ -67,6 +67,11 @@ export class CrearProductoDto {
   @IsNotEmpty()
   precio: number;
 
+  @ApiPropertyOptional({ description: 'Estado activo o inactivo del producto' })
+  @IsBoolean()
+  @IsOptional()
+  activo?: boolean;
+
   @ApiPropertyOptional({ description: 'Indica si el producto está destacado' })
   @IsBoolean()
   @IsOptional()

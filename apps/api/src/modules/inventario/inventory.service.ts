@@ -5,8 +5,14 @@ import { ProductVariantEntity } from '../productos/entities/product-variant.enti
 import { AjustarStockDto } from './dto/ajustar-stock.dto';
 import { ItemStockDto } from './dto/item-stock.dto';
 
+import { TenantContext } from '../../common/tenant/tenant-context';
+
 @Injectable()
 export class InventarioService {
+  private get tid(): string {
+    return TenantContext.require();
+  }
+
   constructor(
     @InjectRepository(ProductVariantEntity)
     private readonly repositorioVariante: Repository<ProductVariantEntity>,
@@ -24,7 +30,8 @@ export class InventarioService {
       .leftJoinAndSelect('producto.categoria', 'categoria')
       .leftJoinAndSelect('producto.imagenes', 'imagenes')
       .leftJoinAndSelect('variante.talla', 'talla')
-      .leftJoinAndSelect('variante.color', 'color');
+      .leftJoinAndSelect('variante.color', 'color')
+      .where('variante.tenantId = :tid', { tid: this.tid });
 
     // Filtro por término de búsqueda (nombre de prenda o SKU)
     if (busqueda && busqueda.trim() !== '') {
@@ -77,7 +84,7 @@ export class InventarioService {
     agotados: number;
     stockOptimo: number;
   }> {
-    const variantes = await this.repositorioVariante.find();
+    const variantes = await this.repositorioVariante.find({ where: { tenantId: this.tid } });
 
     let totalStock = 0;
     let stockBajo = 0;
@@ -117,7 +124,8 @@ export class InventarioService {
       .leftJoinAndSelect('producto.imagenes', 'imagenes')
       .leftJoinAndSelect('variante.talla', 'talla')
       .leftJoinAndSelect('variante.color', 'color')
-      .where('variante.stock <= variante.stock_minimo')
+      .where('variante.tenantId = :tid', { tid: this.tid })
+      .andWhere('variante.stock <= variante.stock_minimo')
       .andWhere('variante.activa = true')
       .orderBy('variante.stock', 'ASC')
       .getMany();
@@ -128,7 +136,7 @@ export class InventarioService {
    */
   async ajustarStock(varianteId: string, datos: AjustarStockDto): Promise<ProductVariantEntity> {
     const variante = await this.repositorioVariante.findOne({
-      where: { id: varianteId },
+      where: { id: varianteId, tenantId: this.tid },
       relations: ['producto', 'talla', 'color'],
     });
 
@@ -178,7 +186,7 @@ export class InventarioService {
       // 1. Fase de Validación: Verificar existencia y stock disponible de TODOS los ítems
       for (const item of items) {
         const variante = await repo.findOne({
-          where: { id: item.varianteId },
+          where: { id: item.varianteId, tenantId: this.tid },
           lock: { mode: 'pessimistic_write' },
         });
 
@@ -195,7 +203,7 @@ export class InventarioService {
 
       // 2. Fase de Ejecución: Aplicar los descuentos de inventario
       for (const item of items) {
-        const variante = await repo.findOne({ where: { id: item.varianteId } });
+        const variante = await repo.findOne({ where: { id: item.varianteId, tenantId: this.tid } });
         if (variante) {
           const stockAnterior = variante.stock;
           variante.stock -= item.cantidad;
@@ -236,7 +244,7 @@ export class InventarioService {
       const variantesActualizadas = [];
 
       for (const item of items) {
-        const variante = await repo.findOne({ where: { id: item.varianteId } });
+        const variante = await repo.findOne({ where: { id: item.varianteId, tenantId: this.tid } });
         if (!variante) {
           throw new NotFoundException(`Variante con ID ${item.varianteId} no encontrada.`);
         }

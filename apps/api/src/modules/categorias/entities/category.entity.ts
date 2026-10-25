@@ -5,6 +5,9 @@ export class CategoriaEntity {
   @PrimaryGeneratedColumn('uuid')
   id: string;
 
+  @Column({ type: 'uuid', name: 'tenant_id' })
+  tenantId: string;
+
   @Column({ type: 'uuid', name: 'padre_id', nullable: true })
   padre_id: string;
 

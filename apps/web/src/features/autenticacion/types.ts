@@ -5,6 +5,7 @@ export interface UserProfile {
   correo: string;
   rol: string;
   emailVerificado: boolean;
+  tenantId?: string;
   celular?: string;
   ci?: string;
   foto?: string;

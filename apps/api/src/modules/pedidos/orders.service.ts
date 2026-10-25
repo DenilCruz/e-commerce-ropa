@@ -15,8 +15,14 @@ import { ProductVariantEntity } from '../productos/entities/product-variant.enti
 import { ShippingEntity } from '../envios/entities/shipping.entity';
 import { PaymentEntity } from '../pagos/entities/payment.entity';
 
+import { TenantContext } from '../../common/tenant/tenant-context';
+
 @Injectable()
 export class OrdersService {
+  private get tid(): string {
+    return TenantContext.require();
+  }
+
   private readonly logger = new Logger(OrdersService.name);
 
   constructor(
@@ -36,7 +42,7 @@ export class OrdersService {
   // =========================================================================
   async obtenerMisPedidos(usuarioId: string) {
     const ordenes = await this.orderRepo.find({
-      where: { usuarioId },
+      where: { usuarioId, tenantId: this.tid },
       relations: [
         'pago',
         'pago.metodoPago',
@@ -62,7 +68,7 @@ export class OrdersService {
   // =========================================================================
   async obtenerDetalle(id: string, usuarioId?: string, userRole?: string) {
     const orden = await this.orderRepo.findOne({
-      where: { id },
+      where: { id, tenantId: this.tid },
       relations: [
         'pago',
         'pago.metodoPago',
@@ -101,7 +107,7 @@ export class OrdersService {
   // =========================================================================
   async cancelarPedidoCliente(usuarioId: string, id: string, motivo?: string) {
     const orden = await this.orderRepo.findOne({
-      where: { id },
+      where: { id, tenantId: this.tid },
       relations: ['items', 'pago', 'envio'],
     });
 
@@ -208,6 +214,7 @@ export class OrdersService {
       .leftJoinAndSelect('v.color', 'color')
       .leftJoinAndSelect('o.cupon', 'cupon')
       .leftJoinAndSelect('o.historial', 'historial')
+      .where('o.tenantId = :tid', { tid: this.tid })
       .orderBy('o.creadoEn', 'DESC');
 
     if (filtros?.estado && filtros.estado !== 'TODOS') {
@@ -243,7 +250,7 @@ export class OrdersService {
     adminId?: string,
   ) {
     const orden = await this.orderRepo.findOne({
-      where: { id },
+      where: { id, tenantId: this.tid },
       relations: ['pago', 'items', 'envio'],
     });
 
@@ -338,7 +345,7 @@ export class OrdersService {
   // =========================================================================
   async obtenerHistorial(ordenId: string) {
     return this.orderHistoryRepo.find({
-      where: { notaventaId: ordenId },
+      where: { notaventaId: ordenId, tenantId: this.tid },
       relations: ['usuario'],
       order: { creadoEn: 'ASC' },
     });

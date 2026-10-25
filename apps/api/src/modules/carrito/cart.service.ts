@@ -17,8 +17,14 @@ import { ActualizarCantidadItemDto } from './dto/actualizar-cantidad-item.dto';
 import { SincronizarCarritoDto } from './dto/sincronizar-carrito.dto';
 import { CalcularCarritoTemporalDto } from './dto/calcular-carrito-temporal.dto';
 
+import { TenantContext } from '../../common/tenant/tenant-context';
+
 @Injectable()
 export class CartService {
+  private get tid(): string {
+    return TenantContext.require();
+  }
+
   private readonly logger = new Logger(CartService.name);
 
   constructor(
@@ -38,7 +44,7 @@ export class CartService {
   // =========================================================================
   async obtenerOCrearCarrito(usuarioId: string) {
     let cart = await this.cartRepo.findOne({
-      where: { usuarioId },
+      where: { usuarioId, tenantId: this.tid },
       relations: [
         'items',
         'items.variante',
@@ -74,7 +80,7 @@ export class CartService {
 
     // Asegurar carrito
     let cart = await this.cartRepo.findOne({
-      where: { usuarioId },
+      where: { usuarioId, tenantId: this.tid },
       relations: ['items'],
     });
 
@@ -87,7 +93,7 @@ export class CartService {
 
     // Buscar si la variante ya está en el carrito
     const itemExistente = await this.cartItemRepo.findOne({
-      where: { carritoId: cart.id, varianteId: variante.id },
+      where: { carritoId: cart.id, varianteId: variante.id, tenantId: this.tid },
     });
 
     const cantidadDeseada = (itemExistente ? itemExistente.cantidad : 0) + (dto.cantidad || 1);
@@ -132,7 +138,7 @@ export class CartService {
     dto: ActualizarCantidadItemDto,
   ) {
     const item = await this.cartItemRepo.findOne({
-      where: { id: itemId },
+      where: { id: itemId, tenantId: this.tid },
       relations: ['carrito', 'variante', 'variante.producto'],
     });
 
@@ -163,7 +169,7 @@ export class CartService {
   // =========================================================================
   async eliminarItem(usuarioId: string, itemId: string) {
     const item = await this.cartItemRepo.findOne({
-      where: { id: itemId },
+      where: { id: itemId, tenantId: this.tid },
       relations: ['carrito'],
     });
 
@@ -182,7 +188,7 @@ export class CartService {
   // HU-43: VACIAR CARRITO
   // =========================================================================
   async vaciarCarrito(usuarioId: string) {
-    const cart = await this.cartRepo.findOne({ where: { usuarioId } });
+    const cart = await this.cartRepo.findOne({ where: { usuarioId, tenantId: this.tid } });
     if (cart) {
       await this.cartItemRepo.delete({ carritoId: cart.id });
       cart.total = 0;
@@ -270,7 +276,7 @@ export class CartService {
   private async resolverVariante(dto: AgregarItemCarritoDto): Promise<ProductVariantEntity> {
     if (dto.varianteId) {
       const variante = await this.variantRepo.findOne({
-        where: { id: dto.varianteId },
+        where: { id: dto.varianteId, tenantId: this.tid },
         relations: ['producto', 'producto.imagenes', 'talla', 'color'],
       });
       if (!variante) {
@@ -280,7 +286,7 @@ export class CartService {
     }
 
     if (dto.productoId) {
-      const query: any = { productoId: dto.productoId };
+      const query: any = { productoId: dto.productoId, tenantId: this.tid };
       if (dto.tallaId) query.tallaId = dto.tallaId;
       if (dto.colorId) query.colorId = dto.colorId;
 
@@ -301,7 +307,7 @@ export class CartService {
   }
 
   private async recalcularTotalCarrito(carritoId: string): Promise<number> {
-    const items = await this.cartItemRepo.find({ where: { carritoId } });
+    const items = await this.cartItemRepo.find({ where: { carritoId, tenantId: this.tid } });
     const nuevoTotal = items.reduce(
       (sum, item) => sum + Number(item.cantidad) * Number(item.precioUnitario),
       0,

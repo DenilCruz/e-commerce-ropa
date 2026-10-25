@@ -46,3 +46,6 @@ graphify-out/
 .graphify/
 *.graphify*
 
+
+# Archivos subidos en tiempo de ejecución (las imágenes del catálogo ya versionadas siguen en git)
+apps/api/uploads/

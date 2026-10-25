@@ -6,6 +6,7 @@ import { ProductImageEntity } from './entities/product-image.entity';
 import { BrandEntity } from './entities/brand.entity';
 import { SizeEntity } from './entities/size.entity';
 import { ColorEntity } from './entities/color.entity';
+import { CategoriaEntity } from '../categorias/entities/category.entity';
 import { ProductosService } from './products.service';
 import { ProductosController } from './products.controller';
 
@@ -18,6 +19,7 @@ import { ProductosController } from './products.controller';
       BrandEntity,
       SizeEntity,
       ColorEntity,
+      CategoriaEntity,
     ]),
   ],
   controllers: [ProductosController],

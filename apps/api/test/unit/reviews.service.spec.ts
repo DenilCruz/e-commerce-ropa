@@ -4,11 +4,20 @@ jest.mock('@nestjs/typeorm', () => ({
 
 import { BadRequestException, ForbiddenException, NotFoundException } from '@nestjs/common';
 import { ResenasService } from '../../src/modules/reseñas/reviews.service';
+import { TenantContext } from '../../src/common/tenant/tenant-context';
 
 describe('ResenasService (Unit Tests)', () => {
   let service: ResenasService;
   let mockRepositorioResena: any;
   let mockDataSource: any;
+  const TEST_TENANT = 'tenant-test';
+  beforeEach(() => {
+    jest.spyOn(TenantContext, 'require').mockReturnValue(TEST_TENANT);
+  });
+  afterEach(() => {
+    jest.restoreAllMocks();
+  });
+
 
   beforeEach(() => {
     mockRepositorioResena = {
@@ -75,6 +84,29 @@ describe('ResenasService (Unit Tests)', () => {
           calificacion: 4,
         }),
       ).rejects.toThrow(BadRequestException);
+    });
+  });
+
+  describe('HU-66: Compra de prueba solo sobre productos de esta tienda', () => {
+    it('debe rechazar un producto de otra tienda sin registrar ninguna venta', async () => {
+      mockDataSource.query.mockResolvedValue([]); // el producto no existe en la tienda activa
+
+      await expect(service.simularCompraParaPruebas('prod-ajeno', 'user-1')).rejects.toThrow(NotFoundException);
+
+      expect(mockDataSource.query).toHaveBeenCalledTimes(1);
+      expect(mockDataSource.query.mock.calls[0][1]).toEqual(['prod-ajeno', TEST_TENANT]);
+    });
+
+    it('debe registrar la compra de prueba cuando el producto es de la tienda', async () => {
+      mockDataSource.query
+        .mockResolvedValueOnce([{ id: 'prod-1' }])
+        .mockResolvedValueOnce([{ id: 'nv-1' }])
+        .mockResolvedValueOnce([]);
+
+      const res = await service.simularCompraParaPruebas('prod-1', 'user-1');
+
+      expect(res.exito).toBe(true);
+      expect(mockDataSource.query).toHaveBeenCalledTimes(3);
     });
   });
 

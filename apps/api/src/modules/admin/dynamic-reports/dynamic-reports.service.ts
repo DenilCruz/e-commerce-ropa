@@ -8,8 +8,12 @@ import { ConfigService } from '@nestjs/config';
 import { DataSource } from 'typeorm';
 import { GenerarReporteDinamicoDto, ProveedorIA } from './dto/dynamic-reports.dto';
 
+const MAX_REPORTES_SIMULTANEOS = 3;
+
 @Injectable()
 export class DynamicReportsService {
+  private reportesEnCurso = 0;
+
   private readonly logger = new Logger(DynamicReportsService.name);
 
   constructor(
@@ -219,7 +223,7 @@ EJEMPLOS DE REFERENCIA (FEW-SHOT):
     const inicioMs = Date.now();
     let filas: any[] = [];
     try {
-      filas = await this.dataSource.query(sqlSanitizado);
+      filas = await this.ejecutarComoSoloLectura(sqlSanitizado);
     } catch (dbError: any) {
       this.logger.error(`❌ Error SQL en consulta generada: ${sqlSanitizado} -> ${dbError.message}`);
       throw new BadRequestException(
@@ -244,13 +248,44 @@ EJEMPLOS DE REFERENCIA (FEW-SHOT):
     };
   }
 
+  /**
+   * Runs AI-generated SQL with the read-only reports role inside a transaction that is always rolled back.
+   * The role can only read the business tables, and row-level security limits it to the active store.
+   */
+  private async ejecutarComoSoloLectura(sql: string): Promise<any[]> {
+    // Each AI query can hold a pooled connection for up to the statement timeout
+    if (this.reportesEnCurso >= MAX_REPORTES_SIMULTANEOS) {
+      throw new BadRequestException('Hay demasiados reportes ejecutándose. Intenta de nuevo en unos segundos.');
+    }
+    this.reportesEnCurso++;
+    const queryRunner = this.dataSource.createQueryRunner();
+    try {
+      await queryRunner.connect();
+      await queryRunner.startTransaction();
+      await queryRunner.query('SET LOCAL ROLE aura_reports');
+      await queryRunner.query("SET LOCAL statement_timeout = '10s'");
+      return await queryRunner.query(sql);
+    } finally {
+      await queryRunner.rollbackTransaction().catch(() => undefined);
+      await queryRunner.release();
+      this.reportesEnCurso--;
+    }
+  }
+
   // =========================================================================
   // EJECUCIÓN DIRECTA DE CONSULTA SQL (VALIDADA)
   // =========================================================================
   async ejecutarSqlDirecto(sql: string) {
     const sqlSanitizado = this.validarYSanitizarSql(sql);
     const inicioMs = Date.now();
-    const filas = await this.dataSource.query(sqlSanitizado);
+    let filas: any[];
+    try {
+      filas = await this.ejecutarComoSoloLectura(sqlSanitizado);
+    } catch (dbError: any) {
+      throw new BadRequestException(
+        `Error al ejecutar la consulta: ${dbError.message || 'Sintaxis SQL inválida o tabla no permitida'}`,
+      );
+    }
     const duracionMs = Date.now() - inicioMs;
 
     const todasColumnas = filas.length > 0 ? Object.keys(filas[0]) : [];

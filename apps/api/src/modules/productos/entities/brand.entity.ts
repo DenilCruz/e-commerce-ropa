@@ -5,7 +5,10 @@ export class BrandEntity {
   @PrimaryGeneratedColumn('uuid')
   id: string;
 
-  @Column({ type: 'varchar', length: 100, unique: true })
+  @Column({ type: 'uuid', name: 'tenant_id' })
+  tenantId: string;
+
+  @Column({ type: 'varchar', length: 100 })
   nombre: string;
 
   @CreateDateColumn({ name: 'creado_en' })

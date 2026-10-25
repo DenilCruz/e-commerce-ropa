@@ -8,6 +8,8 @@ import { AddressEntity } from './entities/address.entity';
 import { ActualizarUsuarioDto } from './dto/actualizar-usuario.dto';
 import { CrearDireccionDto } from './dto/crear-direccion.dto';
 import { CambiarContrasenaDto } from './dto/cambiar-contrasena.dto';
+import { UserStoreEntity } from '../tiendas/entities/user-store.entity';
+import { TenantContext } from '../../common/tenant/tenant-context';
 
 @Injectable()
 export class UsuariosService {
@@ -18,8 +20,23 @@ export class UsuariosService {
     private readonly repositorioDireccion: Repository<AddressEntity>,
     @InjectRepository(RoleEntity)
     private readonly repositorioRol: Repository<RoleEntity>,
+    @InjectRepository(UserStoreEntity)
+    private readonly repositorioMembresia: Repository<UserStoreEntity>,
     private readonly dataSource: DataSource,
   ) {}
+
+  private get tid(): string {
+    return TenantContext.require();
+  }
+
+  /** Exposes the user with the role they hold in the active store. */
+  private conRolDeTienda(usuario: UserEntity, membresia: UserStoreEntity): UserEntity {
+    usuario.rol = membresia.rol;
+    usuario.rolId = membresia.rolId;
+    usuario.activo = usuario.activo && membresia.activo;
+    delete usuario.contrasena;
+    return usuario;
+  }
 
   // ==========================================
   // GESTIÓN DE PERFIL DE USUARIO (HU-09, HU-10, HU-11)
@@ -33,6 +50,14 @@ export class UsuariosService {
 
     if (!usuario) {
       throw new NotFoundException(`Usuario con ID ${usuarioId} no encontrado.`);
+    }
+
+    const membresia = await this.repositorioMembresia.findOne({
+      where: { usuarioId, tiendaId: this.tid },
+      relations: ['rol'],
+    });
+    if (membresia) {
+      return this.conRolDeTienda(usuario, membresia);
     }
 
     delete usuario.contrasena;
@@ -180,15 +205,17 @@ export class UsuariosService {
     pagina: number;
     totalPaginas: number;
   }> {
-    const qb = this.repositorioUsuario
-      .createQueryBuilder('usuario')
-      .leftJoinAndSelect('usuario.rol', 'rol')
+    const qb = this.repositorioMembresia
+      .createQueryBuilder('membresia')
+      .innerJoinAndSelect('membresia.usuario', 'usuario')
+      .innerJoinAndSelect('membresia.rol', 'rol')
+      .where('membresia.tiendaId = :tid', { tid: this.tid })
       .orderBy('usuario.creadoEn', 'DESC');
 
     if (busqueda && busqueda.trim()) {
       const term = `%${busqueda.trim().toLowerCase()}%`;
-      qb.where(
-        'LOWER(usuario.nombre) LIKE :term OR LOWER(usuario.apellido) LIKE :term OR LOWER(usuario.correo) LIKE :term',
+      qb.andWhere(
+        '(LOWER(usuario.nombre) LIKE :term OR LOWER(usuario.apellido) LIKE :term OR LOWER(usuario.correo) LIKE :term)',
         { term }
       );
     }
@@ -196,10 +223,10 @@ export class UsuariosService {
     const skip = (pagina - 1) * limite;
     qb.skip(skip).take(limite);
 
-    const [usuarios, total] = await qb.getManyAndCount();
+    const [membresias, total] = await qb.getManyAndCount();
 
-    // Eliminar contraseñas del resultado
-    usuarios.forEach(u => delete u.contrasena);
+    // Solo se muestran las personas de esta tienda, con el rol que tienen en ella
+    const usuarios = membresias.map((m) => this.conRolDeTienda(m.usuario, m));
 
     return {
       usuarios,
@@ -210,26 +237,28 @@ export class UsuariosService {
   }
 
   async toggleBloqueo(usuarioId: string): Promise<UserEntity> {
-    const usuario = await this.repositorioUsuario.findOne({
-      where: { id: usuarioId },
-      relations: ['rol'],
+    const membresia = await this.repositorioMembresia.findOne({
+      where: { usuarioId, tiendaId: this.tid },
+      relations: ['usuario', 'rol'],
     });
 
-    if (!usuario) {
-      throw new NotFoundException(`Usuario con ID ${usuarioId} no encontrado.`);
+    if (!membresia) {
+      throw new NotFoundException(`Usuario con ID ${usuarioId} no encontrado en esta tienda.`);
     }
 
-    usuario.activo = !usuario.activo;
-    await this.repositorioUsuario.save(usuario);
+    // El bloqueo aplica solo a esta tienda: la cuenta de la persona sigue activa en las demás
+    membresia.activo = !membresia.activo;
+    await this.repositorioMembresia.save(membresia);
 
-    delete usuario.contrasena;
-    return usuario;
+    return this.conRolDeTienda(membresia.usuario, membresia);
   }
 
   async cambiarRol(usuarioId: string, nuevoRol: string): Promise<UserEntity> {
-    const usuario = await this.repositorioUsuario.findOne({ where: { id: usuarioId } });
-    if (!usuario) {
-      throw new NotFoundException(`Usuario con ID ${usuarioId} no encontrado.`);
+    const membresia = await this.repositorioMembresia.findOne({
+      where: { usuarioId, tiendaId: this.tid },
+    });
+    if (!membresia) {
+      throw new NotFoundException(`Usuario con ID ${usuarioId} no encontrado en esta tienda.`);
     }
 
     // Buscar rol por nombre (ej: ADMIN, CLIENTE) o por ID
@@ -241,8 +270,9 @@ export class UsuariosService {
       throw new BadRequestException(`El rol '${nuevoRol}' no existe en el sistema.`);
     }
 
-    usuario.rolId = rol.id;
-    await this.repositorioUsuario.save(usuario);
+    // El rol se asigna dentro de esta tienda, no globalmente
+    membresia.rolId = rol.id;
+    await this.repositorioMembresia.save(membresia);
 
     return this.obtenerPerfil(usuarioId);
   }

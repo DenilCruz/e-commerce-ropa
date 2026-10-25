@@ -5,6 +5,9 @@ export class ArchivoEntity {
   @PrimaryGeneratedColumn('uuid')
   id: string;
 
+  @Column({ type: 'uuid', name: 'tenant_id' })
+  tenantId: string;
+
   @Column({ name: 'nombre_original', type: 'varchar', length: 255 })
   nombreOriginal: string;
 

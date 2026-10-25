@@ -36,10 +36,17 @@ const METODO_TARJETA_ID = '5d6c0b39-63f4-4cb1-b0df-66aa706e44e5';
 const METODO_CONTRA_ENTREGA_ID = '17817d50-a056-4697-a572-bf7145b63646';
 const METODO_QR_ID = 'dcb8cd5b-18f8-43c7-a7b6-44dfa1beae69';
 
+import { TenantContext } from '../../common/tenant/tenant-context';
+
 @Injectable()
 export class PaymentsService {
+  private get tid(): string {
+    return TenantContext.require();
+  }
+
   private readonly logger = new Logger(PaymentsService.name);
   private stripe: Stripe;
+  private readonly stripeEnPruebas: boolean;
 
   constructor(
     @InjectRepository(PaymentEntity)
@@ -77,9 +84,24 @@ export class PaymentsService {
       process.env.STRIPE_SECRET_KEY ||
       '';
 
+    this.stripeEnPruebas = secretKey.startsWith('sk_test_');
     this.stripe = new StripeClient(secretKey, {
       apiVersion: '2026-08-26.dahlia',
     });
+  }
+
+  /** A Stripe payment only counts for the store and user it was created for (checked before reading any order). */
+  private verificarPropietarioDelPago(metadata: Stripe.Metadata | null | undefined, usuarioId: string): void {
+    if (metadata?.tenantId !== this.tid || metadata?.usuarioId !== usuarioId) {
+      throw new ForbiddenException('Este pago no corresponde a tu compra en esta tienda.');
+    }
+  }
+
+  /** The amount Stripe collected must be the total of the cart being paid. */
+  private verificarMontoPagado(pagadoEnCentavos: number | null | undefined, totalFinal: number): void {
+    if (pagadoEnCentavos !== Math.round(totalFinal * 100)) {
+      throw new BadRequestException('El monto pagado no coincide con el total de tu carrito.');
+    }
   }
 
   // =========================================================================
@@ -122,6 +144,7 @@ export class PaymentsService {
         payment_method_types: ['card'],
         description: `Compra AURA - Cliente ${usuario?.correo || usuarioId}`,
         metadata: {
+          tenantId: this.tid,
           usuarioId,
           cuponId: cupon ? cupon.id : '',
           subtotal: subtotal.toString(),
@@ -250,6 +273,7 @@ export class PaymentsService {
           },
         ],
         metadata: {
+          tenantId: this.tid,
           usuarioId,
           cuponId: cupon ? cupon.id : '',
           subtotal: subtotal.toString(),
@@ -307,6 +331,8 @@ export class PaymentsService {
       throw new BadRequestException(`No se pudo verificar la sesión de Stripe: ${err.message}`);
     }
 
+    this.verificarPropietarioDelPago(session.metadata, usuarioId);
+
     if (session.status !== 'complete' && session.payment_status !== 'paid') {
       return {
         status: session.status,
@@ -321,7 +347,10 @@ export class PaymentsService {
 
     // Verificar si la orden ya fue creada previamente
     const pagoExistente = await this.paymentRepo.findOne({
-      where: [{ idTransaccion: paymentIntentId }, { idTransaccion: session.id }],
+      where: [
+          { idTransaccion: paymentIntentId, tenantId: this.tid },
+          { idTransaccion: session.id, tenantId: this.tid },
+        ],
       relations: ['notaventa', 'notaventa.items', 'metodoPago', 'notaventa.envio', 'notaventa.historial'],
     });
 
@@ -346,6 +375,7 @@ export class PaymentsService {
 
     const { subtotal, descuento, envio, totalFinal, cart, cupon } =
       await this.calcularTotalesCarrito(usuarioId, cuponId, metodoEnvioId, tipoEnvio);
+    this.verificarMontoPagado(session.amount_total, totalFinal);
 
     const queryRunner = this.dataSource.createQueryRunner();
     await queryRunner.connect();
@@ -371,7 +401,7 @@ export class PaymentsService {
       for (const item of cart.items) {
         // Bloqueo Pesimista (SELECT ... FOR UPDATE) directo sobre la variante sin JOINs para PostgreSQL
         const varianteBloqueada = await queryRunner.manager.findOne(ProductVariantEntity, {
-          where: { id: item.varianteId },
+          where: { id: item.varianteId, tenantId: this.tid },
           lock: { mode: 'pessimistic_write' },
         });
 
@@ -387,7 +417,7 @@ export class PaymentsService {
 
         // Cargar detalles descriptivos sin outer join lock
         const varianteInfo = await queryRunner.manager.findOne(ProductVariantEntity, {
-          where: { id: item.varianteId },
+          where: { id: item.varianteId, tenantId: this.tid },
           relations: ['producto', 'talla', 'color'],
         });
 
@@ -507,11 +537,20 @@ export class PaymentsService {
 
     try {
       paymentIntent = await this.stripe.paymentIntents.retrieve(dto.paymentIntentId);
+    } catch (err: any) {
+      throw new BadRequestException(`No se pudo verificar la transacción con Stripe: ${err.message}`);
+    }
 
+    // Antes de confirmar nada: un pago ajeno no se toca ni se confirma
+    this.verificarPropietarioDelPago(paymentIntent.metadata, usuarioId);
+
+    try {
       // Si el PaymentIntent aún no fue confirmado por el cliente (ej. checkout mobile o directo)
+      // Solo con claves de prueba de Stripe: con claves reales la tarjeta de prueba no cobra nada
       if (
-        paymentIntent.status === 'requires_payment_method' ||
-        paymentIntent.status === 'requires_confirmation'
+        this.stripeEnPruebas &&
+        (paymentIntent.status === 'requires_payment_method' ||
+          paymentIntent.status === 'requires_confirmation')
       ) {
         paymentIntent = await this.stripe.paymentIntents.confirm(paymentIntent.id, {
           payment_method: 'pm_card_visa',
@@ -527,21 +566,23 @@ export class PaymentsService {
       );
     }
 
+    // Un pago financia una sola orden: si ya existe, se devuelve esa
+    const pagoExistente = await this.paymentRepo.findOne({
+      where: { idTransaccion: dto.paymentIntentId, tenantId: this.tid },
+      relations: ['notaventa', 'notaventa.items', 'metodoPago', 'notaventa.envio'],
+    });
+    if (pagoExistente) {
+      return this.formatearRespuestaPago(pagoExistente.notaventa, pagoExistente);
+    }
+
     const { subtotal, descuento, envio, totalFinal, cart, cupon } =
       await this.calcularTotalesCarrito(usuarioId, dto.cuponId, dto.metodoEnvioId, dto.tipoEnvio);
 
     if (!cart.items || cart.items.length === 0) {
-      const pagoExistente = await this.paymentRepo.findOne({
-        where: { idTransaccion: dto.paymentIntentId },
-        relations: ['notaventa', 'notaventa.items', 'metodoPago', 'notaventa.envio'],
-      });
-
-      if (pagoExistente) {
-        return this.formatearRespuestaPago(pagoExistente.notaventa, pagoExistente);
-      }
-
       throw new BadRequestException('El carrito está vacío o la orden ya fue procesada.');
     }
+
+    this.verificarMontoPagado(paymentIntent.amount_received, totalFinal);
 
     const queryRunner = this.dataSource.createQueryRunner();
     await queryRunner.connect();
@@ -571,7 +612,7 @@ export class PaymentsService {
       for (const item of cart.items) {
         // Bloqueo Pesimista (SELECT ... FOR UPDATE) directo sobre la variante sin JOINs para PostgreSQL
         const varianteBloqueada = await queryRunner.manager.findOne(ProductVariantEntity, {
-          where: { id: item.varianteId },
+          where: { id: item.varianteId, tenantId: this.tid },
           lock: { mode: 'pessimistic_write' },
         });
 
@@ -587,7 +628,7 @@ export class PaymentsService {
 
         // Cargar detalles descriptivos sin outer join lock
         const varianteInfo = await queryRunner.manager.findOne(ProductVariantEntity, {
-          where: { id: item.varianteId },
+          where: { id: item.varianteId, tenantId: this.tid },
           relations: ['producto', 'talla', 'color'],
         });
 
@@ -745,7 +786,7 @@ export class PaymentsService {
       for (const item of cart.items) {
         // Bloqueo Pesimista (SELECT ... FOR UPDATE) directo sobre la variante sin JOINs para PostgreSQL
         const varianteBloqueada = await queryRunner.manager.findOne(ProductVariantEntity, {
-          where: { id: item.varianteId },
+          where: { id: item.varianteId, tenantId: this.tid },
           lock: { mode: 'pessimistic_write' },
         });
 
@@ -761,7 +802,7 @@ export class PaymentsService {
 
         // Cargar detalles descriptivos sin outer join lock
         const varianteInfo = await queryRunner.manager.findOne(ProductVariantEntity, {
-          where: { id: item.varianteId },
+          where: { id: item.varianteId, tenantId: this.tid },
           relations: ['producto', 'talla', 'color'],
         });
 
@@ -912,7 +953,7 @@ export class PaymentsService {
       for (const item of cart.items) {
         // Bloqueo Pesimista (SELECT ... FOR UPDATE) directo sobre la variante sin JOINs para PostgreSQL
         const varianteBloqueada = await queryRunner.manager.findOne(ProductVariantEntity, {
-          where: { id: item.varianteId },
+          where: { id: item.varianteId, tenantId: this.tid },
           lock: { mode: 'pessimistic_write' },
         });
 
@@ -928,7 +969,7 @@ export class PaymentsService {
 
         // Cargar detalles descriptivos sin outer join lock
         const varianteInfo = await queryRunner.manager.findOne(ProductVariantEntity, {
-          where: { id: item.varianteId },
+          where: { id: item.varianteId, tenantId: this.tid },
           relations: ['producto', 'talla', 'color'],
         });
 
@@ -1047,7 +1088,7 @@ export class PaymentsService {
   // =========================================================================
   async consultarEstadoPago(usuarioId: string, ordenId: string, userRole?: string) {
     const orden = await this.orderRepo.findOne({
-      where: { id: ordenId },
+      where: { id: ordenId, tenantId: this.tid },
       relations: [
         'pago',
         'pago.metodoPago',
@@ -1080,7 +1121,7 @@ export class PaymentsService {
   // =========================================================================
   async reembolsarPago(adminId: string, ordenId: string, dto: ReembolsarPagoDto) {
     const orden = await this.orderRepo.findOne({
-      where: { id: ordenId },
+      where: { id: ordenId, tenantId: this.tid },
       relations: ['pago', 'pago.metodoPago', 'items', 'envio'],
     });
 
@@ -1200,8 +1241,12 @@ export class PaymentsService {
     metodoEnvioId?: string,
     tipoEnvio?: string,
   ) {
+    if (metodoEnvioId && !(await this.shippingMethodRepo.count({ where: { id: metodoEnvioId } }))) {
+      throw new BadRequestException('El método de envío indicado no existe.');
+    }
+
     let cart = await this.cartRepo.findOne({
-      where: { usuarioId },
+      where: { usuarioId, tenantId: this.tid },
       relations: [
         'items',
         'items.variante',
@@ -1228,7 +1273,7 @@ export class PaymentsService {
     let descuento = 0;
 
     if (cuponId) {
-      cupon = await this.couponRepo.findOne({ where: { id: cuponId, activo: true } });
+      cupon = await this.couponRepo.findOne({ where: { id: cuponId, activo: true, tenantId: this.tid } });
       if (cupon) {
         if (cupon.tipo === 'PORCENTAJE') {
           descuento = (subtotal * Number(cupon.valor)) / 100;

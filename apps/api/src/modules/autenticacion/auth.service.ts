@@ -1,6 +1,8 @@
 import {
   Injectable,
   BadRequestException,
+  HttpException,
+  HttpStatus,
   UnauthorizedException,
   NotFoundException,
   Logger,
@@ -16,6 +18,11 @@ import { UserEntity } from '../usuarios/entities/user.entity';
 import { RoleEntity } from '../usuarios/entities/role.entity';
 import { TokenEntity, TipoToken } from './entities/token.entity';
 import { MailService } from '../mail/mail.service';
+import { UserStoreEntity } from '../tiendas/entities/user-store.entity';
+import { StoresService } from '../tiendas/stores.service';
+import { CrearTiendaDto } from '../tiendas/dto/crear-tienda.dto';
+import { TenantContext } from '../../common/tenant/tenant-context';
+import { exponerAtajoDeVerificacion } from '../../common/config/dev-shortcuts';
 
 import { RegistroDto } from './dto/registro.dto';
 import { LoginDto } from './dto/login.dto';
@@ -35,10 +42,13 @@ export class AuthService {
     private readonly roleRepo: Repository<RoleEntity>,
     @InjectRepository(TokenEntity)
     private readonly tokenRepo: Repository<TokenEntity>,
+    @InjectRepository(UserStoreEntity)
+    private readonly membershipRepo: Repository<UserStoreEntity>,
     private readonly jwtService: JwtService,
     private readonly configService: ConfigService,
     private readonly mailService: MailService,
     private readonly dataSource: DataSource,
+    private readonly storesService: StoresService,
   ) {}
 
   // =========================================================================
@@ -46,11 +56,12 @@ export class AuthService {
   // =========================================================================
   async registro(dto: RegistroDto) {
     const correoNormalizado = dto.correo.toLowerCase().trim();
+    const tenantId = TenantContext.require();
 
     // 1. Validar que no exista un usuario con ese correo
     const existe = await this.userRepo.findOne({ where: { correo: correoNormalizado } });
     if (existe) {
-      throw new BadRequestException('El correo electrónico ya se encuentra registrado.');
+      return this.unirseATiendaConCuentaExistente(existe, dto.contrasena, tenantId);
     }
 
     // 2. Buscar o asignar rol por defecto 'CLIENTE'
@@ -94,10 +105,19 @@ export class AuthService {
 
       const usuarioGuardado = await queryRunner.manager.save(nuevoUsuario);
 
+      // El comprador pertenece a la tienda donde se registra
+      await queryRunner.manager.save(
+        queryRunner.manager.create(UserStoreEntity, {
+          usuarioId: usuarioGuardado.id,
+          tiendaId: tenantId,
+          rolId: rolCliente.id,
+        }),
+      );
+
       // Crear registro en tabla cliente si aplica
       await queryRunner.manager.query(
-        `INSERT INTO cliente (usuario_id) VALUES ($1) ON CONFLICT (usuario_id) DO NOTHING`,
-        [usuarioGuardado.id],
+        `INSERT INTO cliente (usuario_id, tenant_id) VALUES ($1, $2) ON CONFLICT (tenant_id, usuario_id) DO NOTHING`,
+        [usuarioGuardado.id, tenantId],
       );
 
       // 5. Generar token de verificación de email (válido por 24 horas)
@@ -125,7 +145,13 @@ export class AuthService {
         .catch((err) => this.logger.error('Error enviando email de bienvenida:', err));
 
       const appUrl = this.configService.get<string>('appUrl') || 'http://localhost:5173';
-      const enlaceVerificacion = `${appUrl}/verificar-email?token=${tokenValor}`;
+
+      // The token must reach the person only through their mailbox: returning it here would let
+      // anyone verify an email address they do not own, so it is closed unless the shortcut is enabled.
+      const atajoDeDesarrollo =
+        exponerAtajoDeVerificacion()
+          ? { enlaceVerificacion: `${appUrl}/verificar-email?token=${tokenValor}`, tokenVerificacion: tokenValor }
+          : {};
 
       return {
         message: 'Usuario registrado exitosamente. Se ha enviado un correo con el enlace de verificación.',
@@ -137,8 +163,7 @@ export class AuthService {
           rol: rolCliente.nombre,
           emailVerificado: usuarioGuardado.emailVerificado,
         },
-        enlaceVerificacion,
-        tokenVerificacion: tokenValor,
+        ...atajoDeDesarrollo,
       };
     } catch (error) {
       await queryRunner.rollbackTransaction();
@@ -173,12 +198,23 @@ export class AuthService {
       throw new UnauthorizedException('Credenciales de acceso incorrectas.');
     }
 
+    // El usuario debe ser miembro de la tienda en la que inicia sesión
+    const tenantId = TenantContext.require();
+    const membresia = await this.membershipRepo.findOne({
+      where: { usuarioId: usuario.id, tiendaId: tenantId, activo: true },
+      relations: ['rol'],
+    });
+    if (!membresia) {
+      throw new UnauthorizedException('No tienes acceso a esta tienda.');
+    }
+    const rolEnTienda = membresia.rol?.nombre || 'CLIENTE';
+
     // Actualizar último login
     usuario.ultimoLogin = new Date();
     await this.userRepo.save(usuario);
 
     // Generar Access Token y Refresh Token
-    const tokens = await this.generarTokens(usuario);
+    const tokens = await this.generarTokens(usuario, tenantId, rolEnTienda);
 
     return {
       message: 'Inicio de sesión exitoso.',
@@ -188,7 +224,8 @@ export class AuthService {
         nombre: usuario.nombre,
         apellido: usuario.apellido,
         correo: usuario.correo,
-        rol: usuario.rol?.nombre || 'CLIENTE',
+        rol: rolEnTienda,
+        tenantId,
         emailVerificado: usuario.emailVerificado,
       },
     };
@@ -341,12 +378,23 @@ export class AuthService {
       throw new UnauthorizedException('Usuario no válido o inactivo.');
     }
 
-    // 4. Marcar el token anterior como usado (rotación de tokens)
+    // 4. La renovación conserva la tienda del token y exige que la membresía siga activa
+    const membresia = payload.tid
+      ? await this.membershipRepo.findOne({
+          where: { usuarioId: usuario.id, tiendaId: payload.tid, activo: true },
+          relations: ['rol'],
+        })
+      : null;
+    if (!membresia) {
+      throw new UnauthorizedException('Ya no tienes acceso a esta tienda. Inicia sesión nuevamente.');
+    }
+
+    // 5. Marcar el token anterior como usado (rotación de tokens)
     tokenRecord.usado = true;
     await this.tokenRepo.save(tokenRecord);
 
-    // 5. Generar nuevos tokens
-    const tokens = await this.generarTokens(usuario);
+    // 6. Generar nuevos tokens
+    const tokens = await this.generarTokens(usuario, payload.tid, membresia.rol?.nombre || 'CLIENTE');
 
     return {
       message: 'Tokens renovados exitosamente.',
@@ -391,13 +439,175 @@ export class AuthService {
   }
 
   // =========================================================================
+  // REENVÍO DEL CORREO DE VERIFICACIÓN
+  // =========================================================================
+  async reenviarVerificacion(usuarioId: string) {
+    const usuario = await this.userRepo.findOne({ where: { id: usuarioId } });
+    if (!usuario) {
+      throw new UnauthorizedException('Usuario no válido o inactivo.');
+    }
+    if (usuario.emailVerificado) {
+      throw new BadRequestException('Tu correo electrónico ya está verificado.');
+    }
+
+    // Avoid mail flooding: one new link per minute
+    // creado_en is stamped by the database clock, so recency is measured with that same clock
+    const reciente = await this.tokenRepo
+      .createQueryBuilder('t')
+      .where('t.usuarioId = :usuarioId', { usuarioId })
+      .andWhere('t.tipo = :tipo', { tipo: TipoToken.VERIFICACION_EMAIL })
+      .andWhere('t.usado = false')
+      .andWhere("t.creadoEn > NOW() - INTERVAL '60 seconds'")
+      .getOne();
+    if (reciente) {
+      throw new HttpException(
+        'Ya te enviamos un correo hace instantes. Espera un minuto antes de pedir otro.',
+        HttpStatus.TOO_MANY_REQUESTS,
+      );
+    }
+
+    // Only the newest link works
+    await this.tokenRepo.update({ usuarioId, tipo: TipoToken.VERIFICACION_EMAIL, usado: false }, { usado: true });
+
+    const tokenValor = crypto.randomUUID();
+    await this.tokenRepo.save(
+      this.tokenRepo.create({
+        usuarioId,
+        tipo: TipoToken.VERIFICACION_EMAIL,
+        valor: tokenValor,
+        expiraEn: new Date(Date.now() + 24 * 60 * 60 * 1000),
+        usado: false,
+      }),
+    );
+
+    this.mailService
+      .enviarEmailVerificacion(usuario.correo, usuario.nombre, tokenValor)
+      .catch((err) => this.logger.error('Error enviando email de verificación:', err));
+
+    const respuesta: { message: string; correo: string; enlaceVerificacion?: string } = {
+      message: `Te enviamos un correo de verificación a ${usuario.correo}.`,
+      correo: usuario.correo,
+    };
+    // The link is returned only when the development shortcut is explicitly enabled
+    if (exponerAtajoDeVerificacion()) {
+      const appUrl = this.configService.get<string>('appUrl') || 'http://localhost:5173';
+      respuesta.enlaceVerificacion = `${appUrl}/verificar-email?token=${tokenValor}`;
+    }
+    return respuesta;
+  }
+
+  // =========================================================================
+  // MULTI-TIENDA: MISMO CORREO EN VARIAS TIENDAS
+  // =========================================================================
+
+  /** The email already has an account: it joins this store as CLIENTE after proving the account password. */
+  private async unirseATiendaConCuentaExistente(usuario: UserEntity, contrasena: string, tenantId: string) {
+    const yaEsMiembro = await this.membershipRepo.exist({
+      where: { usuarioId: usuario.id, tiendaId: tenantId },
+    });
+    if (yaEsMiembro) {
+      throw new BadRequestException('El correo electrónico ya se encuentra registrado.');
+    }
+
+    const contrasenaValida = await bcrypt.compare(contrasena, usuario.contrasena);
+    if (!contrasenaValida) {
+      throw new BadRequestException(
+        'Este correo ya tiene una cuenta. Para unirte a esta tienda usa la contraseña de tu cuenta existente.',
+      );
+    }
+
+    const rolCliente = await this.roleRepo.findOne({ where: { nombre: 'CLIENTE' } });
+    if (!rolCliente) {
+      throw new BadRequestException('El rol CLIENTE no existe en el sistema.');
+    }
+
+    const queryRunner = this.dataSource.createQueryRunner();
+    await queryRunner.connect();
+    await queryRunner.startTransaction();
+    try {
+      await queryRunner.manager.save(
+        queryRunner.manager.create(UserStoreEntity, {
+          usuarioId: usuario.id,
+          tiendaId: tenantId,
+          rolId: rolCliente.id,
+        }),
+      );
+      await queryRunner.manager.query(
+        `INSERT INTO cliente (usuario_id, tenant_id) VALUES ($1, $2) ON CONFLICT (tenant_id, usuario_id) DO NOTHING`,
+        [usuario.id, tenantId],
+      );
+      await queryRunner.commitTransaction();
+    } catch (error) {
+      await queryRunner.rollbackTransaction();
+      this.logger.error('Error al unir la cuenta existente a la tienda:', error);
+      throw new BadRequestException('No se pudo unir tu cuenta a esta tienda.');
+    } finally {
+      await queryRunner.release();
+    }
+
+    return {
+      message: 'Tu cuenta existente se unió a esta tienda. Ya puedes iniciar sesión.',
+      usuario: {
+        id: usuario.id,
+        nombre: usuario.nombre,
+        apellido: usuario.apellido,
+        correo: usuario.correo,
+        rol: rolCliente.nombre,
+        emailVerificado: usuario.emailVerificado,
+      },
+    };
+  }
+
+  async listarMisTiendas(usuarioId: string) {
+    return this.storesService.listarMias(usuarioId);
+  }
+
+  /** Switches the active store: same person, new session scoped to the chosen store. */
+  async seleccionarTienda(usuarioId: string, tiendaId: string) {
+    const membresia = await this.storesService.obtenerMembresia(usuarioId, tiendaId);
+    return this.construirSesion(usuarioId, tiendaId, membresia.rol?.nombre || 'CLIENTE', 'Tienda activa cambiada.');
+  }
+
+  /** Subscribes a new store for the logged user and returns a session already inside it. */
+  async crearTienda(usuarioId: string, dto: CrearTiendaDto) {
+    const tienda = await this.storesService.crear(usuarioId, dto);
+    const sesion = await this.construirSesion(usuarioId, tienda.id, 'ADMIN', 'Tienda creada exitosamente.');
+    return {
+      ...sesion,
+      tienda: { id: tienda.id, nombre: tienda.nombre, slug: tienda.slug, plan: tienda.plan },
+    };
+  }
+
+  private async construirSesion(usuarioId: string, tenantId: string, rolEnTienda: string, message: string) {
+    const usuario = await this.userRepo.findOne({ where: { id: usuarioId } });
+    if (!usuario) {
+      throw new UnauthorizedException('Usuario no válido o inactivo.');
+    }
+    const tokens = await this.generarTokens(usuario, tenantId, rolEnTienda);
+    return {
+      message,
+      ...tokens,
+      usuario: {
+        id: usuario.id,
+        nombre: usuario.nombre,
+        apellido: usuario.apellido,
+        correo: usuario.correo,
+        rol: rolEnTienda,
+        tenantId,
+        emailVerificado: usuario.emailVerificado,
+      },
+    };
+  }
+
+  // =========================================================================
   // MÉTODOS AUXILIARES
   // =========================================================================
-  private async generarTokens(usuario: UserEntity) {
+  private async generarTokens(usuario: UserEntity, tenantId: string, rolEnTienda: string) {
     const payload = {
       sub: usuario.id,
       email: usuario.correo,
-      role: usuario.rol?.nombre || 'CLIENTE',
+      tid: tenantId,
+      role: rolEnTienda,
       jti: crypto.randomUUID(),
     };
 

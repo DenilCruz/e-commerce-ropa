@@ -16,6 +16,9 @@ export class CartItemEntity {
   @PrimaryGeneratedColumn('uuid')
   id: string;
 
+  @Column({ type: 'uuid', name: 'tenant_id' })
+  tenantId: string;
+
   @Column({ type: 'uuid', name: 'carrito_id' })
   carritoId: string;
 

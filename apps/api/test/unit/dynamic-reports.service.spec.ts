@@ -5,12 +5,24 @@ import { ProveedorIA } from '../../src/modules/admin/dynamic-reports/dto/dynamic
 describe('DynamicReportsService (Unit Tests)', () => {
   let service: DynamicReportsService;
   let mockDataSource: any;
+  let mockRunner: any;
   let mockConfigService: any;
 
   beforeEach(() => {
     mockDataSource = {
       query: jest.fn(),
     };
+    // AI SQL runs in a transaction under the read-only reports role: setup statements are no-ops here
+    mockRunner = {
+      connect: jest.fn().mockResolvedValue(undefined),
+      startTransaction: jest.fn().mockResolvedValue(undefined),
+      query: jest.fn((sql: string) =>
+        /^SET LOCAL/i.test(sql) ? Promise.resolve(undefined) : mockDataSource.query(sql),
+      ),
+      rollbackTransaction: jest.fn().mockResolvedValue(undefined),
+      release: jest.fn().mockResolvedValue(undefined),
+    };
+    mockDataSource.createQueryRunner = jest.fn().mockReturnValue(mockRunner);
 
     mockConfigService = {
       get: jest.fn((key: string) => {
@@ -25,6 +37,16 @@ describe('DynamicReportsService (Unit Tests)', () => {
   });
 
   describe('Seguridad y Sanitización SQL', () => {
+    it('debe ejecutar el SQL con el rol de solo lectura y revertir siempre la transacción', async () => {
+      mockDataSource.query.mockResolvedValueOnce([{ nombre: 'Polera' }]);
+
+      await service.ejecutarSqlDirecto('SELECT nombre FROM producto');
+
+      expect(mockRunner.query).toHaveBeenCalledWith('SET LOCAL ROLE aura_reports');
+      expect(mockRunner.rollbackTransaction).toHaveBeenCalled();
+      expect(mockRunner.release).toHaveBeenCalled();
+    });
+
     it('debe rechazar consultas con sentencias prohibidas como DROP', async () => {
       await expect(
         service.ejecutarSqlDirecto('DROP TABLE usuario'),
