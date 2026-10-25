@@ -1,4 +1,4 @@
-import React, { useMemo, useState } from 'react';
+import React, { useMemo, useRef, useState } from 'react';
 import { Minus, Plus, Search, Store, X } from 'lucide-react';
 import { toast } from 'sonner';
 import { getImageUrl, cn } from '../../../lib/utils';
@@ -17,6 +17,8 @@ export const AdminPosPage: React.FC = () => {
   const [ticket, setTicket] = useState<Map<string, number>>(new Map());
   const [cliente, setCliente] = useState('');
   const [registrando, setRegistrando] = useState(false);
+  // State updates are asynchronous: only a ref stops a button pressed several times in the same instant
+  const registrandoRef = useRef(false);
 
   const porId = useMemo(() => new Map(pos.catalogo.map((v) => [v.varianteId, v])), [pos.catalogo]);
 
@@ -46,7 +48,8 @@ export const AdminPosPage: React.FC = () => {
   };
 
   const registrar = async () => {
-    if (!lineas.length || registrando) return;
+    if (!lineas.length || registrandoRef.current) return;
+    registrandoRef.current = true;
     setRegistrando(true);
     try {
       const venta = await pos.vender(
@@ -63,6 +66,7 @@ export const AdminPosPage: React.FC = () => {
     } catch (err) {
       toast.error(err instanceof StockLocalInsuficienteError ? err.message : 'No se pudo guardar la venta en este equipo.');
     } finally {
+      registrandoRef.current = false;
       setRegistrando(false);
     }
   };
@@ -120,7 +124,11 @@ export const AdminPosPage: React.FC = () => {
           ) : resultados.length === 0 ? (
             <p className="px-5 py-12 text-center text-sm text-gray-500">Ninguna prenda coincide con “{busqueda}”.</p>
           ) : (
-            <ul className="divide-y divide-gray-100">
+            <ul
+              tabIndex={0}
+              aria-label="Prendas del catálogo"
+              className={cn('max-h-[65vh] divide-y divide-gray-100 overflow-y-auto', enfoque)}
+            >
               {resultados.slice(0, MAX_RESULTADOS).map((v) => {
                 const enTicket = ticket.get(v.varianteId) ?? 0;
                 const libre = v.stockLocal - enTicket;
