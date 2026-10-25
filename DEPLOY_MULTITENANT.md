@@ -15,6 +15,7 @@ psql -U <superusuario> -d <base> -f database/03_multi_tenant.sql
 psql -U <superusuario> -d <base> -f database/04_tienda_slug.sql
 psql -U <superusuario> -d <base> -f database/05_rls.sql
 psql -U <superusuario> -d <base> -f database/06_tienda_plan.sql
+psql -U <superusuario> -d <base> -f database/07_idempotencia.sql
 ```
 
 Los datos actuales (productos, pedidos, usuarios) quedan asignados a la tienda "AURA".

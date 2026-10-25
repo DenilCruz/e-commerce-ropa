@@ -2,6 +2,7 @@ import {
   Injectable,
   NotFoundException,
   BadRequestException,
+  ConflictException,
   ForbiddenException,
   Logger,
 } from '@nestjs/common';
@@ -128,7 +129,7 @@ export class PaymentsService {
     // Validar stock antes de crear intento
     for (const item of cart.items) {
       if (item.variante && item.cantidad > item.variante.stock) {
-        throw new BadRequestException(
+        throw new ConflictException(
           `Stock insuficiente para "${item.variante.producto?.nombre}". Disponible: ${item.variante.stock}.`,
         );
       }
@@ -242,7 +243,7 @@ export class PaymentsService {
 
     for (const item of cart.items) {
       if (item.variante && item.cantidad > item.variante.stock) {
-        throw new BadRequestException(
+        throw new ConflictException(
           `Stock insuficiente para "${item.variante.producto?.nombre}". Disponible: ${item.variante.stock}.`,
         );
       }
@@ -410,7 +411,7 @@ export class PaymentsService {
         }
 
         if (varianteBloqueada.stock < item.cantidad) {
-          throw new BadRequestException(
+          throw new ConflictException(
             `Stock insuficiente. Quedan ${varianteBloqueada.stock} unidad(es) disponible(s). Otro cliente acaba de adquirir la prenda.`,
           );
         }
@@ -523,6 +524,7 @@ export class PaymentsService {
     } catch (err: any) {
       await queryRunner.rollbackTransaction();
       this.logger.error(`Error procesando orden de Embedded Checkout: ${err.message}`);
+      if (err instanceof ConflictException) throw err;
       throw new BadRequestException(`Fallo al registrar pedido: ${err.message}`);
     } finally {
       await queryRunner.release();
@@ -621,7 +623,7 @@ export class PaymentsService {
         }
 
         if (varianteBloqueada.stock < item.cantidad) {
-          throw new BadRequestException(
+          throw new ConflictException(
             `Stock insuficiente. Quedan ${varianteBloqueada.stock} unidad(es) disponible(s). Otro cliente acaba de adquirir la prenda.`,
           );
         }
@@ -733,6 +735,7 @@ export class PaymentsService {
     } catch (err: any) {
       await queryRunner.rollbackTransaction();
       this.logger.error(`Error procesando confirmación de pago: ${err.message}`);
+      if (err instanceof ConflictException) throw err;
       throw new BadRequestException(`No se pudo procesar la orden: ${err.message}`);
     } finally {
       await queryRunner.release();
@@ -753,7 +756,7 @@ export class PaymentsService {
     // Validar stock
     for (const item of cart.items) {
       if (item.variante && item.cantidad > item.variante.stock) {
-        throw new BadRequestException(
+        throw new ConflictException(
           `Stock insuficiente para "${item.variante.producto?.nombre}". Disponible: ${item.variante.stock}.`,
         );
       }
@@ -795,7 +798,7 @@ export class PaymentsService {
         }
 
         if (varianteBloqueada.stock < item.cantidad) {
-          throw new BadRequestException(
+          throw new ConflictException(
             `Stock insuficiente. Quedan ${varianteBloqueada.stock} unidad(es) disponible(s). Otro cliente acaba de reservar o comprar la prenda.`,
           );
         }
@@ -906,6 +909,7 @@ export class PaymentsService {
     } catch (err: any) {
       await queryRunner.rollbackTransaction();
       this.logger.error(`Error en pago contra entrega: ${err.message}`);
+      if (err instanceof ConflictException) throw err;
       throw new BadRequestException(`No se pudo procesar el pedido contra entrega: ${err.message}`);
     } finally {
       await queryRunner.release();
@@ -962,7 +966,7 @@ export class PaymentsService {
         }
 
         if (varianteBloqueada.stock < item.cantidad) {
-          throw new BadRequestException(
+          throw new ConflictException(
             `Stock insuficiente. Quedan ${varianteBloqueada.stock} unidad(es) disponible(s). Otro cliente acaba de comprar la prenda.`,
           );
         }
@@ -1074,6 +1078,7 @@ export class PaymentsService {
     } catch (err: any) {
       await queryRunner.rollbackTransaction();
       this.logger.error(`Error procesando pedido con QR: ${err.message}`);
+      if (err instanceof ConflictException) throw err;
       if (err instanceof BadRequestException || err instanceof NotFoundException) {
         throw err;
       }

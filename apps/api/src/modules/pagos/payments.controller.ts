@@ -5,6 +5,7 @@ import {
   Body,
   Param,
   UseGuards,
+  UseInterceptors,
   HttpCode,
   HttpStatus,
 } from '@nestjs/common';
@@ -16,6 +17,7 @@ import {
   ApiParam,
 } from '@nestjs/swagger';
 
+import { IdempotencyInterceptor } from '../../common/idempotency/idempotency.interceptor';
 import { PaymentsService } from './payments.service';
 import { CrearIntentoPagoDto } from './dto/crear-intento-pago.dto';
 import { ConfirmarPagoTarjetaDto } from './dto/confirmar-pago-tarjeta.dto';
@@ -100,6 +102,7 @@ export class PaymentsController {
   // HU-56 / HU-58: CONFIRMAR PAGO CON TARJETA
   // =========================================================================
   @Post('confirm-card')
+  @UseInterceptors(IdempotencyInterceptor)
   @UseGuards(JwtAuthGuard)
   @ApiBearerAuth()
   @HttpCode(HttpStatus.OK)
@@ -120,6 +123,7 @@ export class PaymentsController {
   // HU-60: PAGO CONTRA ENTREGA (EFECTIVO)
   // =========================================================================
   @Post('cash-on-delivery')
+  @UseInterceptors(IdempotencyInterceptor)
   @UseGuards(JwtAuthGuard)
   @ApiBearerAuth()
   @HttpCode(HttpStatus.CREATED)
@@ -140,6 +144,7 @@ export class PaymentsController {
   // PAGO CON QR SIMPLE (TRANSFERENCIA BANCARIA INMEDIATA)
   // =========================================================================
   @Post('qr')
+  @UseInterceptors(IdempotencyInterceptor)
   @UseGuards(JwtAuthGuard)
   @ApiBearerAuth()
   @HttpCode(HttpStatus.CREATED)
