@@ -2,6 +2,7 @@ import React from 'react';
 import { AlertTriangle, CheckCircle2, Clock, Loader2, Trash2, XCircle } from 'lucide-react';
 import { EstadoVentaLocal, VentaLocal } from '../types';
 import { cn } from '../../../lib/utils';
+import { RETENCION_DIAS, diasDeAntiguedad, ventaAntigua } from '../services/retencion';
 
 interface Props {
   ventas: VentaLocal[];
@@ -54,6 +55,11 @@ export const ColaSincronizacion: React.FC<Props> = ({ ventas, onReintentar, onAj
                     <p className="text-sm font-medium text-gray-900">
                       {v.items.map((i) => `${i.cantidad} × ${i.nombre} (${i.talla}, ${i.color})`).join(' · ')}
                     </p>
+                    {ventaAntigua(v) && (
+                      <p className="mt-1 inline-flex rounded-md border border-amber-300 bg-amber-50 px-2 py-0.5 text-xs font-medium text-amber-900">
+                        Antigua: lleva {diasDeAntiguedad(v.creadoEn)} día(s) sin enviarse (límite {RETENCION_DIAS}). Se enviará igual al conectarse.
+                      </p>
+                    )}
                     <p className="mt-0.5 text-xs text-gray-500">
                       {new Date(v.creadoEn).toLocaleString('es-BO')}
                       {v.clienteNombre ? ` · ${v.clienteNombre}` : ''}

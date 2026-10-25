@@ -5,6 +5,7 @@ import { getImageUrl, cn } from '../../../lib/utils';
 import { ColaSincronizacion } from '../components/ColaSincronizacion';
 import { IndicadorConexion } from '../components/IndicadorConexion';
 import { useVentasPos } from '../hooks/useVentasPos';
+import { CatalogoVencidoError } from '../services/retencion';
 import { StockLocalInsuficienteError } from '../services/ventasLocales';
 
 const MAX_RESULTADOS = 60;
@@ -64,7 +65,11 @@ export const AdminPosPage: React.FC = () => {
           : `Venta guardada en este equipo por $${venta.total.toFixed(2)}. Se enviará cuando vuelva la conexión.`,
       );
     } catch (err) {
-      toast.error(err instanceof StockLocalInsuficienteError ? err.message : 'No se pudo guardar la venta en este equipo.');
+      toast.error(
+        err instanceof StockLocalInsuficienteError || err instanceof CatalogoVencidoError
+          ? err.message
+          : 'No se pudo guardar la venta en este equipo.',
+      );
     } finally {
       registrandoRef.current = false;
       setRegistrando(false);

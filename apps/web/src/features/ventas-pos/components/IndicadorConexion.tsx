@@ -1,6 +1,7 @@
 import React from 'react';
 import { Cloud, CloudOff, RefreshCw } from 'lucide-react';
 import { cn } from '../../../lib/utils';
+import { RETENCION_DIAS, catalogoVencido } from '../services/retencion';
 
 interface Props {
   isOnline: boolean;
@@ -37,8 +38,11 @@ export const IndicadorConexion: React.FC<Props> = ({ isOnline, pendientes, sincr
         </span>
       )}
     </div>
-    <p className="text-xs text-gray-500">
-      Catálogo guardado en este equipo: <span className="font-medium text-gray-700">{hace(actualizadoEn)}</span>
+    <p className={cn('text-xs', catalogoVencido(actualizadoEn) ? 'font-medium text-amber-800' : 'text-gray-500')}>
+      Catálogo guardado en este equipo: <span className="font-medium">{hace(actualizadoEn)}</span>
+      {catalogoVencido(actualizadoEn) && actualizadoEn
+        ? ` (vencido: se conserva hasta ${RETENCION_DIAS} día(s); conéctate para renovarlo)`
+        : ''}
     </p>
     <button
       type="button"

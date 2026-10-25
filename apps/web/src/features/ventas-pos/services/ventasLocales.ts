@@ -1,5 +1,5 @@
 import { ConflictoItem, EstadoVentaLocal, ItemVentaLocal, VarianteCatalogo, VentaLocal } from '../types';
-import { STORE_CATALOGO, STORE_VENTAS, pedido, transaccion, uuidV4 } from './posDb';
+import { STORE_CATALOGO, STORE_META, STORE_VENTAS, pedido, transaccion, uuidV4 } from './posDb';
 
 /** Product as `GET /productos` returns it; only what the point of sale needs. */
 export interface ProductoParaCatalogo {
@@ -42,6 +42,7 @@ export class StockLocalInsuficienteError extends Error {
 const RESERVAN: EstadoVentaLocal[] = ['PENDIENTE', 'SINCRONIZANDO', 'CONFLICTO', 'ERROR'];
 
 const clave = (tenantId: string, varianteId: string) => `${tenantId}:${varianteId}`;
+const claveActualizacion = (tenantId: string) => `catalogo-actualizado:${tenantId}`;
 const redondear = (n: number) => Number(n.toFixed(2));
 
 function juntarLineas(lineas: LineaVenta[]): Map<string, number> {
@@ -56,7 +57,8 @@ function juntarLineas(lineas: LineaVenta[]): Map<string, number> {
 
 /** Replaces the snapshot of one store with what the server just listed. */
 export async function guardarCatalogo(tenantId: string, productos: ProductoParaCatalogo[]): Promise<void> {
-  await transaccion([STORE_CATALOGO, STORE_VENTAS], 'readwrite', async (tx) => {
+  await transaccion([STORE_CATALOGO, STORE_VENTAS, STORE_META], 'readwrite', async (tx) => {
+    tx.objectStore(STORE_META).put({ clave: claveActualizacion(tenantId), valor: new Date().toISOString() });
     const ventas: VentaLocal[] = await pedido(tx.objectStore(STORE_VENTAS).index('tenantId').getAll(tenantId));
     const reservado = new Map<string, number>();
     for (const v of ventas.filter((x) => RESERVAN.includes(x.estado))) {
@@ -89,6 +91,14 @@ export async function guardarCatalogo(tenantId: string, productos: ProductoParaC
       }
     }
   });
+}
+
+/** When the snapshot of this store was last renewed from the server, or null if it never was. */
+export async function leerActualizacionCatalogo(tenantId: string): Promise<string | null> {
+  const fila = await transaccion([STORE_META], 'readonly', (tx) =>
+    pedido(tx.objectStore(STORE_META).get(claveActualizacion(tenantId))),
+  );
+  return fila?.valor ?? null;
 }
 
 export async function leerCatalogo(tenantId: string): Promise<VarianteCatalogo[]> {

@@ -1,12 +1,15 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { toast } from 'sonner';
 import { api } from '../../../services/api';
+import { getImageUrl } from '../../../lib/utils';
 import { useAuthStore } from '../../../store/auth.store';
 import { useNetworkStatus } from '../../../hooks/useNetworkStatus';
 import { VarianteCatalogo, VentaLocal } from '../types';
 import { enviarVentaPorApi } from '../services/enviarVenta';
+import { precargarImagenes } from '../services/imagenes';
 import { leerSesion } from '../services/sesion';
 import { ajustarAlDisponible } from '../services/conflictos';
+import { CatalogoVencidoError, catalogoVencido } from '../services/retencion';
 import { esperaReintento, sincronizar } from '../services/sincronizador';
 import {
   LineaVenta,
@@ -15,6 +18,7 @@ import {
   cancelarVenta,
   crearVenta,
   guardarCatalogo,
+  leerActualizacionCatalogo,
   leerCatalogo,
   listarVentas,
   reemplazarItems,
@@ -26,16 +30,6 @@ const MENSAJE_INTERRUPCION = {
   SERVIDOR: 'El servidor no respondió. Las ventas siguen guardadas y se reintentará solo.',
   SESION: 'Tu sesión expiró. Inicia sesión de nuevo para enviar las ventas guardadas.',
 } as const;
-
-const claveActualizacion = (tenantId: string) => `pos:catalogo-actualizado:${tenantId}`;
-
-function leerActualizacion(tenantId: string): string | null {
-  try {
-    return localStorage.getItem(claveActualizacion(tenantId));
-  } catch {
-    return null;
-  }
-}
 
 export function useVentasPos() {
   const token = useAuthStore((s) => s.accessToken);
@@ -51,9 +45,14 @@ export function useVentasPos() {
 
   const recargar = useCallback(async () => {
     if (!sesion) return;
-    const [c, v] = await Promise.all([leerCatalogo(sesion.tenantId), listarVentas(sesion.tenantId)]);
+    const [c, v, fecha] = await Promise.all([
+      leerCatalogo(sesion.tenantId),
+      listarVentas(sesion.tenantId),
+      leerActualizacionCatalogo(sesion.tenantId),
+    ]);
     setCatalogo(c);
     setVentas(v);
+    setActualizadoEn(fecha);
   }, [sesion]);
 
   const refrescarCatalogo = useCallback(async () => {
@@ -63,14 +62,14 @@ export function useVentasPos() {
       const lista = Array.isArray(data) ? data : data?.data;
       if (!Array.isArray(lista)) return;
       await guardarCatalogo(sesion.tenantId, lista);
-      const ahora = new Date().toISOString();
-      try {
-        localStorage.setItem(claveActualizacion(sesion.tenantId), ahora);
-      } catch {
-        /* the stamp is only informative */
-      }
-      setActualizadoEn(ahora);
       await recargar();
+      // Photos are not needed to sell, so they download in the background
+      void precargarImagenes(
+        lista.flatMap((p: any) => {
+          const principal = p.imagenes?.find((i: any) => i.principal || i.esPrincipal) ?? p.imagenes?.[0];
+          return principal ? [getImageUrl(principal.url)] : [];
+        }),
+      );
     } catch {
       /* offline or server down: keep working from the last snapshot */
     }
@@ -103,7 +102,6 @@ export function useVentasPos() {
   // First load: what is on the device, then the server snapshot if there is a connection
   useEffect(() => {
     if (!sesion) return;
-    setActualizadoEn(leerActualizacion(sesion.tenantId));
     void recargar();
   }, [sesion, recargar]);
 
@@ -124,13 +122,15 @@ export function useVentasPos() {
   const vender = useCallback(
     async (items: LineaVenta[], clienteNombre?: string, notas?: string) => {
       if (!sesion) throw new Error('No hay una sesión de vendedor activa.');
+      // Online the snapshot is renewed on its own; offline an expired one is stock data nobody can trust
+      if (!isOnline && catalogoVencido(actualizadoEn)) throw new CatalogoVencidoError();
       fallosSeguidos.current = 0;
       const venta = await crearVenta({ ...sesion, items, clienteNombre, notas });
       await recargar();
       setRonda((n) => n + 1);
       return venta;
     },
-    [sesion, recargar],
+    [sesion, recargar, isOnline, actualizadoEn],
   );
 
   const accion = useCallback(
@@ -161,4 +161,4 @@ export function useVentasPos() {
   };
 }
 
-export { StockLocalInsuficienteError };
+export { CatalogoVencidoError, StockLocalInsuficienteError };
