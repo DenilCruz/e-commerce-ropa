@@ -4,8 +4,8 @@ import { IsUUID, IsNotEmpty, IsInt, Min, Max, IsString, IsOptional } from 'class
 export class CrearResenaDto {
   @ApiProperty({ description: 'ID del usuario que escribe la reseña' })
   @IsUUID()
-  @IsNotEmpty()
-  usuarioId: string;
+  @IsOptional()
+  usuarioId?: string;
 
   @ApiProperty({ description: 'ID del producto calificado' })
   @IsUUID()

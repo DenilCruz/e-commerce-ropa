@@ -11,6 +11,8 @@ import {
   UseGuards,
 } from '@nestjs/common';
 import { ApiTags, ApiOperation, ApiResponse, ApiParam, ApiBearerAuth } from '@nestjs/swagger';
+import { CurrentUser } from '../autenticacion/decorators/current-user.decorator';
+import { exigirMismoUsuario } from '../../common/auth/solo-propio-usuario';
 import { FavoritosService } from './wishlist.service';
 import { AgregarFavoritoDto } from './dto/agregar-favorito.dto';
 import { MoverFavoritoAlCarritoDto } from './dto/mover-favorito-carrito.dto';
@@ -27,16 +29,16 @@ export class FavoritosController {
   @ApiOperation({ summary: 'HU-76: Guardar un producto en la lista de favoritos' })
   @ApiResponse({ status: 201, description: 'Producto agregado a favoritos exitosamente.' })
   @ApiResponse({ status: 400, description: 'El producto ya está en la lista de favoritos.' })
-  agregar(@Body() datos: AgregarFavoritoDto) {
-    return this.servicioFavoritos.agregar(datos);
+  agregar(@Body() datos: AgregarFavoritoDto, @CurrentUser('userId') usuarioToken: string) {
+    return this.servicioFavoritos.agregar({ ...datos, usuarioId: exigirMismoUsuario(datos.usuarioId, usuarioToken) });
   }
 
   @Get('usuario/:usuarioId')
   @ApiOperation({ summary: 'HU-77: Obtener todos los favoritos de un usuario con imágenes y variantes' })
   @ApiParam({ name: 'usuarioId', description: 'ID del usuario' })
   @ApiResponse({ status: 200, description: 'Lista de favoritos obtenida.' })
-  obtenerPorUsuario(@Param('usuarioId', ParseUUIDPipe) usuarioId: string) {
-    return this.servicioFavoritos.obtenerPorUsuario(usuarioId);
+  obtenerPorUsuario(@Param('usuarioId', ParseUUIDPipe) usuarioId: string, @CurrentUser('userId') usuarioToken: string) {
+    return this.servicioFavoritos.obtenerPorUsuario(exigirMismoUsuario(usuarioId, usuarioToken));
   }
 
   @Delete('usuario/:usuarioId/producto/:productoId')
@@ -49,8 +51,9 @@ export class FavoritosController {
   eliminar(
     @Param('usuarioId', ParseUUIDPipe) usuarioId: string,
     @Param('productoId', ParseUUIDPipe) productoId: string,
+    @CurrentUser('userId') usuarioToken: string,
   ) {
-    return this.servicioFavoritos.eliminar(usuarioId, productoId);
+    return this.servicioFavoritos.eliminar(exigirMismoUsuario(usuarioId, usuarioToken), productoId);
   }
 
   @Delete('usuario/:usuarioId')
@@ -58,8 +61,8 @@ export class FavoritosController {
   @ApiOperation({ summary: 'Vaciar todos los productos de la lista de favoritos de un usuario' })
   @ApiParam({ name: 'usuarioId', description: 'ID del usuario' })
   @ApiResponse({ status: 200, description: 'Todos los favoritos han sido eliminados.' })
-  limpiarTodos(@Param('usuarioId', ParseUUIDPipe) usuarioId: string) {
-    return this.servicioFavoritos.limpiarTodos(usuarioId);
+  limpiarTodos(@Param('usuarioId', ParseUUIDPipe) usuarioId: string, @CurrentUser('userId') usuarioToken: string) {
+    return this.servicioFavoritos.limpiarTodos(exigirMismoUsuario(usuarioId, usuarioToken));
   }
 
   @Post('mover-al-carrito')
@@ -68,7 +71,7 @@ export class FavoritosController {
   @ApiResponse({ status: 200, description: 'Producto movido al carrito exitosamente.' })
   @ApiResponse({ status: 400, description: 'Stock insuficiente o variantes agotadas.' })
   @ApiResponse({ status: 404, description: 'Favorito no encontrado.' })
-  moverAlCarrito(@Body() datos: MoverFavoritoAlCarritoDto) {
-    return this.servicioFavoritos.moverAlCarrito(datos);
+  moverAlCarrito(@Body() datos: MoverFavoritoAlCarritoDto, @CurrentUser('userId') usuarioToken: string) {
+    return this.servicioFavoritos.moverAlCarrito({ ...datos, usuarioId: exigirMismoUsuario(datos.usuarioId, usuarioToken) });
   }
 }
