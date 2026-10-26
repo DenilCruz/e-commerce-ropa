@@ -213,17 +213,20 @@ export const AdminFilesPage: React.FC = () => {
   return (
     <div className="space-y-6">
       {/* Encabezado y Estado de Almacenamiento */}
-      <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 bg-white p-6 rounded-2xl shadow-sm border border-gray-100">
+      <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 bg-white p-6 rounded-2xl shadow-xs border border-[#E7E1D7]">
         <div>
+          <div className="flex items-center gap-2 mb-1">
+            <span className="text-[10px] font-bold uppercase tracking-widest text-[#9B7B54]">Almacenamiento Cloud & Assets</span>
+          </div>
           <div className="flex items-center gap-2.5">
-            <div className="p-2 bg-gray-900 text-white rounded-xl">
+            <div className="p-2 bg-[#FAF8F5] border border-[#E7E1D7] text-[#9B7B54] rounded-xl">
               <ImageIcon className="w-6 h-6" />
             </div>
             <div>
-              <h1 className="text-2xl font-black text-gray-900 tracking-tight">
+              <h1 className="font-serif text-3xl font-bold text-stone-900 tracking-tight">
                 Gestor de Archivos y Multimedia
               </h1>
-              <p className="text-sm text-gray-500">
+              <p className="text-sm text-stone-500">
                 Almacenamiento Cloudinary, optimización WebP automática y eliminación de obsoletas
               </p>
             </div>
@@ -233,8 +236,8 @@ export const AdminFilesPage: React.FC = () => {
         {/* Indicadores de Integración Cloudinary y Sharp */}
         <div className="flex flex-wrap items-center gap-2.5">
           {estadoCloudinary?.configurado ? (
-            <div className="flex items-center gap-2 px-3.5 py-1.5 bg-emerald-50 border border-emerald-200 text-emerald-800 rounded-xl text-xs font-semibold">
-              <Cloud className="w-4 h-4 text-emerald-600" />
+            <div className="flex items-center gap-2 px-3.5 py-1.5 bg-[#FAF8F5] border border-[#E7E1D7] text-stone-800 rounded-xl text-xs font-semibold">
+              <Cloud className="w-4 h-4 text-[#9B7B54]" />
               <span>Cloudinary Conectado: <strong>{estadoCloudinary.cloudName}</strong></span>
             </div>
           ) : (
@@ -244,15 +247,15 @@ export const AdminFilesPage: React.FC = () => {
             </div>
           )}
 
-          <div className="flex items-center gap-1.5 px-3 py-1.5 bg-indigo-50 border border-indigo-100 text-indigo-800 rounded-xl text-xs font-medium">
-            <Sparkles className="w-3.5 h-3.5 text-indigo-600" />
+          <div className="flex items-center gap-1.5 px-3 py-1.5 bg-[#FAF8F5] border border-[#E7E1D7] text-[#9B7B54] rounded-xl text-xs font-bold uppercase tracking-wider">
+            <Sparkles className="w-3.5 h-3.5" />
             <span>Sharp WebP 82%</span>
           </div>
 
           <button
             onClick={cargarDatos}
             disabled={cargando}
-            className="p-2 text-gray-500 hover:text-gray-900 hover:bg-gray-100 rounded-xl transition-colors"
+            className="p-2 text-stone-500 hover:text-stone-900 hover:bg-[#FAF8F5] border border-[#E7E1D7] rounded-xl transition-colors"
             title="Refrescar galería"
           >
             <RefreshCw className={`w-4 h-4 ${cargando ? 'animate-spin' : ''}`} />
@@ -262,45 +265,45 @@ export const AdminFilesPage: React.FC = () => {
 
       {/* Métricas Rápidas */}
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-        <div className="bg-white p-5 rounded-2xl border border-gray-100 shadow-sm flex items-center gap-4">
-          <div className="p-3 bg-blue-50 text-blue-600 rounded-xl">
+        <div className="bg-white p-5 rounded-2xl border border-[#E7E1D7] shadow-xs flex items-center gap-4">
+          <div className="p-3 bg-[#FAF8F5] border border-[#E7E1D7] text-stone-800 rounded-xl">
             <FolderArchive className="w-6 h-6" />
           </div>
           <div>
-            <p className="text-xs font-semibold text-gray-500 uppercase tracking-wider">Total Archivos</p>
-            <p className="text-2xl font-black text-gray-900">{stats.total}</p>
+            <p className="text-[10px] font-bold text-stone-500 uppercase tracking-wider">Total Archivos</p>
+            <p className="font-serif text-2xl font-bold text-stone-900">{stats.total}</p>
           </div>
         </div>
 
-        <div className="bg-white p-5 rounded-2xl border border-gray-100 shadow-sm flex items-center gap-4">
-          <div className="p-3 bg-emerald-50 text-emerald-600 rounded-xl">
+        <div className="bg-white p-5 rounded-2xl border border-[#E7E1D7] shadow-xs flex items-center gap-4">
+          <div className="p-3 bg-[#FAF8F5] border border-[#E7E1D7] text-[#9B7B54] rounded-xl">
             <FileCheck className="w-6 h-6" />
           </div>
           <div>
-            <p className="text-xs font-semibold text-gray-500 uppercase tracking-wider">En Uso</p>
-            <p className="text-2xl font-black text-emerald-600">{stats.enUso}</p>
+            <p className="text-[10px] font-bold text-stone-500 uppercase tracking-wider">En Uso</p>
+            <p className="font-serif text-2xl font-bold text-[#9B7B54]">{stats.enUso}</p>
           </div>
         </div>
 
-        <div className="bg-white p-5 rounded-2xl border border-gray-100 shadow-sm flex items-center gap-4">
-          <div className={`p-3 rounded-xl ${stats.obsoletas > 0 ? 'bg-amber-50 text-amber-600' : 'bg-gray-50 text-gray-400'}`}>
+        <div className="bg-white p-5 rounded-2xl border border-[#E7E1D7] shadow-xs flex items-center gap-4">
+          <div className="p-3 bg-[#FAF8F5] border border-[#E7E1D7] text-amber-700 rounded-xl">
             <AlertTriangle className="w-6 h-6" />
           </div>
           <div>
-            <p className="text-xs font-semibold text-gray-500 uppercase tracking-wider">Obsoletas / Huérfanas</p>
-            <p className={`text-2xl font-black ${stats.obsoletas > 0 ? 'text-amber-600' : 'text-gray-400'}`}>
+            <p className="text-[10px] font-bold text-stone-500 uppercase tracking-wider">Obsoletas / Huérfanas</p>
+            <p className="font-serif text-2xl font-bold text-stone-900">
               {stats.obsoletas}
             </p>
           </div>
         </div>
 
-        <div className="bg-white p-5 rounded-2xl border border-gray-100 shadow-sm flex items-center gap-4">
-          <div className="p-3 bg-purple-50 text-purple-600 rounded-xl">
+        <div className="bg-white p-5 rounded-2xl border border-[#E7E1D7] shadow-xs flex items-center gap-4">
+          <div className="p-3 bg-[#FAF8F5] border border-[#E7E1D7] text-stone-700 rounded-xl">
             <Layers className="w-6 h-6" />
           </div>
           <div>
-            <p className="text-xs font-semibold text-gray-500 uppercase tracking-wider">Almacenamiento Total</p>
-            <p className="text-2xl font-black text-gray-900">{formatearBytes(stats.pesoTotal)}</p>
+            <p className="text-[10px] font-bold text-stone-500 uppercase tracking-wider">Almacenamiento Total</p>
+            <p className="font-serif text-2xl font-bold text-stone-900">{formatearBytes(stats.pesoTotal)}</p>
           </div>
         </div>
       </div>
@@ -525,10 +528,10 @@ export const AdminFilesPage: React.FC = () => {
                   <div className="absolute top-2.5 left-2.5 flex flex-col gap-1">
                     {/* Almacenamiento */}
                     <span
-                      className={`px-2 py-0.5 rounded-md text-[10px] font-bold tracking-wider uppercase backdrop-blur-md shadow-sm ${
+                      className={`px-2 py-0.5 rounded-md text-[10px] font-bold tracking-wider uppercase backdrop-blur-md shadow-xs ${
                         esCloudinary
-                          ? 'bg-blue-600/90 text-white'
-                          : 'bg-gray-900/80 text-white'
+                          ? 'bg-stone-900/90 text-white'
+                          : 'bg-stone-800/90 text-white'
                       }`}
                     >
                       {esCloudinary ? 'Cloudinary' : 'Local'}

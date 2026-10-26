@@ -95,8 +95,8 @@ export const OrdersPage: React.FC = () => {
   const getStatusBadge = (estado: string, estadoPago?: string) => {
     if (estado === 'REEMBOLSADO' || estadoPago === 'REEMBOLSADO') {
       return (
-        <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-bold bg-purple-100 text-purple-800">
-          <RotateCcw className="w-3.5 h-3.5" />
+        <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-bold bg-[#FAF8F5] text-stone-700 border border-[#E7E1D7]">
+          <RotateCcw className="w-3.5 h-3.5 text-[#9B7B54]" />
           Reembolsado
         </span>
       );
@@ -111,8 +111,8 @@ export const OrdersPage: React.FC = () => {
     }
     if (estado === 'ENVIADO') {
       return (
-        <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-bold bg-blue-100 text-blue-800">
-          <Truck className="w-3.5 h-3.5" />
+        <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-bold bg-[#FAF8F5] text-stone-900 border border-[#E7E1D7]">
+          <Truck className="w-3.5 h-3.5 text-[#9B7B54]" />
           Enviado en Camino
         </span>
       );
@@ -168,9 +168,9 @@ export const OrdersPage: React.FC = () => {
 
         <Link
           to="/tracking"
-          className="inline-flex items-center gap-2 px-4 py-2.5 bg-indigo-50 border border-indigo-200 text-indigo-700 font-bold rounded-xl text-xs hover:bg-indigo-100 transition shadow-sm"
+          className="inline-flex items-center gap-2 px-4 py-2.5 bg-[#FAF8F5] border border-[#E7E1D7] text-stone-900 font-bold rounded-xl text-xs hover:text-[#9B7B54] hover:bg-[#F2ECE1] transition shadow-xs"
         >
-          <Truck className="w-4 h-4" />
+          <Truck className="w-4 h-4 text-[#9B7B54]" />
           <span>Rastrear Guía de Envío</span>
         </Link>
       </div>
@@ -282,8 +282,8 @@ export const OrdersPage: React.FC = () => {
                     </div>
                     {pedido.envio?.numeroTracking && (
                       <div className="flex justify-between items-center pt-1 border-t border-gray-200/60">
-                        <span className="text-indigo-700 font-bold">Guía de Envío:</span>
-                        <span className="font-mono font-bold text-indigo-950">
+                        <span className="text-[#9B7B54] font-bold">Guía de Envío:</span>
+                        <span className="font-mono font-bold text-stone-900">
                           {pedido.envio.numeroTracking}
                         </span>
                       </div>
@@ -292,7 +292,7 @@ export const OrdersPage: React.FC = () => {
 
                   <div className="pt-3 border-t border-gray-200 mt-2 flex justify-between items-baseline">
                     <span className="text-xs font-bold uppercase text-gray-500">Total Pedido</span>
-                    <span className="text-xl font-black text-gray-900">
+                    <span className="text-xl font-serif font-bold text-stone-900">
                       ${Number(pedido.total || 0).toFixed(2)}
                     </span>
                   </div>
@@ -305,7 +305,7 @@ export const OrdersPage: React.FC = () => {
                   {puedeCancelar(pedido) && (
                     <button
                       onClick={() => setPedidoACancelar(pedido)}
-                      className="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold text-red-600 hover:text-red-700 hover:bg-red-50 rounded-xl transition"
+                      className="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold text-rose-600 hover:text-rose-700 hover:bg-rose-50 rounded-xl transition"
                     >
                       <Ban className="w-3.5 h-3.5" />
                       <span>Cancelar Pedido</span>
@@ -316,9 +316,9 @@ export const OrdersPage: React.FC = () => {
                 <div className="flex items-center gap-2">
                   <Link
                     to={`/tracking/${pedido.envio?.numeroTracking || pedido.nro}`}
-                    className="inline-flex items-center gap-1.5 px-3.5 py-2 bg-indigo-50 hover:bg-indigo-100 text-indigo-700 rounded-xl text-xs font-bold transition"
+                    className="inline-flex items-center gap-1.5 px-3.5 py-2 bg-[#FAF8F5] hover:bg-[#F2ECE1] text-stone-900 border border-[#E7E1D7] rounded-xl text-xs font-bold transition"
                   >
-                    <Truck className="w-3.5 h-3.5" />
+                    <Truck className="w-3.5 h-3.5 text-[#9B7B54]" />
                     <span>Rastrear Envío</span>
                   </Link>
 
@@ -422,22 +422,22 @@ export const OrdersPage: React.FC = () => {
 
               {/* GUÍA DE ENVÍO */}
               {pedidoSeleccionado.envio && (
-                <div className="p-4 bg-indigo-50/70 border border-indigo-100 rounded-2xl flex flex-col sm:flex-row justify-between items-start sm:items-center gap-3">
+                <div className="p-4 bg-[#FAF8F5] border border-[#E7E1D7] rounded-2xl flex flex-col sm:flex-row justify-between items-start sm:items-center gap-3">
                   <div>
-                    <div className="flex items-center gap-2 text-indigo-900 font-bold text-sm">
-                      <Truck className="w-4 h-4 text-indigo-600" />
+                    <div className="flex items-center gap-2 text-stone-900 font-bold text-sm">
+                      <Truck className="w-4 h-4 text-[#9B7B54]" />
                       <span>{pedidoSeleccionado.envio.empresaTransportadora || 'Courier Local'}</span>
                     </div>
-                    <div className="text-xs text-indigo-700 font-mono mt-0.5">
+                    <div className="text-xs text-[#9B7B54] font-mono mt-0.5">
                       Guía: {pedidoSeleccionado.envio.numeroTracking}
                     </div>
                   </div>
                   <Link
                     to={`/tracking/${pedidoSeleccionado.envio.numeroTracking}`}
-                    className="px-3 py-1.5 bg-indigo-600 hover:bg-indigo-700 text-white rounded-xl text-xs font-bold flex items-center gap-1.5 shadow-sm transition"
+                    className="px-3 py-1.5 bg-stone-900 hover:bg-stone-800 text-white rounded-xl text-xs font-bold flex items-center gap-1.5 shadow-xs transition"
                   >
                     <span>Ver Mapa Satelital</span>
-                    <ArrowRight className="w-3.5 h-3.5" />
+                    <ArrowRight className="w-3.5 h-3.5 text-[#9B7B54]" />
                   </Link>
                 </div>
               )}
@@ -486,7 +486,7 @@ export const OrdersPage: React.FC = () => {
               {pedidoSeleccionado.historial && pedidoSeleccionado.historial.length > 0 && (
                 <div className="space-y-3 pt-2">
                   <h3 className="text-xs font-bold text-gray-500 uppercase tracking-wider flex items-center gap-1.5">
-                    <History className="w-4 h-4 text-indigo-600" />
+                    <History className="w-4 h-4 text-[#9B7B54]" />
                     Historial de Cambios de Estado (HU-55)
                   </h3>
                   <div className="bg-white border border-gray-200 rounded-2xl p-4 space-y-3 divide-y divide-gray-100">

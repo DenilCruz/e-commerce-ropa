@@ -92,13 +92,13 @@ export const Garment3DViewer: React.FC<Garment3DViewerProps> = ({
       const spotMain = new THREE.SpotLight(0xffffff, 3.5, 20, Math.PI / 4, 0.4);
       spotMain.position.set(0, 6, 3);
 
-      const rimPurple = new THREE.DirectionalLight(0x818cf8, 2.0);
-      rimPurple.position.set(-3, 2, -3);
+      const rimGold = new THREE.DirectionalLight(0xd4af37, 2.0);
+      rimGold.position.set(-3, 2, -3);
 
-      const rimCyan = new THREE.DirectionalLight(0x06b6d4, 1.8);
-      rimCyan.position.set(3, -1, -2);
+      const rimSand = new THREE.DirectionalLight(0x9b7b54, 1.8);
+      rimSand.position.set(3, -1, -2);
 
-      lights.add(ambient, spotMain, rimPurple, rimCyan);
+      lights.add(ambient, spotMain, rimGold, rimSand);
     }
 
     lightsGroupRef.current = lights;
@@ -386,14 +386,14 @@ export const Garment3DViewer: React.FC<Garment3DViewerProps> = ({
       {loading && (
         <div className="absolute inset-0 bg-slate-950/80 backdrop-blur-sm flex flex-col items-center justify-center text-white z-20 space-y-3 animate-in fade-in duration-200">
           <div className="relative w-16 h-16">
-            <div className="w-16 h-16 rounded-full border-4 border-indigo-500/20 border-t-indigo-500 animate-spin" />
-            <Sparkles className="w-6 h-6 text-indigo-400 absolute inset-0 m-auto animate-pulse" />
+            <div className="w-16 h-16 rounded-full border-4 border-[#9B7B54]/20 border-t-[#9B7B54] animate-spin" />
+            <Sparkles className="w-6 h-6 text-[#9B7B54] absolute inset-0 m-auto animate-pulse" />
           </div>
           <p className="font-bold text-sm tracking-wide">Cargando Modelo 3D...</p>
           {loadProgress > 0 && (
             <div className="w-48 bg-slate-800 rounded-full h-1.5 overflow-hidden">
               <div
-                className="bg-gradient-to-r from-indigo-500 to-purple-500 h-full transition-all duration-300"
+                className="bg-[#9B7B54] h-full transition-all duration-300"
                 style={{ width: `${loadProgress}%` }}
               />
             </div>
@@ -410,7 +410,7 @@ export const Garment3DViewer: React.FC<Garment3DViewerProps> = ({
           <button
             type="button"
             onClick={() => setReloadKey((k) => k + 1)}
-            className="px-4 py-2 bg-indigo-600 hover:bg-indigo-700 text-white rounded-xl text-xs font-bold transition flex items-center gap-1.5 cursor-pointer"
+            className="px-4 py-2 bg-[#9B7B54] hover:bg-[#83653F] text-white rounded-xl text-xs font-bold transition flex items-center gap-1.5 cursor-pointer"
           >
             <RefreshCw className="w-3.5 h-3.5" />
             <span>Reintentar Vista</span>
@@ -421,8 +421,8 @@ export const Garment3DViewer: React.FC<Garment3DViewerProps> = ({
       {/* BADGE INFORMATIVO SUPERIOR IZQUIERDO */}
       <div className="absolute top-4 left-4 z-10 flex items-center gap-2">
         <div className="bg-black/60 backdrop-blur-md px-3 py-1.5 rounded-2xl border border-white/10 flex items-center gap-2 text-white">
-          <div className="w-2 h-2 rounded-full bg-emerald-400 animate-ping" />
-          <span className="text-xs font-black tracking-wide">360° Interactivo</span>
+          <div className="w-2 h-2 rounded-full bg-[#9B7B54] animate-ping" />
+          <span className="text-xs font-bold tracking-wide">360° Interactivo</span>
         </div>
         <span className="hidden sm:inline-block text-[11px] text-slate-400 bg-black/40 backdrop-blur-md px-2.5 py-1 rounded-xl border border-white/5">
           Arrastra para girar • Rueda para zoom
@@ -437,7 +437,7 @@ export const Garment3DViewer: React.FC<Garment3DViewerProps> = ({
           title="Luz de Estudio"
           className={`px-2.5 py-1 rounded-xl text-xs font-bold transition flex items-center gap-1 ${
             lightingPreset === 'studio'
-              ? 'bg-indigo-600 text-white shadow-sm'
+              ? 'bg-[#9B7B54] text-white shadow-xs'
               : 'text-slate-400 hover:text-white'
           }`}
         >
@@ -451,7 +451,7 @@ export const Garment3DViewer: React.FC<Garment3DViewerProps> = ({
           title="Luz Cálida"
           className={`px-2.5 py-1 rounded-xl text-xs font-bold transition flex items-center gap-1 ${
             lightingPreset === 'warm'
-              ? 'bg-indigo-600 text-white shadow-sm'
+              ? 'bg-[#9B7B54] text-white shadow-xs'
               : 'text-slate-400 hover:text-white'
           }`}
         >
@@ -465,7 +465,7 @@ export const Garment3DViewer: React.FC<Garment3DViewerProps> = ({
           title="Luz de Pasarela"
           className={`px-2.5 py-1 rounded-xl text-xs font-bold transition flex items-center gap-1 ${
             lightingPreset === 'runway'
-              ? 'bg-indigo-600 text-white shadow-sm'
+              ? 'bg-[#9B7B54] text-white shadow-xs'
               : 'text-slate-400 hover:text-white'
           }`}
         >
@@ -482,7 +482,7 @@ export const Garment3DViewer: React.FC<Garment3DViewerProps> = ({
           onClick={() => setAutoRotate(!autoRotate)}
           title={autoRotate ? 'Detener Rotación Automática' : 'Iniciar Rotación Automática'}
           className={`p-2 rounded-xl transition ${
-            autoRotate ? 'bg-indigo-600 text-white' : 'text-slate-400 hover:text-white hover:bg-white/10'
+            autoRotate ? 'bg-[#9B7B54] text-white' : 'text-slate-400 hover:text-white hover:bg-white/10'
           }`}
         >
           <RotateCcw className={`w-4 h-4 ${autoRotate ? 'animate-spin' : ''}`} />
@@ -494,7 +494,7 @@ export const Garment3DViewer: React.FC<Garment3DViewerProps> = ({
           onClick={() => setWireframe(!wireframe)}
           title="Alternar Malla de Polígonos (Wireframe)"
           className={`p-2 rounded-xl transition ${
-            wireframe ? 'bg-indigo-600 text-white' : 'text-slate-400 hover:text-white hover:bg-white/10'
+            wireframe ? 'bg-[#9B7B54] text-white' : 'text-slate-400 hover:text-white hover:bg-white/10'
           }`}
         >
           <Layers className="w-4 h-4" />

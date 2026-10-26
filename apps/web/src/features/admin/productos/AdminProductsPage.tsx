@@ -235,18 +235,21 @@ export const AdminProductsPage: React.FC = () => {
   if (loading) return <div className="p-8 text-center text-gray-500">Cargando catálogo administrativo...</div>;
 
   return (
-    <div className="max-w-7xl mx-auto p-6">
-      <div className="flex justify-between items-center mb-8">
+    <div className="max-w-7xl mx-auto p-4 sm:p-6 space-y-8">
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pb-6 border-b border-[#E7E1D7]">
         <div>
-          <h1 className="text-3xl font-bold text-gray-900">Productos</h1>
-          <p className="text-gray-500 mt-1">Gestión integral de prendas, variantes y estados de catálogo</p>
+          <div className="flex items-center gap-2 mb-1">
+            <span className="text-[10px] font-bold uppercase tracking-widest text-[#9B7B54]">Colección & Prendas</span>
+          </div>
+          <h1 className="font-serif text-3xl font-bold text-stone-900 tracking-tight">Catálogo de Productos</h1>
+          <p className="text-sm text-stone-500 mt-1">Gestión integral de prendas, variantes y estados de catálogo</p>
         </div>
         <button 
           onClick={() => {
             resetForm();
             setShowModal(true);
           }}
-          className="flex items-center gap-2 bg-black text-white px-5 py-2.5 rounded-lg hover:bg-gray-800 transition-colors font-medium shadow-sm"
+          className="flex items-center gap-2 bg-stone-900 hover:bg-stone-800 text-white px-5 py-2.5 rounded-xl font-bold text-xs uppercase tracking-wider transition-colors shadow-xs self-start sm:self-auto"
         >
           <Plus className="w-4 h-4" />
           <span>Nuevo Producto</span>
@@ -254,9 +257,9 @@ export const AdminProductsPage: React.FC = () => {
       </div>
 
       {/* TABLA DE PRODUCTOS */}
-      <div className="bg-white rounded-xl shadow-sm overflow-hidden border border-gray-200">
-        <table className="min-w-full divide-y divide-gray-200">
-          <thead className="bg-gray-50">
+      <div className="bg-white rounded-2xl shadow-xs overflow-hidden border border-[#E7E1D7]">
+        <table className="min-w-full divide-y divide-[#E7E1D7]/60">
+          <thead className="bg-[#FAF8F5]">
             <tr>
               <th className="px-6 py-3.5 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">Foto</th>
               <th className="px-6 py-3.5 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">Nombre</th>
@@ -445,7 +448,7 @@ export const AdminProductsPage: React.FC = () => {
                     <h3 className="font-bold text-gray-800 uppercase text-xs tracking-wider">
                       2. Galería de Imágenes (HU-21) {editingProduct && <span className="text-gray-400 font-normal normal-case">(Opcional para actualizar fotos)</span>}
                     </h3>
-                    <span className="text-[11px] font-semibold bg-blue-100 text-blue-800 px-2 py-0.5 rounded">Múltiples fotos (JPG, PNG, WebP)</span>
+                    <span className="text-[11px] font-semibold bg-[#FAF8F5] text-[#9B7B54] border border-[#E7E1D7] px-2 py-0.5 rounded">Múltiples fotos (JPG, PNG, WebP)</span>
                   </div>
                   
                   <input 
@@ -559,7 +562,7 @@ export const AdminProductsPage: React.FC = () => {
                           href="/admin/inventario" 
                           target="_blank" 
                           rel="noreferrer"
-                          className="text-xs text-blue-600 hover:text-blue-800 font-semibold underline inline-flex items-center gap-1"
+                          className="text-xs text-[#9B7B54] hover:text-[#83653F] font-semibold underline inline-flex items-center gap-1"
                         >
                           Ir al Módulo de Inventario para ajustar stock de variantes ↗
                         </a>
@@ -592,7 +595,7 @@ export const AdminProductsPage: React.FC = () => {
                               }} className="w-full border border-gray-300 rounded-md p-2 text-sm bg-white">
                                 <option value="">Ninguno / Neutro</option>
                                 {colores.map(c => <option key={c.id} value={c.id}>{c.nombre}</option>)}
-                                <option value="NEW" className="font-bold text-blue-600">+ Añadir Nuevo Color</option>
+                                <option value="NEW" className="font-bold text-[#9B7B54]">+ Añadir Nuevo Color</option>
                               </select>
                             )}
                           </div>

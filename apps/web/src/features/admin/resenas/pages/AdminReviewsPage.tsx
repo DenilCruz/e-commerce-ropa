@@ -122,25 +122,30 @@ export const AdminReviewsPage: React.FC = () => {
   return (
     <div className="space-y-6">
       {/* Encabezado */}
-      <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 bg-white p-6 rounded-2xl shadow-sm border border-gray-100">
-        <div className="flex items-center gap-2.5">
-          <div className="p-2 bg-gray-900 text-white rounded-xl">
-            <Star className="w-6 h-6" />
+      <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 bg-white p-6 rounded-2xl shadow-xs border border-[#E7E1D7]">
+        <div>
+          <div className="flex items-center gap-2 mb-1">
+            <span className="text-[10px] font-bold uppercase tracking-widest text-[#9B7B54]">Feedback & Calidad</span>
           </div>
-          <div>
-            <h1 className="text-2xl font-black text-gray-900 tracking-tight">
-              Moderación de Reseñas
-            </h1>
-            <p className="text-sm text-gray-500">
-              Control de calidad de opiniones, moderación de visibilidad y eliminación de spam u ofensas
-            </p>
+          <div className="flex items-center gap-2.5">
+            <div className="p-2 bg-[#FAF8F5] border border-[#E7E1D7] text-[#9B7B54] rounded-xl">
+              <Star className="w-6 h-6" />
+            </div>
+            <div>
+              <h1 className="font-serif text-3xl font-bold text-stone-900 tracking-tight">
+                Moderación de Reseñas
+              </h1>
+              <p className="text-sm text-stone-500">
+                Control de calidad de opiniones, moderación de visibilidad y eliminación de spam u ofensas
+              </p>
+            </div>
           </div>
         </div>
 
         <button
           onClick={cargarDatos}
           disabled={cargando}
-          className="p-2 text-gray-500 hover:text-gray-900 hover:bg-gray-100 rounded-xl transition-colors w-fit self-end md:self-auto"
+          className="p-2 text-stone-500 hover:text-stone-900 hover:bg-[#FAF8F5] border border-[#E7E1D7] rounded-xl transition-colors w-fit self-end md:self-auto"
           title="Refrescar lista"
         >
           <RefreshCw className={`w-4 h-4 ${cargando ? 'animate-spin' : ''}`} />
@@ -149,33 +154,33 @@ export const AdminReviewsPage: React.FC = () => {
 
       {/* Tarjetas KPI */}
       <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
-        <div className="bg-white p-5 rounded-2xl border border-gray-100 shadow-sm flex items-center gap-4">
-          <div className="p-3 bg-blue-50 text-blue-600 rounded-xl">
+        <div className="bg-white p-5 rounded-2xl border border-[#E7E1D7] shadow-xs flex items-center gap-4">
+          <div className="p-3 bg-[#FAF8F5] border border-[#E7E1D7] text-stone-800 rounded-xl">
             <MessageSquare className="w-6 h-6" />
           </div>
           <div>
-            <p className="text-xs font-semibold text-gray-500 uppercase tracking-wider">Total Reseñas</p>
-            <p className="text-2xl font-black text-gray-900">{kpis.totalResenas}</p>
+            <p className="text-[10px] font-bold text-stone-500 uppercase tracking-wider">Total Reseñas</p>
+            <p className="font-serif text-2xl font-bold text-stone-900">{kpis.totalResenas}</p>
           </div>
         </div>
 
-        <div className="bg-white p-5 rounded-2xl border border-gray-100 shadow-sm flex items-center gap-4">
-          <div className="p-3 bg-amber-50 text-amber-600 rounded-xl">
+        <div className="bg-white p-5 rounded-2xl border border-[#E7E1D7] shadow-xs flex items-center gap-4">
+          <div className="p-3 bg-[#FAF8F5] border border-[#E7E1D7] text-[#9B7B54] rounded-xl">
             <Sparkles className="w-6 h-6" />
           </div>
           <div>
-            <p className="text-xs font-semibold text-gray-500 uppercase tracking-wider">Promedio Global</p>
-            <p className="text-2xl font-black text-amber-500">{kpis.promedioGlobal} ★</p>
+            <p className="text-[10px] font-bold text-stone-500 uppercase tracking-wider">Promedio Global</p>
+            <p className="font-serif text-2xl font-bold text-[#9B7B54]">{kpis.promedioGlobal} ★</p>
           </div>
         </div>
 
-        <div className="bg-white p-5 rounded-2xl border border-gray-100 shadow-sm flex items-center gap-4">
-          <div className={`p-3 rounded-xl ${kpis.resenasOcultas > 0 ? 'bg-rose-50 text-rose-600' : 'bg-gray-50 text-gray-400'}`}>
+        <div className="bg-white p-5 rounded-2xl border border-[#E7E1D7] shadow-xs flex items-center gap-4">
+          <div className="p-3 bg-[#FAF8F5] border border-[#E7E1D7] text-rose-700 rounded-xl">
             <ShieldAlert className="w-6 h-6" />
           </div>
           <div>
-            <p className="text-xs font-semibold text-gray-500 uppercase tracking-wider">Ocultas / Spam</p>
-            <p className={`text-2xl font-black ${kpis.resenasOcultas > 0 ? 'text-rose-600' : 'text-gray-400'}`}>
+            <p className="text-[10px] font-bold text-stone-500 uppercase tracking-wider">Ocultas / Spam</p>
+            <p className={`font-serif text-2xl font-bold ${kpis.resenasOcultas > 0 ? 'text-rose-600' : 'text-stone-400'}`}>
               {kpis.resenasOcultas}
             </p>
           </div>

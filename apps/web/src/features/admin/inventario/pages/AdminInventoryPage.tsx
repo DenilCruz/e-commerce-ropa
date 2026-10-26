@@ -135,13 +135,16 @@ export const AdminInventoryPage: React.FC = () => {
   return (
     <div className="max-w-7xl mx-auto p-4 sm:p-6 lg:p-8 space-y-8">
       {/* HEADER PRINCIPAL */}
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 border-b border-gray-200 pb-6">
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 border-b border-[#E7E1D7] pb-6">
         <div>
-          <h1 className="text-2xl sm:text-3xl font-bold text-gray-900 tracking-tight flex items-center gap-3">
-            <Package className="w-8 h-8 text-black" />
+          <div className="flex items-center gap-2 mb-1">
+            <span className="text-[10px] font-bold uppercase tracking-widest text-[#9B7B54]">Almacén & Existencias</span>
+          </div>
+          <h1 className="font-serif text-3xl font-bold text-stone-900 tracking-tight flex items-center gap-3">
+            <Package className="w-8 h-8 text-[#9B7B54]" />
             Control de Inventario
           </h1>
-          <p className="text-sm text-gray-500 mt-1">
+          <p className="text-sm text-stone-500 mt-1">
             Gestión de stock por variante, recepción de mercadería y alertas de reabastecimiento.
           </p>
         </div>
@@ -149,7 +152,7 @@ export const AdminInventoryPage: React.FC = () => {
         <div className="flex items-center gap-3">
           <button
             onClick={cargarDatos}
-            className="inline-flex items-center gap-2 px-3.5 py-2 text-sm text-gray-600 hover:text-black hover:bg-gray-100 rounded-lg transition-colors border border-gray-200 font-medium"
+            className="inline-flex items-center gap-2 px-4 py-2 text-xs font-bold uppercase tracking-wider text-stone-700 hover:text-stone-900 bg-white hover:bg-[#FAF8F5] rounded-xl transition-colors border border-[#E7E1D7] shadow-2xs"
             title="Actualizar datos"
           >
             <RefreshCw className={`w-4 h-4 ${cargando ? 'animate-spin' : ''}`} />
@@ -160,53 +163,53 @@ export const AdminInventoryPage: React.FC = () => {
 
       {/* KPI CARDS (HU-35 y HU-37) */}
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
-        <div className="bg-white p-5 rounded-xl border border-gray-200 shadow-sm flex items-center gap-4">
-          <div className="p-3 bg-black text-white rounded-xl shadow-xs">
+        <div className="bg-white p-5 rounded-2xl border border-[#E7E1D7] shadow-xs flex items-center gap-4">
+          <div className="p-3 bg-[#FAF8F5] border border-[#E7E1D7] text-stone-900 rounded-xl">
             <Package className="w-6 h-6" />
           </div>
           <div>
-            <p className="text-xs uppercase tracking-wider text-gray-400 font-semibold">Stock en Almacén</p>
-            <p className="text-2xl font-bold text-gray-900">{kpis.totalStock}</p>
+            <p className="text-[10px] uppercase tracking-wider text-stone-500 font-bold">Stock en Almacén</p>
+            <p className="font-serif text-2xl font-bold text-stone-900">{kpis.totalStock}</p>
           </div>
         </div>
 
-        <div className="bg-white p-5 rounded-xl border border-gray-200 shadow-sm flex items-center gap-4">
-          <div className="p-3 bg-blue-50 text-blue-600 rounded-xl">
+        <div className="bg-white p-5 rounded-2xl border border-[#E7E1D7] shadow-xs flex items-center gap-4">
+          <div className="p-3 bg-[#FAF8F5] border border-[#E7E1D7] text-[#9B7B54] rounded-xl">
             <Layers className="w-6 h-6" />
           </div>
           <div>
-            <p className="text-xs uppercase tracking-wider text-gray-400 font-semibold">Variantes Totales</p>
-            <p className="text-2xl font-bold text-gray-900">{kpis.totalVariantes}</p>
+            <p className="text-[10px] uppercase tracking-wider text-stone-500 font-bold">Variantes Totales</p>
+            <p className="font-serif text-2xl font-bold text-stone-900">{kpis.totalVariantes}</p>
           </div>
         </div>
 
         <div 
           onClick={() => setFiltroEstado('alerta')}
-          className={`bg-white p-5 rounded-xl border shadow-sm flex items-center gap-4 cursor-pointer transition-all ${
-            kpis.stockBajo > 0 ? 'border-amber-300 bg-amber-50/20 hover:border-amber-500' : 'border-gray-200'
+          className={`bg-white p-5 rounded-2xl border shadow-xs flex items-center gap-4 cursor-pointer transition-all ${
+            kpis.stockBajo > 0 ? 'border-amber-300 bg-amber-50/20 hover:border-amber-500' : 'border-[#E7E1D7]'
           }`}
         >
-          <div className="p-3 bg-amber-50 text-amber-600 rounded-xl">
+          <div className="p-3 bg-[#FAF8F5] border border-[#E7E1D7] text-amber-700 rounded-xl">
             <AlertTriangle className="w-6 h-6" />
           </div>
           <div>
-            <p className="text-xs uppercase tracking-wider text-amber-700 font-semibold">Stock Bajo</p>
-            <p className="text-2xl font-bold text-amber-900">{kpis.stockBajo}</p>
+            <p className="text-[10px] uppercase tracking-wider text-amber-700 font-bold">Stock Bajo</p>
+            <p className="font-serif text-2xl font-bold text-amber-900">{kpis.stockBajo}</p>
           </div>
         </div>
 
         <div 
           onClick={() => setFiltroEstado('agotado')}
-          className={`bg-white p-5 rounded-xl border shadow-sm flex items-center gap-4 cursor-pointer transition-all ${
-            kpis.agotados > 0 ? 'border-red-300 bg-red-50/20 hover:border-red-500' : 'border-gray-200'
+          className={`bg-white p-5 rounded-2xl border shadow-xs flex items-center gap-4 cursor-pointer transition-all ${
+            kpis.agotados > 0 ? 'border-rose-300 bg-rose-50/20 hover:border-rose-500' : 'border-[#E7E1D7]'
           }`}
         >
-          <div className="p-3 bg-red-50 text-red-600 rounded-xl">
+          <div className="p-3 bg-[#FAF8F5] border border-[#E7E1D7] text-rose-700 rounded-xl">
             <XCircle className="w-6 h-6" />
           </div>
           <div>
-            <p className="text-xs uppercase tracking-wider text-red-700 font-semibold">Agotados</p>
-            <p className="text-2xl font-bold text-red-900">{kpis.agotados}</p>
+            <p className="text-[10px] uppercase tracking-wider text-rose-700 font-bold">Agotados</p>
+            <p className="font-serif text-2xl font-bold text-rose-900">{kpis.agotados}</p>
           </div>
         </div>
       </div>

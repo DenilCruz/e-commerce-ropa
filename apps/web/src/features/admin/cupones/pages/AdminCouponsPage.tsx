@@ -102,17 +102,20 @@ export const AdminCouponsPage: React.FC = () => {
   return (
     <div className="space-y-6">
       {/* HEADER */}
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pb-4 border-b border-gray-200">
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pb-6 border-b border-[#E7E1D7]">
         <div>
-          <h1 className="text-2xl font-black text-gray-900 tracking-tight flex items-center gap-2">
-            <Ticket className="w-6 h-6 text-purple-600" />
+          <div className="flex items-center gap-2 mb-1">
+            <span className="text-[10px] font-bold uppercase tracking-widest text-[#9B7B54]">Promociones & Descuentos</span>
+          </div>
+          <h1 className="font-serif text-3xl font-bold text-stone-900 tracking-tight flex items-center gap-2">
+            <Ticket className="w-6 h-6 text-[#9B7B54]" />
             <span>Gestión de Cupones</span>
-            <span className="text-xs bg-purple-100 text-purple-800 font-bold px-2 py-0.5 rounded-full">
-              Admin
+            <span className="text-xs bg-[#FAF8F5] text-[#9B7B54] border border-[#E7E1D7] font-bold px-2.5 py-0.5 rounded-full">
+              Atelier
             </span>
           </h1>
-          <p className="text-sm text-gray-500">
-            Crea promociones, restringe vigencia, montos mínimos y controla su estado (HU-71 a HU-75).
+          <p className="text-sm text-stone-500">
+            Crea promociones, restringe vigencia, montos mínimos y controla su estado comercial.
           </p>
         </div>
 
@@ -121,7 +124,7 @@ export const AdminCouponsPage: React.FC = () => {
             setError(null);
             setModalAbierto(true);
           }}
-          className="bg-purple-600 hover:bg-purple-700 text-white font-bold px-4 py-2.5 rounded-xl shadow-md transition-all text-sm flex items-center gap-2 self-start sm:self-auto"
+          className="bg-stone-900 hover:bg-stone-800 text-white font-bold px-5 py-2.5 rounded-xl shadow-xs transition-all text-xs uppercase tracking-wider flex items-center gap-2 self-start sm:self-auto"
         >
           <span>+</span>
           <span>Crear Nuevo Cupón</span>
@@ -139,22 +142,22 @@ export const AdminCouponsPage: React.FC = () => {
       )}
 
       {/* TABLA DE CUPONES */}
-      <div className="bg-white rounded-2xl border border-gray-200 shadow-sm overflow-hidden">
+      <div className="bg-white rounded-2xl border border-[#E7E1D7] shadow-xs overflow-hidden">
         {cargando ? (
-          <div className="py-12 text-center text-gray-500 text-sm">
+          <div className="py-12 text-center text-stone-500 text-sm">
             Cargando cupones registrados...
           </div>
         ) : cupones.length === 0 ? (
-          <div className="py-16 text-center text-gray-500 text-sm">
-            <Ticket className="w-12 h-12 text-gray-300 mx-auto mb-2" />
-            <p className="font-semibold text-gray-800">No hay cupones creados aún.</p>
-            <p className="text-xs text-gray-400 mt-1">Haz clic en "Crear Nuevo Cupón" para comenzar.</p>
+          <div className="py-16 text-center text-stone-500 text-sm">
+            <Ticket className="w-12 h-12 text-stone-300 mx-auto mb-2" />
+            <p className="font-semibold text-stone-800">No hay cupones creados aún.</p>
+            <p className="text-xs text-stone-400 mt-1">Haz clic en "Crear Nuevo Cupón" para comenzar.</p>
           </div>
         ) : (
           <div className="overflow-x-auto">
             <table className="w-full text-left border-collapse text-sm">
               <thead>
-                <tr className="bg-gray-50 border-b border-gray-200 text-xs font-bold uppercase tracking-wider text-gray-500">
+                <tr className="bg-[#FAF8F5] border-b border-[#E7E1D7] text-xs font-bold uppercase tracking-wider text-stone-600">
                   <th className="py-3 px-4">Código</th>
                   <th className="py-3 px-4">Descuento</th>
                   <th className="py-3 px-4">Mínimo</th>
@@ -164,42 +167,42 @@ export const AdminCouponsPage: React.FC = () => {
                   <th className="py-3 px-4 text-right">Acciones</th>
                 </tr>
               </thead>
-              <tbody className="divide-y divide-gray-100">
+              <tbody className="divide-y divide-[#E7E1D7]/60">
                 {cupones.map((c) => {
                   const inicio = new Date(c.fechaInicio).toLocaleDateString();
                   const fin = new Date(c.fechaFin).toLocaleDateString();
                   const expirado = new Date() > new Date(c.fechaFin);
 
                   return (
-                    <tr key={c.id} className="hover:bg-gray-50 transition-colors">
+                    <tr key={c.id} className="hover:bg-[#FAF8F5]/80 transition-colors">
                       <td className="py-3.5 px-4">
-                        <div className="font-mono font-black text-gray-900 text-sm">{c.codigo}</div>
+                        <div className="font-mono font-bold text-stone-900 text-sm">{c.codigo}</div>
                         {c.descripcion && (
-                          <div className="text-xs text-gray-500 truncate max-w-xs">{c.descripcion}</div>
+                          <div className="text-xs text-stone-500 truncate max-w-xs">{c.descripcion}</div>
                         )}
                       </td>
-                      <td className="py-3.5 px-4 font-bold text-gray-900">
+                      <td className="py-3.5 px-4 font-bold text-stone-900">
                         {c.tipo === 'PORCENTAJE' ? (
-                          <span className="text-purple-700 bg-purple-50 px-2 py-0.5 rounded font-mono">
+                          <span className="text-[#9B7B54] bg-[#FAF8F5] border border-[#E7E1D7] px-2 py-0.5 rounded font-mono font-bold">
                             {c.valor}% OFF
                           </span>
                         ) : (
-                          <span className="text-emerald-700 bg-emerald-50 px-2 py-0.5 rounded font-mono">
+                          <span className="text-stone-900 bg-[#FAF8F5] border border-[#E7E1D7] px-2 py-0.5 rounded font-mono font-bold">
                             ${c.valor} OFF
                           </span>
                         )}
                       </td>
-                      <td className="py-3.5 px-4 text-gray-600">
+                      <td className="py-3.5 px-4 text-stone-600">
                         {Number(c.montoMinimo) > 0 ? `$${Number(c.montoMinimo).toFixed(2)}` : 'Sin mínimo'}
                       </td>
-                      <td className="py-3.5 px-4 text-gray-600">
+                      <td className="py-3.5 px-4 text-stone-600">
                         {c.usosActuales} / {c.usosMaximos ?? '∞'}
-                        <span className="text-xs text-gray-400 block">({c.usosPorUsuario} por usuario)</span>
+                        <span className="text-xs text-stone-400 block">({c.usosPorUsuario} por usuario)</span>
                       </td>
-                      <td className="py-3.5 px-4 text-xs text-gray-600">
+                      <td className="py-3.5 px-4 text-xs text-stone-600">
                         <div>{inicio} al {fin}</div>
                         {expirado && (
-                          <span className="text-[10px] text-red-600 font-bold uppercase">Expirado</span>
+                          <span className="text-[10px] text-rose-600 font-bold uppercase">Expirado</span>
                         )}
                       </td>
                       <td className="py-3.5 px-4 text-center">
@@ -208,8 +211,8 @@ export const AdminCouponsPage: React.FC = () => {
                           onClick={() => handleToggleEstado(c.id, c.activo)}
                           className={`text-xs font-bold px-2.5 py-1 rounded-full transition-all ${
                             c.activo
-                              ? 'bg-emerald-100 text-emerald-800 hover:bg-emerald-200'
-                              : 'bg-gray-200 text-gray-700 hover:bg-gray-300'
+                              ? 'bg-emerald-50 text-emerald-800 border border-emerald-200 hover:bg-emerald-100'
+                              : 'bg-stone-100 text-stone-600 border border-stone-200 hover:bg-stone-200'
                           }`}
                           title="Clic para cambiar estado activo/inactivo (HU-75)"
                         >
@@ -220,7 +223,7 @@ export const AdminCouponsPage: React.FC = () => {
                         <button
                           type="button"
                           onClick={() => handleEliminar(c.id, c.codigo)}
-                          className="text-xs text-red-600 hover:text-red-800 font-semibold px-2 py-1 rounded hover:bg-red-50"
+                          className="text-xs text-rose-600 hover:text-rose-800 font-semibold px-2 py-1 rounded hover:bg-rose-50"
                         >
                           Eliminar
                         </button>
@@ -236,14 +239,14 @@ export const AdminCouponsPage: React.FC = () => {
 
       {/* MODAL CREAR CUPÓN (HU-71 & HU-72) */}
       {modalAbierto && (
-        <div className="fixed inset-0 z-50 bg-black/50 backdrop-blur-sm flex items-center justify-center p-4">
-          <div className="bg-white rounded-2xl max-w-lg w-full p-6 shadow-2xl space-y-5 animate-fade-in max-h-[90vh] overflow-y-auto">
-            <div className="flex justify-between items-center pb-3 border-b border-gray-100">
-              <h2 className="text-lg font-black text-gray-900">Crear Nuevo Cupón</h2>
+        <div className="fixed inset-0 z-50 bg-stone-900/60 backdrop-blur-xs flex items-center justify-center p-4">
+          <div className="bg-white rounded-2xl max-w-lg w-full p-6 border border-[#E7E1D7] shadow-xl space-y-5 animate-fade-in max-h-[90vh] overflow-y-auto">
+            <div className="flex justify-between items-center pb-3 border-b border-[#E7E1D7]">
+              <h2 className="font-serif text-xl font-bold text-stone-900">Crear Nuevo Cupón</h2>
               <button
                 type="button"
                 onClick={() => setModalAbierto(false)}
-                className="text-gray-400 hover:text-black font-bold text-lg"
+                className="text-stone-400 hover:text-stone-900 font-bold text-lg"
               >
                 ✕
               </button>
@@ -251,35 +254,35 @@ export const AdminCouponsPage: React.FC = () => {
 
             <form onSubmit={handleCrearCupon} className="space-y-4 text-sm">
               <div>
-                <label className="block font-semibold text-gray-700 mb-1">Código del Cupón *</label>
+                <label className="block font-semibold text-stone-700 mb-1">Código del Cupón *</label>
                 <input
                   type="text"
                   required
                   placeholder="Ej. VERANO20"
                   value={form.codigo}
                   onChange={(e) => setForm({ ...form, codigo: e.target.value.toUpperCase() })}
-                  className="w-full px-3.5 py-2 border border-gray-300 rounded-xl font-mono uppercase focus:ring-2 focus:ring-purple-600 focus:outline-none"
+                  className="w-full px-3.5 py-2 border border-[#E7E1D7] rounded-xl font-mono uppercase focus:ring-2 focus:ring-stone-900 focus:outline-none bg-white text-stone-900"
                 />
               </div>
 
               <div>
-                <label className="block font-semibold text-gray-700 mb-1">Descripción</label>
+                <label className="block font-semibold text-stone-700 mb-1">Descripción</label>
                 <input
                   type="text"
                   placeholder="Ej. 20% de descuento en ropa de verano"
                   value={form.descripcion}
                   onChange={(e) => setForm({ ...form, descripcion: e.target.value })}
-                  className="w-full px-3.5 py-2 border border-gray-300 rounded-xl focus:ring-2 focus:ring-purple-600 focus:outline-none"
+                  className="w-full px-3.5 py-2 border border-[#E7E1D7] rounded-xl focus:ring-2 focus:ring-stone-900 focus:outline-none bg-white text-stone-900"
                 />
               </div>
 
               <div className="grid grid-cols-2 gap-3">
                 <div>
-                  <label className="block font-semibold text-gray-700 mb-1">Tipo de Descuento *</label>
+                  <label className="block font-semibold text-stone-700 mb-1">Tipo de Descuento *</label>
                   <select
                     value={form.tipo}
                     onChange={(e) => setForm({ ...form, tipo: e.target.value as any })}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-xl focus:ring-2 focus:ring-purple-600 focus:outline-none bg-white"
+                    className="w-full px-3 py-2 border border-[#E7E1D7] rounded-xl focus:ring-2 focus:ring-stone-900 focus:outline-none bg-white text-stone-900"
                   >
                     <option value="PORCENTAJE">Porcentaje (%)</option>
                     <option value="MONTO_FIJO">Monto Fijo ($)</option>
@@ -287,7 +290,7 @@ export const AdminCouponsPage: React.FC = () => {
                 </div>
 
                 <div>
-                  <label className="block font-semibold text-gray-700 mb-1">Valor del Descuento *</label>
+                  <label className="block font-semibold text-stone-700 mb-1">Valor del Descuento *</label>
                   <input
                     type="number"
                     required
@@ -295,67 +298,67 @@ export const AdminCouponsPage: React.FC = () => {
                     max={form.tipo === 'PORCENTAJE' ? 100 : undefined}
                     value={form.valor}
                     onChange={(e) => setForm({ ...form, valor: Number(e.target.value) })}
-                    className="w-full px-3.5 py-2 border border-gray-300 rounded-xl focus:ring-2 focus:ring-purple-600 focus:outline-none"
+                    className="w-full px-3.5 py-2 border border-[#E7E1D7] rounded-xl focus:ring-2 focus:ring-stone-900 focus:outline-none bg-white text-stone-900"
                   />
                 </div>
               </div>
 
               <div className="grid grid-cols-2 gap-3">
                 <div>
-                  <label className="block font-semibold text-gray-700 mb-1">Monto Mínimo ($)</label>
+                  <label className="block font-semibold text-stone-700 mb-1">Monto Mínimo ($)</label>
                   <input
                     type="number"
                     min="0"
                     value={form.montoMinimo}
                     onChange={(e) => setForm({ ...form, montoMinimo: Number(e.target.value) })}
-                    className="w-full px-3.5 py-2 border border-gray-300 rounded-xl focus:ring-2 focus:ring-purple-600 focus:outline-none"
+                    className="w-full px-3.5 py-2 border border-[#E7E1D7] rounded-xl focus:ring-2 focus:ring-stone-900 focus:outline-none bg-white text-stone-900"
                   />
                 </div>
 
                 <div>
-                  <label className="block font-semibold text-gray-700 mb-1">Usos Máximos Globales</label>
+                  <label className="block font-semibold text-stone-700 mb-1">Usos Máximos Globales</label>
                   <input
                     type="number"
                     min="1"
                     placeholder="Ej. 100 (vacío para ilimitado)"
                     value={form.usosMaximos || ''}
                     onChange={(e) => setForm({ ...form, usosMaximos: e.target.value ? Number(e.target.value) : undefined })}
-                    className="w-full px-3.5 py-2 border border-gray-300 rounded-xl focus:ring-2 focus:ring-purple-600 focus:outline-none"
+                    className="w-full px-3.5 py-2 border border-[#E7E1D7] rounded-xl focus:ring-2 focus:ring-stone-900 focus:outline-none bg-white text-stone-900"
                   />
                 </div>
               </div>
 
               <div>
-                <label className="block font-semibold text-gray-700 mb-1">Usos por Usuario</label>
+                <label className="block font-semibold text-stone-700 mb-1">Usos por Usuario</label>
                 <input
                   type="number"
                   min="1"
                   value={form.usosPorUsuario}
                   onChange={(e) => setForm({ ...form, usosPorUsuario: Number(e.target.value) })}
-                  className="w-full px-3.5 py-2 border border-gray-300 rounded-xl focus:ring-2 focus:ring-purple-600 focus:outline-none"
+                  className="w-full px-3.5 py-2 border border-[#E7E1D7] rounded-xl focus:ring-2 focus:ring-stone-900 focus:outline-none bg-white text-stone-900"
                 />
               </div>
 
               <div className="grid grid-cols-2 gap-3">
                 <div>
-                  <label className="block font-semibold text-gray-700 mb-1">Fecha de Inicio *</label>
+                  <label className="block font-semibold text-stone-700 mb-1">Fecha de Inicio *</label>
                   <input
                     type="datetime-local"
                     required
                     value={form.fechaInicio}
                     onChange={(e) => setForm({ ...form, fechaInicio: e.target.value })}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-xl focus:ring-2 focus:ring-purple-600 focus:outline-none text-xs"
+                    className="w-full px-3 py-2 border border-[#E7E1D7] rounded-xl focus:ring-2 focus:ring-stone-900 focus:outline-none text-xs bg-white text-stone-900"
                   />
                 </div>
 
                 <div>
-                  <label className="block font-semibold text-gray-700 mb-1">Fecha de Fin *</label>
+                  <label className="block font-semibold text-stone-700 mb-1">Fecha de Fin *</label>
                   <input
                     type="datetime-local"
                     required
                     value={form.fechaFin}
                     onChange={(e) => setForm({ ...form, fechaFin: e.target.value })}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-xl focus:ring-2 focus:ring-purple-600 focus:outline-none text-xs"
+                    className="w-full px-3 py-2 border border-[#E7E1D7] rounded-xl focus:ring-2 focus:ring-stone-900 focus:outline-none text-xs bg-white text-stone-900"
                   />
                 </div>
               </div>
@@ -366,25 +369,25 @@ export const AdminCouponsPage: React.FC = () => {
                   id="activo"
                   checked={form.activo}
                   onChange={(e) => setForm({ ...form, activo: e.target.checked })}
-                  className="w-4 h-4 text-purple-600 rounded"
+                  className="w-4 h-4 text-stone-900 rounded focus:ring-stone-900"
                 />
-                <label htmlFor="activo" className="font-semibold text-gray-700 text-xs">
+                <label htmlFor="activo" className="font-semibold text-stone-700 text-xs">
                   Activar cupón inmediatamente
                 </label>
               </div>
 
-              <div className="pt-4 flex justify-end gap-3 border-t border-gray-100">
+              <div className="pt-4 flex justify-end gap-3 border-t border-[#E7E1D7]">
                 <button
                   type="button"
                   onClick={() => setModalAbierto(false)}
-                  className="px-4 py-2 border border-gray-300 rounded-xl font-semibold text-gray-700 hover:bg-gray-50"
+                  className="px-4 py-2 border border-[#E7E1D7] rounded-xl font-semibold text-stone-700 hover:bg-[#FAF8F5]"
                 >
                   Cancelar
                 </button>
                 <button
                   type="submit"
                   disabled={guardando}
-                  className="px-5 py-2 bg-purple-600 hover:bg-purple-700 text-white font-bold rounded-xl shadow-md transition-colors disabled:opacity-50"
+                  className="px-5 py-2 bg-stone-900 hover:bg-stone-800 text-white font-bold rounded-xl shadow-xs transition-colors disabled:opacity-50"
                 >
                   {guardando ? 'Guardando...' : 'Crear Cupón'}
                 </button>

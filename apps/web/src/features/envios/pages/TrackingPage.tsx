@@ -204,22 +204,22 @@ export const TrackingPage: React.FC = () => {
         );
       case 'EN_CAMINO':
         return (
-          <span className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full text-sm font-semibold bg-blue-100 text-blue-800 border border-blue-200">
-            <Truck className="w-4 h-4 text-blue-600" />
+          <span className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full text-sm font-semibold bg-[#FAF8F5] text-stone-800 border border-[#E7E1D7]">
+            <Truck className="w-4 h-4 text-[#9B7B54]" />
             En Tránsito
           </span>
         );
       case 'CANCELADO':
         return (
-          <span className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full text-sm font-semibold bg-red-100 text-red-800 border border-red-200">
-            <AlertCircle className="w-4 h-4 text-red-600" />
+          <span className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full text-sm font-semibold bg-rose-50 text-rose-800 border border-rose-200">
+            <AlertCircle className="w-4 h-4 text-rose-600" />
             Cancelado
           </span>
         );
       default:
         return (
-          <span className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full text-sm font-semibold bg-purple-100 text-purple-800 border border-purple-200">
-            <Package className="w-4 h-4 text-purple-600" />
+          <span className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full text-sm font-semibold bg-[#FAF8F5] text-stone-700 border border-[#E7E1D7]">
+            <Package className="w-4 h-4 text-[#9B7B54]" />
             En Preparación
           </span>
         );
@@ -227,50 +227,50 @@ export const TrackingPage: React.FC = () => {
   };
 
   return (
-    <div className="min-h-screen bg-slate-50 py-10 px-4 sm:px-6 lg:px-8">
+    <div className="min-h-screen bg-[#FAF8F5] py-10 px-4 sm:px-6 lg:px-8">
       <div className="max-w-5xl mx-auto">
         {/* Cabecera y Buscador */}
         <div className="text-center mb-8">
-          <div className="inline-flex items-center justify-center w-14 h-14 rounded-2xl bg-indigo-600 text-white shadow-lg shadow-indigo-200 mb-4">
+          <div className="inline-flex items-center justify-center w-14 h-14 rounded-2xl bg-stone-900 text-[#9B7B54] shadow-xs mb-4">
             <Truck className="w-7 h-7" />
           </div>
-          <h1 className="text-3xl font-extrabold text-slate-900 tracking-tight">
+          <h1 className="text-3xl font-serif font-bold text-stone-900 tracking-tight">
             Rastreo de Envíos en Tiempo Real
           </h1>
-          <p className="mt-2 text-slate-600 max-w-xl mx-auto">
-            Ingresa tu código de seguimiento (ej. <code className="text-indigo-600 font-bold">TRK-BO-2026-XXXXX</code>) o número de pedido para conocer la ubicación exacta de tu compra.
+          <p className="mt-2 text-stone-600 max-w-xl mx-auto">
+            Ingresa tu código de seguimiento (ej. <code className="text-[#9B7B54] font-bold">TRK-BO-2026-XXXXX</code>) o número de pedido para conocer la ubicación exacta de tu compra.
           </p>
 
           <form onSubmit={handleSearchSubmit} className="mt-6 max-w-lg mx-auto flex gap-2">
             <div className="relative flex-1">
-              <Search className="absolute left-3.5 top-3.5 w-5 h-5 text-slate-400" />
+              <Search className="absolute left-3.5 top-3.5 w-5 h-5 text-stone-400" />
               <input
                 type="text"
                 value={codigoInput}
                 onChange={(e) => setCodigoInput(e.target.value)}
                 placeholder="Código de guía o Nro Orden..."
-                className="w-full pl-11 pr-4 py-3 bg-white border border-slate-300 rounded-xl text-slate-900 placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 shadow-sm transition"
+                className="w-full pl-11 pr-4 py-3 bg-white border border-[#E7E1D7] rounded-xl text-stone-900 placeholder-stone-400 focus:outline-none focus:ring-1 focus:ring-[#9B7B54] focus:border-[#9B7B54] shadow-xs transition"
               />
             </div>
             <button
               type="submit"
               disabled={loading}
-              className="px-6 py-3 bg-indigo-600 hover:bg-indigo-700 disabled:bg-indigo-400 text-white font-semibold rounded-xl shadow-md transition flex items-center gap-2"
+              className="px-6 py-3 bg-stone-900 hover:bg-stone-800 disabled:bg-stone-300 text-white font-semibold rounded-xl shadow-xs transition flex items-center gap-2 cursor-pointer"
             >
               {loading ? (
                 <div className="w-5 h-5 border-2 border-white border-t-transparent rounded-full animate-spin" />
               ) : (
                 <>
                   <span>Rastrear</span>
-                  <ArrowRight className="w-4 h-4" />
+                  <ArrowRight className="w-4 h-4 text-[#9B7B54]" />
                 </>
               )}
             </button>
           </form>
 
           {error && (
-            <div className="mt-4 max-w-lg mx-auto p-4 bg-red-50 border border-red-200 rounded-xl text-red-700 flex items-center gap-3 text-sm">
-              <AlertCircle className="w-5 h-5 flex-shrink-0 text-red-500" />
+            <div className="mt-4 max-w-lg mx-auto p-4 bg-rose-50 border border-rose-200 rounded-xl text-rose-700 flex items-center gap-3 text-sm">
+              <AlertCircle className="w-5 h-5 flex-shrink-0 text-rose-500" />
               <span>{error}</span>
             </div>
           )}
@@ -280,16 +280,16 @@ export const TrackingPage: React.FC = () => {
         {trackingData && (
           <div className="space-y-6">
             {/* Card Principal de Resumen */}
-            <div className="bg-white rounded-2xl shadow-sm border border-slate-200 overflow-hidden">
-              <div className="p-6 sm:p-8 bg-gradient-to-r from-slate-900 to-indigo-950 text-white flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
+            <div className="bg-white rounded-2xl shadow-xs border border-[#E7E1D7] overflow-hidden">
+              <div className="p-6 sm:p-8 bg-[#161513] text-white flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
                 <div>
-                  <div className="text-xs uppercase tracking-wider text-indigo-300 font-semibold mb-1">
+                  <div className="text-xs uppercase tracking-wider text-[#9B7B54] font-semibold mb-1">
                     Número de Guía de Transporte
                   </div>
                   <div className="text-2xl sm:text-3xl font-mono font-bold tracking-tight text-white flex items-center gap-3">
                     {trackingData.numeroTracking}
                   </div>
-                  <div className="text-sm text-slate-300 mt-1 flex items-center gap-2">
+                  <div className="text-sm text-stone-300 mt-1 flex items-center gap-2">
                     <span>Pedido: <strong className="text-white">{trackingData.orden.nro}</strong></span>
                     <span>•</span>
                     <span>Transportadora: <strong className="text-white">{trackingData.empresaTransportadora}</strong></span>
@@ -297,22 +297,22 @@ export const TrackingPage: React.FC = () => {
                 </div>
 
                 <div className="flex flex-col sm:items-end gap-2">
-                  <div className="bg-white/10 backdrop-blur-sm px-4 py-2 rounded-xl border border-white/20">
-                    <div className="text-xs text-slate-300">Estado del Paquete</div>
+                  <div className="bg-white/10 backdrop-blur-xs px-4 py-2 rounded-xl border border-white/20">
+                    <div className="text-xs text-stone-300">Estado del Paquete</div>
                     <div className="mt-1">{getEstadoBadge(trackingData.estado)}</div>
                   </div>
                 </div>
               </div>
 
               {/* Grid informativo de fechas y dirección */}
-              <div className="p-6 grid grid-cols-1 md:grid-cols-3 gap-6 bg-slate-50 border-b border-slate-200">
+              <div className="p-6 grid grid-cols-1 md:grid-cols-3 gap-6 bg-[#FAF8F5] border-b border-[#E7E1D7]">
                 <div className="flex items-start gap-3">
-                  <div className="p-2.5 bg-indigo-50 text-indigo-600 rounded-xl">
+                  <div className="p-2.5 bg-white border border-[#E7E1D7] text-[#9B7B54] rounded-xl">
                     <Calendar className="w-5 h-5" />
                   </div>
                   <div>
-                    <div className="text-xs font-medium text-slate-500 uppercase">Fecha Estimada de Entrega</div>
-                    <div className="text-sm font-bold text-slate-900 mt-0.5">
+                    <div className="text-xs font-medium text-stone-500 uppercase">Fecha Estimada de Entrega</div>
+                    <div className="text-sm font-bold text-stone-900 mt-0.5">
                       {trackingData.fechas.fechaEntregaEstimada
                         ? new Date(trackingData.fechas.fechaEntregaEstimada).toLocaleDateString('es-BO', {
                             weekday: 'long',
@@ -326,24 +326,24 @@ export const TrackingPage: React.FC = () => {
                 </div>
 
                 <div className="flex items-start gap-3">
-                  <div className="p-2.5 bg-green-50 text-green-600 rounded-xl">
+                  <div className="p-2.5 bg-white border border-[#E7E1D7] text-[#9B7B54] rounded-xl">
                     <MapPin className="w-5 h-5" />
                   </div>
                   <div>
-                    <div className="text-xs font-medium text-slate-500 uppercase">Dirección de Destino</div>
-                    <div className="text-sm font-semibold text-slate-900 mt-0.5">
+                    <div className="text-xs font-medium text-stone-500 uppercase">Dirección de Destino</div>
+                    <div className="text-sm font-semibold text-stone-900 mt-0.5">
                       {trackingData.direccionEntrega}
                     </div>
                   </div>
                 </div>
 
                 <div className="flex items-start gap-3">
-                  <div className="p-2.5 bg-purple-50 text-purple-600 rounded-xl">
+                  <div className="p-2.5 bg-white border border-[#E7E1D7] text-[#9B7B54] rounded-xl">
                     <ShieldCheck className="w-5 h-5" />
                   </div>
                   <div>
-                    <div className="text-xs font-medium text-slate-500 uppercase">Método Seleccionado</div>
-                    <div className="text-sm font-bold text-slate-900 mt-0.5">
+                    <div className="text-xs font-medium text-stone-500 uppercase">Método Seleccionado</div>
+                    <div className="text-sm font-bold text-stone-900 mt-0.5">
                       {trackingData.metodoEnvio}
                     </div>
                   </div>
@@ -352,14 +352,14 @@ export const TrackingPage: React.FC = () => {
 
               {/* Línea de Tiempo (4 Pasos Interactivos) */}
               <div className="p-6 sm:p-8">
-                <h3 className="text-lg font-bold text-slate-900 mb-6 flex items-center gap-2">
-                  <Clock className="w-5 h-5 text-indigo-600" />
+                <h3 className="text-lg font-serif font-bold text-stone-900 mb-6 flex items-center gap-2">
+                  <Clock className="w-5 h-5 text-[#9B7B54]" />
                   Etapas de Envío y Despacho
                 </h3>
 
                 <div className="relative">
                   {/* Línea de fondo */}
-                  <div className="hidden md:block absolute top-5 left-10 right-10 h-1 bg-slate-200 -z-0" />
+                  <div className="hidden md:block absolute top-5 left-10 right-10 h-1 bg-[#E7E1D7] -z-0" />
 
                   <div className="grid grid-cols-1 md:grid-cols-4 gap-6 relative z-10">
                     {trackingData.timeline.map((step) => {
@@ -371,27 +371,27 @@ export const TrackingPage: React.FC = () => {
                           key={step.codigo}
                           className={`flex md:flex-col items-start md:items-center text-left md:text-center p-4 rounded-xl transition ${
                             isCurrent
-                              ? 'bg-indigo-50/80 border border-indigo-200'
+                              ? 'bg-[#FAF8F5] border border-[#E7E1D7]'
                               : 'bg-white'
                           }`}
                         >
                           <div
-                            className={`w-10 h-10 rounded-full flex items-center justify-center font-bold text-sm shadow-sm flex-shrink-0 mb-0 md:mb-3 mr-4 md:mr-0 ${
+                            className={`w-10 h-10 rounded-full flex items-center justify-center font-bold text-sm shadow-xs flex-shrink-0 mb-0 md:mb-3 mr-4 md:mr-0 ${
                               isComplete
-                                ? 'bg-indigo-600 text-white'
-                                : 'bg-slate-200 text-slate-500'
-                            } ${isCurrent ? 'ring-4 ring-indigo-200 ring-offset-2' : ''}`}
+                                ? 'bg-stone-900 text-[#9B7B54]'
+                                : 'bg-stone-100 text-stone-500'
+                            } ${isCurrent ? 'ring-4 ring-[#9B7B54]/20 ring-offset-2' : ''}`}
                           >
                             {isComplete ? <CheckCircle2 className="w-5 h-5" /> : step.paso}
                           </div>
 
                           <div>
-                            <div className="text-sm font-bold text-slate-900">{step.titulo}</div>
-                            <div className="text-xs text-slate-500 mt-1 leading-relaxed">
+                            <div className="text-sm font-bold text-stone-900">{step.titulo}</div>
+                            <div className="text-xs text-stone-500 mt-1 leading-relaxed">
                               {step.descripcion}
                             </div>
                             {step.fecha && (
-                              <div className="text-xs text-indigo-600 font-medium mt-2">
+                              <div className="text-xs text-[#9B7B54] font-medium mt-2">
                                 {new Date(step.fecha).toLocaleTimeString([], {
                                   hour: '2-digit',
                                   minute: '2-digit',
@@ -409,25 +409,25 @@ export const TrackingPage: React.FC = () => {
               </div>
 
               {/* Mapa Interactivo con Leaflet y OpenStreetMap */}
-              <div className="p-6 sm:p-8 bg-slate-50 border-t border-slate-200">
+              <div className="p-6 sm:p-8 bg-[#FAF8F5] border-t border-[#E7E1D7]">
                 <div className="flex justify-between items-center mb-4">
                   <div>
-                    <h3 className="text-lg font-bold text-slate-900 flex items-center gap-2">
-                      <Navigation className="w-5 h-5 text-indigo-600" />
+                    <h3 className="text-lg font-serif font-bold text-stone-900 flex items-center gap-2">
+                      <Navigation className="w-5 h-5 text-[#9B7B54]" />
                       Ruta Satelital y Cobertura (OpenStreetMap)
                     </h3>
-                    <p className="text-xs text-slate-500">
+                    <p className="text-xs text-stone-500">
                       Trazabilidad georreferenciada sin costo de API externa.
                     </p>
                   </div>
-                  <span className="text-xs font-semibold px-2.5 py-1 bg-indigo-100 text-indigo-800 rounded-lg">
+                  <span className="text-xs font-semibold px-2.5 py-1 bg-stone-900 text-[#FAF8F5] rounded-lg">
                     En vivo
                   </span>
                 </div>
 
                 <div
                   ref={mapContainerRef}
-                  className="w-full h-80 rounded-2xl border border-slate-300 shadow-inner overflow-hidden z-0"
+                  className="w-full h-80 rounded-2xl border border-[#E7E1D7] shadow-inner overflow-hidden z-0"
                 />
               </div>
 
@@ -455,9 +455,9 @@ export const TrackingPage: React.FC = () => {
                   ))}
                 </div>
 
-                <div className="mt-4 pt-4 border-t border-slate-200 flex justify-between items-center">
-                  <span className="font-bold text-slate-700">Total de la Compra:</span>
-                  <span className="text-lg font-extrabold text-indigo-600">
+                <div className="mt-4 pt-4 border-t border-[#E7E1D7] flex justify-between items-center">
+                  <span className="font-bold text-stone-700">Total de la Compra:</span>
+                  <span className="text-xl font-serif font-bold text-stone-900">
                     ${Number(trackingData.orden.total).toFixed(2)}
                   </span>
                 </div>

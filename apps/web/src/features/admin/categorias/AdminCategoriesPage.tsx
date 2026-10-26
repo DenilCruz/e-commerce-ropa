@@ -278,21 +278,24 @@ export const AdminCategoriesPage: React.FC = () => {
   return (
     <div className="max-w-7xl mx-auto p-4 sm:p-6 space-y-8">
       {/* Cabecera Principal */}
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 border-b border-gray-200 pb-6">
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 border-b border-[#E7E1D7] pb-6">
         <div>
-          <h1 className="text-2xl sm:text-3xl font-bold text-gray-900 tracking-tight flex items-center gap-3">
-            <FolderTree className="w-8 h-8 text-black" />
+          <div className="flex items-center gap-2 mb-1">
+            <span className="text-[10px] font-bold uppercase tracking-widest text-[#9B7B54]">Catálogo & Taxonomía</span>
+          </div>
+          <h1 className="font-serif text-3xl font-bold text-stone-900 tracking-tight flex items-center gap-3">
+            <FolderTree className="w-8 h-8 text-[#9B7B54]" />
             Gestión de Categorías
           </h1>
-          <p className="text-sm text-gray-500 mt-1">
-            Administración jerárquica de categorías, subcategorías, imágenes y restricciones de catálogo (HU-30 a HU-32).
+          <p className="text-sm text-stone-500 mt-1">
+            Administración jerárquica de categorías, subcategorías, imágenes y restricciones de catálogo.
           </p>
         </div>
 
         <div className="flex items-center gap-3">
           <button
             onClick={() => handleAbrirCrear()}
-            className="flex items-center gap-2 bg-black text-white px-4 py-2.5 rounded-lg text-sm font-medium hover:bg-gray-800 transition-colors shadow-sm"
+            className="flex items-center gap-2 bg-stone-900 hover:bg-stone-800 text-white px-5 py-2.5 rounded-xl text-xs font-bold uppercase tracking-wider transition-colors shadow-xs"
           >
             <Plus className="w-4 h-4" />
             Nueva Categoría
@@ -302,43 +305,43 @@ export const AdminCategoriesPage: React.FC = () => {
 
       {/* Tarjetas KPI */}
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
-        <div className="bg-white p-5 rounded-xl border border-gray-200 shadow-sm flex items-center gap-4">
-          <div className="p-3 bg-gray-100 rounded-lg text-gray-700">
+        <div className="bg-white p-5 rounded-2xl border border-[#E7E1D7] shadow-xs flex items-center gap-4">
+          <div className="p-3 bg-[#FAF8F5] border border-[#E7E1D7] rounded-xl text-stone-800">
             <FolderTree className="w-6 h-6" />
           </div>
           <div>
-            <p className="text-xs uppercase tracking-wider text-gray-500 font-semibold">Total Categorías</p>
-            <p className="text-2xl font-bold text-gray-900">{kpis.total}</p>
+            <p className="text-[10px] uppercase tracking-wider text-stone-500 font-bold">Total Categorías</p>
+            <p className="font-serif text-2xl font-bold text-stone-900">{kpis.total}</p>
           </div>
         </div>
 
-        <div className="bg-white p-5 rounded-xl border border-gray-200 shadow-sm flex items-center gap-4">
-          <div className="p-3 bg-blue-50 rounded-lg text-blue-600">
+        <div className="bg-white p-5 rounded-2xl border border-[#E7E1D7] shadow-xs flex items-center gap-4">
+          <div className="p-3 bg-[#FAF8F5] border border-[#E7E1D7] rounded-xl text-[#9B7B54]">
             <Layers className="w-6 h-6" />
           </div>
           <div>
-            <p className="text-xs uppercase tracking-wider text-gray-500 font-semibold">Principales</p>
-            <p className="text-2xl font-bold text-gray-900">{kpis.principales}</p>
+            <p className="text-[10px] uppercase tracking-wider text-stone-500 font-bold">Principales</p>
+            <p className="font-serif text-2xl font-bold text-stone-900">{kpis.principales}</p>
           </div>
         </div>
 
-        <div className="bg-white p-5 rounded-xl border border-gray-200 shadow-sm flex items-center gap-4">
-          <div className="p-3 bg-purple-50 rounded-lg text-purple-600">
+        <div className="bg-white p-5 rounded-2xl border border-[#E7E1D7] shadow-xs flex items-center gap-4">
+          <div className="p-3 bg-[#FAF8F5] border border-[#E7E1D7] rounded-xl text-stone-700">
             <Tag className="w-6 h-6" />
           </div>
           <div>
-            <p className="text-xs uppercase tracking-wider text-gray-500 font-semibold">Subcategorías</p>
-            <p className="text-2xl font-bold text-gray-900">{kpis.subcats}</p>
+            <p className="text-[10px] uppercase tracking-wider text-stone-500 font-bold">Subcategorías</p>
+            <p className="font-serif text-2xl font-bold text-stone-900">{kpis.subcats}</p>
           </div>
         </div>
 
-        <div className="bg-white p-5 rounded-xl border border-gray-200 shadow-sm flex items-center gap-4">
-          <div className="p-3 bg-amber-50 rounded-lg text-amber-600">
+        <div className="bg-white p-5 rounded-2xl border border-[#E7E1D7] shadow-xs flex items-center gap-4">
+          <div className="p-3 bg-[#FAF8F5] border border-[#E7E1D7] rounded-xl text-amber-700">
             <AlertCircle className="w-6 h-6" />
           </div>
           <div>
-            <p className="text-xs uppercase tracking-wider text-gray-500 font-semibold">Vacías (Eliminables)</p>
-            <p className="text-2xl font-bold text-gray-900">{kpis.vacias}</p>
+            <p className="text-[10px] uppercase tracking-wider text-stone-500 font-bold">Vacías (Eliminables)</p>
+            <p className="font-serif text-2xl font-bold text-stone-900">{kpis.vacias}</p>
           </div>
         </div>
       </div>
@@ -567,7 +570,7 @@ export const AdminCategoriesPage: React.FC = () => {
                                 <div>
                                   <p className="font-medium text-gray-800 flex items-center gap-2">
                                     {sub.nombre}
-                                    <span className="text-[9px] uppercase tracking-wider font-semibold px-1.5 py-0.5 rounded bg-purple-50 text-purple-700">
+                                    <span className="text-[9px] uppercase tracking-wider font-semibold px-2 py-0.5 rounded bg-[#FAF8F5] text-stone-700 border border-[#E7E1D7]">
                                       Subcategoría
                                     </span>
                                   </p>

@@ -216,7 +216,7 @@ export const RegisterPage: React.FC = () => {
               >
                 <Button
                   variant="outline"
-                  className="w-full bg-white text-indigo-700 border-indigo-200 hover:bg-indigo-50 font-semibold shadow-sm text-xs py-2"
+                  className="w-full bg-[#FAF8F5] text-stone-900 border-[#E7E1D7] hover:bg-[#F2ECE1] hover:text-[#9B7B54] font-semibold shadow-xs text-xs py-2"
                 >
                   ⚡ {modo === 'tienda' ? 'Activar mi cuenta y entrar a mi tienda' : 'Activar mi cuenta directamente'}
                 </Button>

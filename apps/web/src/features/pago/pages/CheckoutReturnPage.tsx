@@ -66,13 +66,13 @@ export const CheckoutReturnPage: React.FC = () => {
 
   if (cargando) {
     return (
-      <div className="min-h-screen bg-gray-50 flex items-center justify-center p-4">
-        <div className="bg-white rounded-3xl p-8 max-w-md w-full text-center shadow-lg border border-gray-100 space-y-4">
-          <div className="w-16 h-16 rounded-full bg-indigo-50 text-indigo-600 flex items-center justify-center mx-auto">
+      <div className="min-h-screen bg-[#FAF8F5] flex items-center justify-center p-4">
+        <div className="bg-white rounded-3xl p-8 max-w-md w-full text-center shadow-xs border border-[#E7E1D7] space-y-4">
+          <div className="w-16 h-16 rounded-2xl bg-[#FAF8F5] text-[#9B7B54] border border-[#E7E1D7] flex items-center justify-center mx-auto">
             <Loader2 className="w-8 h-8 animate-spin" />
           </div>
-          <h2 className="text-xl font-black text-gray-900">Verificando Pago con Stripe...</h2>
-          <p className="text-sm text-gray-500">
+          <h2 className="text-xl font-serif font-bold text-stone-900">Verificando Pago con Stripe...</h2>
+          <p className="text-sm text-stone-500">
             Estamos confirmando la transacción con la pasarela segura y generando tu orden de compra.
           </p>
         </div>
@@ -82,25 +82,25 @@ export const CheckoutReturnPage: React.FC = () => {
 
   if (error || !orden) {
     return (
-      <div className="min-h-screen bg-gray-50 flex items-center justify-center p-4">
-        <div className="bg-white rounded-3xl p-8 max-w-md w-full text-center shadow-lg border border-gray-100 space-y-5">
-          <div className="w-16 h-16 rounded-full bg-rose-50 text-rose-600 flex items-center justify-center mx-auto">
+      <div className="min-h-screen bg-[#FAF8F5] flex items-center justify-center p-4">
+        <div className="bg-white rounded-3xl p-8 max-w-md w-full text-center shadow-xs border border-[#E7E1D7] space-y-5">
+          <div className="w-16 h-16 rounded-2xl bg-rose-50 text-rose-600 flex items-center justify-center mx-auto">
             <AlertCircle className="w-8 h-8" />
           </div>
-          <h2 className="text-xl font-black text-gray-900">No se pudo confirmar la compra</h2>
-          <p className="text-sm text-gray-600 bg-rose-50/50 p-3 rounded-xl border border-rose-100">
+          <h2 className="text-xl font-serif font-bold text-stone-900">No se pudo confirmar la compra</h2>
+          <p className="text-sm text-stone-600 bg-rose-50/50 p-3 rounded-xl border border-rose-100">
             {error || 'Hubo un inconveniente al procesar tu solicitud.'}
           </p>
           <div className="pt-2 flex flex-col gap-2">
             <button
               onClick={() => navigate('/checkout')}
-              className="w-full py-3 bg-black text-white text-sm font-bold rounded-xl hover:bg-gray-800 transition"
+              className="w-full py-3 bg-stone-900 text-white text-sm font-bold rounded-xl hover:bg-stone-800 transition"
             >
               Volver al Checkout
             </button>
             <Link
               to="/"
-              className="w-full py-3 bg-gray-100 text-gray-700 text-sm font-bold rounded-xl hover:bg-gray-200 transition text-center"
+              className="w-full py-3 bg-[#FAF8F5] text-stone-700 text-sm font-bold rounded-xl border border-[#E7E1D7] hover:bg-[#F2ECE1] transition text-center"
             >
               Ir a la Tienda
             </Link>
@@ -111,50 +111,49 @@ export const CheckoutReturnPage: React.FC = () => {
   }
 
   return (
-    <div className="min-h-screen bg-gradient-to-b from-emerald-50/40 via-gray-50 to-gray-50 py-12 px-4 sm:px-6 lg:px-8">
+    <div className="min-h-screen bg-[#FAF8F5] py-12 px-4 sm:px-6 lg:px-8">
       <div className="max-w-3xl mx-auto space-y-8">
         {/* HEADER DE ÉXITO */}
-        <div className="bg-white rounded-3xl p-8 sm:p-10 border border-emerald-100 shadow-xl text-center space-y-4 relative overflow-hidden">
-          <div className="absolute -top-12 -right-12 w-40 h-40 bg-emerald-100/50 rounded-full blur-2xl pointer-events-none" />
-          <div className="w-20 h-20 bg-emerald-100 text-emerald-600 rounded-3xl flex items-center justify-center mx-auto shadow-inner">
+        <div className="bg-white rounded-3xl p-8 sm:p-10 border border-[#E7E1D7] shadow-xs text-center space-y-4 relative overflow-hidden">
+          <div className="w-20 h-20 bg-[#FAF8F5] text-[#9B7B54] border border-[#E7E1D7] rounded-3xl flex items-center justify-center mx-auto shadow-inner">
             <CheckCircle2 className="w-12 h-12" />
           </div>
 
-          <span className="inline-block px-3 py-1 bg-emerald-100 text-emerald-800 text-xs font-black uppercase tracking-wider rounded-full">
+          <span className="inline-block px-3 py-1 bg-[#FAF8F5] text-[#9B7B54] border border-[#E7E1D7] text-xs font-bold uppercase tracking-wider rounded-full">
             Stripe Embedded Checkout Exitoso
           </span>
 
-          <h1 className="text-2xl sm:text-3xl font-black text-gray-900">
+          <h1 className="text-2xl sm:text-3xl font-serif font-bold text-stone-900">
             ¡Pago Aprobado y Pedido Confirmado!
           </h1>
-          <p className="text-sm sm:text-base text-gray-600 max-w-lg mx-auto">
+          <p className="text-sm sm:text-base text-stone-600 max-w-lg mx-auto">
             Hemos procesado tu pago de forma segura a través de Stripe. Tu orden está siendo preparada en nuestro centro de distribución.
           </p>
 
-          <div className="inline-flex items-center gap-2 bg-gray-50 px-5 py-2.5 rounded-2xl border border-gray-200 text-sm font-mono font-bold text-gray-800 mt-2">
+          <div className="inline-flex items-center gap-2 bg-[#FAF8F5] px-5 py-2.5 rounded-2xl border border-[#E7E1D7] text-sm font-mono font-bold text-stone-800 mt-2">
             <span>Nro. de Orden:</span>
-            <span className="text-indigo-600 font-extrabold">{orden.nroOrden}</span>
+            <span className="text-[#9B7B54] font-extrabold">{orden.nroOrden}</span>
           </div>
         </div>
 
         {/* TARJETA DE RASTREO Y ENVÍO EN VIVO (HU-64) */}
         {orden.envio?.numeroTracking && (
-          <div className="bg-gradient-to-r from-slate-900 via-indigo-950 to-slate-900 rounded-3xl p-6 sm:p-8 text-white shadow-xl space-y-5">
+          <div className="bg-[#161513] border border-[#2A2723] rounded-3xl p-6 sm:p-8 text-white shadow-xl space-y-5">
             <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
               <div className="flex items-center gap-3">
                 <div className="w-12 h-12 rounded-2xl bg-white/10 flex items-center justify-center backdrop-blur-md">
-                  <Truck className="w-6 h-6 text-indigo-300" />
+                  <Truck className="w-6 h-6 text-[#9B7B54]" />
                 </div>
                 <div>
-                  <h3 className="font-bold text-lg text-white">Rastreo de Envío en Vivo</h3>
-                  <p className="text-xs text-indigo-200">
+                  <h3 className="font-serif font-bold text-lg text-white">Rastreo de Envío en Vivo</h3>
+                  <p className="text-xs text-stone-400">
                     Sigue tu paquete en tiempo real sobre el mapa interactivo con OpenStreetMap
                   </p>
                 </div>
               </div>
 
               <div className="flex items-center gap-2 bg-white/10 px-4 py-2 rounded-xl border border-white/20">
-                <span className="text-xs font-mono font-bold text-amber-300">
+                <span className="text-xs font-mono font-bold text-[#9B7B54]">
                   {orden.envio.numeroTracking}
                 </span>
                 <button
@@ -163,7 +162,7 @@ export const CheckoutReturnPage: React.FC = () => {
                   className="p-1 hover:bg-white/20 rounded text-white transition"
                   title="Copiar código"
                 >
-                  {copiado ? <Check className="w-3.5 h-3.5 text-emerald-400" /> : <Copy className="w-3.5 h-3.5" />}
+                  {copiado ? <Check className="w-3.5 h-3.5 text-[#9B7B54]" /> : <Copy className="w-3.5 h-3.5" />}
                 </button>
               </div>
             </div>
@@ -171,10 +170,10 @@ export const CheckoutReturnPage: React.FC = () => {
             <div className="pt-2">
               <Link
                 to={`/tracking/${orden.envio.numeroTracking}`}
-                className="w-full sm:w-auto inline-flex items-center justify-center gap-2 px-6 py-3.5 bg-indigo-500 hover:bg-indigo-600 text-white text-sm font-black rounded-xl shadow-lg transition"
+                className="w-full sm:w-auto inline-flex items-center justify-center gap-2 px-6 py-3.5 bg-stone-900 hover:bg-stone-800 border border-[#9B7B54]/40 text-[#FAF8F5] text-sm font-bold rounded-xl shadow-xs transition"
               >
                 <span>Abrir Mapa y Rastreo en Vivo</span>
-                <ExternalLink className="w-4 h-4" />
+                <ExternalLink className="w-4 h-4 text-[#9B7B54]" />
               </Link>
             </div>
           </div>

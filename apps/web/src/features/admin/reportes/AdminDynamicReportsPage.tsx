@@ -395,36 +395,36 @@ export const AdminDynamicReportsPage: React.FC = () => {
   return (
     <div className="max-w-7xl mx-auto space-y-8 pb-16">
       {/* HEADER */}
-      <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 border-b border-gray-200 pb-6">
+      <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 border-b border-[#E7E1D7] pb-6">
         <div>
           <div className="flex items-center gap-2 mb-1">
             <Link
               to="/admin/reportes"
-              className="text-xs text-gray-500 hover:text-black flex items-center gap-1 font-semibold"
+              className="text-xs text-stone-500 hover:text-stone-900 flex items-center gap-1 font-semibold"
             >
               <ArrowLeft className="w-3.5 h-3.5" /> Volver a Reportes Estándar
             </Link>
           </div>
-          <h1 className="text-3xl font-black tracking-tight text-gray-900 flex items-center gap-3">
+          <h1 className="font-serif text-3xl font-bold tracking-tight text-stone-900 flex items-center gap-3">
             <span>Reportes Dinámicos por Voz</span>
-            <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full bg-gradient-to-r from-purple-600 to-indigo-600 text-white text-xs font-bold uppercase tracking-wider">
-              <Sparkles className="w-3 h-3" /> IA PostgreSQL
+            <span className="inline-flex items-center gap-1 px-3 py-1 rounded-full bg-[#FAF8F5] text-[#9B7B54] border border-[#E7E1D7] text-xs font-bold uppercase tracking-wider">
+              <Sparkles className="w-3.5 h-3.5" /> IA PostgreSQL
             </span>
           </h1>
-          <p className="text-sm text-gray-500">
+          <p className="text-sm text-stone-500">
             Dicta o escribe cualquier consulta y la inteligencia artificial generará y ejecutará el reporte en tiempo real.
           </p>
         </div>
 
         {/* Selector de Proveedor IA */}
-        <div className="flex items-center gap-2 bg-white p-1.5 rounded-lg border border-gray-200 text-xs shadow-sm self-start md:self-auto">
-          <span className="text-gray-400 font-bold px-2 text-[10px] uppercase tracking-wider">
+        <div className="flex items-center gap-2 bg-white p-1.5 rounded-lg border border-[#E7E1D7] text-xs shadow-xs self-start md:self-auto">
+          <span className="text-stone-400 font-bold px-2 text-[10px] uppercase tracking-wider">
             Motor IA:
           </span>
           <button
             onClick={() => setProveedor('GROQ')}
             className={`px-3 py-1 rounded-md font-bold transition-all ${
-              proveedor === 'GROQ' ? 'bg-black text-white shadow-sm' : 'text-gray-600 hover:bg-gray-100'
+              proveedor === 'GROQ' ? 'bg-stone-900 text-white shadow-xs' : 'text-stone-600 hover:bg-[#FAF8F5]'
             }`}
           >
             Groq Cloud (Ultra Rápido)
@@ -432,7 +432,7 @@ export const AdminDynamicReportsPage: React.FC = () => {
           <button
             onClick={() => setProveedor('OLLAMA')}
             className={`px-3 py-1 rounded-md font-bold transition-all ${
-              proveedor === 'OLLAMA' ? 'bg-black text-white shadow-sm' : 'text-gray-600 hover:bg-gray-100'
+              proveedor === 'OLLAMA' ? 'bg-stone-900 text-white shadow-xs' : 'text-stone-600 hover:bg-[#FAF8F5]'
             }`}
           >
             Ollama Local
@@ -441,7 +441,7 @@ export const AdminDynamicReportsPage: React.FC = () => {
       </div>
 
       {/* TARJETA PRINCIPAL DE ENTRADA POR VOZ Y TEXTO */}
-      <div className="bg-gradient-to-b from-white to-gray-50/50 p-6 md:p-8 rounded-2xl border border-gray-200 shadow-sm space-y-6">
+      <div className="bg-white p-6 md:p-8 rounded-2xl border border-[#E7E1D7] shadow-xs space-y-6">
         <div className="flex flex-col md:flex-row items-center gap-6">
           {/* BOTÓN DE MICRÓFONO CON ANIMACIÓN */}
           <div className="flex flex-col items-center shrink-0">
@@ -449,15 +449,15 @@ export const AdminDynamicReportsPage: React.FC = () => {
               onClick={toggleEscuchaVoz}
               disabled={!soporteVoz || cargando}
               title={escuchando ? 'Detener micrófono' : 'Presiona para dictar tu reporte'}
-              className={`relative w-20 h-20 rounded-full flex items-center justify-center transition-all duration-300 shadow-md ${
+              className={`relative w-20 h-20 rounded-full flex items-center justify-center transition-all duration-300 shadow-sm ${
                 escuchando
                   ? 'bg-rose-600 text-white scale-105 ring-8 ring-rose-100 animate-pulse'
-                  : 'bg-black text-white hover:bg-gray-800 hover:scale-105'
+                  : 'bg-stone-900 text-white hover:bg-stone-800 hover:scale-105'
               } disabled:opacity-50`}
             >
               {escuchando ? <MicOff className="w-8 h-8" /> : <Mic className="w-8 h-8" />}
             </button>
-            <span className="text-[11px] font-bold text-gray-500 mt-2 uppercase tracking-wider">
+            <span className="text-[11px] font-bold text-stone-500 mt-2 uppercase tracking-wider">
               {escuchando ? 'Escuchando...' : 'Presiona para hablar'}
             </span>
           </div>
@@ -476,13 +476,13 @@ export const AdminDynamicReportsPage: React.FC = () => {
                     procesarReporte();
                   }
                 }}
-                className="w-full px-4 py-3 text-sm bg-white border border-gray-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-black pr-28 shadow-inner resize-none font-medium"
+                className="w-full px-4 py-3 text-sm bg-white border border-[#E7E1D7] rounded-xl focus:outline-none focus:ring-2 focus:ring-stone-900 pr-28 resize-none font-medium text-stone-900"
               />
 
               <button
                 onClick={() => procesarReporte()}
                 disabled={cargando || !prompt.trim()}
-                className="absolute right-3 bottom-4 px-4 py-2 bg-black text-white text-xs font-bold uppercase tracking-wider rounded-lg hover:bg-gray-800 disabled:opacity-40 transition-all flex items-center gap-2 shadow-sm"
+                className="absolute right-3 bottom-4 px-4 py-2 bg-stone-900 text-white text-xs font-bold uppercase tracking-wider rounded-lg hover:bg-stone-800 disabled:opacity-40 transition-all flex items-center gap-2 shadow-xs"
               >
                 {cargando ? (
                   <RefreshCw className="w-3.5 h-3.5 animate-spin" />
@@ -495,8 +495,8 @@ export const AdminDynamicReportsPage: React.FC = () => {
 
             {/* Texto en vivo de voz */}
             {textoVozInterim && (
-              <div className="text-xs text-indigo-600 font-medium italic flex items-center gap-2 animate-pulse">
-                <span className="w-2 h-2 rounded-full bg-indigo-600"></span>
+              <div className="text-xs text-[#9B7B54] font-medium italic flex items-center gap-2 animate-pulse">
+                <span className="w-2 h-2 rounded-full bg-[#9B7B54]"></span>
                 <span>{textoVozInterim}</span>
               </div>
             )}
@@ -504,9 +504,9 @@ export const AdminDynamicReportsPage: React.FC = () => {
         </div>
 
         {/* CHIPS DE SUGERENCIAS RÁPIDAS */}
-        <div className="border-t border-gray-200/80 pt-4">
-          <div className="text-[11px] font-bold uppercase tracking-wider text-gray-400 mb-2 flex items-center gap-1.5">
-            <Zap className="w-3.5 h-3.5 text-amber-500" />
+        <div className="border-t border-[#E7E1D7] pt-4">
+          <div className="text-[11px] font-bold uppercase tracking-wider text-stone-400 mb-2 flex items-center gap-1.5">
+            <Zap className="w-3.5 h-3.5 text-[#9B7B54]" />
             <span>Consultas Rápidas Sugeridas:</span>
           </div>
           <div className="flex flex-wrap gap-2">
@@ -518,7 +518,7 @@ export const AdminDynamicReportsPage: React.FC = () => {
                   procesarReporte(s);
                 }}
                 disabled={cargando}
-                className="px-3 py-1.5 bg-white hover:bg-gray-100 border border-gray-200 hover:border-gray-300 text-gray-700 rounded-lg text-xs font-medium transition-all shadow-2xs hover:shadow-xs"
+                className="px-3 py-1.5 bg-[#FAF8F5] hover:bg-[#F2ECE1] border border-[#E7E1D7] text-stone-700 rounded-lg text-xs font-medium transition-all shadow-2xs hover:shadow-xs"
               >
                 {s}
               </button>
@@ -539,12 +539,12 @@ export const AdminDynamicReportsPage: React.FC = () => {
       {resultado && (
         <div className="space-y-4">
           {/* BARRA SUPERIOR EXCLUSIVA: BOTONES EXPORTAR CSV Y EXPORTAR PDF */}
-          <div className="bg-white rounded-xl border border-gray-200 shadow-sm p-4 flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+          <div className="bg-white rounded-xl border border-[#E7E1D7] shadow-xs p-4 flex flex-col sm:flex-row sm:items-center justify-between gap-3">
             <div className="flex items-center gap-3">
-              <span className="text-xs text-gray-600 font-medium">
-                Total registros: <strong className="text-gray-900">{resultado.totalFilas}</strong>
+              <span className="text-xs text-stone-600 font-medium">
+                Total registros: <strong className="text-stone-900">{resultado.totalFilas}</strong>
               </span>
-              <span className="text-xs text-gray-500 font-mono bg-gray-50 px-2.5 py-1 rounded border border-gray-200">
+              <span className="text-xs text-stone-600 font-mono bg-[#FAF8F5] px-2.5 py-1 rounded border border-[#E7E1D7]">
                 ⚡ {resultado.tiempoEjecucionMs} ms
               </span>
             </div>
@@ -554,7 +554,7 @@ export const AdminDynamicReportsPage: React.FC = () => {
               <button
                 onClick={exportarCSV}
                 disabled={resultado.filas.length === 0}
-                className="px-4 py-2 bg-black text-white hover:bg-gray-800 rounded-lg text-xs font-bold uppercase tracking-wider flex items-center gap-2 transition-all disabled:opacity-40 shadow-sm"
+                className="px-4 py-2 bg-stone-900 text-white hover:bg-stone-800 rounded-lg text-xs font-bold uppercase tracking-wider flex items-center gap-2 transition-all disabled:opacity-40 shadow-xs"
               >
                 <Download className="w-3.5 h-3.5" />
                 <span>Exportar CSV</span>
@@ -563,7 +563,7 @@ export const AdminDynamicReportsPage: React.FC = () => {
               <button
                 onClick={exportarPDF}
                 disabled={resultado.filas.length === 0}
-                className="px-4 py-2 bg-rose-600 hover:bg-rose-700 text-white rounded-lg text-xs font-bold uppercase tracking-wider flex items-center gap-2 transition-all disabled:opacity-40 shadow-sm"
+                className="px-4 py-2 bg-[#9B7B54] hover:bg-[#83653F] text-white rounded-lg text-xs font-bold uppercase tracking-wider flex items-center gap-2 transition-all disabled:opacity-40 shadow-xs"
               >
                 <Printer className="w-3.5 h-3.5" />
                 <span>Exportar PDF</span>
@@ -572,19 +572,19 @@ export const AdminDynamicReportsPage: React.FC = () => {
           </div>
 
           {/* TABLA DINÁMICA DE RESULTADOS (SIN COLUMNAS ID) */}
-          <div className="bg-white rounded-xl border border-gray-200 shadow-sm overflow-hidden">
-            <div className="p-4 border-b border-gray-100 flex flex-col sm:flex-row sm:items-center justify-between gap-3 text-xs">
+          <div className="bg-white rounded-xl border border-[#E7E1D7] shadow-xs overflow-hidden">
+            <div className="p-4 border-b border-[#E7E1D7] flex flex-col sm:flex-row sm:items-center justify-between gap-3 text-xs">
               <div className="space-y-1">
-                <div className="text-[11px] text-gray-500 flex items-center gap-1.5 flex-wrap">
-                  <Mic className="w-3.5 h-3.5 text-gray-400 shrink-0" />
+                <div className="text-[11px] text-stone-500 flex items-center gap-1.5 flex-wrap">
+                  <Mic className="w-3.5 h-3.5 text-stone-400 shrink-0" />
                   <span>Instrucción solicitada:</span>
-                  <span className="font-semibold text-gray-900 bg-gray-100 px-2 py-0.5 rounded">
+                  <span className="font-semibold text-stone-900 bg-[#FAF8F5] border border-[#E7E1D7] px-2 py-0.5 rounded">
                     "{resultado.promptOriginal}"
                   </span>
                 </div>
                 {resultado.descripcion && (
-                  <div className="text-xs text-indigo-700 font-medium flex items-center gap-1.5">
-                    <Sparkles className="w-3.5 h-3.5 text-amber-500 shrink-0" />
+                  <div className="text-xs text-[#9B7B54] font-medium flex items-center gap-1.5">
+                    <Sparkles className="w-3.5 h-3.5 text-[#9B7B54] shrink-0" />
                     <span>{resultado.descripcion}</span>
                   </div>
                 )}
@@ -593,7 +593,7 @@ export const AdminDynamicReportsPage: React.FC = () => {
               {resultado.sql && (
                 <button
                   onClick={() => setMostrarSql(!mostrarSql)}
-                  className="px-2.5 py-1 text-[11px] font-mono text-gray-600 hover:text-black bg-gray-100 hover:bg-gray-200 rounded border border-gray-200 transition-all self-start sm:self-auto shrink-0"
+                  className="px-2.5 py-1 text-[11px] font-mono text-stone-600 hover:text-stone-900 bg-[#FAF8F5] hover:bg-[#F2ECE1] rounded border border-[#E7E1D7] transition-all self-start sm:self-auto shrink-0"
                 >
                   {mostrarSql ? 'Ocultar SQL' : 'Ver SQL'}
                 </button>
@@ -601,27 +601,27 @@ export const AdminDynamicReportsPage: React.FC = () => {
             </div>
 
             {mostrarSql && resultado.sql && (
-              <div className="bg-gray-900 p-3 text-[11px] font-mono text-emerald-400 border-b border-gray-800 overflow-x-auto">
-                <span className="text-gray-500 select-none">SQL &gt; </span>
+              <div className="bg-[#161513] p-3 text-[11px] font-mono text-emerald-400 border-b border-[#2A2723] overflow-x-auto">
+                <span className="text-stone-500 select-none">SQL &gt; </span>
                 {resultado.sql}
               </div>
             )}
 
             {resultado.filas.length === 0 ? (
               <div className="py-16 px-4 text-center space-y-2">
-                <div className="text-gray-500 text-xs font-medium">
+                <div className="text-stone-500 text-xs font-medium">
                   La consulta se ejecutó con éxito pero no devolvió ningún registro con los filtros solicitados.
                 </div>
-                <div className="text-[11px] text-gray-400">
+                <div className="text-[11px] text-stone-400">
                   Prueba seleccionando una de las consultas sugeridas arriba o ajusta los términos de búsqueda.
                 </div>
               </div>
             ) : (
               <div className="overflow-x-auto max-h-[520px]">
                 <table className="w-full text-left text-xs">
-                  <thead className="bg-gray-50 text-gray-600 uppercase font-bold text-[10px] tracking-wider border-b border-gray-200 sticky top-0 z-10">
+                  <thead className="bg-[#FAF8F5] text-stone-600 uppercase font-bold text-[10px] tracking-wider border-b border-[#E7E1D7] sticky top-0 z-10">
                     <tr>
-                      <th className="py-3 px-4 w-12 text-center text-gray-400 font-normal">#</th>
+                      <th className="py-3 px-4 w-12 text-center text-stone-400 font-normal">#</th>
                       {columnasVisibles.map((col) => (
                         <th key={col} className="py-3 px-4 whitespace-nowrap">
                           {col.replace(/_/g, ' ')}
@@ -629,10 +629,10 @@ export const AdminDynamicReportsPage: React.FC = () => {
                       ))}
                     </tr>
                   </thead>
-                  <tbody className="divide-y divide-gray-100">
+                  <tbody className="divide-y divide-[#E7E1D7]/60">
                     {resultado.filas.map((fila, rowIdx) => (
-                      <tr key={rowIdx} className="hover:bg-gray-50/80 transition-colors">
-                        <td className="py-3 px-4 text-center font-mono text-gray-400 text-[11px]">
+                      <tr key={rowIdx} className="hover:bg-[#FAF8F5]/80 transition-colors">
+                        <td className="py-3 px-4 text-center font-mono text-stone-400 text-[11px]">
                           {rowIdx + 1}
                         </td>
                         {columnasVisibles.map((col) => (

@@ -191,17 +191,17 @@ export const AdminReportsPage: React.FC = () => {
   return (
     <div className="max-w-7xl mx-auto space-y-8 pb-16">
       {/* HEADER */}
-      <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 border-b border-gray-200 pb-6">
+      <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 border-b border-[#E7E1D7] pb-6">
         <div>
           <div className="flex items-center gap-2 mb-1">
-            <span className="text-[11px] uppercase tracking-widest font-bold text-gray-400">
+            <span className="text-[11px] uppercase tracking-wider font-semibold text-[#9B7B54]">
               Módulo de Administración
             </span>
           </div>
-          <h1 className="text-3xl font-black tracking-tight text-gray-900">
+          <h1 className="text-3xl font-serif tracking-tight text-stone-900">
             Reportes de Ventas
           </h1>
-          <p className="text-sm text-gray-500">
+          <p className="text-sm text-stone-500">
             Filtra órdenes por rango de fechas, estados y genera exportaciones contables.
           </p>
         </div>
@@ -209,21 +209,21 @@ export const AdminReportsPage: React.FC = () => {
         <div className="flex items-center gap-3">
           <Link
             to="/admin/reportes-dinamicos"
-            className="flex items-center gap-2 px-4 py-2.5 bg-gradient-to-r from-purple-600 to-indigo-600 text-white text-xs font-bold uppercase tracking-wider rounded-lg hover:from-purple-700 hover:to-indigo-700 transition-all shadow-sm"
+            className="flex items-center gap-2 px-4 py-2.5 bg-[#FAF8F5] border border-[#E7E1D7] text-stone-900 hover:text-[#9B7B54] hover:bg-[#F2ECE1] text-xs font-bold uppercase tracking-wider rounded-lg transition-all shadow-xs"
           >
-            <Sparkles className="w-4 h-4" />
+            <Sparkles className="w-4 h-4 text-[#9B7B54]" />
             <span>Reportes Dinámicos (Voz / IA)</span>
           </Link>
           <button
             onClick={imprimirReporte}
-            className="flex items-center gap-2 px-3.5 py-2.5 border border-gray-300 rounded-lg text-xs font-bold uppercase tracking-wider text-gray-700 hover:bg-gray-100 transition-colors"
+            className="flex items-center gap-2 px-3.5 py-2.5 bg-white border border-[#E7E1D7] rounded-lg text-xs font-bold uppercase tracking-wider text-stone-700 hover:bg-[#FAF8F5] transition-colors"
           >
             <Printer className="w-4 h-4" />
             <span>Imprimir</span>
           </button>
           <button
             onClick={exportarCSV}
-            className="flex items-center gap-2 px-4 py-2.5 bg-black text-white text-xs font-bold uppercase tracking-widest rounded-lg hover:bg-gray-800 transition-colors shadow-sm"
+            className="flex items-center gap-2 px-4 py-2.5 bg-stone-900 text-white text-xs font-bold uppercase tracking-widest rounded-lg hover:bg-stone-800 transition-colors shadow-xs"
           >
             <Download className="w-4 h-4" />
             <span>Exportar CSV / Excel</span>
@@ -232,10 +232,10 @@ export const AdminReportsPage: React.FC = () => {
       </div>
 
       {/* FILTROS Y SELECTOR DE FECHAS */}
-      <div className="bg-white p-6 rounded-xl border border-gray-200 shadow-sm space-y-5">
+      <div className="bg-white p-6 rounded-xl border border-[#E7E1D7] shadow-xs space-y-5">
         {/* Presets de Fecha Rápidos */}
         <div className="flex items-center gap-2 overflow-x-auto pb-1 text-xs">
-          <span className="text-gray-400 font-bold uppercase tracking-wider text-[10px] mr-1">
+          <span className="text-stone-400 font-bold uppercase tracking-wider text-[10px] mr-1">
             Rango Rápido:
           </span>
           {[
@@ -251,8 +251,8 @@ export const AdminReportsPage: React.FC = () => {
               onClick={() => aplicarPreset(p.id)}
               className={`px-3 py-1.5 rounded-lg font-semibold transition-all whitespace-nowrap ${
                 preset === p.id
-                  ? 'bg-black text-white shadow-sm'
-                  : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
+                  ? 'bg-stone-900 text-white shadow-xs'
+                  : 'bg-[#FAF8F5] text-stone-700 hover:bg-[#F2ECE1] border border-[#E7E1D7]'
               }`}
             >
               {p.label}
@@ -264,11 +264,11 @@ export const AdminReportsPage: React.FC = () => {
         <form onSubmit={handleBuscar} className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 pt-2">
           {/* Fecha Inicio */}
           <div>
-            <label className="block text-[11px] font-bold uppercase tracking-wider text-gray-500 mb-1">
+            <label className="block text-[11px] font-bold uppercase tracking-wider text-stone-500 mb-1">
               Fecha Inicio
             </label>
             <div className="relative">
-              <Calendar className="w-4 h-4 absolute left-3 top-3 text-gray-400 pointer-events-none" />
+              <Calendar className="w-4 h-4 absolute left-3 top-3 text-stone-400 pointer-events-none" />
               <input
                 type="date"
                 value={fechaInicio}
@@ -276,18 +276,18 @@ export const AdminReportsPage: React.FC = () => {
                   setFechaInicio(e.target.value);
                   setPreset('custom');
                 }}
-                className="w-full pl-9 pr-3 py-2 text-sm border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-black"
+                className="w-full pl-9 pr-3 py-2 text-sm border border-[#E7E1D7] rounded-lg focus:outline-none focus:ring-1 focus:ring-stone-900 focus:border-stone-900 bg-white text-stone-900"
               />
             </div>
           </div>
 
           {/* Fecha Fin */}
           <div>
-            <label className="block text-[11px] font-bold uppercase tracking-wider text-gray-500 mb-1">
+            <label className="block text-[11px] font-bold uppercase tracking-wider text-stone-500 mb-1">
               Fecha Fin
             </label>
             <div className="relative">
-              <Calendar className="w-4 h-4 absolute left-3 top-3 text-gray-400 pointer-events-none" />
+              <Calendar className="w-4 h-4 absolute left-3 top-3 text-stone-400 pointer-events-none" />
               <input
                 type="date"
                 value={fechaFin}
@@ -295,14 +295,14 @@ export const AdminReportsPage: React.FC = () => {
                   setFechaFin(e.target.value);
                   setPreset('custom');
                 }}
-                className="w-full pl-9 pr-3 py-2 text-sm border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-black"
+                className="w-full pl-9 pr-3 py-2 text-sm border border-[#E7E1D7] rounded-lg focus:outline-none focus:ring-1 focus:ring-stone-900 focus:border-stone-900 bg-white text-stone-900"
               />
             </div>
           </div>
 
           {/* Estado de Pedido */}
           <div>
-            <label className="block text-[11px] font-bold uppercase tracking-wider text-gray-500 mb-1">
+            <label className="block text-[11px] font-bold uppercase tracking-wider text-stone-500 mb-1">
               Estado de Pedido
             </label>
             <select
@@ -311,7 +311,7 @@ export const AdminReportsPage: React.FC = () => {
                 setEstado(e.target.value);
                 setPagina(1);
               }}
-              className="w-full px-3 py-2 text-sm border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-black bg-white"
+              className="w-full px-3 py-2 text-sm border border-[#E7E1D7] rounded-lg focus:outline-none focus:ring-1 focus:ring-stone-900 focus:border-stone-900 bg-white text-stone-900"
             >
               <option value="TODOS">Todos los estados</option>
               <option value="PAGADO">PAGADO</option>
@@ -325,7 +325,7 @@ export const AdminReportsPage: React.FC = () => {
 
           {/* Filtro por Categoría */}
           <div>
-            <label className="block text-[11px] font-bold uppercase tracking-wider text-gray-500 mb-1">
+            <label className="block text-[11px] font-bold uppercase tracking-wider text-stone-500 mb-1">
               Filtrar por Categoría
             </label>
             <select
@@ -334,7 +334,7 @@ export const AdminReportsPage: React.FC = () => {
                 setCategoriaId(e.target.value);
                 setPagina(1);
               }}
-              className="w-full px-3 py-2 text-sm border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-black bg-white"
+              className="w-full px-3 py-2 text-sm border border-[#E7E1D7] rounded-lg focus:outline-none focus:ring-1 focus:ring-stone-900 focus:border-stone-900 bg-white text-stone-900"
             >
               <option value="">Todas las categorías</option>
               {listaCategorias.map((c) => (
@@ -347,7 +347,7 @@ export const AdminReportsPage: React.FC = () => {
 
           {/* Filtro por Cliente Específico */}
           <div>
-            <label className="block text-[11px] font-bold uppercase tracking-wider text-gray-500 mb-1">
+            <label className="block text-[11px] font-bold uppercase tracking-wider text-stone-500 mb-1">
               Filtrar por Cliente
             </label>
             <select
@@ -356,7 +356,7 @@ export const AdminReportsPage: React.FC = () => {
                 setUsuarioId(e.target.value);
                 setPagina(1);
               }}
-              className="w-full px-3 py-2 text-sm border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-black bg-white"
+              className="w-full px-3 py-2 text-sm border border-[#E7E1D7] rounded-lg focus:outline-none focus:ring-1 focus:ring-stone-900 focus:border-stone-900 bg-white text-stone-900"
             >
               <option value="">Todos los clientes</option>
               {listaUsuarios.map((u) => (
@@ -369,23 +369,23 @@ export const AdminReportsPage: React.FC = () => {
 
           {/* Búsqueda Cliente / Pedido */}
           <div>
-            <label className="block text-[11px] font-bold uppercase tracking-wider text-gray-500 mb-1">
+            <label className="block text-[11px] font-bold uppercase tracking-wider text-stone-500 mb-1">
               Buscar Pedido / Texto
             </label>
             <div className="flex gap-2">
               <div className="relative flex-1">
-                <Search className="w-4 h-4 absolute left-3 top-3 text-gray-400 pointer-events-none" />
+                <Search className="w-4 h-4 absolute left-3 top-3 text-stone-400 pointer-events-none" />
                 <input
                   type="text"
                   placeholder="N° orden, nombre, correo..."
                   value={busqueda}
                   onChange={(e) => setBusqueda(e.target.value)}
-                  className="w-full pl-9 pr-3 py-2 text-sm border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-black"
+                  className="w-full pl-9 pr-3 py-2 text-sm border border-[#E7E1D7] rounded-lg focus:outline-none focus:ring-1 focus:ring-stone-900 focus:border-stone-900 bg-white text-stone-900"
                 />
               </div>
               <button
                 type="submit"
-                className="px-4 py-2 bg-gray-900 text-white text-xs font-bold rounded-lg hover:bg-black transition-colors"
+                className="px-4 py-2 bg-stone-900 text-white text-xs font-bold rounded-lg hover:bg-stone-800 transition-colors"
               >
                 Filtrar
               </button>
@@ -397,50 +397,50 @@ export const AdminReportsPage: React.FC = () => {
       {/* KPIS DEL RANGO SELECCIONADO */}
       {reporte?.resumen && (
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-          <div className="bg-white p-5 rounded-xl border border-gray-200 shadow-sm">
-            <span className="text-[10px] font-bold uppercase tracking-wider text-gray-400">
+          <div className="bg-white p-5 rounded-xl border border-[#E7E1D7] shadow-xs">
+            <span className="text-[10px] font-bold uppercase tracking-wider text-stone-400">
               Total Facturado
             </span>
-            <div className="text-2xl font-black text-gray-900 mt-1">
+            <div className="text-2xl font-serif font-bold text-stone-900 mt-1">
               ${reporte.resumen.totalFacturado.toLocaleString('en-US', { minimumFractionDigits: 2 })}
             </div>
-            <span className="text-[11px] text-gray-500">
+            <span className="text-[11px] text-stone-500">
               {reporte.resumen.totalPedidos} órdenes registradas
             </span>
           </div>
 
-          <div className="bg-white p-5 rounded-xl border border-gray-200 shadow-sm">
-            <span className="text-[10px] font-bold uppercase tracking-wider text-gray-400">
+          <div className="bg-white p-5 rounded-xl border border-[#E7E1D7] shadow-xs">
+            <span className="text-[10px] font-bold uppercase tracking-wider text-stone-400">
               Ticket Promedio
             </span>
-            <div className="text-2xl font-black text-purple-700 mt-1">
+            <div className="text-2xl font-serif font-bold text-[#9B7B54] mt-1">
               ${reporte.resumen.ticketMedio.toLocaleString('en-US', { minimumFractionDigits: 2 })}
             </div>
-            <span className="text-[11px] text-gray-500">
+            <span className="text-[11px] text-stone-500">
               Promedio por pedido en el período
             </span>
           </div>
 
-          <div className="bg-white p-5 rounded-xl border border-gray-200 shadow-sm">
-            <span className="text-[10px] font-bold uppercase tracking-wider text-gray-400">
+          <div className="bg-white p-5 rounded-xl border border-[#E7E1D7] shadow-xs">
+            <span className="text-[10px] font-bold uppercase tracking-wider text-stone-400">
               Descuentos Otorgados
             </span>
-            <div className="text-2xl font-black text-emerald-600 mt-1">
+            <div className="text-2xl font-serif font-bold text-stone-800 mt-1">
               - ${reporte.resumen.totalDescuentos.toLocaleString('en-US', { minimumFractionDigits: 2 })}
             </div>
-            <span className="text-[11px] text-gray-500">
+            <span className="text-[11px] text-stone-500">
               Por cupones y promociones
             </span>
           </div>
 
-          <div className="bg-white p-5 rounded-xl border border-gray-200 shadow-sm">
-            <span className="text-[10px] font-bold uppercase tracking-wider text-gray-400">
+          <div className="bg-white p-5 rounded-xl border border-[#E7E1D7] shadow-xs">
+            <span className="text-[10px] font-bold uppercase tracking-wider text-stone-400">
               Recaudación de Envíos
             </span>
-            <div className="text-2xl font-black text-blue-600 mt-1">
+            <div className="text-2xl font-serif font-bold text-stone-900 mt-1">
               ${reporte.resumen.totalEnvios.toLocaleString('en-US', { minimumFractionDigits: 2 })}
             </div>
-            <span className="text-[11px] text-gray-500">
+            <span className="text-[11px] text-stone-500">
               Costos logísticos cobrados
             </span>
           </div>
@@ -448,29 +448,29 @@ export const AdminReportsPage: React.FC = () => {
       )}
 
       {/* TABLA DETALLADA DE PEDIDOS */}
-      <div className="bg-white rounded-xl border border-gray-200 shadow-sm overflow-hidden">
-        <div className="p-5 border-b border-gray-100 flex items-center justify-between">
+      <div className="bg-white rounded-xl border border-[#E7E1D7] shadow-xs overflow-hidden">
+        <div className="p-5 border-b border-[#E7E1D7] flex items-center justify-between">
           <div>
-            <h3 className="text-base font-bold text-gray-900">Listado de Órdenes</h3>
-            <p className="text-xs text-gray-500">
+            <h3 className="text-base font-serif font-bold text-stone-900">Listado de Órdenes</h3>
+            <p className="text-xs text-stone-500">
               Mostrando {reporte?.pedidos.length || 0} de {reporte?.paginacion.totalRegistros || 0} pedidos encontrados
             </p>
           </div>
         </div>
 
         {cargando ? (
-          <div className="py-16 text-center text-xs uppercase tracking-widest text-gray-400 flex flex-col items-center gap-2">
-            <RefreshCw className="w-6 h-6 animate-spin text-black" />
+          <div className="py-16 text-center text-xs uppercase tracking-widest text-stone-400 flex flex-col items-center gap-2">
+            <RefreshCw className="w-6 h-6 animate-spin text-stone-900" />
             Cargando registros...
           </div>
         ) : !reporte || reporte.pedidos.length === 0 ? (
-          <div className="py-16 text-center text-gray-400 text-sm">
+          <div className="py-16 text-center text-stone-400 text-sm">
             No se encontraron pedidos con los filtros seleccionados.
           </div>
         ) : (
           <div className="overflow-x-auto">
             <table className="w-full text-left text-xs">
-              <thead className="bg-gray-50 text-gray-600 uppercase font-bold text-[10px] tracking-wider border-b border-gray-200">
+              <thead className="bg-[#FAF8F5] text-stone-600 uppercase font-bold text-[10px] tracking-wider border-b border-[#E7E1D7]">
                 <tr>
                   <th className="py-3.5 px-4">N° Pedido</th>
                   <th className="py-3.5 px-4">Fecha / Hora</th>
@@ -483,7 +483,7 @@ export const AdminReportsPage: React.FC = () => {
                   <th className="py-3.5 px-4 text-center">Acciones</th>
                 </tr>
               </thead>
-              <tbody className="divide-y divide-gray-100">
+              <tbody className="divide-y divide-[#E7E1D7]/60">
                 {reporte.pedidos.map((p) => {
                   const fechaFormat = new Date(p.fecha).toLocaleDateString('es-BO', {
                     day: '2-digit',
@@ -494,45 +494,45 @@ export const AdminReportsPage: React.FC = () => {
                   });
 
                   return (
-                    <tr key={p.id} className="hover:bg-gray-50/80 transition-colors">
-                      <td className="py-3.5 px-4 font-mono font-bold text-gray-900">
+                    <tr key={p.id} className="hover:bg-[#FAF8F5]/80 transition-colors">
+                      <td className="py-3.5 px-4 font-mono font-bold text-stone-900">
                         {p.nro}
                       </td>
-                      <td className="py-3.5 px-4 text-gray-500 whitespace-nowrap">
+                      <td className="py-3.5 px-4 text-stone-500 whitespace-nowrap">
                         {fechaFormat}
                       </td>
                       <td className="py-3.5 px-4">
-                        <div className="font-bold text-gray-900">{p.cliente.nombre}</div>
-                        <div className="text-[11px] text-gray-400 font-mono">{p.cliente.correo}</div>
+                        <div className="font-bold text-stone-900">{p.cliente.nombre}</div>
+                        <div className="text-[11px] text-stone-400 font-mono">{p.cliente.correo}</div>
                       </td>
                       <td className="py-3.5 px-4 text-center">
-                        <span className="inline-block px-2 py-0.5 bg-gray-100 font-bold rounded text-gray-700">
+                        <span className="inline-block px-2 py-0.5 bg-[#FAF8F5] border border-[#E7E1D7] font-bold rounded text-stone-700">
                           {p.cantidadItems}
                         </span>
                       </td>
-                      <td className="py-3.5 px-4 text-right text-gray-600 font-medium">
+                      <td className="py-3.5 px-4 text-right text-stone-600 font-medium">
                         ${p.subtotal.toFixed(2)}
                       </td>
                       <td className="py-3.5 px-4 text-right font-medium">
                         {p.descuento > 0 ? (
-                          <span className="text-emerald-600">- ${p.descuento.toFixed(2)}</span>
+                          <span className="text-stone-800 font-semibold">- ${p.descuento.toFixed(2)}</span>
                         ) : (
-                          <span className="text-gray-300">-</span>
+                          <span className="text-stone-300">-</span>
                         )}
                       </td>
-                      <td className="py-3.5 px-4 text-right font-black text-gray-900">
+                      <td className="py-3.5 px-4 text-right font-serif font-bold text-stone-900">
                         ${p.total.toFixed(2)}
                       </td>
                       <td className="py-3.5 px-4 text-center">
                         <span
                           className={`inline-block px-2.5 py-0.5 rounded-full font-bold text-[10px] uppercase tracking-wider ${
                             p.estado === 'COMPLETADO' || p.estado === 'ENTREGADO'
-                              ? 'bg-emerald-100 text-emerald-800'
+                              ? 'bg-stone-900 text-white'
                               : p.estado === 'PAGADO' || p.estado === 'ENVIADO'
-                              ? 'bg-blue-100 text-blue-800'
+                              ? 'bg-[#FAF8F5] text-stone-800 border border-[#E7E1D7]'
                               : p.estado === 'PENDIENTE'
-                              ? 'bg-amber-100 text-amber-800'
-                              : 'bg-rose-100 text-rose-800'
+                              ? 'bg-[#FAF8F5] text-[#9B7B54] border border-[#E7E1D7]'
+                              : 'bg-rose-50 text-rose-800 border border-rose-200'
                           }`}
                         >
                           {p.estado}
@@ -541,7 +541,7 @@ export const AdminReportsPage: React.FC = () => {
                       <td className="py-3.5 px-4 text-center">
                         <button
                           onClick={() => setPedidoDetalle(p)}
-                          className="p-1.5 text-gray-400 hover:text-black rounded hover:bg-gray-100 transition-colors"
+                          className="p-1.5 text-stone-400 hover:text-stone-900 rounded hover:bg-[#FAF8F5] transition-colors"
                           title="Ver detalle de artículos"
                         >
                           <Eye className="w-4 h-4" />
@@ -557,22 +557,22 @@ export const AdminReportsPage: React.FC = () => {
 
         {/* Paginación */}
         {reporte && reporte.paginacion.totalPaginas > 1 && (
-          <div className="p-4 border-t border-gray-100 flex items-center justify-between text-xs">
-            <span className="text-gray-500">
+          <div className="p-4 border-t border-[#E7E1D7] flex items-center justify-between text-xs">
+            <span className="text-stone-500">
               Página {reporte.paginacion.paginaActual} de {reporte.paginacion.totalPaginas}
             </span>
             <div className="flex gap-2">
               <button
                 disabled={reporte.paginacion.paginaActual <= 1}
                 onClick={() => setPagina((prev) => prev - 1)}
-                className="px-3 py-1.5 border border-gray-300 rounded font-semibold disabled:opacity-40 hover:bg-gray-100"
+                className="px-3 py-1.5 border border-[#E7E1D7] rounded font-semibold disabled:opacity-40 hover:bg-[#FAF8F5] text-stone-700"
               >
                 Anterior
               </button>
               <button
                 disabled={reporte.paginacion.paginaActual >= reporte.paginacion.totalPaginas}
                 onClick={() => setPagina((prev) => prev + 1)}
-                className="px-3 py-1.5 border border-gray-300 rounded font-semibold disabled:opacity-40 hover:bg-gray-100"
+                className="px-3 py-1.5 border border-[#E7E1D7] rounded font-semibold disabled:opacity-40 hover:bg-[#FAF8F5] text-stone-700"
               >
                 Siguiente
               </button>
@@ -583,24 +583,24 @@ export const AdminReportsPage: React.FC = () => {
 
       {/* MODAL DETALLE DE ARTÍCULOS DE LA ORDEN */}
       {pedidoDetalle && (
-        <div className="fixed inset-0 z-50 bg-black/50 backdrop-blur-sm flex items-center justify-center p-4">
-          <div className="bg-white rounded-2xl max-w-xl w-full p-6 shadow-2xl space-y-6">
-            <div className="flex items-center justify-between border-b border-gray-100 pb-4">
+        <div className="fixed inset-0 z-50 bg-stone-900/60 backdrop-blur-xs flex items-center justify-center p-4">
+          <div className="bg-white rounded-2xl max-w-xl w-full p-6 shadow-2xl space-y-6 border border-[#E7E1D7]">
+            <div className="flex items-center justify-between border-b border-[#E7E1D7] pb-4">
               <div>
-                <span className="text-[10px] font-bold uppercase tracking-wider text-gray-400">
+                <span className="text-[10px] font-bold uppercase tracking-wider text-[#9B7B54]">
                   Detalle del Pedido
                 </span>
-                <h3 className="text-xl font-black text-gray-900">{pedidoDetalle.nro}</h3>
+                <h3 className="text-xl font-serif font-bold text-stone-900">{pedidoDetalle.nro}</h3>
               </div>
               <button
                 onClick={() => setPedidoDetalle(null)}
-                className="p-2 text-gray-400 hover:text-black rounded-lg hover:bg-gray-100"
+                className="p-2 text-stone-400 hover:text-stone-900 rounded-lg hover:bg-[#FAF8F5]"
               >
                 <X className="w-5 h-5" />
               </button>
             </div>
 
-            <div className="bg-gray-50 p-4 rounded-xl text-xs space-y-1">
+            <div className="bg-[#FAF8F5] border border-[#E7E1D7] p-4 rounded-xl text-xs space-y-1 text-stone-700">
               <div>
                 <strong>Cliente:</strong> {pedidoDetalle.cliente.nombre} ({pedidoDetalle.cliente.correo})
               </div>
@@ -615,19 +615,19 @@ export const AdminReportsPage: React.FC = () => {
             </div>
 
             <div>
-              <h4 className="text-xs font-bold uppercase tracking-wider text-gray-500 mb-3">
+              <h4 className="text-xs font-bold uppercase tracking-wider text-stone-500 mb-3">
                 Prendas Compradas
               </h4>
-              <div className="divide-y divide-gray-100 max-h-60 overflow-y-auto">
+              <div className="divide-y divide-[#E7E1D7]/60 max-h-60 overflow-y-auto">
                 {pedidoDetalle.items.map((item, idx) => (
                   <div key={item.id || idx} className="py-2.5 flex items-center justify-between text-xs">
                     <div>
-                      <div className="font-bold text-gray-900">{item.nombreProducto}</div>
-                      <div className="text-[11px] text-gray-500">
+                      <div className="font-bold text-stone-900">{item.nombreProducto}</div>
+                      <div className="text-[11px] text-stone-500">
                         {item.talla ? `Talla: ${item.talla}` : ''} {item.color ? `· Color: ${item.color}` : ''} · Cant: {item.cantidad} x ${item.precio.toFixed(2)}
                       </div>
                     </div>
-                    <div className="font-bold text-gray-900">
+                    <div className="font-serif font-bold text-stone-900">
                       ${item.subtotal.toFixed(2)}
                     </div>
                   </div>
@@ -635,17 +635,17 @@ export const AdminReportsPage: React.FC = () => {
               </div>
             </div>
 
-            <div className="border-t border-gray-100 pt-4 space-y-1.5 text-xs text-right">
-              <div className="text-gray-500">Subtotal: ${pedidoDetalle.subtotal.toFixed(2)}</div>
+            <div className="border-t border-[#E7E1D7] pt-4 space-y-1.5 text-xs text-right">
+              <div className="text-stone-500">Subtotal: ${pedidoDetalle.subtotal.toFixed(2)}</div>
               {pedidoDetalle.descuento > 0 && (
-                <div className="text-emerald-600 font-semibold">
+                <div className="text-stone-800 font-semibold">
                   Descuento: - ${pedidoDetalle.descuento.toFixed(2)}
                 </div>
               )}
               {pedidoDetalle.costoEnvio > 0 && (
-                <div className="text-gray-500">Envío: ${pedidoDetalle.costoEnvio.toFixed(2)}</div>
+                <div className="text-stone-500">Envío: ${pedidoDetalle.costoEnvio.toFixed(2)}</div>
               )}
-              <div className="text-base font-black text-gray-900 pt-1">
+              <div className="text-base font-serif font-bold text-stone-900 pt-1">
                 Total: ${pedidoDetalle.total.toFixed(2)}
               </div>
             </div>
@@ -653,7 +653,7 @@ export const AdminReportsPage: React.FC = () => {
             <div className="pt-2">
               <button
                 onClick={() => setPedidoDetalle(null)}
-                className="w-full py-2.5 bg-black text-white text-xs uppercase tracking-wider font-bold rounded-lg hover:bg-gray-800"
+                className="w-full py-2.5 bg-stone-900 text-white text-xs uppercase tracking-widest font-bold rounded-lg hover:bg-stone-800 transition-colors"
               >
                 Cerrar Detalle
               </button>

@@ -470,24 +470,24 @@ export const CheckoutPage: React.FC = () => {
             </div>
 
             {/* CÓDIGO DE SEGUIMIENTO / GUÍA */}
-            <div className="pt-3 border-t border-gray-200 flex flex-col sm:flex-row justify-between items-start sm:items-center gap-2 bg-indigo-50/70 p-3 rounded-xl border border-indigo-100">
+            <div className="pt-3 border-t border-gray-200 flex flex-col sm:flex-row justify-between items-start sm:items-center gap-2 bg-[#FAF8F5] p-3 rounded-xl border border-[#E7E1D7]">
               <div className="flex items-center gap-2.5">
-                <Truck className="w-5 h-5 text-indigo-600" />
+                <Truck className="w-5 h-5 text-[#9B7B54]" />
                 <div>
-                  <span className="text-[11px] text-indigo-700 uppercase font-bold tracking-wider block">
+                  <span className="text-[11px] text-[#9B7B54] uppercase font-bold tracking-wider block">
                     Guía de Rastreo Asignada
                   </span>
-                  <span className="font-mono font-bold text-indigo-950 text-sm">
+                  <span className="font-mono font-bold text-stone-900 text-sm">
                     {ordenCompletada.envio?.numeroTracking || `TRK-${ordenCompletada.nroOrden}`}
                   </span>
                 </div>
               </div>
               <Link
                 to={`/tracking/${ordenCompletada.envio?.numeroTracking || ordenCompletada.nroOrden}`}
-                className="text-xs font-bold text-indigo-600 hover:text-indigo-800 flex items-center gap-1"
+                className="text-xs font-bold text-stone-900 hover:text-[#9B7B54] flex items-center gap-1"
               >
                 <span>Ver Mapa Leaflet</span>
-                <ArrowRight className="w-3.5 h-3.5" />
+                <ArrowRight className="w-3.5 h-3.5 text-[#9B7B54]" />
               </Link>
             </div>
 
@@ -536,16 +536,16 @@ export const CheckoutPage: React.FC = () => {
           <div className="flex flex-col sm:flex-row items-center justify-center gap-4">
             <button
               onClick={() => window.print()}
-              className="w-full sm:w-auto px-6 py-3 border border-gray-300 rounded-xl font-bold text-gray-700 hover:bg-gray-100 flex items-center justify-center gap-2 text-sm transition"
+              className="w-full sm:w-auto px-6 py-3 border border-[#E7E1D7] rounded-xl font-bold text-stone-700 hover:bg-[#FAF8F5] flex items-center justify-center gap-2 text-sm transition"
             >
-              <Printer className="w-4 h-4" />
+              <Printer className="w-4 h-4 text-stone-500" />
               <span>Imprimir Comprobante</span>
             </button>
             <Link
               to={`/tracking/${ordenCompletada.envio?.numeroTracking || ordenCompletada.nroOrden}`}
-              className="w-full sm:w-auto px-6 py-3 bg-indigo-600 text-white rounded-xl font-bold hover:bg-indigo-700 flex items-center justify-center gap-2 text-sm shadow-md transition"
+              className="w-full sm:w-auto px-6 py-3 bg-[#FAF8F5] border border-[#E7E1D7] text-stone-900 hover:text-[#9B7B54] rounded-xl font-bold flex items-center justify-center gap-2 text-sm shadow-xs transition"
             >
-              <Truck className="w-4 h-4" />
+              <Truck className="w-4 h-4 text-[#9B7B54]" />
               <span>Rastrear Envío en Vivo</span>
             </Link>
             <Link
@@ -628,21 +628,21 @@ export const CheckoutPage: React.FC = () => {
                   <button
                     type="button"
                     onClick={abrirSelectorMapa}
-                    className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-indigo-50 hover:bg-indigo-100 text-indigo-700 text-xs font-bold rounded-xl border border-indigo-200 transition cursor-pointer shadow-sm"
+                    className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-[#FAF8F5] hover:bg-[#F2ECE1] text-stone-900 text-xs font-bold rounded-xl border border-[#E7E1D7] transition cursor-pointer shadow-xs"
                   >
-                    <MapPin className="w-3.5 h-3.5 text-indigo-600" />
+                    <MapPin className="w-3.5 h-3.5 text-[#9B7B54]" />
                     <span>Seleccionar en el Mapa</span>
                   </button>
                   <button
                     type="button"
                     onClick={obtenerUbicacionGPS}
                     disabled={geolocalizando}
-                    className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-emerald-50 hover:bg-emerald-100 text-emerald-800 text-xs font-bold rounded-xl border border-emerald-200 transition cursor-pointer disabled:opacity-50 shadow-sm"
+                    className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-[#FAF8F5] hover:bg-[#F2ECE1] text-stone-900 text-xs font-bold rounded-xl border border-[#E7E1D7] transition cursor-pointer disabled:opacity-50 shadow-xs"
                   >
                     {geolocalizando ? (
-                      <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                      <Loader2 className="w-3.5 h-3.5 animate-spin text-[#9B7B54]" />
                     ) : (
-                      <Navigation className="w-3.5 h-3.5 text-emerald-600" />
+                      <Navigation className="w-3.5 h-3.5 text-[#9B7B54]" />
                     )}
                     <span>{geolocalizando ? 'Detectando GPS...' : 'Mi GPS'}</span>
                   </button>
@@ -651,9 +651,9 @@ export const CheckoutPage: React.FC = () => {
 
               {/* INDICADOR DE UBICACIÓN FIJADA EN MAPA */}
               {coordenadas && (
-                <div className="p-3 bg-emerald-50/90 border border-emerald-200 rounded-xl flex items-center justify-between text-xs text-emerald-900">
+                <div className="p-3 bg-[#FAF8F5] border border-[#E7E1D7] rounded-xl flex items-center justify-between text-xs text-stone-900">
                   <div className="flex items-center gap-2">
-                    <CheckCircle2 className="w-4 h-4 text-emerald-600 flex-shrink-0" />
+                    <CheckCircle2 className="w-4 h-4 text-[#9B7B54] flex-shrink-0" />
                     <span>
                       Ubicación fijada en el mapa: <strong>Lat: {coordenadas.lat.toFixed(4)}, Lng: {coordenadas.lng.toFixed(4)}</strong>
                     </span>
@@ -661,7 +661,7 @@ export const CheckoutPage: React.FC = () => {
                   <button
                     type="button"
                     onClick={abrirSelectorMapa}
-                    className="text-indigo-600 font-bold hover:underline cursor-pointer"
+                    className="text-[#9B7B54] font-bold hover:underline cursor-pointer"
                   >
                     Cambiar punto
                   </button>
@@ -824,7 +824,7 @@ export const CheckoutPage: React.FC = () => {
                 >
                   <div className="flex items-center justify-between mb-2">
                     <CreditCard className={`w-5 h-5 ${metodoPago === 'tarjeta' ? 'text-black' : 'text-gray-400'}`} />
-                    <span className="text-[10px] font-black uppercase tracking-wider bg-indigo-100 text-indigo-800 px-2 py-0.5 rounded">
+                    <span className="text-[10px] font-bold uppercase tracking-wider bg-[#FAF8F5] text-stone-900 border border-[#E7E1D7] px-2 py-0.5 rounded">
                       Stripe
                     </span>
                   </div>
@@ -839,13 +839,13 @@ export const CheckoutPage: React.FC = () => {
                   onClick={() => setMetodoPago('qr')}
                   className={`p-4 rounded-xl border-2 text-left transition flex flex-col justify-between ${
                     metodoPago === 'qr'
-                      ? 'border-purple-700 bg-purple-50/50 shadow-sm'
+                      ? 'border-stone-900 bg-[#FAF8F5] shadow-xs'
                       : 'border-gray-200 hover:border-gray-300 bg-white'
                   }`}
                 >
                   <div className="flex items-center justify-between mb-2">
-                    <QrCode className={`w-5 h-5 ${metodoPago === 'qr' ? 'text-purple-700' : 'text-gray-400'}`} />
-                    <span className="text-[10px] font-black uppercase tracking-wider bg-purple-100 text-purple-800 px-2 py-0.5 rounded">
+                    <QrCode className={`w-5 h-5 ${metodoPago === 'qr' ? 'text-[#9B7B54]' : 'text-gray-400'}`} />
+                    <span className="text-[10px] font-bold uppercase tracking-wider bg-[#FAF8F5] text-[#9B7B54] border border-[#E7E1D7] px-2 py-0.5 rounded">
                       QR Simple
                     </span>
                   </div>
@@ -880,30 +880,30 @@ export const CheckoutPage: React.FC = () => {
               {/* CONTENIDO SEGÚN MÉTODO DE PAGO */}
               {metodoPago === 'tarjeta' ? (
                 <div className="space-y-4 pt-2">
-                  <div className="bg-indigo-50/50 border border-indigo-100 rounded-2xl p-4 flex items-center justify-between gap-3">
+                  <div className="bg-[#FAF8F5] border border-[#E7E1D7] rounded-2xl p-4 flex items-center justify-between gap-3">
                     <div className="flex items-center gap-3">
-                      <div className="w-10 h-10 rounded-xl bg-indigo-600 text-white flex items-center justify-center font-bold text-sm shadow-md">
+                      <div className="w-10 h-10 rounded-xl bg-stone-900 text-[#9B7B54] flex items-center justify-center font-bold text-sm shadow-xs">
                         <Lock className="w-5 h-5" />
                       </div>
                       <div>
-                        <h4 className="font-bold text-sm text-gray-900">Stripe Embedded Checkout Oficial</h4>
-                        <p className="text-xs text-gray-500">Formulario seguro incrustado con cifrado bancario de Stripe</p>
+                        <h4 className="font-serif font-bold text-sm text-stone-900">Stripe Embedded Checkout Oficial</h4>
+                        <p className="text-xs text-stone-500">Formulario seguro incrustado con cifrado bancario de Stripe</p>
                       </div>
                     </div>
-                    <span className="text-[10px] font-black uppercase tracking-wider bg-indigo-100 text-indigo-800 px-2.5 py-1 rounded-full">
+                    <span className="text-[10px] font-bold uppercase tracking-wider bg-stone-900 text-[#FAF8F5] px-2.5 py-1 rounded-full">
                       PCI-DSS Verificado
                     </span>
                   </div>
 
                   {/* CONTENEDOR DE STRIPE EMBEDDED CHECKOUT */}
                   {!embeddedSessionId ? (
-                    <div className="p-8 bg-gray-50 rounded-2xl border-2 border-dashed border-gray-300 text-center space-y-4">
-                      <div className="w-14 h-14 rounded-2xl bg-indigo-100 text-indigo-600 flex items-center justify-center mx-auto shadow-inner">
+                    <div className="p-8 bg-[#FAF8F5] rounded-2xl border-2 border-dashed border-[#E7E1D7] text-center space-y-4">
+                      <div className="w-14 h-14 rounded-2xl bg-white border border-[#E7E1D7] text-[#9B7B54] flex items-center justify-center mx-auto shadow-xs">
                         <CreditCard className="w-7 h-7" />
                       </div>
                       <div>
-                        <h4 className="font-bold text-base text-gray-900">Pasarela de Tarjetas Lista</h4>
-                        <p className="text-xs text-gray-500 max-w-sm mx-auto mt-1">
+                        <h4 className="font-serif font-bold text-base text-stone-900">Pasarela de Tarjetas Lista</h4>
+                        <p className="text-xs text-stone-500 max-w-sm mx-auto mt-1">
                           Acepta tarjetas de débito/crédito (Visa, Mastercard, Amex) y métodos digitales de forma directa.
                         </p>
                       </div>
@@ -912,16 +912,16 @@ export const CheckoutPage: React.FC = () => {
                         type="button"
                         onClick={inicializarEmbeddedCheckout}
                         disabled={cargandoEmbedded}
-                        className="px-6 py-3.5 bg-black text-white text-sm font-bold rounded-xl hover:bg-gray-800 transition shadow-lg inline-flex items-center gap-2 cursor-pointer"
+                        className="px-6 py-3.5 bg-stone-900 text-white text-sm font-bold rounded-xl hover:bg-stone-800 transition shadow-xs inline-flex items-center gap-2 cursor-pointer"
                       >
                         {cargandoEmbedded ? (
                           <>
-                            <Loader2 className="w-4 h-4 animate-spin" />
+                            <Loader2 className="w-4 h-4 animate-spin text-[#9B7B54]" />
                             <span>Iniciando Pasarela Stripe...</span>
                           </>
                         ) : (
                           <>
-                            <Lock className="w-4 h-4" />
+                            <Lock className="w-4 h-4 text-[#9B7B54]" />
                             <span>Abrir Formulario Seguro de Tarjeta</span>
                           </>
                         )}
@@ -937,7 +937,7 @@ export const CheckoutPage: React.FC = () => {
                         <button
                           type="button"
                           onClick={inicializarEmbeddedCheckout}
-                          className="text-indigo-600 hover:text-indigo-800 font-bold flex items-center gap-1 hover:underline cursor-pointer"
+                          className="text-stone-700 hover:text-[#9B7B54] font-bold flex items-center gap-1 hover:underline cursor-pointer"
                         >
                           <RotateCcw className="w-3.5 h-3.5" />
                           <span>Reiniciar formulario</span>
@@ -954,27 +954,19 @@ export const CheckoutPage: React.FC = () => {
                 /* OPCIÓN: PAGO CON QR SIMPLE (MODELO A CUSTODIA O MODELO B DIRECTO) */
                 <div className="space-y-4 pt-2">
                   <div
-                    className={`border rounded-2xl p-4 flex items-center justify-between gap-3 ${
-                      configPago?.modalidad === 'MODELO_B_DIRECTO'
-                        ? 'bg-emerald-50/70 border-emerald-200'
-                        : 'bg-purple-50/70 border-purple-200'
-                    }`}
+                    className="border border-[#E7E1D7] bg-[#FAF8F5] rounded-2xl p-4 flex items-center justify-between gap-3"
                   >
                     <div className="flex items-center gap-3">
-                      <div
-                        className={`w-10 h-10 rounded-xl text-white flex items-center justify-center font-bold text-sm shadow-md ${
-                          configPago?.modalidad === 'MODELO_B_DIRECTO' ? 'bg-emerald-600' : 'bg-purple-600'
-                        }`}
-                      >
+                      <div className="w-10 h-10 rounded-xl text-[#9B7B54] bg-stone-900 flex items-center justify-center font-bold text-sm shadow-xs">
                         <QrCode className="w-5 h-5" />
                       </div>
                       <div>
-                        <h4 className="font-bold text-sm text-gray-900">
+                        <h4 className="font-serif font-bold text-sm text-stone-900">
                           {configPago?.modalidad === 'MODELO_B_DIRECTO'
                             ? `Cobro Directo · ${configPago.nombre}`
                             : 'AURA Pagos (Transferencia QR Central)'}
                         </h4>
-                        <p className="text-xs text-gray-500">
+                        <p className="text-xs text-stone-500">
                           {configPago?.modalidad === 'MODELO_B_DIRECTO'
                             ? `Transfiere directamente a la cuenta verificada de la tienda ${configPago.nombre}`
                             : `Pago centralizado en custodia para la tienda ${configPago?.nombre || 'activa'}`}
@@ -982,22 +974,16 @@ export const CheckoutPage: React.FC = () => {
                       </div>
                     </div>
                     <span
-                      className={`text-[10px] font-black uppercase tracking-wider px-2.5 py-1 rounded-full ${
-                        configPago?.modalidad === 'MODELO_B_DIRECTO'
-                          ? 'bg-emerald-100 text-emerald-800 border border-emerald-200'
-                          : 'bg-purple-100 text-purple-800 border border-purple-200'
-                      }`}
+                      className="text-[10px] font-bold uppercase tracking-wider px-2.5 py-1 rounded-full bg-[#FAF8F5] text-stone-900 border border-[#E7E1D7]"
                     >
                       {configPago?.modalidad === 'MODELO_B_DIRECTO' ? 'Modelo B · Cobro Directo' : 'Modelo A · En Custodia'}
                     </span>
                   </div>
 
                   <div
-                    className={`bg-white border-2 border-dashed rounded-2xl p-6 flex flex-col items-center text-center space-y-4 ${
-                      configPago?.modalidad === 'MODELO_B_DIRECTO' ? 'border-emerald-200' : 'border-purple-200'
-                    }`}
+                    className="bg-white border-2 border-dashed border-[#E7E1D7] rounded-2xl p-6 flex flex-col items-center text-center space-y-4"
                   >
-                    <div className="p-3 bg-white rounded-2xl shadow-md border border-gray-200 inline-block">
+                    <div className="p-3 bg-white rounded-2xl shadow-xs border border-[#E7E1D7] inline-block">
                       <img
                         src={configPago?.qrUrl || '/qr_pago_aura.png'}
                         alt={`Código QR de Pago - ${configPago?.nombre || 'AURA'}`}
@@ -1006,40 +992,40 @@ export const CheckoutPage: React.FC = () => {
                     </div>
 
                     {/* Ficha Informativa de la Cuenta */}
-                    <div className="w-full max-w-sm bg-gray-50 border border-gray-200 rounded-xl p-3.5 text-xs text-left space-y-1.5">
+                    <div className="w-full max-w-sm bg-[#FAF8F5] border border-[#E7E1D7] rounded-xl p-3.5 text-xs text-left space-y-1.5">
                       <div className="flex justify-between items-center">
-                        <span className="text-gray-500 font-medium">Titular de Cuenta:</span>
-                        <span className="font-bold text-gray-900">{configPago?.titularCuenta || 'AURA S.R.L.'}</span>
+                        <span className="text-stone-500 font-medium">Titular de Cuenta:</span>
+                        <span className="font-bold text-stone-900">{configPago?.titularCuenta || 'AURA S.R.L.'}</span>
                       </div>
                       <div className="flex justify-between items-center">
-                        <span className="text-gray-500 font-medium">Banco:</span>
-                        <span className="font-semibold text-gray-800">{configPago?.banco || 'Banco Nacional de Bolivia'}</span>
+                        <span className="text-stone-500 font-medium">Banco:</span>
+                        <span className="font-semibold text-stone-800">{configPago?.banco || 'Banco Nacional de Bolivia'}</span>
                       </div>
                       {configPago?.numeroCuenta && (
                         <div className="flex justify-between items-center">
-                          <span className="text-gray-500 font-medium">Nro. de Cuenta:</span>
-                          <span className="font-mono font-semibold text-gray-800">{configPago.numeroCuenta}</span>
+                          <span className="text-stone-500 font-medium">Nro. de Cuenta:</span>
+                          <span className="font-mono font-semibold text-stone-800">{configPago.numeroCuenta}</span>
                         </div>
                       )}
-                      <p className="pt-1.5 border-t border-gray-200 text-[11px] text-gray-500 leading-relaxed">
+                      <p className="pt-1.5 border-t border-[#E7E1D7] text-[11px] text-stone-500 leading-relaxed">
                         {configPago?.descripcion}
                       </p>
                     </div>
 
                     <div className="space-y-1 max-w-sm">
-                      <p className="text-xs text-gray-500 uppercase tracking-wider font-semibold">Monto a transferir:</p>
-                      <p className="text-2xl font-black text-gray-900 font-mono">
-                        ${totalFinal.toFixed(2)} USD <span className="text-xs font-normal text-gray-500">(o equivalente en Bs)</span>
+                      <p className="text-xs text-stone-500 uppercase tracking-wider font-semibold">Monto a transferir:</p>
+                      <p className="text-2xl font-serif font-bold text-stone-900 font-mono">
+                        ${totalFinal.toFixed(2)} USD <span className="text-xs font-normal text-stone-500">(o equivalente en Bs)</span>
                       </p>
-                      <p className="text-xs text-gray-500 mt-2 leading-relaxed">
+                      <p className="text-xs text-stone-500 mt-2 leading-relaxed">
                         1. Abre tu aplicación bancaria móvil (Banco Unión, BNB, BCP, Mercantil Santa Cruz, etc.).<br />
                         2. Escanea el código QR de arriba y confirma la transacción.<br />
                         3. Ingresa tu número de comprobante o referencia y confirma tu pedido.
                       </p>
                     </div>
 
-                    <div className="w-full max-w-sm text-left pt-2 border-t border-gray-100">
-                      <label className="block text-xs font-bold text-gray-700 uppercase mb-1">
+                    <div className="w-full max-w-sm text-left pt-2 border-t border-[#E7E1D7]">
+                      <label className="block text-xs font-bold text-stone-700 uppercase mb-1">
                         Nro. de Comprobante / Referencia Bancaria (Opcional)
                       </label>
                       <input
@@ -1047,7 +1033,7 @@ export const CheckoutPage: React.FC = () => {
                         placeholder="Ej. TRX-984321 o número de operación"
                         value={nroComprobanteQr}
                         onChange={(e) => setNroComprobanteQr(e.target.value)}
-                        className="w-full px-3.5 py-2.5 bg-gray-50 border border-gray-300 rounded-xl text-sm focus:bg-white focus:ring-2 focus:ring-purple-600 focus:outline-none transition"
+                        className="w-full px-3.5 py-2.5 bg-[#FAF8F5] border border-[#E7E1D7] rounded-xl text-sm focus:bg-white focus:ring-1 focus:ring-[#9B7B54] focus:border-[#9B7B54] focus:outline-none transition"
                       />
                     </div>
 
@@ -1055,11 +1041,7 @@ export const CheckoutPage: React.FC = () => {
                       type="button"
                       onClick={procesarPagoQr}
                       disabled={procesando}
-                      className={`w-full max-w-sm py-4 text-white text-sm font-black rounded-xl transition shadow-lg flex items-center justify-center gap-2 cursor-pointer ${
-                        configPago?.modalidad === 'MODELO_B_DIRECTO'
-                          ? 'bg-emerald-600 hover:bg-emerald-700'
-                          : 'bg-purple-700 hover:bg-purple-800'
-                      }`}
+                      className="w-full max-w-sm py-4 text-white text-sm font-bold bg-stone-900 hover:bg-stone-800 rounded-xl transition shadow-xs flex items-center justify-center gap-2 cursor-pointer"
                     >
                       {procesando ? (
                         <>
@@ -1242,11 +1224,11 @@ export const CheckoutPage: React.FC = () => {
             {/* CABECERA DEL MODAL */}
             <div className="p-5 border-b border-gray-100 flex items-center justify-between bg-gray-50/80">
               <div className="flex items-center gap-2.5">
-                <div className="w-9 h-9 rounded-xl bg-indigo-600 text-white flex items-center justify-center shadow-sm">
+                <div className="w-9 h-9 rounded-xl bg-stone-900 text-[#9B7B54] flex items-center justify-center shadow-xs">
                   <MapPin className="w-5 h-5" />
                 </div>
                 <div>
-                  <h3 className="font-black text-base text-gray-900">Seleccionar Punto en el Mapa</h3>
+                  <h3 className="font-serif font-bold text-base text-gray-900">Seleccionar Punto en el Mapa</h3>
                   <p className="text-xs text-gray-500">Haz clic o arrastra el marcador 📍 hasta la puerta de tu casa</p>
                 </div>
               </div>
@@ -1271,9 +1253,9 @@ export const CheckoutPage: React.FC = () => {
                 className="absolute top-3 right-3 z-10 bg-white/95 backdrop-blur-sm px-3.5 py-2 rounded-xl shadow-lg border border-gray-200 text-xs font-bold text-gray-800 hover:bg-white flex items-center gap-1.5 transition cursor-pointer"
               >
                 {geolocalizando ? (
-                  <Loader2 className="w-3.5 h-3.5 animate-spin text-indigo-600" />
+                  <Loader2 className="w-3.5 h-3.5 animate-spin text-[#9B7B54]" />
                 ) : (
-                  <Navigation className="w-3.5 h-3.5 text-indigo-600" />
+                  <Navigation className="w-3.5 h-3.5 text-[#9B7B54]" />
                 )}
                 <span>{geolocalizando ? 'Obteniendo GPS...' : 'Usar mi GPS'}</span>
               </button>
@@ -1288,7 +1270,7 @@ export const CheckoutPage: React.FC = () => {
                 <div className="p-3 bg-white border border-gray-200 rounded-xl font-medium text-gray-800 flex items-center gap-2 min-h-[42px] shadow-sm">
                   {cargandoGeocodificacion ? (
                     <>
-                      <Loader2 className="w-4 h-4 animate-spin text-indigo-600 flex-shrink-0" />
+                      <Loader2 className="w-4 h-4 animate-spin text-[#9B7B54] flex-shrink-0" />
                       <span className="text-gray-400">Identificando nombre de calle y zona...</span>
                     </>
                   ) : (
@@ -1308,9 +1290,9 @@ export const CheckoutPage: React.FC = () => {
                 <button
                   type="button"
                   onClick={confirmarUbicacionModal}
-                  className="px-5 py-2.5 rounded-xl bg-indigo-600 hover:bg-indigo-700 text-white text-xs font-bold transition shadow-md flex items-center gap-1.5 cursor-pointer"
+                  className="px-5 py-2.5 rounded-xl bg-stone-900 hover:bg-stone-800 text-white text-xs font-bold transition shadow-xs flex items-center gap-1.5 cursor-pointer"
                 >
-                  <CheckCircle2 className="w-4 h-4" />
+                  <CheckCircle2 className="w-4 h-4 text-[#9B7B54]" />
                   <span>Confirmar esta Ubicación</span>
                 </button>
               </div>

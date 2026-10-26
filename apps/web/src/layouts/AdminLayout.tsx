@@ -60,9 +60,9 @@ export const AdminLayout: React.FC = () => {
   ];
 
   return (
-    <div className="min-h-screen flex bg-gray-50">
+    <div className="min-h-screen flex bg-[#FAF8F5] text-stone-900 font-sans">
       {/* SIDEBAR */}
-      <aside className="w-64 bg-gray-950 text-white flex flex-col shrink-0 border-r border-gray-800 shadow-xl z-20">
+      <aside className="w-64 bg-[#161513] text-stone-100 flex flex-col shrink-0 border-r border-[#2A2723] shadow-xl z-20">
         <div className="p-6 space-y-6 flex-1 overflow-y-auto">
           {/* Logo */}
           <div className="flex items-center gap-3">
@@ -71,12 +71,12 @@ export const AdminLayout: React.FC = () => {
             </span>
             <div>
               <h2 className="text-sm font-bold tracking-[0.2em] text-white uppercase font-serif">AURA</h2>
-              <span className="text-[10px] text-gray-400 font-mono tracking-widest uppercase">Atelier Admin</span>
+              <span className="text-[10px] text-stone-400 font-mono tracking-widest uppercase">Atelier Admin</span>
             </div>
           </div>
 
           {/* Navigation Items */}
-          <nav className="flex flex-col space-y-1.5 text-xs font-semibold">
+          <nav className="flex flex-col space-y-1 text-xs font-semibold">
             {navItems.map((item) => {
               const Icon = item.icon;
               return (
@@ -87,8 +87,8 @@ export const AdminLayout: React.FC = () => {
                   className={({ isActive }) =>
                     `flex items-center gap-3 px-3.5 py-2.5 rounded-lg transition-all ${
                       isActive
-                        ? 'bg-white text-black font-bold shadow-sm'
-                        : 'text-gray-400 hover:text-white hover:bg-gray-900'
+                        ? 'bg-white text-stone-900 font-bold shadow-sm'
+                        : 'text-stone-400 hover:text-white hover:bg-stone-900/60'
                     }`
                   }
                 >
@@ -104,10 +104,10 @@ export const AdminLayout: React.FC = () => {
         <AdminPlanBadge />
 
         {/* Footer Back Link */}
-        <div className="p-4 border-t border-gray-900 space-y-2">
+        <div className="p-4 border-t border-stone-800 space-y-2">
           <Link
             to="/t/aura"
-            className="text-xs text-gray-300 hover:text-white transition-colors flex items-center gap-2 font-medium"
+            className="text-xs text-stone-300 hover:text-white transition-colors flex items-center gap-2 font-medium"
           >
             <ArrowLeft className="w-4 h-4 text-[#9B7B54]" />
             <span>Ver Tienda Pública</span>
@@ -115,7 +115,7 @@ export const AdminLayout: React.FC = () => {
           <div className="flex items-center justify-between pt-1">
             <Link
               to="/"
-              className="text-[11px] text-gray-500 hover:text-gray-300 transition-colors flex items-center gap-1.5 font-sans"
+              className="text-[11px] text-stone-500 hover:text-stone-300 transition-colors flex items-center gap-1.5 font-sans"
             >
               <span>Plataforma SaaS</span>
             </Link>
@@ -132,9 +132,8 @@ export const AdminLayout: React.FC = () => {
         </div>
       </aside>
 
-
       {/* MAIN CONTENT */}
-      <main className="flex-1 p-6 lg:p-8 overflow-y-auto">
+      <main className="flex-1 p-6 lg:p-8 overflow-y-auto bg-[#FAF8F5]">
         <Outlet />
       </main>
     </div>
