@@ -511,8 +511,14 @@ El docente pidió persistencia local en el móvil con SQLite. La aplicación mó
 
 La lógica del repositorio recibe una interfaz mínima de base de datos (`Db`); en la aplicación la implementa `expo-sqlite`
 y en las pruebas `node:sqlite`. Pruebas: 61 en `apps/mobile` (`pnpm test`) y `tsc` sin errores.
-**No se ejecutó en un teléfono ni en un emulador:** falta comprobar `expo-sqlite` real, el diseño táctil y la
-reconexión con NetInfo, y puede hacer falta `expo prebuild` o un nuevo cliente de desarrollo por el complemento nativo.
+**Verificación en emulador (Android 37, Pixel 6, APK de depuración con `expo-sqlite` real):** se entró como administrador, se
+cortó la red del emulador, se guardaron dos ventas en SQLite (la cola mostró "2 por enviar" y el stock local bajó), y al
+volver la red la primera se registró en el servidor (pedido NV-2026-00008) y la segunda quedó como "Venta en conflicto /
+quiebre de stock" porque otro vendedor había tomado el stock. Tras reponer stock, "Reintentar" la registró (NV-2026-00009)
+y el servidor descontó el stock una sola vez. La cola sobrevivió a cerrar y reabrir la aplicación. **Sin comprobar en el
+emulador:** el límite de 7 días (solo con pruebas automáticas), un teléfono físico y el flujo de compilación estándar
+(`expo run:android`); la prueba usó un APK de depuración con el JavaScript incrustado a mano, por lo que los íconos
+vectoriales no se vieron.
 
 ### 8.2 Notificaciones push (PWA)
 

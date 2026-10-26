@@ -79,9 +79,10 @@ Conviene conectar el equipo al menos una vez al día para que las ventas lleguen
 
 La aplicación móvil tiene la misma pantalla en **Perfil, Punto de venta (funciona sin internet)**, visible solo para
 administradores. Guarda los datos en SQLite y funciona igual: catálogo local, cola, conflictos y el límite de 7
-días. **Estado de verificación:** el código y sus pruebas automáticas pasan, pero todavía no se probó en un teléfono
-o emulador. Antes del examen hay que compilar la aplicación con `expo-sqlite` (puede requerir `expo prebuild` o un
-nuevo cliente de desarrollo) y repetir en el dispositivo los pasos de las secciones 3 a 5.
+días. **Estado de verificación:** se probó en un emulador Android (Pixel 6): vender sin red, sincronizar al volver, un conflicto
+de stock, "Reintentar" y que la cola sobreviva a cerrar la aplicación. Falta probarla en un teléfono físico y comprobar
+en el dispositivo el límite de 7 días (cubierto solo con pruebas automáticas). Para ejecutarla hay que compilar la aplicación
+con `expo-sqlite` (`expo run:android` o un nuevo cliente de desarrollo).
 
 ## 8. Problemas frecuentes
 
