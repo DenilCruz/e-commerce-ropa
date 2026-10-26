@@ -1,11 +1,11 @@
-import { ApiProperty } from '@nestjs/swagger';
-import { IsUUID, IsNotEmpty } from 'class-validator';
+import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
+import { IsUUID, IsNotEmpty, IsOptional } from 'class-validator';
 
 export class AgregarFavoritoDto {
-  @ApiProperty({ description: 'ID del usuario (Temporal hasta integrar JWT)' })
+  @ApiPropertyOptional({ description: 'ID del usuario; si se envía debe ser el de la sesión (siempre se usa el del token)' })
   @IsUUID()
-  @IsNotEmpty()
-  usuarioId: string;
+  @IsOptional()
+  usuarioId?: string;
 
   @ApiProperty({ description: 'ID del producto a guardar en favoritos' })
   @IsUUID()

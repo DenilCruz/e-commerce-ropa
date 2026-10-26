@@ -3,10 +3,10 @@ import { IsUUID, IsNotEmpty, IsOptional, IsInt, Min, IsBoolean } from 'class-val
 import { Type } from 'class-transformer';
 
 export class MoverFavoritoAlCarritoDto {
-  @ApiProperty({ description: 'ID del usuario autenticado' })
+  @ApiPropertyOptional({ description: 'ID del usuario; si se envía debe ser el de la sesión (siempre se usa el del token)' })
   @IsUUID('4', { message: 'El usuarioId debe ser un UUID válido' })
-  @IsNotEmpty({ message: 'El usuarioId es obligatorio' })
-  usuarioId: string;
+  @IsOptional()
+  usuarioId?: string;
 
   @ApiProperty({ description: 'ID del producto en favoritos' })
   @IsUUID('4', { message: 'El productoId debe ser un UUID válido' })

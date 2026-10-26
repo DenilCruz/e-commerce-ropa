@@ -9,9 +9,15 @@ import {
   Query, 
   HttpCode, 
   HttpStatus, 
-  ParseUUIDPipe 
+  ParseUUIDPipe,
+  UseGuards,
 } from '@nestjs/common';
 import { ApiTags, ApiOperation, ApiResponse, ApiParam, ApiQuery } from '@nestjs/swagger';
+import { JwtAuthGuard } from '../autenticacion/guards/jwt-auth.guard';
+import { RolesGuard } from '../autenticacion/guards/roles.guard';
+import { Roles } from '../autenticacion/decorators/roles.decorator';
+import { CurrentUser } from '../autenticacion/decorators/current-user.decorator';
+import { exigirMismoUsuario } from '../../common/auth/solo-propio-usuario';
 import { ResenasService } from './reviews.service';
 import { CrearResenaDto } from './dto/crear-resena.dto';
 import { ActualizarResenaDto } from './dto/actualizar-resena.dto';
@@ -31,6 +37,7 @@ export class ResenasController {
   }
 
   @Get('verificar-compra/:productoId/:usuarioId')
+  @UseGuards(JwtAuthGuard)
   @ApiOperation({ summary: 'HU-66: Verificar si el usuario compró el producto y si ya dejó reseña' })
   @ApiParam({ name: 'productoId', description: 'ID del producto' })
   @ApiParam({ name: 'usuarioId', description: 'ID del usuario' })
@@ -38,8 +45,9 @@ export class ResenasController {
   verificarCompra(
     @Param('productoId', ParseUUIDPipe) productoId: string,
     @Param('usuarioId', ParseUUIDPipe) usuarioId: string,
+    @CurrentUser('userId') usuarioToken: string,
   ): Promise<EstadoCompraResenaDto> {
-    return this.servicioResenas.verificarCompraCliente(productoId, usuarioId);
+    return this.servicioResenas.verificarCompraCliente(productoId, exigirMismoUsuario(usuarioId, usuarioToken));
   }
 
   @Post('simular-compra')
@@ -87,12 +95,16 @@ export class ResenasController {
   // --- Endpoints Administrativos de Moderación (HU-69) ---
 
   @Get('admin/kpis')
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles('ADMIN', 'SUPERADMIN')
   @ApiOperation({ summary: 'HU-69: Obtener KPIs de moderación de reseñas para el panel admin' })
   obtenerKpisAdmin() {
     return this.servicioResenas.obtenerKpisAdmin();
   }
 
   @Get('admin/todas')
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles('ADMIN', 'SUPERADMIN')
   @ApiOperation({ summary: 'HU-69: Listar todas las reseñas con filtros de moderación' })
   @ApiQuery({ name: 'busqueda', required: false })
   @ApiQuery({ name: 'estado', required: false, enum: ['todas', 'aprobadas', 'ocultas'] })
@@ -104,6 +116,8 @@ export class ResenasController {
   }
 
   @Put('admin/:id/moderar')
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles('ADMIN', 'SUPERADMIN')
   @ApiOperation({ summary: 'HU-69: Alternar visibilidad de reseña (ocultar spam / activar)' })
   @ApiParam({ name: 'id', description: 'ID de la reseña' })
   moderarResena(@Param('id', ParseUUIDPipe) id: string) {
@@ -111,6 +125,8 @@ export class ResenasController {
   }
 
   @Delete('admin/:id')
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles('ADMIN', 'SUPERADMIN')
   @HttpCode(HttpStatus.NO_CONTENT)
   @ApiOperation({ summary: 'HU-69: Eliminar permanentemente una reseña ofensiva o spam' })
   @ApiParam({ name: 'id', description: 'ID de la reseña' })
