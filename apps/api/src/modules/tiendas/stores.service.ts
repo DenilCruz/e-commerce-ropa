@@ -13,6 +13,7 @@ import { UserEntity } from '../usuarios/entities/user.entity';
 import { RoleEntity } from '../usuarios/entities/role.entity';
 import { CategoriaEntity } from '../categorias/entities/category.entity';
 import { CrearTiendaDto } from './dto/crear-tienda.dto';
+import { ActualizarConfigPagoDto } from './dto/actualizar-config-pago.dto';
 import { TenantContext } from '../../common/tenant/tenant-context';
 
 export const PLAN_INICIAL = 'FREE_TRIAL';
@@ -97,12 +98,15 @@ export class StoresService {
     if (!rolAdmin) throw new BadRequestException('El rol ADMIN no existe en el sistema.');
 
     const nombre = dto.nombre.trim();
+    const planElegido = (dto.plan?.toUpperCase() === 'ESTANDAR' || dto.plan?.toUpperCase() === 'CORPORATIVO')
+      ? dto.plan.toUpperCase()
+      : PLAN_INICIAL;
 
     // Two sign-ups with the same name can pick the same slug at once: the loser retries with the next one
     for (let intento = 1; intento <= MAX_INTENTOS_SLUG; intento++) {
       const slug = await this.slugDisponible(generarSlugBase(nombre));
       try {
-        return await this.aprovisionar(usuarioId, rolAdmin.id, nombre, slug);
+        return await this.aprovisionar(usuarioId, rolAdmin.id, nombre, slug, planElegido);
       } catch (error) {
         if (!esSlugDuplicado(error)) throw error;
       }
@@ -111,7 +115,13 @@ export class StoresService {
   }
 
   /** Creates the tenant and its workspace in one transaction, under the new tenant's own context. */
-  private async aprovisionar(usuarioId: string, rolAdminId: string, nombre: string, slug: string): Promise<StoreEntity> {
+  private async aprovisionar(
+    usuarioId: string,
+    rolAdminId: string,
+    nombre: string,
+    slug: string,
+    plan: string = PLAN_INICIAL,
+  ): Promise<StoreEntity> {
     // The new store is a different tenant than the request's one
     const tiendaId = (await this.dataSource.query('SELECT uuid_generate_v4() AS id'))[0].id as string;
 
@@ -125,7 +135,7 @@ export class StoresService {
             id: tiendaId,
             nombre,
             slug,
-            plan: PLAN_INICIAL,
+            plan,
             propietarioId: usuarioId,
           }),
         );
@@ -162,4 +172,131 @@ export class StoresService {
     }
     return candidato;
   }
+
+  /**
+   * Consulta pública de pasarela para el Checkout del cliente.
+   * Si la tienda subió su QR propio, opera en MODELO B (Cobro Directo).
+   * Si no tiene QR propio, opera en MODELO A (Custodia Central AURA).
+   */
+  async obtenerConfigPagoPublica(slugOId?: string) {
+    let tienda: StoreEntity | null = null;
+    const isUuid = slugOId && /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(slugOId);
+
+    if (slugOId) {
+      if (isUuid) {
+        tienda = await this.storeRepo.findOne({ where: { id: slugOId, estado: 'ACTIVA' } });
+      } else {
+        tienda = await this.storeRepo.findOne({ where: { slug: slugOId.toLowerCase().trim(), estado: 'ACTIVA' } });
+      }
+    }
+
+    if (!tienda) {
+      const activeTenant = TenantContext.get();
+      if (activeTenant) {
+        tienda = await this.storeRepo.findOne({ where: { id: activeTenant, estado: 'ACTIVA' } });
+      }
+    }
+
+    if (!tienda) {
+      tienda = await this.storeRepo.findOne({ where: { slug: 'aura' } });
+    }
+
+    if (!tienda) {
+      throw new NotFoundException('Tienda no encontrada.');
+    }
+
+    const tieneQrPropio = Boolean(tienda.qrUrl && tienda.qrUrl.trim() !== '');
+
+    if (tieneQrPropio) {
+      return {
+        tiendaId: tienda.id,
+        nombre: tienda.nombre,
+        slug: tienda.slug,
+        modalidad: 'MODELO_B_DIRECTO',
+        tituloModalidad: `Cobro Directo · ${tienda.nombre}`,
+        qrUrl: tienda.qrUrl,
+        titularCuenta: tienda.titularCuenta || tienda.nombre,
+        banco: tienda.banco || 'Banca Móvil QR Simple',
+        numeroCuenta: tienda.numeroCuenta || '',
+        descripcion: `Cobro directo acreditado directamente a la cuenta bancaria de ${tienda.nombre}.`,
+      };
+    }
+
+    return {
+      tiendaId: tienda.id,
+      nombre: tienda.nombre,
+      slug: tienda.slug,
+      modalidad: 'MODELO_A_CUSTODIA',
+      tituloModalidad: 'AURA Pagos · Sistema Central en Custodia',
+      qrUrl: '/qr_pago_aura.png',
+      titularCuenta: 'AURA S.R.L. (Plataforma Oficial)',
+      banco: 'Banco Nacional de Bolivia (BNB)',
+      numeroCuenta: '1000004928371',
+      descripcion: `Pago en custodia procesado por la plataforma central AURA. El saldo neto se acreditará al balance contable de ${tienda.nombre}.`,
+    };
+  }
+
+  /**
+   * Vista administrativa para el dueño de la tienda:
+   * Muestra la configuración actual y el saldo acumulado en custodia (Modelo A).
+   */
+  async obtenerConfigPagoAdmin(tiendaId: string) {
+    const tienda = await this.storeRepo.findOne({ where: { id: tiendaId } });
+    if (!tienda) throw new NotFoundException('Tienda no encontrada.');
+
+    // Calcular ventas acumuladas en custodia para esta tienda
+    const stats = await this.dataSource.query(
+      `SELECT COALESCE(SUM(p.monto), 0) AS total_recaudado, COUNT(p.id) AS total_ventas 
+       FROM pago p 
+       WHERE p.tenant_id = $1 AND p.estado = 'APROBADO'`,
+      [tiendaId],
+    );
+
+    const saldo = parseFloat(stats[0]?.total_recaudado || '0');
+    const totalVentas = parseInt(stats[0]?.total_ventas || '0', 10);
+    const tieneQr = Boolean(tienda.qrUrl && tienda.qrUrl.trim() !== '');
+
+    return {
+      tienda: {
+        id: tienda.id,
+        nombre: tienda.nombre,
+        slug: tienda.slug,
+        plan: tienda.plan,
+        qrUrl: tienda.qrUrl,
+        titularCuenta: tienda.titularCuenta,
+        banco: tienda.banco,
+        numeroCuenta: tienda.numeroCuenta,
+        modalidadPagoActiva: tieneQr ? 'MODELO_B_DIRECTO' : 'MODELO_A_CUSTODIA',
+      },
+      billeteraCustodia: {
+        saldoAcumulado: saldo,
+        totalVentas,
+        estadoLiquidacion: saldo > 0 ? 'DISPONIBLE_PARA_RETIRO' : 'SIN_FONDOS_PENDIENTES',
+        descripcion: tieneQr
+          ? 'Tu tienda está operando en MODELO B (Cobro Directo): Los clientes te transfieren directamente a tu QR bancario personal.'
+          : 'Tu tienda está operando en MODELO A (Custodia Central AURA): Los fondos se recaudan en la cuenta oficial de AURA y se acreditan a tu saldo contable hasta que configures tu QR.',
+      },
+    };
+  }
+
+  /**
+   * Guarda o actualiza la configuración de pasarela del dueño de la tienda.
+   */
+  async actualizarConfigPagoAdmin(tiendaId: string, dto: ActualizarConfigPagoDto) {
+    const tienda = await this.storeRepo.findOne({ where: { id: tiendaId } });
+    if (!tienda) throw new NotFoundException('Tienda no encontrada.');
+
+    if (dto.qrUrl !== undefined) tienda.qrUrl = dto.qrUrl;
+    if (dto.titularCuenta !== undefined) tienda.titularCuenta = dto.titularCuenta;
+    if (dto.banco !== undefined) tienda.banco = dto.banco;
+    if (dto.numeroCuenta !== undefined) tienda.numeroCuenta = dto.numeroCuenta;
+
+    tienda.modalidadPagoActiva = (tienda.qrUrl && tienda.qrUrl.trim() !== '')
+      ? 'MODELO_B_DIRECTO'
+      : 'MODELO_A_CUSTODIA';
+
+    await this.storeRepo.save(tienda);
+    return this.obtenerConfigPagoAdmin(tiendaId);
+  }
 }
+

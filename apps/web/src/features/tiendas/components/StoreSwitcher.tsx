@@ -1,6 +1,7 @@
 import React, { useEffect, useRef, useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
-import { Check, ChevronDown, Plus, Store } from 'lucide-react';
+import { Check, ChevronDown, Plus, Store, Copy } from 'lucide-react';
+import { toast } from 'sonner';
 import { useAuthStore } from '../../../store/auth.store';
 import { Modal } from '../../../components/ui/Modal';
 import { Button } from '../../../components/ui/Button';
@@ -56,12 +57,19 @@ export const StoreSwitcher: React.FC = () => {
 
   if (!user) return null;
 
-  const activa = tiendas.find((t) => t.esActiva);
+  // En "Mis Tiendas" solo deben aparecer las tiendas que el usuario gestiona/administra
+  const tiendasGestionables = tiendas.filter((t) => t.rol !== 'CLIENTE');
+
+  // Si no administra ninguna tienda, no se muestra el selector de comerciante
+  if (tiendasGestionables.length === 0) return null;
+
+  const activa = tiendasGestionables.find((t) => t.esActiva) || tiendasGestionables[0];
 
   /** Stores the new session and reloads, so no data of the previous store stays in memory or in the cart. */
   const aplicarSesion = (sesion: SesionTiendaResponse, destino: string) => {
     setAuth(sesion.usuario, sesion.accessToken, sesion.refreshToken);
     localStorage.removeItem(CART_STORAGE_KEY);
+    localStorage.setItem('tenant_slug', sesion.tienda?.slug || 'aura');
     window.location.assign(destino);
   };
 
@@ -71,7 +79,7 @@ export const StoreSwitcher: React.FC = () => {
       return;
     }
     try {
-      aplicarSesion(await tiendasApi.seleccionar(tienda.id), '/');
+      aplicarSesion(await tiendasApi.seleccionar(tienda.id), '/admin');
     } catch (err) {
       setError(mensajeDeError(err));
     }
@@ -121,11 +129,26 @@ export const StoreSwitcher: React.FC = () => {
 
       {abierto && (
         <div className="absolute right-0 mt-2 w-72 bg-white border border-[#E7E1D7] shadow-lg z-50">
-          <div className="px-4 py-2.5 text-[10px] uppercase tracking-widest text-stone-500 border-b border-[#E7E1D7]">
-            Mis tiendas
+          <div className="px-4 py-2.5 text-[10px] uppercase tracking-widest text-stone-500 border-b border-[#E7E1D7] flex items-center justify-between">
+            <span>Mis tiendas</span>
+            {activa && (
+              <button
+                type="button"
+                onClick={(e) => {
+                  e.stopPropagation();
+                  navigator.clipboard.writeText(`${window.location.origin}/t/${activa.slug}`);
+                  toast.success(`Enlace de ${activa.nombre} copiado al portapapeles`);
+                }}
+                className="text-[#9B7B54] hover:text-stone-900 flex items-center gap-1 font-semibold normal-case text-[11px]"
+                title="Copiar link para tus clientes"
+              >
+                <Copy className="w-3 h-3" />
+                <span>Copiar link</span>
+              </button>
+            )}
           </div>
           <ul className="max-h-64 overflow-y-auto">
-            {tiendas.map((t) => (
+            {tiendasGestionables.map((t) => (
               <li key={t.id}>
                 <button
                   onClick={() => cambiarDeTienda(t)}

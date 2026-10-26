@@ -2,6 +2,7 @@ import {
   Controller,
   Post,
   Get,
+  Patch,
   Body,
   Param,
   ParseUUIDPipe,
@@ -26,13 +27,21 @@ import { RestablecerPasswordDto } from './dto/restablecer-password.dto';
 import { RefreshTokenDto } from './dto/refresh-token.dto';
 import { VerificarEmailDto } from './dto/verificar-email.dto';
 import { CrearTiendaDto } from '../tiendas/dto/crear-tienda.dto';
+import { CambiarPlanDto } from '../tiendas/dto/cambiar-plan.dto';
+import { ActualizarConfigPagoDto } from '../tiendas/dto/actualizar-config-pago.dto';
+import { PlanLimitsService } from '../tiendas/plan-limits.service';
+import { StoresService } from '../tiendas/stores.service';
 import { JwtAuthGuard } from './guards/jwt-auth.guard';
 import { CurrentUser } from './decorators/current-user.decorator';
 
 @ApiTags('Autenticación')
 @Controller('auth')
 export class AuthController {
-  constructor(private readonly authService: AuthService) {}
+  constructor(
+    private readonly authService: AuthService,
+    private readonly planLimitsService: PlanLimitsService,
+    private readonly storesService: StoresService,
+  ) {}
 
   // =========================================================================
   // HU-01: REGISTRO (Visitante)
@@ -235,4 +244,88 @@ export class AuthController {
   async crearTienda(@CurrentUser() usuario: any, @Body() dto: CrearTiendaDto) {
     return this.authService.crearTienda(usuario.userId, dto);
   }
+
+  // =========================================================================
+  // CATÁLOGO DE PLANES, MÉTRICAS DE USO Y UPGRADE (Pilar 1)
+  // =========================================================================
+  @Get('tiendas/catalogo-planes')
+  @ApiOperation({
+    summary: 'Catálogo público de planes de suscripción',
+    description: 'Retorna los 3 planes disponibles (Free Trial, Estándar, Corporativo), precios y características.',
+  })
+  @ApiResponse({ status: 200, description: 'Catálogo de planes.' })
+  async catalogoPlanes() {
+    return this.planLimitsService.obtenerCatalogoPlanes();
+  }
+
+  @Get('tiendas/plan-limites')
+  @UseGuards(JwtAuthGuard)
+  @ApiBearerAuth()
+  @ApiOperation({
+    summary: 'Consultar consumo y cuotas del plan de la tienda activa',
+    description: 'Retorna el plan actual, límites permitidos y consumo en tiempo real de usuarios y productos.',
+  })
+  @ApiResponse({ status: 200, description: 'Métricas de consumo y límites.' })
+  async planLimites(@CurrentUser() usuario: any) {
+    const tenantId = usuario.tenantId;
+    return this.planLimitsService.obtenerMetricasYLimites(tenantId);
+  }
+
+  @Patch('tiendas/cambiar-plan')
+  @UseGuards(JwtAuthGuard)
+  @ApiBearerAuth()
+  @HttpCode(HttpStatus.OK)
+  @ApiOperation({
+    summary: 'Actualizar plan de suscripción de la tienda (Upgrade/Downgrade)',
+    description: 'Permite al administrador o propietario actualizar el plan de su tienda.',
+  })
+  @ApiResponse({ status: 200, description: 'Plan actualizado con éxito.' })
+  @ApiResponse({ status: 403, description: 'Permisos insuficientes para cambiar el plan.' })
+  async cambiarPlan(@CurrentUser() usuario: any, @Body() dto: CambiarPlanDto) {
+    const tenantId = usuario.tenantId;
+    return this.planLimitsService.cambiarPlan(tenantId, dto.plan, usuario.userId);
+  }
+
+  // =========================================================================
+  // MODELO HÍBRIDO DE PASARELAS (MODELO A - CUSTODIA / MODELO B - COBRO DIRECTO)
+  // =========================================================================
+  @Get('tiendas/config-pago-publica')
+  @ApiOperation({
+    summary: 'Consultar configuración de pago pública de una tienda (Checkout)',
+    description: 'Retorna si la tienda opera con Modelo B (QR Propio) o Modelo A (Custodia Central AURA).',
+  })
+  @ApiQuery({ name: 'slug', required: false, description: 'Slug de la tienda (o usa X-Tenant-Slug)' })
+  @ApiResponse({ status: 200, description: 'Configuración de pasarela de la tienda.' })
+  async configPagoPublica(@Query('slug') slug?: string) {
+    return this.storesService.obtenerConfigPagoPublica(slug);
+  }
+
+  @Get('tiendas/mi-config-pago')
+  @UseGuards(JwtAuthGuard)
+  @ApiBearerAuth()
+  @ApiOperation({
+    summary: 'Consultar configuración de cobro y saldo en custodia de la tienda activa (Admin)',
+    description: 'Muestra datos bancarios propios configurados y el saldo acumulado en custodia por ventas.',
+  })
+  @ApiResponse({ status: 200, description: 'Configuración y estado de billetera de la tienda.' })
+  async miConfigPago(@CurrentUser() usuario: any) {
+    return this.storesService.obtenerConfigPagoAdmin(usuario.tenantId);
+  }
+
+  @Patch('tiendas/mi-config-pago')
+  @UseGuards(JwtAuthGuard)
+  @ApiBearerAuth()
+  @HttpCode(HttpStatus.OK)
+  @ApiOperation({
+    summary: 'Actualizar configuración de cobro de la tienda activa (Subir QR propio)',
+    description: 'Permite al dueño configurar su QR bancario, titular y banco para activar Modelo B (Cobro Directo).',
+  })
+  @ApiResponse({ status: 200, description: 'Configuración actualizada exitosamente.' })
+  async actualizarMiConfigPago(
+    @CurrentUser() usuario: any,
+    @Body() dto: ActualizarConfigPagoDto,
+  ) {
+    return this.storesService.actualizarConfigPagoAdmin(usuario.tenantId, dto);
+  }
 }
+

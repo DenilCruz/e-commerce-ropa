@@ -30,9 +30,11 @@ describe('ProductosService references (Unit Tests)', () => {
     // A row only exists for ids that belong to the active store
     categories = { count: jest.fn(({ where }) => Promise.resolve(where.id === OWN_CATEGORY && where.tenantId === TENANT ? 1 : 0)) };
     brands = { count: jest.fn(({ where }) => Promise.resolve(where.id === OWN_BRAND && where.tenantId === TENANT ? 1 : 0)) };
+    const planLimits = { validarLimiteProductos: jest.fn().mockResolvedValue(undefined) };
 
-    service = new ProductosService(products, {} as any, {} as any, categories, brands);
+    service = new ProductosService(products, {} as any, {} as any, categories, brands, planLimits as any);
   });
+
 
   afterEach(() => jest.restoreAllMocks());
 

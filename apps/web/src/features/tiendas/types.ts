@@ -15,4 +15,5 @@ export interface SesionTiendaResponse extends AuthResponse {
 
 export interface CrearTiendaRequest {
   nombre: string;
+  plan?: string;
 }

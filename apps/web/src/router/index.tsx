@@ -39,13 +39,46 @@ import { AdminReviewsPage } from '../features/admin/resenas/pages/AdminReviewsPa
 import { AdminShippingPage } from '../features/admin/envios/pages/AdminShippingPage';
 import { AdminPosPage } from '../features/ventas-pos/pages/AdminPosPage';
 import { TrackingPage } from '../features/envios/pages/TrackingPage';
+import { LandingSaaSPage } from '../features/landing/LandingSaaSPage';
+import { AdminPagosConfigPage } from '../features/tiendas/pages/AdminPagosConfigPage';
+
+import { TenantStoreResolver } from '../features/tiendas/components/TenantStoreResolver';
 
 export const AppRouter: React.FC = () => {
   return (
     <Routes>
-      {/* Tienda Pública */}
+      {/* 1. SaaS Landing & Planes (Página Raíz de la Plataforma) */}
+      <Route path="/" element={<LandingSaaSPage />} />
+      <Route path="/planes" element={<LandingSaaSPage />} />
+      <Route path="/saas" element={<LandingSaaSPage />} />
+
+      {/* 2. Tienda de Inquilino Específica (/t/:slug) - Enlace público para compartir con clientes */}
+      <Route path="/t/:slug" element={<TenantStoreResolver />}>
+        <Route element={<MainLayout />}>
+          <Route index element={<HomePage />} />
+          <Route path="catalogo" element={<CatalogPage />} />
+          <Route path="catalogo/:id" element={<ProductDetailPage />} />
+          <Route path="producto/:id" element={<ProductDetailPage />} />
+          <Route path="probador" element={<VirtualTryOnPage />} />
+          <Route path="carrito" element={<CartPage />} />
+          <Route path="tracking" element={<TrackingPage />} />
+          <Route path="tracking/:codigo" element={<TrackingPage />} />
+
+          {/* Rutas Protegidas Cliente en tienda */}
+          <Route element={<ProtectedRoute />}>
+            <Route path="checkout" element={<CheckoutPage />} />
+            <Route path="checkout/return" element={<CheckoutReturnPage />} />
+            <Route path="pago" element={<Navigate to="checkout" replace />} />
+            <Route path="pedidos" element={<OrdersPage />} />
+            <Route path="perfil" element={<ProfilePage />} />
+            <Route path="favoritos" element={<FavoritosPage />} />
+          </Route>
+        </Route>
+      </Route>
+
+      {/* 3. Tienda Demo / Rutas Directas (usando tenant activo en sesión o localStorage) */}
       <Route element={<MainLayout />}>
-        <Route path="/" element={<HomePage />} />
+        <Route path="/tienda" element={<HomePage />} />
         <Route path="/catalogo" element={<CatalogPage />} />
         <Route path="/catalogo/:id" element={<ProductDetailPage />} />
         <Route path="/producto/:id" element={<ProductDetailPage />} />
@@ -90,6 +123,7 @@ export const AppRouter: React.FC = () => {
           <Route path="pedidos" element={<AdminOrdersPage />} />
           <Route path="envios" element={<AdminShippingPage />} />
           <Route path="usuarios" element={<AdminUsersPage />} />
+          <Route path="pagos-config" element={<AdminPagosConfigPage />} />
           <Route path="archivos" element={<AdminFilesPage />} />
           <Route path="resenas" element={<AdminReviewsPage />} />
         </Route>

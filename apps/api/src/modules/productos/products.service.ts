@@ -9,6 +9,7 @@ import { CategoriaEntity } from '../categorias/entities/category.entity';
 import { SizeEntity } from './entities/size.entity';
 import { ColorEntity } from './entities/color.entity';
 import { BrandEntity } from './entities/brand.entity';
+import { PlanLimitsService } from '../tiendas/plan-limits.service';
 
 import { TenantContext } from '../../common/tenant/tenant-context';
 
@@ -25,6 +26,7 @@ export class ProductosService {
     @InjectRepository(ColorEntity) private readonly repositorioColor: Repository<ColorEntity>,
     @InjectRepository(CategoriaEntity) private readonly repositorioCategoria: Repository<CategoriaEntity>,
     @InjectRepository(BrandEntity) private readonly repositorioMarca: Repository<BrandEntity>,
+    private readonly planLimitsService: PlanLimitsService,
   ) {}
 
   /** Foreign keys ignore row-level security, so category and brand must be checked against the active store. */
@@ -38,12 +40,18 @@ export class ProductosService {
   }
 
   async crear(datos: CrearProductoDto): Promise<ProductEntity> {
+    // 1. Control de cuota según plan de la tienda
+    await this.planLimitsService.validarLimiteProductos(this.tid);
+
+    // 2. Validación de referencias
     await this.validarReferencias(datos.categoriaId, datos.marcaId);
+
     // TypeORM automáticamente insertará las variantes y las imágenes gracias a { cascade: true }
     // en la entidad si vienen incluidas en el DTO.
     const nuevoProducto = this.repositorioProducto.create(datos);
     return await this.repositorioProducto.save(nuevoProducto);
   }
+
 
   
   async obtenerTallas(): Promise<SizeEntity[]> {

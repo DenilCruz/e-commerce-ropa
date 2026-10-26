@@ -16,9 +16,31 @@ import {
   Store,
   Star,
   ArrowLeft,
+  LogOut,
+  QrCode,
 } from 'lucide-react';
+import { useNavigate } from 'react-router-dom';
+import { useAuthStore } from '../store/auth.store';
+import { authApi } from '../features/autenticacion/services/auth.api';
+import { AdminPlanBadge } from '../features/tiendas/components/AdminPlanBadge';
 
 export const AdminLayout: React.FC = () => {
+  const navigate = useNavigate();
+  const { logout, refreshToken } = useAuthStore();
+
+  const handleLogout = async () => {
+    try {
+      if (refreshToken) {
+        await authApi.logout(refreshToken);
+      }
+    } catch (err) {
+      console.error('Error logging out from admin:', err);
+    } finally {
+      logout();
+      navigate('/');
+    }
+  };
+
   const navItems = [
     { to: '/admin', label: 'Dashboard Descriptivo', icon: LayoutDashboard, end: true },
     { to: '/admin/dashboard-predictivo', label: 'Dashboard Predictivo (IA)', icon: TrendingUp },
@@ -32,6 +54,7 @@ export const AdminLayout: React.FC = () => {
     { to: '/admin/envios', label: 'Envíos y Despachos', icon: Truck },
     { to: '/admin/cupones', label: 'Cupones', icon: Ticket },
     { to: '/admin/usuarios', label: 'Usuarios', icon: Users },
+    { to: '/admin/pagos-config', label: 'Pasarela & QR Propio', icon: QrCode },
     { to: '/admin/archivos', label: 'Archivos', icon: ImageIcon },
     { to: '/admin/resenas', label: 'Reseñas', icon: Star },
   ];
@@ -77,17 +100,38 @@ export const AdminLayout: React.FC = () => {
           </nav>
         </div>
 
+        {/* Widget de Consumo y Plan SaaS */}
+        <AdminPlanBadge />
+
         {/* Footer Back Link */}
-        <div className="p-6 border-t border-gray-900">
+        <div className="p-4 border-t border-gray-900 space-y-2">
           <Link
-            to="/"
-            className="text-xs text-gray-400 hover:text-white transition-colors flex items-center gap-2 font-medium"
+            to="/t/aura"
+            className="text-xs text-gray-300 hover:text-white transition-colors flex items-center gap-2 font-medium"
           >
-            <ArrowLeft className="w-4 h-4" />
-            <span>Volver a la Tienda</span>
+            <ArrowLeft className="w-4 h-4 text-[#9B7B54]" />
+            <span>Ver Tienda Pública</span>
           </Link>
+          <div className="flex items-center justify-between pt-1">
+            <Link
+              to="/"
+              className="text-[11px] text-gray-500 hover:text-gray-300 transition-colors flex items-center gap-1.5 font-sans"
+            >
+              <span>Plataforma SaaS</span>
+            </Link>
+            <button
+              onClick={handleLogout}
+              type="button"
+              className="text-[11px] text-rose-400 hover:text-rose-300 transition-colors flex items-center gap-1 font-medium"
+              title="Cerrar sesión de administrador"
+            >
+              <LogOut className="w-3 h-3" />
+              <span>Cerrar Sesión</span>
+            </button>
+          </div>
         </div>
       </aside>
+
 
       {/* MAIN CONTENT */}
       <main className="flex-1 p-6 lg:p-8 overflow-y-auto">

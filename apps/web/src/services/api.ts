@@ -8,12 +8,19 @@ export const api = axios.create({
   },
 });
 
-// Interceptor de Peticiones: Adjuntar Bearer Token
+// Interceptor de Peticiones: Adjuntar Bearer Token o X-Tenant-Slug
 api.interceptors.request.use(
   (config) => {
     const token = localStorage.getItem('access_token');
     if (token && config.headers) {
       config.headers.Authorization = `Bearer ${token}`;
+    } else if (config.headers) {
+      // Si es un visitante anónimo o cliente viendo una tienda específica,
+      // enviamos la cabecera X-Tenant-Slug para resolución por TenantMiddleware
+      const tenantSlug = localStorage.getItem('tenant_slug');
+      if (tenantSlug) {
+        config.headers['X-Tenant-Slug'] = tenantSlug;
+      }
     }
     return config;
   },

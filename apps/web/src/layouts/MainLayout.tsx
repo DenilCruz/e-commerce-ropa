@@ -46,6 +46,13 @@ export const MainLayout: React.FC = () => {
   const [menuMovilAbierto, setMenuMovilAbierto] = useState(false);
   const [categoriaMovilExpandida, setCategoriaMovilExpandida] = useState<string | null>(null);
 
+  // Rutas multi-inquilino contextuales
+  const matchTenant = location.pathname.match(/^\/t\/([^/]+)/);
+  const storePrefix = matchTenant ? `/t/${matchTenant[1]}` : '';
+  const homePath = storePrefix || '/t/aura';
+  const catalogoPath = storePrefix ? `${storePrefix}/catalogo` : '/catalogo';
+  const probadorPath = storePrefix ? `${storePrefix}/probador` : '/probador';
+
   const dropdownRef = useRef<HTMLDivElement>(null);
   const dropdownTimeoutRef = useRef<NodeJS.Timeout | null>(null);
 
@@ -125,15 +132,22 @@ export const MainLayout: React.FC = () => {
           
           {/* LOGO & NAVEGACIÓN DESKTOP */}
           <div className="flex items-center gap-10">
-            <Link to="/" className="group flex items-center gap-2">
+            <Link to={homePath} className="group flex items-center gap-2">
               <span className="font-serif text-2xl tracking-[0.25em] font-normal uppercase text-stone-900 group-hover:text-[#9B7B54] transition-colors">
-                AURA
+                {matchTenant && matchTenant[1] && matchTenant[1].toLowerCase() !== 'aura'
+                  ? matchTenant[1].toUpperCase()
+                  : 'AURA'}
               </span>
+              {matchTenant && matchTenant[1] && matchTenant[1].toLowerCase() !== 'aura' && (
+                <span className="text-[10px] uppercase font-mono px-2 py-0.5 rounded bg-[#FAF8F5] border border-[#E7E1D7] text-[#9B7B54] font-semibold">
+                  Atelier
+                </span>
+              )}
             </Link>
 
             <nav className="hidden lg:flex items-center gap-7 text-xs uppercase tracking-widest font-medium text-stone-600">
               <Link 
-                to="/catalogo" 
+                to={catalogoPath} 
                 className="hover:text-stone-900 transition-colors py-1"
               >
                 Colección
@@ -170,7 +184,7 @@ export const MainLayout: React.FC = () => {
                         <p className="text-[11px] text-stone-500 font-sans tracking-normal mt-0.5">Explora cortes de atelier y tejidos nobles</p>
                       </div>
                       <Link
-                        to="/catalogo"
+                        to={catalogoPath}
                         onClick={() => setDropdownCategoriasAbierto(false)}
                         className="text-xs text-stone-900 font-sans uppercase tracking-widest font-semibold hover:text-[#9B7B54] transition-colors"
                       >
@@ -189,7 +203,7 @@ export const MainLayout: React.FC = () => {
                             <div key={cat.id} className="space-y-1.5">
                               {/* Categoría Principal */}
                               <Link
-                                to={`/catalogo?categoria=${cat.id}`}
+                                to={storePrefix ? `${storePrefix}/catalogo?categoria=${cat.id}` : `/catalogo?categoria=${cat.id}`}
                                 onClick={() => setDropdownCategoriasAbierto(false)}
                                 className="group/item flex items-center justify-between p-1.5 rounded-sm hover:bg-[#F2ECE1] transition-colors"
                               >
@@ -218,7 +232,7 @@ export const MainLayout: React.FC = () => {
                                   {cat.subcategorias!.filter(s => s.activa !== false).map(sub => (
                                     <li key={sub.id}>
                                       <Link
-                                        to={`/catalogo?categoria=${sub.id}`}
+                                        to={storePrefix ? `${storePrefix}/catalogo?categoria=${sub.id}` : `/catalogo?categoria=${sub.id}`}
                                         onClick={() => setDropdownCategoriasAbierto(false)}
                                         className="text-[11px] text-stone-500 hover:text-stone-900 py-0.5 px-2 block transition-colors tracking-wide"
                                       >
@@ -239,13 +253,14 @@ export const MainLayout: React.FC = () => {
 
               {/* PROBADOR VIRTUAL IA */}
               <Link 
-                to="/probador" 
+                to={probadorPath} 
                 className="hover:text-stone-900 transition-colors flex items-center gap-1.5 py-1 text-[#9B7B54] font-semibold"
               >
                 <Sparkles className="w-3.5 h-3.5" />
                 <span>Probador Virtual IA</span>
               </Link>
             </nav>
+
           </div>
 
           {/* ACCIONES DERECHA (USUARIO / BOLSA) */}
@@ -334,7 +349,7 @@ export const MainLayout: React.FC = () => {
                   Ingresar
                 </Link>
                 <Link
-                  to="/registro"
+                  to="/registro?cliente=true"
                   className="bg-stone-900 text-white hover:bg-stone-800 px-3 py-1.5 transition-colors font-medium hidden sm:inline-block"
                 >
                   Crear Cuenta
@@ -357,11 +372,11 @@ export const MainLayout: React.FC = () => {
         {menuMovilAbierto && (
           <div className="lg:hidden border-t border-[#E7E1D7] mt-3 pt-4 space-y-4 animate-in slide-in-from-top duration-150 bg-[#FAF8F5]">
             <nav className="flex flex-col space-y-1 text-xs uppercase tracking-wider font-medium">
-              <Link to="/catalogo" className="p-2 hover:bg-[#F2ECE1] flex items-center gap-2">
+              <Link to={catalogoPath} className="p-2 hover:bg-[#F2ECE1] flex items-center gap-2">
                 <ShoppingBag className="w-4 h-4" />
                 Colección Completa
               </Link>
-              <Link to="/probador" className="p-2 hover:bg-[#F2ECE1] flex items-center gap-2 text-[#9B7B54]">
+              <Link to={probadorPath} className="p-2 hover:bg-[#F2ECE1] flex items-center gap-2 text-[#9B7B54]">
                 <Sparkles className="w-4 h-4" />
                 Probador Virtual IA
               </Link>
@@ -429,7 +444,7 @@ export const MainLayout: React.FC = () => {
                     <div key={cat.id} className="border-b border-[#E7E1D7]/50">
                       <div className="flex items-center justify-between p-2">
                         <Link
-                          to={`/catalogo?categoria=${cat.id}`}
+                          to={storePrefix ? `${storePrefix}/catalogo?categoria=${cat.id}` : `/catalogo?categoria=${cat.id}`}
                           className="font-serif text-sm text-stone-800 hover:text-stone-900 flex-1"
                         >
                           {cat.nombre}
@@ -449,7 +464,7 @@ export const MainLayout: React.FC = () => {
                           {cat.subcategorias!.filter(s => s.activa !== false).map(sub => (
                             <Link
                               key={sub.id}
-                              to={`/catalogo?categoria=${sub.id}`}
+                              to={storePrefix ? `${storePrefix}/catalogo?categoria=${sub.id}` : `/catalogo?categoria=${sub.id}`}
                               className="block text-xs text-stone-600 hover:text-stone-900 py-1"
                             >
                               ↳ {sub.nombre}

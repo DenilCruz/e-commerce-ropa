@@ -1,15 +1,17 @@
 import React, { useState } from 'react';
-import { Link, useNavigate, useLocation } from 'react-router-dom';
+import { Link, useNavigate, useLocation, useSearchParams } from 'react-router-dom';
 import { AlertCircle } from 'lucide-react';
 import { Button } from '../../../components/ui/Button';
 import { Input } from '../../../components/ui/Input';
 import { authApi } from '../services/auth.api';
+import { tiendasApi } from '../../tiendas/services/tiendas.api';
 import { useAuthStore } from '../../../store/auth.store';
 import { useCartStore } from '../../../store/cart.store';
 
 export const LoginPage: React.FC = () => {
   const navigate = useNavigate();
   const location = useLocation();
+  const [searchParams] = useSearchParams();
   const setAuth = useAuthStore((state) => state.setAuth);
 
   const [correo, setCorreo] = useState('');
@@ -17,7 +19,7 @@ export const LoginPage: React.FC = () => {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  const from = (location.state as any)?.from?.pathname || '/catalogo';
+  const from = (location.state as any)?.from?.pathname || '';
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -28,7 +30,35 @@ export const LoginPage: React.FC = () => {
       const data = await authApi.login({ correo, contrasena });
       setAuth(data.usuario, data.accessToken, data.refreshToken);
       useCartStore.getState().sincronizarTrasLogin().catch(console.error);
-      navigate(from, { replace: true });
+
+      // Si había una tienda pendiente de crear en el flujo de registro SaaS
+      const tiendaPendiente = searchParams.get('tienda') || localStorage.getItem('pending_store_name');
+      const planPendiente = searchParams.get('plan') || localStorage.getItem('pending_store_plan') || 'FREE_TRIAL';
+      if (tiendaPendiente && tiendaPendiente.trim() && data.usuario.emailVerificado) {
+        try {
+          const resTienda = await tiendasApi.crear({
+            nombre: tiendaPendiente.trim(),
+            plan: planPendiente,
+          });
+          localStorage.removeItem('pending_store_name');
+          localStorage.removeItem('pending_store_plan');
+          localStorage.removeItem('el-magnifico-cart-storage');
+          localStorage.setItem('tenant_slug', resTienda.tienda?.slug || 'aura');
+          setAuth(resTienda.usuario, resTienda.accessToken, resTienda.refreshToken);
+          window.location.assign('/admin');
+          return;
+        } catch (storeErr: any) {
+          console.warn('No se pudo auto-crear la tienda tras login:', storeErr);
+        }
+      }
+
+      if (from) {
+        navigate(from, { replace: true });
+      } else if (data.usuario.rol === 'ADMIN') {
+        navigate('/admin', { replace: true });
+      } else {
+        navigate('/catalogo', { replace: true });
+      }
     } catch (err: any) {
       if (!err.response) {
         setError('No se pudo conectar con el servidor API (http://localhost:3000). Asegúrate de que el backend esté encendido.');

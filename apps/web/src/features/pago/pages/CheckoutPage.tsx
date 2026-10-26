@@ -26,6 +26,7 @@ import { paymentsApi } from '../services/payments.api';
 import { OrdenRespuesta } from '../types';
 import { getImageUrl } from '../../../lib/utils';
 import { useNetworkStatus } from '../../../hooks/useNetworkStatus';
+import { pagosConfigApi, StorePublicPaymentConfig } from '../../tiendas/services/pagos-config.api';
 
 declare global {
   interface Window {
@@ -80,9 +81,18 @@ export const CheckoutPage: React.FC = () => {
   const [procesando, setProcesando] = useState(false);
   const [errorPago, setErrorPago] = useState<string | null>(null);
   const [ordenCompletada, setOrdenCompletada] = useState<OrdenRespuesta | null>(null);
+  const [configPago, setConfigPago] = useState<StorePublicPaymentConfig | null>(null);
 
   useEffect(() => {
     cargarCarrito();
+
+    // Consultar modalidad de pago de la tienda activa (Modelo A vs Modelo B)
+    const matchSlug = window.location.pathname.match(/\/t\/([^/]+)/);
+    const slugActual = matchSlug ? matchSlug[1] : (localStorage.getItem('tenant_slug') || 'aura');
+    pagosConfigApi.obtenerPublica(slugActual)
+      .then((data) => setConfigPago(data))
+      .catch((err) => console.warn('Aviso: Pasarela operando con configuración por defecto:', err));
+
     return () => {
       if (checkoutInstanceRef.current) {
         checkoutInstanceRef.current.destroy();
@@ -941,30 +951,79 @@ export const CheckoutPage: React.FC = () => {
                   )}
                 </div>
               ) : metodoPago === 'qr' ? (
-                /* OPCIÓN: PAGO CON QR SIMPLE */
+                /* OPCIÓN: PAGO CON QR SIMPLE (MODELO A CUSTODIA O MODELO B DIRECTO) */
                 <div className="space-y-4 pt-2">
-                  <div className="bg-purple-50/60 border border-purple-100 rounded-2xl p-4 flex items-center justify-between gap-3">
+                  <div
+                    className={`border rounded-2xl p-4 flex items-center justify-between gap-3 ${
+                      configPago?.modalidad === 'MODELO_B_DIRECTO'
+                        ? 'bg-emerald-50/70 border-emerald-200'
+                        : 'bg-purple-50/70 border-purple-200'
+                    }`}
+                  >
                     <div className="flex items-center gap-3">
-                      <div className="w-10 h-10 rounded-xl bg-purple-600 text-white flex items-center justify-center font-bold text-sm shadow-md">
+                      <div
+                        className={`w-10 h-10 rounded-xl text-white flex items-center justify-center font-bold text-sm shadow-md ${
+                          configPago?.modalidad === 'MODELO_B_DIRECTO' ? 'bg-emerald-600' : 'bg-purple-600'
+                        }`}
+                      >
                         <QrCode className="w-5 h-5" />
                       </div>
                       <div>
-                        <h4 className="font-bold text-sm text-gray-900">Transferencia Bancaria QR Simple</h4>
-                        <p className="text-xs text-gray-500">Paga al instante escaneando el código con tu banca móvil</p>
+                        <h4 className="font-bold text-sm text-gray-900">
+                          {configPago?.modalidad === 'MODELO_B_DIRECTO'
+                            ? `Cobro Directo · ${configPago.nombre}`
+                            : 'AURA Pagos (Transferencia QR Central)'}
+                        </h4>
+                        <p className="text-xs text-gray-500">
+                          {configPago?.modalidad === 'MODELO_B_DIRECTO'
+                            ? `Transfiere directamente a la cuenta verificada de la tienda ${configPago.nombre}`
+                            : `Pago centralizado en custodia para la tienda ${configPago?.nombre || 'activa'}`}
+                        </p>
                       </div>
                     </div>
-                    <span className="text-[10px] font-black uppercase tracking-wider bg-purple-100 text-purple-800 px-2.5 py-1 rounded-full">
-                      QR Oficial
+                    <span
+                      className={`text-[10px] font-black uppercase tracking-wider px-2.5 py-1 rounded-full ${
+                        configPago?.modalidad === 'MODELO_B_DIRECTO'
+                          ? 'bg-emerald-100 text-emerald-800 border border-emerald-200'
+                          : 'bg-purple-100 text-purple-800 border border-purple-200'
+                      }`}
+                    >
+                      {configPago?.modalidad === 'MODELO_B_DIRECTO' ? 'Modelo B · Cobro Directo' : 'Modelo A · En Custodia'}
                     </span>
                   </div>
 
-                  <div className="bg-white border-2 border-dashed border-purple-200 rounded-2xl p-6 flex flex-col items-center text-center space-y-4">
+                  <div
+                    className={`bg-white border-2 border-dashed rounded-2xl p-6 flex flex-col items-center text-center space-y-4 ${
+                      configPago?.modalidad === 'MODELO_B_DIRECTO' ? 'border-emerald-200' : 'border-purple-200'
+                    }`}
+                  >
                     <div className="p-3 bg-white rounded-2xl shadow-md border border-gray-200 inline-block">
                       <img
-                        src="/qr_pago_aura.png"
-                        alt="Código QR de Pago AURA"
+                        src={configPago?.qrUrl || '/qr_pago_aura.png'}
+                        alt={`Código QR de Pago - ${configPago?.nombre || 'AURA'}`}
                         className="w-56 h-56 object-contain rounded-xl"
                       />
+                    </div>
+
+                    {/* Ficha Informativa de la Cuenta */}
+                    <div className="w-full max-w-sm bg-gray-50 border border-gray-200 rounded-xl p-3.5 text-xs text-left space-y-1.5">
+                      <div className="flex justify-between items-center">
+                        <span className="text-gray-500 font-medium">Titular de Cuenta:</span>
+                        <span className="font-bold text-gray-900">{configPago?.titularCuenta || 'AURA S.R.L.'}</span>
+                      </div>
+                      <div className="flex justify-between items-center">
+                        <span className="text-gray-500 font-medium">Banco:</span>
+                        <span className="font-semibold text-gray-800">{configPago?.banco || 'Banco Nacional de Bolivia'}</span>
+                      </div>
+                      {configPago?.numeroCuenta && (
+                        <div className="flex justify-between items-center">
+                          <span className="text-gray-500 font-medium">Nro. de Cuenta:</span>
+                          <span className="font-mono font-semibold text-gray-800">{configPago.numeroCuenta}</span>
+                        </div>
+                      )}
+                      <p className="pt-1.5 border-t border-gray-200 text-[11px] text-gray-500 leading-relaxed">
+                        {configPago?.descripcion}
+                      </p>
                     </div>
 
                     <div className="space-y-1 max-w-sm">
@@ -996,7 +1055,11 @@ export const CheckoutPage: React.FC = () => {
                       type="button"
                       onClick={procesarPagoQr}
                       disabled={procesando}
-                      className="w-full max-w-sm py-4 bg-purple-700 text-white text-sm font-black rounded-xl hover:bg-purple-800 transition shadow-lg flex items-center justify-center gap-2 cursor-pointer"
+                      className={`w-full max-w-sm py-4 text-white text-sm font-black rounded-xl transition shadow-lg flex items-center justify-center gap-2 cursor-pointer ${
+                        configPago?.modalidad === 'MODELO_B_DIRECTO'
+                          ? 'bg-emerald-600 hover:bg-emerald-700'
+                          : 'bg-purple-700 hover:bg-purple-800'
+                      }`}
                     >
                       {procesando ? (
                         <>

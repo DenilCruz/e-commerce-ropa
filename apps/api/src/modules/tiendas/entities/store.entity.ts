@@ -24,6 +24,21 @@ export class StoreEntity {
   @Column({ type: 'uuid', name: 'propietario_id', nullable: true })
   propietarioId: string | null;
 
+  @Column({ type: 'varchar', length: 500, name: 'qr_url', nullable: true })
+  qrUrl: string | null;
+
+  @Column({ type: 'varchar', length: 150, name: 'titular_cuenta', nullable: true })
+  titularCuenta: string | null;
+
+  @Column({ type: 'varchar', length: 100, name: 'banco', nullable: true })
+  banco: string | null;
+
+  @Column({ type: 'varchar', length: 50, name: 'numero_cuenta', nullable: true })
+  numeroCuenta: string | null;
+
+  @Column({ type: 'varchar', length: 30, name: 'modalidad_pago_activa', default: 'MODELO_A_CUSTODIA' })
+  modalidadPagoActiva: string;
+
   @CreateDateColumn({ name: 'creado_en', type: 'timestamp' })
   creadoEn: Date;
 }

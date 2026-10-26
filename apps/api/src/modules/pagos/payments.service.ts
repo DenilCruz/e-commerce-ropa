@@ -999,7 +999,15 @@ export class PaymentsService {
       }
       await queryRunner.manager.save(orderItems);
 
-      // 3. Crear registro pago con estado APROBADO
+      // 3. Consultar modalidad de pago de la tienda (Modelo B Directo o Modelo A Custodia)
+      const tiendaRows = await queryRunner.manager.query(
+        'SELECT qr_url, modalidad_pago_activa FROM tienda WHERE id = $1',
+        [this.tid],
+      );
+      const tieneQr = Boolean(tiendaRows[0]?.qr_url && tiendaRows[0]?.qr_url.trim() !== '');
+      const modalidad = tieneQr ? 'MODELO_B_DIRECTO' : 'MODELO_A_CUSTODIA';
+
+      // Crear registro pago con estado APROBADO
       const nuevoPago = queryRunner.manager.create(PaymentEntity, {
         notaventaId: ordenGuardada.id,
         metodoPagoId: await this.resolverMetodoPagoId('qr'),
@@ -1009,8 +1017,11 @@ export class PaymentsService {
         fechaPago: new Date(),
         respuestaPasarela: {
           gateway: 'qr_simple',
+          modalidadPago: modalidad,
           referenciaComprobante: trxRef,
-          instrucciones: 'Pago validado mediante transferencia QR Simple.',
+          instrucciones: modalidad === 'MODELO_B_DIRECTO'
+            ? 'Pago directo recibido en cuenta bancaria del comercio.'
+            : 'Pago en custodia central recibido por plataforma AURA.',
           direccionEnvio: dto.direccionEnvio || '',
           telefono: dto.telefono || '',
         },

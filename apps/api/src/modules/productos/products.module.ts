@@ -7,6 +7,7 @@ import { BrandEntity } from './entities/brand.entity';
 import { SizeEntity } from './entities/size.entity';
 import { ColorEntity } from './entities/color.entity';
 import { CategoriaEntity } from '../categorias/entities/category.entity';
+import { StoresModule } from '../tiendas/stores.module';
 import { ProductosService } from './products.service';
 import { ProductosController } from './products.controller';
 
@@ -21,6 +22,7 @@ import { ProductosController } from './products.controller';
       ColorEntity,
       CategoriaEntity,
     ]),
+    StoresModule,
   ],
   controllers: [ProductosController],
   providers: [ProductosService],
