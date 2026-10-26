@@ -29,7 +29,7 @@ export const AdminPlanBadge: React.FC = () => {
   };
 
   return (
-    <div className="mx-4 mb-4 p-3.5 rounded-xl bg-gradient-to-b from-gray-900 to-black border border-gray-800 text-white space-y-3 shadow-lg">
+    <div className="mx-0 mb-1 p-3.5 rounded-xl bg-gradient-to-b from-stone-900 to-[#121110] border border-[#2A2723] text-white space-y-3 shadow-lg">
       {/* Plan Header */}
       <div className="flex items-center justify-between gap-1">
         <div className="flex items-center gap-1.5">

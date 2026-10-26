@@ -1,5 +1,5 @@
 import React from 'react';
-import { Outlet, NavLink, Link } from 'react-router-dom';
+import { Outlet, NavLink, Link, useNavigate } from 'react-router-dom';
 import {
   LayoutDashboard,
   TrendingUp,
@@ -19,14 +19,16 @@ import {
   LogOut,
   QrCode,
 } from 'lucide-react';
-import { useNavigate } from 'react-router-dom';
 import { useAuthStore } from '../store/auth.store';
 import { authApi } from '../features/autenticacion/services/auth.api';
 import { AdminPlanBadge } from '../features/tiendas/components/AdminPlanBadge';
+import { usePlanLimites } from '../features/tiendas/hooks/usePlanLimites';
 
 export const AdminLayout: React.FC = () => {
   const navigate = useNavigate();
   const { logout, refreshToken } = useAuthStore();
+  const { metricas } = usePlanLimites();
+  const storeSlug = metricas?.tienda?.slug || 'aura';
 
   const handleLogout = async () => {
     try {
@@ -60,22 +62,23 @@ export const AdminLayout: React.FC = () => {
   ];
 
   return (
-    <div className="min-h-screen flex bg-[#FAF8F5] text-stone-900 font-sans">
+    <div className="h-screen w-full flex overflow-hidden bg-[#FAF8F5] text-stone-900 font-sans">
       {/* SIDEBAR */}
-      <aside className="w-64 bg-[#161513] text-stone-100 flex flex-col shrink-0 border-r border-[#2A2723] shadow-xl z-20">
-        <div className="p-6 space-y-6 flex-1 overflow-y-auto">
-          {/* Logo */}
-          <div className="flex items-center gap-3">
-            <span className="bg-[#9B7B54] text-white px-2.5 py-1 rounded font-serif font-bold text-xs tracking-wider">
-              A
-            </span>
-            <div>
-              <h2 className="text-sm font-bold tracking-[0.2em] text-white uppercase font-serif">AURA</h2>
-              <span className="text-[10px] text-stone-400 font-mono tracking-widest uppercase">Atelier Admin</span>
-            </div>
+      <aside className="w-64 h-screen bg-[#161513] text-stone-100 flex flex-col shrink-0 border-r border-[#2A2723] shadow-xl z-20">
+        {/* Logo / Header (Fijo arriba) */}
+        <div className="p-5 pb-4 shrink-0 border-b border-[#2A2723]/60 flex items-center gap-3">
+          <span className="bg-[#9B7B54] text-white px-2.5 py-1 rounded font-serif font-bold text-xs tracking-wider">
+            A
+          </span>
+          <div>
+            <h2 className="text-sm font-bold tracking-[0.2em] text-white uppercase font-serif">AURA</h2>
+            <span className="text-[10px] text-stone-400 font-mono tracking-widest uppercase">Atelier Admin</span>
           </div>
+        </div>
 
-          {/* Navigation Items */}
+        {/* Contenedor central con scroll independiente */}
+        <div className="flex-1 min-h-0 overflow-y-auto px-3.5 py-3 space-y-4 sidebar-dark-scrollbar">
+          {/* Items de Navegación */}
           <nav className="flex flex-col space-y-1 text-xs font-semibold">
             {navItems.map((item) => {
               const Icon = item.icon;
@@ -85,7 +88,7 @@ export const AdminLayout: React.FC = () => {
                   to={item.to}
                   end={item.end}
                   className={({ isActive }) =>
-                    `flex items-center gap-3 px-3.5 py-2.5 rounded-lg transition-all ${
+                    `flex items-center gap-3 px-3 py-2.5 rounded-lg transition-all ${
                       isActive
                         ? 'bg-white text-stone-900 font-bold shadow-sm'
                         : 'text-stone-400 hover:text-white hover:bg-stone-900/60'
@@ -98,15 +101,17 @@ export const AdminLayout: React.FC = () => {
               );
             })}
           </nav>
+
+          {/* Widget de Consumo y Plan SaaS dentro del scroll */}
+          <div className="pt-2">
+            <AdminPlanBadge />
+          </div>
         </div>
 
-        {/* Widget de Consumo y Plan SaaS */}
-        <AdminPlanBadge />
-
-        {/* Footer Back Link */}
-        <div className="p-4 border-t border-stone-800 space-y-2">
+        {/* Footer fijo al pie del sidebar */}
+        <div className="p-3.5 border-t border-stone-800 bg-[#161513] shrink-0 space-y-2">
           <Link
-            to="/t/aura"
+            to={`/t/${storeSlug}`}
             className="text-xs text-stone-300 hover:text-white transition-colors flex items-center gap-2 font-medium"
           >
             <ArrowLeft className="w-4 h-4 text-[#9B7B54]" />
@@ -122,7 +127,7 @@ export const AdminLayout: React.FC = () => {
             <button
               onClick={handleLogout}
               type="button"
-              className="text-[11px] text-rose-400 hover:text-rose-300 transition-colors flex items-center gap-1 font-medium"
+              className="text-[11px] text-rose-400 hover:text-rose-300 transition-colors flex items-center gap-1 font-medium cursor-pointer"
               title="Cerrar sesión de administrador"
             >
               <LogOut className="w-3 h-3" />
@@ -132,8 +137,8 @@ export const AdminLayout: React.FC = () => {
         </div>
       </aside>
 
-      {/* MAIN CONTENT */}
-      <main className="flex-1 p-6 lg:p-8 overflow-y-auto bg-[#FAF8F5]">
+      {/* MAIN CONTENT con scroll independiente */}
+      <main className="flex-1 h-screen min-h-0 overflow-y-auto p-6 lg:p-8 bg-[#FAF8F5]">
         <Outlet />
       </main>
     </div>
