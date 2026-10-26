@@ -54,6 +54,12 @@ export const AppRouter: React.FC = () => {
 
       {/* 2. Tienda de Inquilino Específica (/t/:slug) - Enlace público para compartir con clientes */}
       <Route path="/t/:slug" element={<TenantStoreResolver />}>
+        {/* Rutas de autenticación contextuales en la tienda (Modo Comprador) */}
+        <Route element={<AuthLayout />}>
+          <Route path="login" element={<LoginPage />} />
+          <Route path="registro" element={<RegisterPage />} />
+        </Route>
+
         <Route element={<MainLayout />}>
           <Route index element={<HomePage />} />
           <Route path="catalogo" element={<CatalogPage />} />

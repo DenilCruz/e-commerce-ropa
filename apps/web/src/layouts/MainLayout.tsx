@@ -343,13 +343,13 @@ export const MainLayout: React.FC = () => {
             ) : (
               <div className="flex items-center gap-3 text-xs uppercase tracking-widest pl-2 border-l border-[#E7E1D7]">
                 <Link
-                  to="/login"
+                  to={storePrefix ? `${storePrefix}/login` : "/login"}
                   className="text-stone-700 hover:text-stone-900 transition-colors py-1 font-medium"
                 >
                   Ingresar
                 </Link>
                 <Link
-                  to="/registro?cliente=true"
+                  to={storePrefix ? `${storePrefix}/registro` : "/registro"}
                   className="bg-stone-900 text-white hover:bg-stone-800 px-3 py-1.5 transition-colors font-medium hidden sm:inline-block"
                 >
                   Crear Cuenta
@@ -427,6 +427,25 @@ export const MainLayout: React.FC = () => {
                   <ShieldCheck className="w-4 h-4" />
                   Panel de Administración
                 </Link>
+              )}
+
+              {!isAuthenticated && (
+                <div className="flex flex-col gap-2 p-2 border-b border-[#E7E1D7] pb-3 mb-1">
+                  <Link
+                    to={storePrefix ? `${storePrefix}/login` : "/login"}
+                    onClick={() => setMenuMovilAbierto(false)}
+                    className="w-full text-center py-2 text-stone-700 border border-[#E7E1D7] hover:bg-[#F2ECE1] transition-colors font-medium text-xs uppercase tracking-widest"
+                  >
+                    Ingresar
+                  </Link>
+                  <Link
+                    to={storePrefix ? `${storePrefix}/registro` : "/registro"}
+                    onClick={() => setMenuMovilAbierto(false)}
+                    className="w-full text-center py-2 bg-stone-900 text-white hover:bg-stone-800 transition-colors font-medium text-xs uppercase tracking-widest"
+                  >
+                    Crear Cuenta
+                  </Link>
+                </div>
               )}
             </nav>
 

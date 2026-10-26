@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { Link, useNavigate, useLocation, useSearchParams } from 'react-router-dom';
+import { Link, useNavigate, useLocation, useSearchParams, useParams } from 'react-router-dom';
 import { AlertCircle } from 'lucide-react';
 import { Button } from '../../../components/ui/Button';
 import { Input } from '../../../components/ui/Input';
@@ -12,6 +12,8 @@ export const LoginPage: React.FC = () => {
   const navigate = useNavigate();
   const location = useLocation();
   const [searchParams] = useSearchParams();
+  const { slug } = useParams<{ slug?: string }>();
+  const targetSlug = slug || searchParams.get('slug') || searchParams.get('tienda_slug');
   const setAuth = useAuthStore((state) => state.setAuth);
 
   const [correo, setCorreo] = useState('');
@@ -56,6 +58,8 @@ export const LoginPage: React.FC = () => {
         navigate(from, { replace: true });
       } else if (data.usuario.rol === 'ADMIN') {
         navigate('/admin', { replace: true });
+      } else if (targetSlug) {
+        navigate(`/t/${targetSlug}`, { replace: true });
       } else {
         navigate('/catalogo', { replace: true });
       }
@@ -74,8 +78,14 @@ export const LoginPage: React.FC = () => {
   return (
     <div>
       <div className="text-center mb-6">
-        <h2 className="text-2xl font-bold text-gray-900 tracking-tight">¡Bienvenido de nuevo!</h2>
-        <p className="text-sm text-gray-500 mt-1">Ingresa a tu cuenta para continuar con tus compras</p>
+        <h2 className="text-2xl font-bold text-gray-900 tracking-tight font-serif">
+          {targetSlug ? `Iniciar Sesión en ${targetSlug}` : '¡Bienvenido de nuevo!'}
+        </h2>
+        <p className="text-sm text-gray-500 mt-1">
+          {targetSlug
+            ? 'Ingresa a tu cuenta para continuar con tus compras en esta tienda'
+            : 'Ingresa a tu cuenta para gestionar tu tienda o tus compras'}
+        </p>
       </div>
 
       {error && (
@@ -125,8 +135,11 @@ export const LoginPage: React.FC = () => {
 
       <div className="mt-6 pt-4 border-t border-gray-100 text-center text-sm text-gray-600">
         ¿Aún no tienes una cuenta?{' '}
-        <Link to="/registro" className="text-black font-semibold hover:underline">
-          Regístrate gratis
+        <Link
+          to={targetSlug ? (slug ? `/t/${targetSlug}/registro` : `/registro?slug=${targetSlug}`) : '/registro'}
+          className="text-black font-semibold hover:underline"
+        >
+          {targetSlug ? 'Regístrate como comprador' : 'Crea tu tienda gratis'}
         </Link>
       </div>
     </div>

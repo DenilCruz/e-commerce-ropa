@@ -1,12 +1,11 @@
-import React, { useState } from 'react';
-import { Link, useLocation, useSearchParams } from 'react-router-dom';
+import React, { useState, useEffect } from 'react';
+import { Link, useLocation, useSearchParams, useParams } from 'react-router-dom';
 import {
   CheckCircle2,
   Mail,
   AlertCircle,
   Sparkles,
   Store,
-  ShoppingBag,
   ArrowRight,
   CreditCard,
   QrCode,
@@ -18,14 +17,26 @@ import { authApi } from '../services/auth.api';
 export const RegisterPage: React.FC = () => {
   const location = useLocation();
   const [searchParams] = useSearchParams();
+  const { slug } = useParams<{ slug?: string }>();
+
+  // Si hay slug en la URL (/t/:slug/registro) o en query params (?slug=...), es una tienda específica
+  const storeSlug = slug || searchParams.get('slug') || searchParams.get('tienda_slug') || '';
+  const esContextoTienda = Boolean(storeSlug);
+
+  // Modo automático según el contexto:
+  // - En contexto de tienda -> exclusivamente 'cliente' (comprador de esa tienda)
+  // - En contexto SaaS general -> exclusivamente 'tienda' (creación de nueva tienda)
+  const modo: 'tienda' | 'cliente' = esContextoTienda ? 'cliente' : 'tienda';
+
+  useEffect(() => {
+    if (esContextoTienda && storeSlug) {
+      localStorage.setItem('tenant_slug', storeSlug);
+    }
+  }, [esContextoTienda, storeSlug]);
 
   const planParam = (
-    location.state?.planSeleccionado || searchParams.get('plan') || 'FREE_TRIAL'
+    (location.state as any)?.planSeleccionado || searchParams.get('plan') || 'FREE_TRIAL'
   ).toUpperCase();
-
-  const [modo, setModo] = useState<'tienda' | 'cliente'>(
-    searchParams.get('cliente') ? 'cliente' : 'tienda'
-  );
 
   const [planActivo, setPlanActivo] = useState<'FREE_TRIAL' | 'ESTANDAR' | 'CORPORATIVO'>(
     planParam === 'ESTANDAR' || planParam === 'CORPORATIVO' ? planParam : 'FREE_TRIAL'
@@ -198,6 +209,8 @@ export const RegisterPage: React.FC = () => {
                 to={`/verificar-email?token=${tokenVerificacion}${
                   modo === 'tienda' && nombreTienda
                     ? `&tienda=${encodeURIComponent(nombreTienda.trim())}&plan=${encodeURIComponent(planActivo)}`
+                    : esContextoTienda
+                    ? `&slug=${encodeURIComponent(storeSlug)}`
                     : ''
                 }`}
               >
@@ -213,11 +226,13 @@ export const RegisterPage: React.FC = () => {
         </div>
 
         <Link
-          to={`/login${
+          to={
             modo === 'tienda' && nombreTienda
-              ? `?tienda=${encodeURIComponent(nombreTienda.trim())}&plan=${encodeURIComponent(planActivo)}`
-              : ''
-          }`}
+              ? `/login?tienda=${encodeURIComponent(nombreTienda.trim())}&plan=${encodeURIComponent(planActivo)}`
+              : esContextoTienda
+              ? (slug ? `/t/${storeSlug}/login` : `/login?slug=${storeSlug}`)
+              : '/login'
+          }
         >
           <Button className="w-full">Ir al Inicio de Sesión</Button>
         </Link>
@@ -227,34 +242,7 @@ export const RegisterPage: React.FC = () => {
 
   return (
     <div>
-      {/* Selector de modo: Tienda vs Cliente */}
-      <div className="flex border-b border-[#E7E1D7] mb-6">
-        <button
-          type="button"
-          onClick={() => setModo('tienda')}
-          className={`flex-1 py-3 text-xs uppercase tracking-wider font-semibold border-b-2 transition-all flex items-center justify-center gap-2 ${
-            modo === 'tienda'
-              ? 'border-stone-900 text-stone-900 bg-[#FAF8F5]'
-              : 'border-transparent text-stone-400 hover:text-stone-700'
-          }`}
-        >
-          <Store className="w-4 h-4 text-[#9B7B54]" />
-          <span>Crear mi Tienda</span>
-        </button>
-        <button
-          type="button"
-          onClick={() => setModo('cliente')}
-          className={`flex-1 py-3 text-xs uppercase tracking-wider font-semibold border-b-2 transition-all flex items-center justify-center gap-2 ${
-            modo === 'cliente'
-              ? 'border-stone-900 text-stone-900 bg-[#FAF8F5]'
-              : 'border-transparent text-stone-400 hover:text-stone-700'
-          }`}
-        >
-          <ShoppingBag className="w-4 h-4" />
-          <span>Soy Comprador</span>
-        </button>
-      </div>
-
+      {/* Encabezado según contexto (sin selector de pestañas) */}
       <div className="text-center mb-6">
         {modo === 'tienda' ? (
           <>
@@ -279,11 +267,15 @@ export const RegisterPage: React.FC = () => {
           </>
         ) : (
           <>
+            <div className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-[#FAF8F5] border border-[#E7E1D7] text-xs font-semibold uppercase tracking-wider text-stone-700 mb-3">
+              <Store className="w-3.5 h-3.5 text-[#9B7B54]" />
+              <span>Tienda: <strong className="text-stone-900">{storeSlug}</strong></span>
+            </div>
             <h2 className="text-2xl font-bold text-gray-900 tracking-tight font-serif">
-              Crea tu cuenta de Cliente
+              Crea tu cuenta de Comprador
             </h2>
             <p className="text-sm text-gray-500 mt-1">
-              Regístrate para comprar y gestionar tus pedidos de ropa
+              Regístrate para realizar compras y gestionar tus pedidos en esta tienda
             </p>
           </>
         )}
@@ -575,16 +567,27 @@ export const RegisterPage: React.FC = () => {
               <ArrowRight className="w-3.5 h-3.5" />
             </>
           ) : (
-            <span>Crear Cuenta</span>
+            <span>Crear Cuenta de Comprador</span>
           )}
         </Button>
       </form>
 
       <div className="mt-6 pt-4 border-t border-gray-100 text-center text-sm text-gray-600">
         ¿Ya tienes una cuenta?{' '}
-        <Link to="/login" className="text-black font-semibold hover:underline">
+        <Link
+          to={esContextoTienda ? (slug ? `/t/${storeSlug}/login` : `/login?slug=${storeSlug}`) : '/login'}
+          className="text-black font-semibold hover:underline"
+        >
           Inicia Sesión
         </Link>
+        {esContextoTienda && (
+          <div className="mt-3 text-xs text-stone-400">
+            ¿Quieres vender tus propios productos?{' '}
+            <Link to="/registro" className="text-[#9B7B54] hover:underline font-medium">
+              Crea tu propia tienda en AURA
+            </Link>
+          </div>
+        )}
       </div>
     </div>
   );
