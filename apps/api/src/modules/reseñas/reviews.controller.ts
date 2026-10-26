@@ -29,11 +29,18 @@ export class ResenasController {
   constructor(private readonly servicioResenas: ResenasService) {}
 
   @Post()
+  @UseGuards(JwtAuthGuard)
   @ApiOperation({ summary: 'HU-66: Publicar reseña (requiere haber comprado el producto)' })
   @ApiResponse({ status: 201, description: 'Reseña publicada exitosamente.' })
   @ApiResponse({ status: 403, description: 'Prohibido: El usuario no ha comprado este producto.' })
-  crear(@Body() datos: CrearResenaDto) {
-    return this.servicioResenas.crear(datos);
+  crear(
+    @Body() datos: CrearResenaDto,
+    @CurrentUser('userId') usuarioToken: string,
+  ) {
+    return this.servicioResenas.crear({
+      ...datos,
+      usuarioId: exigirMismoUsuario(datos.usuarioId, usuarioToken),
+    });
   }
 
   @Get('verificar-compra/:productoId/:usuarioId')
@@ -51,9 +58,16 @@ export class ResenasController {
   }
 
   @Post('simular-compra')
+  @UseGuards(JwtAuthGuard)
   @ApiOperation({ summary: 'HU-66: Registrar compra de prueba (para facilitar evaluación académica)' })
-  simularCompra(@Body() body: { productoId: string; usuarioId: string }) {
-    return this.servicioResenas.simularCompraParaPruebas(body.productoId, body.usuarioId);
+  simularCompra(
+    @Body() body: { productoId: string; usuarioId?: string },
+    @CurrentUser('userId') usuarioToken: string,
+  ) {
+    return this.servicioResenas.simularCompraParaPruebas(
+      body.productoId,
+      exigirMismoUsuario(body.usuarioId, usuarioToken),
+    );
   }
 
   @Get('producto/:productoId')
@@ -71,25 +85,37 @@ export class ResenasController {
   }
 
   @Put(':id')
+  @UseGuards(JwtAuthGuard)
   @ApiOperation({ summary: 'HU-68: Editar la propia reseña del cliente' })
   @ApiParam({ name: 'id', description: 'ID de la reseña' })
   actualizar(
     @Param('id', ParseUUIDPipe) id: string,
     @Body() datos: ActualizarResenaDto,
+    @CurrentUser('userId') usuarioToken: string,
   ) {
-    return this.servicioResenas.actualizar(id, datos, datos.usuarioId);
+    return this.servicioResenas.actualizar(
+      id,
+      datos,
+      exigirMismoUsuario(datos.usuarioId, usuarioToken),
+    );
   }
 
   @Delete(':id')
+  @UseGuards(JwtAuthGuard)
   @HttpCode(HttpStatus.NO_CONTENT)
   @ApiOperation({ summary: 'HU-68: Eliminar la propia reseña del cliente' })
   @ApiParam({ name: 'id', description: 'ID de la reseña' })
   @ApiQuery({ name: 'usuarioId', required: false, description: 'ID del usuario para verificar autoría' })
   eliminar(
     @Param('id', ParseUUIDPipe) id: string,
-    @Query('usuarioId') usuarioId?: string,
+    @Query('usuarioId') usuarioId: string | undefined,
+    @CurrentUser('userId') usuarioToken: string,
   ) {
-    return this.servicioResenas.eliminar(id, usuarioId, false);
+    return this.servicioResenas.eliminar(
+      id,
+      exigirMismoUsuario(usuarioId, usuarioToken),
+      false,
+    );
   }
 
   // --- Endpoints Administrativos de Moderación (HU-69) ---
