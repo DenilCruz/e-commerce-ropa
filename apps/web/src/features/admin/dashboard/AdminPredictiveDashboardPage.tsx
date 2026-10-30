@@ -1,4 +1,6 @@
 import { DemandChart } from './DemandChart';
+import { MachineLearningSection } from './MachineLearningSection';
+import { ModelosMachineLearningRespuesta } from '../types';
 import React, { useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
 import {
@@ -32,6 +34,8 @@ export const AdminPredictiveDashboardPage: React.FC = () => {
   const [ventasPredictivas, setVentasPredictivas] = useState<AnalisisPredictivoVentasRespuesta | null>(null);
   const [churnData, setChurnData] = useState<PrediccionChurnRespuesta | null>(null);
   const [afinidadData, setAfinidadData] = useState<RecomendacionesAfinidadRespuesta | null>(null);
+  const [mlData, setMlData] = useState<ModelosMachineLearningRespuesta | null>(null);
+  const [reentrenandoML, setReentrenandoML] = useState(false);
 
   const [cargando, setCargando] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -42,15 +46,17 @@ export const AdminPredictiveDashboardPage: React.FC = () => {
     try {
       setCargando(true);
       setError(null);
-      const [ventas, churn, afinidad] = await Promise.all([
+      const [ventas, churn, afinidad, mlRes] = await Promise.all([
         adminApi.obtenerAnalisisPredictivoVentas(),
         adminApi.obtenerPrediccionChurn(),
         adminApi.obtenerRecomendacionesAfinidad(),
+        adminApi.obtenerModelosMachineLearning().catch(() => null),
       ]);
 
       setVentasPredictivas(ventas);
       setChurnData(churn);
       setAfinidadData(afinidad);
+      if (mlRes) setMlData(mlRes);
     } catch (err: any) {
       console.error('Error cargando analítica predictiva:', err);
       setError(err?.response?.data?.message || 'Error al conectar con el motor predictivo.');
@@ -99,6 +105,20 @@ export const AdminPredictiveDashboardPage: React.FC = () => {
       </div>
     );
   }
+
+  
+  const handleReentrenarML = async () => {
+    try {
+      setReentrenandoML(true);
+      const res = await adminApi.obtenerModelosMachineLearning();
+      setMlData(res);
+      toast.success('Modelos Random Forest y K-Means re-entrenados con éxito (80/20)');
+    } catch (err: any) {
+      toast.error('Error al entrenar los modelos de Machine Learning');
+    } finally {
+      setReentrenandoML(false);
+    }
+  };
 
   const { metricasPredictivas, serieGrafico, recomendacionEstrategica } = ventasPredictivas;
 

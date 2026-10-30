@@ -119,4 +119,14 @@ export class AdminController {
   obtenerRecomendacionesAfinidad() {
     return this.adminService.recomendacionesAfinidadProductos();
   }
+
+  @Get('predictivo/modelos-ml')
+  @ApiOperation({
+    summary: 'Entrenar y evaluar modelos ML (Random Forest + K-Means) con partición 80/20',
+    description: 'Entrena modelo supervisado (Random Forest) y no supervisado (K-Means) sobre compras reales.',
+  })
+  obtenerModelosMachineLearning() {
+    return this.adminService.modelosMachineLearning();
+  }
+
 }
