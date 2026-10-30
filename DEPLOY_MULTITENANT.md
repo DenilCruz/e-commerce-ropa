@@ -18,6 +18,8 @@ psql -U <superusuario> -d <base> -f database/06_tienda_plan.sql
 psql -U <superusuario> -d <base> -f database/07_idempotencia.sql
 psql -U <superusuario> -d <base> -f database/08_nota_venta_clave.sql
 psql -U <superusuario> -d <base> -f database/09_push_suscripciones.sql
+psql -U <superusuario> -d <base> -f database/11_suscripciones_webhooks.sql
+psql -U <superusuario> -d <base> -f database/12_pago_transaccion_unica.sql
 ```
 
 Los datos actuales (productos, pedidos, usuarios) quedan asignados a la tienda "AURA".
@@ -73,3 +75,21 @@ Si falta algo de esto, la API se niega a arrancar en producción a propósito:
 - **Para volver atrás:** restaurar el respaldo del paso 0 y la versión anterior del código.
 - **La app móvil** no tiene selector de tienda todavía; usa la tienda AURA por defecto.
 - Estas migraciones se probaron en una base local; este procedimiento no se probó contra una copia de producción.
+
+## Pagos con Stripe y webhooks
+
+- La migración `11` crea `suscripcion` y `evento_webhook`; la `12` crea el índice único de `pago(tenant_id, id_transaccion)`.
+  La `12` se detiene y lista si ya hay transacciones repetidas: resuélvelas a mano antes de volver a correrla.
+- Aplica `11` y `12` **antes** de reiniciar la API con el código nuevo (igual que las demás).
+- Variables del servidor: `STRIPE_SECRET_KEY`, `STRIPE_WEBHOOK_SECRET` y `APP_URL` (la URL pública del front: Stripe devuelve ahí al cliente).
+- Registra el endpoint en Stripe (Developers → Webhooks): `https://<tu-dominio>/api/v1/webhooks/stripe`, con los eventos
+  `checkout.session.completed`, `checkout.session.async_payment_succeeded`, `checkout.session.async_payment_failed` y
+  `checkout.session.expired`. Copia el *Signing secret* (`whsec_...`) a `STRIPE_WEBHOOK_SECRET`. Sin él, el webhook responde 503.
+- Para probar en local: `stripe listen --forward-to localhost:3000/api/v1/webhooks/stripe` imprime un `whsec_...` temporal para tu `.env`.
+- Un plan solo se activa por este webhook; el botón de planes lleva a Stripe y la pantalla de retorno espera la confirmación.
+- Si Stripe cobró y el pedido no pudo crearse (sin stock, carrito cambiado) el servidor responde 200 y escribe en el log
+  `cobrado pero sin pedido`; busca esa frase y reembolsa a mano en Stripe cuando corresponda. Los errores transitorios de la base
+  responden 5xx y Stripe reintenta solo.
+- Los planes se cobran en Bs (`bob`), igual que los pedidos. El plan pagado vence al terminar su período (1 mes o 12 meses);
+  las tiendas creadas antes del cobro, sin suscripciones, conservan su plan.
+
