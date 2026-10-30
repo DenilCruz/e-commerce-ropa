@@ -16,7 +16,7 @@ import { useAuthStore } from '../../store/auth.store';
 import { usePlanLimites } from '../tiendas/hooks/usePlanLimites';
 import { tiendasApi } from '../tiendas/services/tiendas.api';
 import { planesApi } from '../tiendas/services/planes.api';
-import { esBajaDePlan, esPlanDePago } from '../tiendas/utils/planes';
+import { PLAN_NOMBRES_FALLBACK, esBajaDePlan, esPlanDePago } from '../tiendas/utils/planes';
 import { MiTienda } from '../tiendas/types';
 import { Modal } from '../../components/ui/Modal';
 
@@ -31,6 +31,7 @@ export const PricingSection: React.FC = () => {
 
   // Pago del plan: el cobro ocurre en Stripe; aquí solo se prepara y se redirige
   const [procesando, setProcesando] = useState(false);
+  const [errorModal, setErrorModal] = useState<string | null>(null);
   const [searchParams, setSearchParams] = useSearchParams();
 
   const { data: misTiendas = [] } = useQuery<MiTienda[]>({
@@ -139,6 +140,7 @@ export const PricingSection: React.FC = () => {
       return;
     }
 
+    setErrorModal(null);
     setPlanAActualizar(planId);
   };
 
@@ -164,12 +166,13 @@ export const PricingSection: React.FC = () => {
   const pagarConStripe = async () => {
     if (!esPlanDePago(planAActualizar)) return;
     setProcesando(true);
+    setErrorModal(null);
     try {
       await asegurarTiendaActiva();
       const checkout = await planesApi.crearCheckout(planAActualizar, anual ? 'ANUAL' : 'MENSUAL');
       window.location.assign(checkout.url);
     } catch (err) {
-      toast.error(mensajeDeError(err, 'No se pudo abrir el pago. Inténtalo de nuevo.'));
+      setErrorModal(mensajeDeError(err, 'No se pudo abrir el pago. Inténtalo de nuevo.'));
       setProcesando(false);
     }
   };
@@ -402,10 +405,21 @@ export const PricingSection: React.FC = () => {
           </div>
 
           {esBaja ? (
-            <p className="text-xs text-stone-600 leading-relaxed">
-              Pasar a este plan no tiene costo. Algunas capacidades del plan actual dejarán de estar disponibles y se aplicarán los límites del nuevo
-              plan.
-            </p>
+            <div className="space-y-3">
+              {planActualTienda && planActualTienda !== 'FREE_TRIAL' && (
+                <div role="note" className="p-3.5 bg-[#FAF8F5] border border-[#E7E1D7] rounded-lg flex items-start gap-3">
+                  <ShieldCheck className="w-5 h-5 text-[#9B7B54] shrink-0 mt-0.5" aria-hidden />
+                  <p className="text-xs text-stone-700 leading-relaxed">
+                    <strong className="text-stone-900">Ya tienes un plan superior ({PLAN_NOMBRES_FALLBACK[planActualTienda] ?? planActualTienda}).</strong>{' '}
+                    No hace falta pagar este plan. Si bajas, no se devuelve lo que ya pagaste.
+                  </p>
+                </div>
+              )}
+              <p className="text-xs text-stone-600 leading-relaxed">
+                Pasar a este plan no tiene costo. Algunas capacidades del plan actual dejarán de estar disponibles y se aplicarán los límites del nuevo
+                plan.
+              </p>
+            </div>
           ) : (
             <div className="p-4 bg-white border border-[#E7E1D7] rounded-lg flex items-start gap-3">
               <ShieldCheck className="w-5 h-5 text-[#9B7B54] shrink-0 mt-0.5" aria-hidden />
@@ -416,12 +430,18 @@ export const PricingSection: React.FC = () => {
             </div>
           )}
 
-          <div className="flex justify-end gap-3 pt-3 border-t border-[#E7E1D7]">
+          {errorModal && (
+            <p role="alert" className="p-3.5 bg-rose-50 border border-rose-200 rounded-lg text-xs text-rose-900 leading-relaxed">
+              {errorModal}
+            </p>
+          )}
+
+          <div className="flex flex-col-reverse sm:flex-row sm:justify-end gap-3 pt-3 border-t border-[#E7E1D7]">
             <button
               type="button"
               onClick={() => setPlanAActualizar(null)}
               disabled={procesando}
-              className="px-5 py-2.5 border border-[#D5CCC0] text-xs uppercase tracking-widest text-stone-700 hover:bg-[#FAF8F5]"
+              className="w-full sm:w-auto px-5 py-2.5 border border-[#D5CCC0] text-xs uppercase tracking-widest text-stone-700 hover:bg-[#FAF8F5]"
             >
               Cancelar
             </button>
@@ -429,7 +449,7 @@ export const PricingSection: React.FC = () => {
               type="button"
               onClick={esBaja ? confirmarBaja : pagarConStripe}
               disabled={procesando}
-              className="px-6 py-2.5 bg-stone-900 text-white text-xs uppercase tracking-widest font-semibold hover:bg-stone-800 disabled:opacity-60 flex items-center gap-2 shadow-md"
+              className="w-full sm:w-auto justify-center px-6 py-2.5 bg-stone-900 text-white text-xs uppercase tracking-widest font-semibold hover:bg-stone-800 disabled:opacity-60 flex items-center gap-2 shadow-md"
             >
               {procesando ? (
                 <>
