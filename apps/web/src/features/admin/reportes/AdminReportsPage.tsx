@@ -2,6 +2,7 @@ import React, { useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
 import {
   Download,
+  FileSpreadsheet,
   Printer,
   Search,
   Calendar,
@@ -10,8 +11,8 @@ import {
   X,
   Sparkles,
 } from 'lucide-react';
-import * as XLSX from 'xlsx';
 import { adminApi } from '../services/admin.api';
+import { exportarExcel, FORMATO_MONEDA, obtenerTodasLasPaginas } from '../../../lib/exportarExcel';
 import { ReporteVentasRespuesta, ReportePedido, ReporteVentasFiltros } from '../types';
 import { obtenerCategorias } from '../../catalogo/services/catalogo.api';
 import { adminUsuariosApi, UsuarioAdmin } from '../usuarios/admin-usuarios.api';
@@ -26,6 +27,7 @@ export const AdminReportsPage: React.FC = () => {
   const [usuarioId, setUsuarioId] = useState<string>('');
   const [busqueda, setBusqueda] = useState<string>('');
   const [pagina, setPagina] = useState<number>(1);
+  const [exportando, setExportando] = useState<boolean>(false);
 
   // Listas para filtros desplegables
   const [listaCategorias, setListaCategorias] = useState<any[]>([]);
@@ -124,58 +126,6 @@ export const AdminReportsPage: React.FC = () => {
     cargarReporte();
   };
 
-  // Exportación nativa a Excel (.xlsx)
-  const exportarExcel = () => {
-    if (!reporte || reporte.pedidos.length === 0) {
-      alert('No hay datos para exportar.');
-      return;
-    }
-
-    const rows = reporte.pedidos.map((p) => {
-      const fechaStr = new Date(p.creadoEn).toLocaleString('es-BO');
-      const itemsStr = p.items
-        .map((i) => `${i.nombreProducto} x${i.cantidad} (${i.talla || 'N/A'}/${i.color || 'N/A'})`)
-        .join(' | ');
-
-      return {
-        'NRO ORDEN': p.nro,
-        'FECHA Y HORA': fechaStr,
-        'CLIENTE': p.cliente?.nombre || 'General',
-        'EMAIL': p.cliente?.correo || 'N/A',
-        'ESTADO': p.estado,
-        'METODO PAGO': p.metodoPago,
-        'CUPON': p.cuponCodigo || 'Sin cupon',
-        'SUBTOTAL ($)': Number(p.subtotal.toFixed(2)),
-        'DESCUENTO ($)': Number(p.descuento.toFixed(2)),
-        'ENVIO ($)': Number(p.costoEnvio.toFixed(2)),
-        'TOTAL ($)': Number(p.total.toFixed(2)),
-        'PRODUCTOS': itemsStr,
-      };
-    });
-
-    const worksheet = XLSX.utils.json_to_sheet(rows);
-    worksheet['!cols'] = [
-      { wch: 15 },
-      { wch: 20 },
-      { wch: 22 },
-      { wch: 25 },
-      { wch: 14 },
-      { wch: 15 },
-      { wch: 14 },
-      { wch: 14 },
-      { wch: 14 },
-      { wch: 12 },
-      { wch: 14 },
-      { wch: 45 },
-    ];
-
-    const workbook = XLSX.utils.book_new();
-    XLSX.utils.book_append_sheet(workbook, worksheet, 'Reporte Ventas');
-
-    const fileName = `reporte_ventas_${fechaInicio || 'inicio'}_a_${fechaFin || 'fin'}.xlsx`;
-    XLSX.writeFile(workbook, fileName);
-  };
-
   // HU-92: Exportación a CSV formateado con UTF-8 BOM
   const exportarCSV = () => {
     if (!reporte || reporte.pedidos.length === 0) {
@@ -237,6 +187,61 @@ export const AdminReportsPage: React.FC = () => {
     document.body.removeChild(link);
   };
 
+  // Excel (.xlsx): todos los pedidos del filtro actual, no solo la página visible
+  const exportarExcelVentas = async () => {
+    if (!reporte || reporte.pedidos.length === 0) {
+      alert('No hay datos para exportar.');
+      return;
+    }
+
+    const POR_PAGINA = 200;
+    try {
+      setExportando(true);
+      const filtros: ReporteVentasFiltros = {
+        fechaInicio: fechaInicio || undefined,
+        fechaFin: fechaFin || undefined,
+        estado: estado !== 'TODOS' ? estado : undefined,
+        categoriaId: categoriaId || undefined,
+        usuarioId: usuarioId || undefined,
+        busqueda: busqueda.trim() || undefined,
+        limite: POR_PAGINA,
+      };
+      const pedidos: ReportePedido[] = await obtenerTodasLasPaginas(async (pag) => {
+        const data = await adminApi.generarReporteVentas({ ...filtros, pagina: pag });
+        return { items: data.pedidos, totalPaginas: data.paginacion.totalPaginas };
+      });
+
+      await exportarExcel({
+        nombreArchivo: `reporte_ventas_${fechaInicio || 'inicio'}_a_${fechaFin || 'fin'}`,
+        hoja: 'Ventas',
+        filas: pedidos,
+        columnas: [
+          { titulo: 'Nro Pedido', valor: (p) => p.nro },
+          { titulo: 'Fecha', valor: (p) => new Date(p.fecha), formato: 'dd/mm/yyyy hh:mm' },
+          { titulo: 'Cliente', valor: (p) => p.cliente?.nombre || 'General' },
+          { titulo: 'Correo', valor: (p) => p.cliente?.correo || 'N/A' },
+          { titulo: 'Estado', valor: (p) => p.estado },
+          { titulo: 'Método de Pago', valor: (p) => p.metodoPago },
+          { titulo: 'Cupón', valor: (p) => p.cuponCodigo || 'Sin cupón' },
+          { titulo: 'Subtotal (Bs)', valor: (p) => p.subtotal, formato: FORMATO_MONEDA },
+          { titulo: 'Descuento (Bs)', valor: (p) => p.descuento, formato: FORMATO_MONEDA },
+          { titulo: 'Envío (Bs)', valor: (p) => p.costoEnvio, formato: FORMATO_MONEDA },
+          { titulo: 'Total (Bs)', valor: (p) => p.total, formato: FORMATO_MONEDA },
+          {
+            titulo: 'Items',
+            valor: (p) =>
+              p.items.map((i) => `${i.nombreProducto} x${i.cantidad} (${i.talla || 'N/A'}/${i.color || 'N/A'})`).join(' | '),
+          },
+        ],
+      });
+    } catch (error) {
+      console.error('Error exportando el reporte a Excel', error);
+      alert('No se pudo generar el archivo de Excel. Inténtalo de nuevo.');
+    } finally {
+      setExportando(false);
+    }
+  };
+
   const imprimirReporte = () => {
     window.print();
   };
@@ -279,7 +284,15 @@ export const AdminReportsPage: React.FC = () => {
             className="flex items-center gap-2 px-4 py-2.5 bg-stone-900 text-white text-xs font-bold uppercase tracking-widest rounded-lg hover:bg-stone-800 transition-colors shadow-xs"
           >
             <Download className="w-4 h-4" />
-            <span>Exportar CSV / Excel</span>
+            <span>Exportar CSV</span>
+          </button>
+          <button
+            onClick={exportarExcelVentas}
+            disabled={exportando}
+            className="flex items-center gap-2 px-4 py-2.5 bg-emerald-700 text-white text-xs font-bold uppercase tracking-widest rounded-lg hover:bg-emerald-800 transition-colors shadow-xs disabled:opacity-50"
+          >
+            <FileSpreadsheet className="w-4 h-4" />
+            <span>{exportando ? 'Generando...' : 'Exportar Excel'}</span>
           </button>
         </div>
       </div>
