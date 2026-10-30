@@ -1,4 +1,4 @@
-import { MiddlewareConsumer, Module, NestModule } from '@nestjs/common';
+import { MiddlewareConsumer, Module, NestModule, RequestMethod } from '@nestjs/common';
 import { ConfigModule, ConfigService } from '@nestjs/config';
 import { configuration } from './config/configuration';
 
@@ -11,6 +11,7 @@ import { InventoryModule } from './modules/inventario/inventory.module';
 import { CartModule } from './modules/carrito/cart.module';
 import { OrdersModule } from './modules/pedidos/orders.module';
 import { PaymentsModule } from './modules/pagos/payments.module';
+import { FacturacionModule } from './modules/facturacion/facturacion.module';
 import { PosSalesModule } from './modules/ventas/pos-sales.module';
 import { NotificacionesModule } from './modules/notificaciones/notificaciones.module';
 import { ShippingModule } from './modules/envios/shipping.module';
@@ -66,10 +67,15 @@ import { TenantSubscriber } from './common/tenant/tenant.subscriber';
     AdminModule,
     ProbadorModule,
     StoresModule,
+    FacturacionModule,
   ],
 })
 export class AppModule implements NestModule {
   configure(consumer: MiddlewareConsumer) {
-    consumer.apply(TenantMiddleware).forRoutes('*');
+    // Stripe's webhook has no session or store header: the store comes from the signed event itself
+    consumer
+      .apply(TenantMiddleware)
+      .exclude({ path: 'webhooks/stripe', method: RequestMethod.POST })
+      .forRoutes('*');
   }
 }

@@ -3,7 +3,12 @@ jest.mock('@nestjs/typeorm', () => ({
 }));
 
 import { ForbiddenException, NotFoundException, BadRequestException, HttpException } from '@nestjs/common';
-import { PlanLimitsService, PLANES_CONFIG } from '../../src/modules/tiendas/plan-limits.service';
+import {
+  PlanLimitsService,
+  PLANES_CONFIG,
+  calcularMontoPlan,
+  resolverPlanEfectivo,
+} from '../../src/modules/tiendas/plan-limits.service';
 
 describe('PlanLimitsService (Pilar 1: Multi-Tenant SaaS)', () => {
   let service: PlanLimitsService;
@@ -24,6 +29,7 @@ describe('PlanLimitsService (Pilar 1: Multi-Tenant SaaS)', () => {
         propietarioId: USER_ID,
       }),
       save: jest.fn((entity) => Promise.resolve(entity)),
+      manager: { query: jest.fn().mockResolvedValue([]) },
     };
 
     membershipRepo = {
@@ -73,6 +79,32 @@ describe('PlanLimitsService (Pilar 1: Multi-Tenant SaaS)', () => {
     membershipRepo.count.mockResolvedValue(PLANES_CONFIG.FREE_TRIAL.maxUsuarios);
 
     await expect(service.validarLimiteUsuarios(STORE_ID)).rejects.toThrow(ForbiddenException);
+  });
+
+  it('reports the effective plan: a paid plan whose subscription expired falls back to the trial', async () => {
+    storeRepo.findOne.mockResolvedValue({ id: STORE_ID, plan: 'ESTANDAR', propietarioId: USER_ID });
+    storeRepo.manager.query.mockResolvedValue([{ plan: 'ESTANDAR', estado: 'ACTIVA', vigente: false }]);
+
+    const res = await service.obtenerMetricasYLimites(STORE_ID);
+
+    expect(res.plan.id).toBe('FREE_TRIAL');
+    expect(res.tienda.plan).toBe('FREE_TRIAL');
+  });
+
+  it('keeps working with the stored plan while the subscriptions table does not exist yet (migration pending)', async () => {
+    storeRepo.findOne.mockResolvedValue({ id: STORE_ID, plan: 'ESTANDAR', propietarioId: USER_ID });
+    storeRepo.manager.query.mockRejectedValue({ code: '42P01' });
+
+    const res = await service.obtenerMetricasYLimites(STORE_ID);
+
+    expect(res.plan.id).toBe('ESTANDAR');
+  });
+
+  it('does not hide other database failures behind the stored plan', async () => {
+    storeRepo.findOne.mockResolvedValue({ id: STORE_ID, plan: 'ESTANDAR', propietarioId: USER_ID });
+    storeRepo.manager.query.mockRejectedValue(new Error('connection lost'));
+
+    await expect(service.obtenerMetricasYLimites(STORE_ID)).rejects.toThrow('connection lost');
   });
 
   it('refuses to upgrade to a paid plan without paying (402) and leaves the plan untouched', async () => {
@@ -128,5 +160,48 @@ describe('PlanLimitsService (Pilar 1: Multi-Tenant SaaS)', () => {
     await expect(service.cambiarPlan(STORE_ID, 'ESTANDAR', USER_ID)).rejects.toThrow(
       ForbiddenException,
     );
+  });
+});
+
+describe('calcularMontoPlan', () => {
+  it('cobra el precio mensual por un mes', () => {
+    expect(calcularMontoPlan('ESTANDAR', 'MENSUAL')).toBe(PLANES_CONFIG.ESTANDAR.precioMensual);
+    expect(calcularMontoPlan('CORPORATIVO', 'MENSUAL')).toBe(PLANES_CONFIG.CORPORATIVO.precioMensual);
+  });
+
+  it('cobra el plan anual como 12 meses al precio anual, de una sola vez', () => {
+    expect(calcularMontoPlan('ESTANDAR', 'ANUAL')).toBe(PLANES_CONFIG.ESTANDAR.precioAnual * 12);
+    expect(calcularMontoPlan('CORPORATIVO', 'ANUAL')).toBe(PLANES_CONFIG.CORPORATIVO.precioAnual * 12);
+  });
+
+  it('no vende el plan de prueba', () => {
+    expect(() => calcularMontoPlan('FREE_TRIAL', 'MENSUAL')).toThrow(BadRequestException);
+  });
+});
+
+describe('resolverPlanEfectivo', () => {
+  const vigente = (plan: string) => ({ plan, estado: 'ACTIVA', vigente: true });
+  const vencida = (plan: string) => ({ plan, estado: 'ACTIVA', vigente: false });
+
+  it('una tienda sin suscripciones conserva su plan (creada antes del cobro)', () => {
+    expect(resolverPlanEfectivo('CORPORATIVO', [])).toBe('CORPORATIVO');
+  });
+
+  it('el plan de prueba nunca depende de suscripciones', () => {
+    expect(resolverPlanEfectivo('FREE_TRIAL', [vigente('ESTANDAR')])).toBe('FREE_TRIAL');
+  });
+
+  it('vuelve a la prueba cuando todas las suscripciones vencieron o no se pagaron', () => {
+    expect(resolverPlanEfectivo('ESTANDAR', [vencida('ESTANDAR')])).toBe('FREE_TRIAL');
+    expect(resolverPlanEfectivo('ESTANDAR', [{ plan: 'ESTANDAR', estado: 'PENDIENTE_PAGO', vigente: true }])).toBe('FREE_TRIAL');
+  });
+
+  it('mantiene el plan guardado mientras haya una suscripción vigente de ese nivel o superior', () => {
+    expect(resolverPlanEfectivo('ESTANDAR', [vigente('ESTANDAR')])).toBe('ESTANDAR');
+    expect(resolverPlanEfectivo('ESTANDAR', [vigente('CORPORATIVO')])).toBe('ESTANDAR'); // bajó voluntariamente
+  });
+
+  it('no deja un plan más caro que el último pagado vigente', () => {
+    expect(resolverPlanEfectivo('CORPORATIVO', [vigente('ESTANDAR'), vencida('CORPORATIVO')])).toBe('ESTANDAR');
   });
 });
