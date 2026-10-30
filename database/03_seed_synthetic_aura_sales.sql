@@ -128,6 +128,12 @@ BEGIN
       RETURNING id INTO v_cliente_id;
     END IF;
 
+    -- Miembro CLIENTE de la tienda: es lo que usan los dashboards (RFM / churn) para listar a los clientes
+    IF NOT EXISTS (SELECT 1 FROM usuario_tienda WHERE usuario_id = v_user_id AND tienda_id = v_tenant_id) THEN
+      INSERT INTO usuario_tienda (usuario_id, tienda_id, rol_id, activo, creado_en)
+      VALUES (v_user_id, v_tenant_id, v_rol_cliente_id, true, NOW() - INTERVAL '380 days');
+    END IF;
+
     v_usuarios_ids := array_append(v_usuarios_ids, v_user_id);
     v_clientes_ids := array_append(v_clientes_ids, v_cliente_id);
   END LOOP;
