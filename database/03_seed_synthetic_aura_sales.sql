@@ -2,7 +2,8 @@
 -- SCRIPT DE GENERACIÓN DE DATOS SINTÉTICOS CON VOLUMEN
 -- Archivo: database/03_seed_synthetic_aura_sales.sql
 -- Motor: PostgreSQL 15+
--- Objetivo: Generar 200 órdenes históricas (últimos 12 meses)
+-- Objetivo: Generar 900 órdenes históricas (últimos 12 meses) con patrón semanal, estacional y de crecimiento,
+--           para que los dashboards predictivos tengan algo real que detectar
 -- Exclusivo para la Tienda Demo de AURA (tenant_id = 'a0a0a0a0-0000-4000-8000-000000000001')
 -- =====================================================================
 
@@ -61,6 +62,24 @@ DECLARE
   v_dias_atras NUMERIC;
   v_segundos_dia INT;
 
+  -- Volumen y patrón de demanda (una tienda real vende más viernes/sábado, en fin de año y crece con el tiempo)
+  v_total_ordenes CONSTANT INT := 900;
+  v_total_clientes CONSTANT INT := 150;
+
+  -- Combos que los clientes suelen comprar juntos (patrón de la prenda A con la prenda B, por nombre de producto)
+  v_combos_a CONSTANT TEXT[] := ARRAY['^vestido', '^camisa', '^polera', '^falda'];
+  v_combos_b CONSTANT TEXT[] := ARRAY['^(abrigo|trench)', '^jeans', '^shorts', '^camisa'];
+  v_prob_combo CONSTANT NUMERIC := 0.35;
+  v_es_combo BOOLEAN;
+  v_combo INT;
+  v_idx_a INT[];
+  v_idx_b INT[];
+  v_dia_idx INT;
+  v_peso NUMERIC;
+  v_peso_dow CONSTANT NUMERIC[] := ARRAY[0.75, 0.65, 0.70, 0.80, 0.90, 1.20, 1.50];                 -- domingo..sábado
+  v_peso_mes CONSTANT NUMERIC[] := ARRAY[0.85, 0.80, 0.90, 0.90, 1.10, 0.95, 1.00, 1.05, 1.00, 1.10, 1.15, 1.50]; -- enero..diciembre
+  v_peso_max CONSTANT NUMERIC := 1.50 * 1.50 * 1.30;  -- máximo posible de los tres factores (crecimiento de 0.7 a 1.3)
+
   v_items_count INT;
   v_idx_prod INT;
   v_prod_id UUID;
@@ -81,7 +100,7 @@ DECLARE
   v_trx_id TEXT;
   v_rand FLOAT;
 BEGIN
-  RAISE NOTICE '🚀 Iniciando generación de 200 ventas sintéticas para la tienda AURA...';
+  RAISE NOTICE '🚀 Iniciando generación de % ventas sintéticas para la tienda AURA...', v_total_ordenes;
 
   -- 1. Obtener Rol de Cliente
   SELECT id INTO v_rol_cliente_id FROM rol WHERE UPPER(nombre) = 'CLIENTE' LIMIT 1;
@@ -106,11 +125,17 @@ BEGIN
   SELECT id INTO v_cupon_bienvenida FROM cupon WHERE codigo = 'BIENVENIDA20' AND tenant_id = v_tenant_id LIMIT 1;
   SELECT id INTO v_cupon_vip FROM cupon WHERE codigo = 'VIPATELIER' AND tenant_id = v_tenant_id LIMIT 1;
 
-  -- 4. Crear 20 Clientes Sintéticos si no existen
-  FOR i IN 1..20 LOOP
-    v_nombre := v_nombres[i];
-    v_apellido := v_apellidos[i];
-    v_correo := LOWER(v_nombre) || '.' || LOWER(v_apellido) || '@aura-vip.com';
+  -- 4. Crear los Clientes Sintéticos si no existen (los 20 primeros conservan su correo original)
+  FOR i IN 1..v_total_clientes LOOP
+    IF i <= 20 THEN
+      v_nombre := v_nombres[i];
+      v_apellido := v_apellidos[i];
+      v_correo := LOWER(v_nombre) || '.' || LOWER(v_apellido) || '@aura-vip.com';
+    ELSE
+      v_nombre := v_nombres[1 + (i - 1) % 20];
+      v_apellido := v_apellidos[1 + ((i - 1) * 7 + (i - 1) / 20) % 20];
+      v_correo := LOWER(v_nombre) || '.' || LOWER(v_apellido) || i::TEXT || '@aura-vip.com';
+    END IF;
 
     -- Buscar usuario por correo
     SELECT id INTO v_user_id FROM usuario WHERE correo = v_correo;
@@ -157,20 +182,25 @@ BEGIN
 
   RAISE NOTICE '📦 Catálogo cargado con % productos. Generando órdenes...', v_total_prods;
 
-  -- 6. Generar 200 Notas de Venta con distribución temporal realista
-  FOR i IN 1..200 LOOP
-    -- Distribución de fecha: entre 365 días atrás y hoy
-    -- Usamos (i * 1.8) + variación aleatoria para garantizar distribución a lo largo de todo el año
-    v_dias_atras := (365.0 - (i * 1.78)) + (random() * 5.0 - 2.5);
-    IF v_dias_atras < 0.05 THEN v_dias_atras := 0.05 + (random() * 0.2); END IF;
-    IF v_dias_atras > 365.0 THEN v_dias_atras := 365.0; END IF;
+  -- 6. Generar las Notas de Venta con distribución temporal realista
+  FOR i IN 1..v_total_ordenes LOOP
+    -- Día de la venta (1..365 días atrás, nunca hoy): se acepta con probabilidad proporcional al peso del día
+    -- de la semana, del mes y del crecimiento del negocio (de 0.7 hace un año a 1.3 ayer)
+    LOOP
+      v_dia_idx := 1 + floor(random() * 365)::INT;
+      v_peso := v_peso_dow[EXTRACT(DOW FROM CURRENT_DATE - v_dia_idx)::INT + 1]
+              * v_peso_mes[EXTRACT(MONTH FROM CURRENT_DATE - v_dia_idx)::INT]
+              * (0.7 + 0.6 * (1 - v_dia_idx / 365.0));
+      EXIT WHEN random() < v_peso / v_peso_max;
+    END LOOP;
+    v_dias_atras := v_dia_idx;
 
     -- Hora aleatoria del día (pico entre 10:00 y 22:00)
     v_segundos_dia := (36000 + floor(random() * 43200))::INT;
-    v_fecha := (NOW() - (v_dias_atras || ' days')::INTERVAL) + (v_segundos_dia || ' seconds')::INTERVAL;
+    v_fecha := (CURRENT_DATE - v_dia_idx)::TIMESTAMP + (v_segundos_dia || ' seconds')::INTERVAL;
 
-    -- Seleccionar cliente aleatorio de los 20 sintéticos
-    v_idx_prod := 1 + floor(random() * array_length(v_clientes_ids, 1))::INT;
+    -- Cliente: pocos compran mucho y muchos compran una o dos veces (distribución sesgada hacia los primeros)
+    v_idx_prod := 1 + floor(array_length(v_clientes_ids, 1) * power(random(), 1.6))::INT;
     v_user_id := v_usuarios_ids[v_idx_prod];
     v_cliente_id := v_clientes_ids[v_idx_prod];
 
@@ -224,6 +254,16 @@ BEGIN
 
     -- Cantidad de ítems en la orden (1 a 4 productos distintos)
     v_items_count := 1 + floor(random() * 3)::INT;
+
+    -- Con cierta probabilidad la venta incluye un combo (dos prendas que se complementan)
+    v_es_combo := random() < v_prob_combo;
+    IF v_es_combo THEN
+      v_combo := 1 + floor(random() * array_length(v_combos_a, 1))::INT;
+      SELECT array_agg(k) INTO v_idx_a FROM generate_subscripts(v_prod_nombres, 1) k WHERE v_prod_nombres[k] ~* v_combos_a[v_combo];
+      SELECT array_agg(k) INTO v_idx_b FROM generate_subscripts(v_prod_nombres, 1) k WHERE v_prod_nombres[k] ~* v_combos_b[v_combo];
+      IF v_idx_a IS NULL OR v_idx_b IS NULL THEN v_es_combo := FALSE; END IF;
+    END IF;
+    IF v_es_combo AND v_items_count < 2 THEN v_items_count := 2; END IF;
     v_subtotal := 0.00;
 
     -- Insertar nota de venta preliminar
@@ -239,7 +279,13 @@ BEGIN
 
     -- Insertar detalles de ítems
     FOR j IN 1..v_items_count LOOP
-      v_idx_prod := 1 + floor(random() * v_total_prods)::INT;
+      IF v_es_combo AND j = 1 THEN
+        v_idx_prod := v_idx_a[1 + floor(random() * array_length(v_idx_a, 1))::INT];
+      ELSIF v_es_combo AND j = 2 THEN
+        v_idx_prod := v_idx_b[1 + floor(random() * array_length(v_idx_b, 1))::INT];
+      ELSE
+        v_idx_prod := 1 + floor(random() * v_total_prods)::INT;
+      END IF;
       v_prod_id := v_prod_ids[v_idx_prod];
       v_prod_nombre := v_prod_nombres[v_idx_prod];
       v_prod_precio := v_prod_precios[v_idx_prod];
@@ -307,6 +353,6 @@ BEGIN
 
   END LOOP;
 
-  RAISE NOTICE '🎉 ¡ÉXITO! Se generaron 200 ventas sintéticas históricas distribuidas en los últimos 12 meses.';
+  RAISE NOTICE '🎉 ¡ÉXITO! Se generaron % ventas sintéticas históricas distribuidas en los últimos 12 meses.', v_total_ordenes;
   RAISE NOTICE '🔒 Todas las ventas pertenecen de forma aislada a la tienda AURA (tenant_id = %).', v_tenant_id;
 END $$;

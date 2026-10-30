@@ -35,7 +35,7 @@ async function runSeed() {
 
     const sql = fs.readFileSync(sqlPath, 'utf8');
     await dataSource.query(sql);
-    console.log('✅ 200 ventas sintéticas generadas con éxito en la tienda AURA.');
+    console.log('✅ Ventas sintéticas generadas con éxito en la tienda AURA.');
   } catch (error: any) {
     console.error('❌ Error al ejecutar el seed sintético:', error.message || error);
   } finally {
