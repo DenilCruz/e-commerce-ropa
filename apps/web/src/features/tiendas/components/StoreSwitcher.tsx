@@ -29,7 +29,11 @@ const mensajeDeError = (err: any): string => {
   return message || 'No se pudo completar la operación. Inténtalo de nuevo.';
 };
 
-export const StoreSwitcher: React.FC = () => {
+interface StoreSwitcherProps {
+  variant?: 'navbar' | 'sidebar';
+}
+
+export const StoreSwitcher: React.FC<StoreSwitcherProps> = ({ variant = 'navbar' }) => {
   const { user, setAuth } = useAuthStore();
   const [abierto, setAbierto] = useState(false);
   const [modalCrear, setModalCrear] = useState(false);
@@ -113,24 +117,57 @@ export const StoreSwitcher: React.FC = () => {
     }
   };
 
+  const esSidebar = variant === 'sidebar';
+
   return (
-    <div className="relative" ref={contenedor}>
-      <button
-        onClick={() => setAbierto(!abierto)}
-        className="flex items-center gap-1.5 text-xs text-stone-700 hover:text-stone-900 transition-colors py-1"
-        title="Cambiar de tienda"
-      >
-        <Store className="w-4 h-4" />
-        <span className="font-medium hidden md:inline tracking-wide max-w-[140px] truncate">
-          {activa?.nombre || 'Mi tienda'}
-        </span>
-        <ChevronDown className="w-3 h-3" />
-      </button>
+    <div className={`relative ${esSidebar ? 'w-full' : ''}`} ref={contenedor}>
+      {esSidebar ? (
+        <button
+          onClick={() => setAbierto(!abierto)}
+          className="w-full flex items-center justify-between gap-2.5 px-3 py-2 rounded-lg bg-[#211E1B] hover:bg-[#2A2723] border border-[#2E2A25] transition-all text-left group cursor-pointer"
+          title="Cambiar de tienda activa"
+        >
+          <div className="flex items-center gap-2.5 min-w-0">
+            <div className="w-7 h-7 rounded bg-[#9B7B54] text-white flex items-center justify-center font-serif font-bold text-xs shrink-0 shadow-xs">
+              {(activa?.nombre || 'T').charAt(0).toUpperCase()}
+            </div>
+            <div className="min-w-0">
+              <div className="text-xs font-bold text-white tracking-wide truncate group-hover:text-[#C5A781] transition-colors">
+                {activa?.nombre || 'Mi tienda'}
+              </div>
+              <div className="text-[10px] text-stone-400 font-mono tracking-wider truncate">
+                {ETIQUETA_PLAN[activa?.plan] || activa?.plan || 'Plan'}
+              </div>
+            </div>
+          </div>
+          <ChevronDown
+            className={`w-3.5 h-3.5 text-stone-400 group-hover:text-white transition-transform shrink-0 ${
+              abierto ? 'rotate-180' : ''
+            }`}
+          />
+        </button>
+      ) : (
+        <button
+          onClick={() => setAbierto(!abierto)}
+          className="flex items-center gap-1.5 text-xs text-stone-700 hover:text-stone-900 transition-colors py-1 cursor-pointer"
+          title="Cambiar de tienda"
+        >
+          <Store className="w-4 h-4" />
+          <span className="font-medium hidden md:inline tracking-wide max-w-[140px] truncate">
+            {activa?.nombre || 'Mi tienda'}
+          </span>
+          <ChevronDown className="w-3 h-3" />
+        </button>
+      )}
 
       {abierto && (
-        <div className="absolute right-0 mt-2 w-72 bg-white border border-[#E7E1D7] shadow-lg z-50">
-          <div className="px-4 py-2.5 text-[10px] uppercase tracking-widest text-stone-500 border-b border-[#E7E1D7] flex items-center justify-between">
-            <span>Mis tiendas</span>
+        <div
+          className={`absolute mt-2 bg-white border border-[#E7E1D7] shadow-2xl z-50 rounded-lg overflow-hidden ${
+            esSidebar ? 'left-0 w-full min-w-[220px]' : 'right-0 w-72'
+          }`}
+        >
+          <div className="px-3.5 py-2 text-[10px] uppercase tracking-widest text-stone-500 border-b border-[#E7E1D7] flex items-center justify-between bg-[#FAF8F5]">
+            <span className="font-semibold">Mis tiendas</span>
             {activa && (
               <button
                 type="button"
@@ -139,7 +176,7 @@ export const StoreSwitcher: React.FC = () => {
                   navigator.clipboard.writeText(`${window.location.origin}/t/${activa.slug}`);
                   toast.success(`Enlace de ${activa.nombre} copiado al portapapeles`);
                 }}
-                className="text-[#9B7B54] hover:text-stone-900 flex items-center gap-1 font-semibold normal-case text-[11px]"
+                className="text-[#9B7B54] hover:text-stone-900 flex items-center gap-1 font-semibold normal-case text-[10px] cursor-pointer"
                 title="Copiar link para tus clientes"
               >
                 <Copy className="w-3 h-3" />
@@ -147,35 +184,43 @@ export const StoreSwitcher: React.FC = () => {
               </button>
             )}
           </div>
-          <ul className="max-h-64 overflow-y-auto">
+          <ul className="max-h-60 overflow-y-auto divide-y divide-[#E7E1D7]/40">
             {tiendasGestionables.map((t) => (
               <li key={t.id}>
                 <button
                   onClick={() => cambiarDeTienda(t)}
-                  className="w-full flex items-center justify-between gap-3 px-4 py-3 text-left hover:bg-[#FAF8F5] transition-colors"
+                  className={`w-full flex items-center justify-between gap-2.5 px-3.5 py-2.5 text-left hover:bg-[#FAF8F5] transition-colors cursor-pointer ${
+                    t.esActiva ? 'bg-[#FAF8F5]' : ''
+                  }`}
                 >
                   <span className="min-w-0">
-                    <span className="block text-sm font-medium text-stone-900 truncate">{t.nombre}</span>
-                    <span className="block text-[11px] text-stone-500">
+                    <span
+                      className={`block text-xs truncate ${
+                        t.esActiva ? 'text-stone-900 font-bold' : 'text-stone-700 font-medium'
+                      }`}
+                    >
+                      {t.nombre}
+                    </span>
+                    <span className="block text-[10px] text-stone-500 font-mono">
                       {ETIQUETA_ROL[t.rol] || t.rol} · {ETIQUETA_PLAN[t.plan] || t.plan}
                     </span>
                   </span>
-                  {t.esActiva && <Check className="w-4 h-4 text-[#9B7B54] shrink-0" />}
+                  {t.esActiva && <Check className="w-3.5 h-3.5 text-[#9B7B54] shrink-0" />}
                 </button>
               </li>
             ))}
           </ul>
-          {error && !modalCrear && <p className="px-4 py-2 text-xs text-red-600">{error}</p>}
+          {error && !modalCrear && <p className="px-3 py-1.5 text-xs text-red-600">{error}</p>}
           <button
             onClick={() => {
               setAbierto(false);
               setError(null);
               setModalCrear(true);
             }}
-            className="w-full flex items-center gap-2 px-4 py-3 text-xs uppercase tracking-widest text-[#9B7B54] font-semibold border-t border-[#E7E1D7] hover:bg-[#FAF8F5] transition-colors"
+            className="w-full flex items-center gap-1.5 px-3.5 py-2.5 text-[10px] uppercase tracking-widest text-[#9B7B54] font-bold border-t border-[#E7E1D7] hover:bg-[#FAF8F5] transition-colors bg-white cursor-pointer"
           >
-            <Plus className="w-3.5 h-3.5" />
-            Crear una tienda
+            <Plus className="w-3 h-3" />
+            <span>Crear una tienda</span>
           </button>
         </div>
       )}
