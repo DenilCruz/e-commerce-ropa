@@ -18,6 +18,7 @@ import {
   ExternalLink,
 } from 'lucide-react';
 import { adminApi } from '../services/admin.api';
+import { useAuthStore } from '../../../store/auth.store';
 import {
   AnalisisPredictivoVentasRespuesta,
   PrediccionChurnRespuesta,
@@ -26,6 +27,7 @@ import {
 import { toast } from 'sonner';
 
 export const AdminPredictiveDashboardPage: React.FC = () => {
+  const tenantId = useAuthStore((s) => s.user?.tenantId);
   const [ventasPredictivas, setVentasPredictivas] = useState<AnalisisPredictivoVentasRespuesta | null>(null);
   const [churnData, setChurnData] = useState<PrediccionChurnRespuesta | null>(null);
   const [afinidadData, setAfinidadData] = useState<RecomendacionesAfinidadRespuesta | null>(null);
@@ -58,7 +60,7 @@ export const AdminPredictiveDashboardPage: React.FC = () => {
 
   useEffect(() => {
     cargarDatosPredictivos();
-  }, []);
+  }, [tenantId]);
 
   const handleCopiarCorreo = (correo: string, id: string) => {
     navigator.clipboard.writeText(correo);

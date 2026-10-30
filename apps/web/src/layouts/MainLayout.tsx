@@ -76,7 +76,12 @@ export const MainLayout: React.FC = () => {
     if (user?.id) {
       cargarFavoritos(user.id);
     }
-  }, [user?.id, cargarFavoritos]);
+  }, [user?.id, activeSlug, cargarFavoritos]);
+
+  // Sincronizar y aislar el carrito según la tienda activa (/t/:slug)
+  useEffect(() => {
+    useCartStore.getState().ensureTenantCart(activeSlug);
+  }, [activeSlug, user?.tenantId]);
 
   // Cargar árbol de categorías para el menú (HU-33)
   useEffect(() => {
@@ -90,7 +95,7 @@ export const MainLayout: React.FC = () => {
       }
     };
     fetchCats();
-  }, []);
+  }, [activeSlug]);
 
   // Cerrar dropdown al hacer clic fuera
   useEffect(() => {

@@ -19,15 +19,23 @@ api.interceptors.request.use(
     const routeSlug = match ? match[1] : null;
     const activeSlug = routeSlug || tenantSlug;
 
-    if (activeSlug && config.headers) {
+    const url = config.url || '';
+    const esRutaGlobalTiendas =
+      url.includes('/auth/tiendas') ||
+      url.includes('/auth/perfil') ||
+      url.includes('/auth/logout') ||
+      url.includes('/auth/refresh');
+
+    if (activeSlug && config.headers && !esRutaGlobalTiendas) {
       config.headers['X-Tenant-Slug'] = activeSlug;
     }
 
     if (token && config.headers) {
       // Si la URL apunta a una tienda específica distinta a la sesión activa en el navegador,
-      // no adjuntamos el token ajeno para evitar 403 (La tienda indicada no coincide con tu sesión)
+      // no adjuntamos el token ajeno en rutas públicas para evitar 403 (La tienda indicada no coincide con tu sesión),
+      // pero sí lo adjuntamos en rutas globales de gestión de tiendas (/auth/tiendas)
       const esTiendaDistinta = routeSlug && tenantSlug && routeSlug.toLowerCase() !== tenantSlug.toLowerCase();
-      if (!esTiendaDistinta) {
+      if (!esTiendaDistinta || esRutaGlobalTiendas) {
         config.headers.Authorization = `Bearer ${token}`;
       }
     }

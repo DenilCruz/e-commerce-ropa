@@ -18,6 +18,7 @@ import {
   Sparkles,
 } from 'lucide-react';
 import { adminApi } from '../services/admin.api';
+import { useAuthStore } from '../../../store/auth.store';
 import {
   DashboardMetricas,
   ProductoMasVendido,
@@ -26,6 +27,7 @@ import {
 } from '../types';
 
 export const AdminDashboardPage: React.FC = () => {
+  const tenantId = useAuthStore((s) => s.user?.tenantId);
   const [metricas, setMetricas] = useState<DashboardMetricas | null>(null);
   const [productosTop, setProductosTop] = useState<ProductoMasVendido[]>([]);
   const [alertasStock, setAlertasStock] = useState<AlertaStock[]>([]);
@@ -59,7 +61,7 @@ export const AdminDashboardPage: React.FC = () => {
 
   useEffect(() => {
     cargarDatos();
-  }, []);
+  }, [tenantId]);
 
   if (cargando) {
     return (

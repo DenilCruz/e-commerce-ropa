@@ -565,7 +565,21 @@ export class AuthService {
   /** Switches the active store: same person, new session scoped to the chosen store. */
   async seleccionarTienda(usuarioId: string, tiendaId: string) {
     const membresia = await this.storesService.obtenerMembresia(usuarioId, tiendaId);
-    return this.construirSesion(usuarioId, tiendaId, membresia.rol?.nombre || 'CLIENTE', 'Tienda activa cambiada.');
+    const sesion = await this.construirSesion(
+      usuarioId,
+      tiendaId,
+      membresia.rol?.nombre || 'CLIENTE',
+      'Tienda activa cambiada.',
+    );
+    return {
+      ...sesion,
+      tienda: {
+        id: membresia.tienda.id,
+        nombre: membresia.tienda.nombre,
+        slug: membresia.tienda.slug,
+        plan: membresia.tienda.plan,
+      },
+    };
   }
 
   /** Subscribes a new store for the logged user and returns a session already inside it. */

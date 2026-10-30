@@ -66,10 +66,10 @@ export const StoreSwitcher: React.FC = () => {
   const activa = tiendasGestionables.find((t) => t.esActiva) || tiendasGestionables[0];
 
   /** Stores the new session and reloads, so no data of the previous store stays in memory or in the cart. */
-  const aplicarSesion = (sesion: SesionTiendaResponse, destino: string) => {
+  const aplicarSesion = (sesion: SesionTiendaResponse, destino: string, fallbackSlug?: string) => {
     setAuth(sesion.usuario, sesion.accessToken, sesion.refreshToken);
     localStorage.removeItem(CART_STORAGE_KEY);
-    localStorage.setItem('tenant_slug', sesion.tienda?.slug || 'aura');
+    localStorage.setItem('tenant_slug', sesion.tienda?.slug || fallbackSlug || 'aura');
     window.location.assign(destino);
   };
 
@@ -79,7 +79,7 @@ export const StoreSwitcher: React.FC = () => {
       return;
     }
     try {
-      aplicarSesion(await tiendasApi.seleccionar(tienda.id), '/admin');
+      aplicarSesion(await tiendasApi.seleccionar(tienda.id), '/admin', tienda.slug);
     } catch (err) {
       setError(mensajeDeError(err));
     }

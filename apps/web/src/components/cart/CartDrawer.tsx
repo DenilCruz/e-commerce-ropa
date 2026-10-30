@@ -16,6 +16,7 @@ const getImageUrl = (url?: string | null) => {
 
 export const CartDrawer: React.FC = () => {
   const navigate = useNavigate();
+  const { getStoreUrl } = useTenantStore();
   const drawerRef = useRef<HTMLDivElement>(null);
   const { 
     cart, 
@@ -144,7 +145,7 @@ export const CartDrawer: React.FC = () => {
                       <div>
                         <div className="flex justify-between items-start gap-2">
                           <Link
-                            to={`/producto/${prodId}`}
+                            to={getStoreUrl(`/producto/${prodId}`)}
                             onClick={closeDrawer}
                             className="font-serif text-sm text-stone-900 hover:text-[#9B7B54] transition-colors leading-snug"
                           >
@@ -172,7 +173,7 @@ export const CartDrawer: React.FC = () => {
                               type="button"
                               onClick={() => {
                                 closeDrawer();
-                                navigate(`/probador?producto=${prodId}`);
+                                navigate(getStoreUrl(`/probador?producto=${prodId}`));
                               }}
                               className="inline-flex items-center gap-1 text-[10px] text-[#9B7B54] hover:text-stone-900 transition-colors uppercase tracking-wider font-semibold"
                               title={`Probar "${nombrePrenda}" con IA`}
@@ -264,7 +265,7 @@ export const CartDrawer: React.FC = () => {
                 <button
                   onClick={() => {
                     closeDrawer();
-                    navigate('/checkout');
+                    navigate(getStoreUrl('/checkout'));
                   }}
                   className="w-full py-3.5 px-4 bg-stone-900 text-white font-sans text-xs uppercase tracking-luxury hover:bg-stone-800 transition-colors flex items-center justify-center gap-2 shadow-sm"
                 >
@@ -275,7 +276,7 @@ export const CartDrawer: React.FC = () => {
                 <button
                   onClick={() => {
                     closeDrawer();
-                    navigate('/carrito');
+                    navigate(getStoreUrl('/carrito'));
                   }}
                   className="w-full py-2.5 px-4 border border-[#D5CCC0] text-stone-800 font-sans text-xs uppercase tracking-wider hover:bg-stone-50 transition-colors text-center"
                 >

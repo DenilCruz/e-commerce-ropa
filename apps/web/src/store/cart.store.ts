@@ -30,6 +30,7 @@ export interface ItemMetadata {
 }
 
 interface CartStoreState {
+  tenantSlug: string | null;
   cart: Cart | null;
   guestItems: GuestCartItem[];
   cargando: boolean;
@@ -43,6 +44,7 @@ interface CartStoreState {
   // Actions
   openDrawer: () => void;
   closeDrawer: () => void;
+  ensureTenantCart: (slug: string) => Promise<void>;
   cargarCarrito: () => Promise<void>;
   addItem: (varianteId: string, cantidad?: number, itemMeta?: ItemMetadata) => Promise<void>;
   updateQuantity: (itemIdOrVarianteId: string, cantidad: number) => Promise<void>;
@@ -117,6 +119,7 @@ const recalcularCarritoLocal = (
 export const useCartStore = create<CartStoreState>()(
   persist(
     (set, get) => ({
+      tenantSlug: null,
       cart: null,
       guestItems: [],
       cargando: false,
@@ -130,15 +133,55 @@ export const useCartStore = create<CartStoreState>()(
       openDrawer: () => set({ isDrawerOpen: true }),
       closeDrawer: () => set({ isDrawerOpen: false }),
 
+      ensureTenantCart: async (slug: string) => {
+        const normalized = (slug || 'aura').toLowerCase().trim();
+        const currentTenant = get().tenantSlug;
+        if (currentTenant !== normalized) {
+          set({
+            tenantSlug: normalized,
+            cart: { items: [], totalItems: 0, total: 0 },
+            guestItems: [],
+            cupon: null,
+            descuento: 0,
+            totalConDescuento: 0,
+            mensajeCupon: null,
+          });
+        }
+        await get().cargarCarrito();
+      },
+
       cargarCarrito: async () => {
+        const match = typeof window !== 'undefined' ? window.location.pathname.match(/\/t\/([^/]+)/) : null;
+        const routeSlug = match ? match[1].toLowerCase() : null;
+        const storedSlug = (typeof window !== 'undefined' ? localStorage.getItem('tenant_slug') : null)?.toLowerCase() || 'aura';
+        const activeSlug = routeSlug || storedSlug;
+
+        // Si el carrito guardado pertenece a otra tienda, limpiarlo antes de cargar
+        if (get().tenantSlug && get().tenantSlug !== activeSlug) {
+          set({
+            tenantSlug: activeSlug,
+            cart: { items: [], totalItems: 0, total: 0 },
+            guestItems: [],
+            cupon: null,
+            descuento: 0,
+            totalConDescuento: 0,
+            mensajeCupon: null,
+          });
+        } else if (!get().tenantSlug) {
+          set({ tenantSlug: activeSlug });
+        }
+
         set({ cargando: true, error: null });
         const isAuthenticated = useAuthStore.getState().isAuthenticated;
         const isOnline = typeof navigator !== 'undefined' ? navigator.onLine : true;
         const cupon = get().cupon;
         const guestItems = get().guestItems;
 
+        // Verificar si estamos navegando en una tienda distinta a la de la sesión activa del token
+        const esTiendaDistinta = Boolean(routeSlug && storedSlug && routeSlug !== storedSlug);
+
         try {
-          if (isAuthenticated) {
+          if (isAuthenticated && !esTiendaDistinta) {
             if (isOnline) {
               // Si hay items acumulados en guestItems (agregados durante offline), sincronizarlos primero al backend
               if (guestItems.length > 0) {
@@ -549,6 +592,7 @@ export const useCartStore = create<CartStoreState>()(
     {
       name: 'el-magnifico-cart-storage',
       partialize: (state) => ({
+        tenantSlug: state.tenantSlug,
         guestItems: state.guestItems,
         cupon: state.cupon,
         cart: state.cart,

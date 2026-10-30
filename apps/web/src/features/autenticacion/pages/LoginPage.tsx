@@ -31,7 +31,6 @@ export const LoginPage: React.FC = () => {
     try {
       const data = await authApi.login({ correo, contrasena });
       setAuth(data.usuario, data.accessToken, data.refreshToken);
-      useCartStore.getState().sincronizarTrasLogin().catch(console.error);
 
       // Si había una tienda pendiente de crear en el flujo de registro SaaS
       const tiendaPendiente = searchParams.get('tienda') || localStorage.getItem('pending_store_name');
@@ -60,13 +59,28 @@ export const LoginPage: React.FC = () => {
         const tiendasAdmin = misTiendas.filter((t) => t.rol !== 'CLIENTE');
 
         if (tiendasAdmin.length > 0) {
-          const tiendaActiva = tiendasAdmin.find((t) => t.esActiva) || tiendasAdmin[0];
+          const tiendaActiva =
+            (targetSlug ? tiendasAdmin.find((t) => t.slug.toLowerCase() === targetSlug.toLowerCase()) : undefined) ||
+            tiendasAdmin.find((t) => t.esActiva) ||
+            tiendasAdmin[0];
           const resSesion = await tiendasApi.seleccionar(tiendaActiva.id);
+          const nuevoSlug = resSesion.tienda?.slug || tiendaActiva.slug;
+          localStorage.removeItem('el-magnifico-cart-storage');
+          localStorage.setItem('tenant_slug', nuevoSlug);
           setAuth(resSesion.usuario, resSesion.accessToken, resSesion.refreshToken);
-          localStorage.setItem('tenant_slug', resSesion.tienda?.slug || tiendaActiva.slug);
+          useCartStore.setState({
+            cart: { items: [], totalItems: 0, total: 0 },
+            guestItems: [],
+            cupon: null,
+            descuento: 0,
+            totalConDescuento: 0,
+          });
+          useCartStore.getState().cargarCarrito().catch(console.error);
 
           if (from) {
             navigate(from, { replace: true });
+          } else if (targetSlug && targetSlug.toLowerCase() === nuevoSlug.toLowerCase()) {
+            navigate(`/t/${nuevoSlug}`, { replace: true });
           } else {
             navigate('/admin', { replace: true });
           }
@@ -75,6 +89,9 @@ export const LoginPage: React.FC = () => {
       } catch (storeCheckErr) {
         console.warn('Error verificando tiendas del usuario tras login:', storeCheckErr);
       }
+
+      // Usuario cliente o sin tiendas propias: sincronizar el carrito en la tienda donde inició sesión
+      useCartStore.getState().sincronizarTrasLogin().catch(console.error);
 
       if (from) {
         navigate(from, { replace: true });

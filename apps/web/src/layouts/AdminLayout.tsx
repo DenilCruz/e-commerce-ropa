@@ -22,6 +22,7 @@ import {
 import { useAuthStore } from '../store/auth.store';
 import { authApi } from '../features/autenticacion/services/auth.api';
 import { AdminPlanBadge } from '../features/tiendas/components/AdminPlanBadge';
+import { StoreSwitcher } from '../features/tiendas/components/StoreSwitcher';
 import { usePlanLimites } from '../features/tiendas/hooks/usePlanLimites';
 
 export const AdminLayout: React.FC = () => {
@@ -66,13 +67,27 @@ export const AdminLayout: React.FC = () => {
       {/* SIDEBAR */}
       <aside className="w-64 h-screen bg-[#161513] text-stone-100 flex flex-col shrink-0 border-r border-[#2A2723] shadow-xl z-20">
         {/* Logo / Header (Fijo arriba) */}
-        <div className="p-5 pb-4 shrink-0 border-b border-[#2A2723]/60 flex items-center gap-3">
-          <span className="bg-[#9B7B54] text-white px-2.5 py-1 rounded font-serif font-bold text-xs tracking-wider">
-            A
-          </span>
-          <div>
-            <h2 className="text-sm font-bold tracking-[0.2em] text-white uppercase font-serif">AURA</h2>
-            <span className="text-[10px] text-stone-400 font-mono tracking-widest uppercase">Atelier Admin</span>
+        <div className="p-5 pb-4 shrink-0 border-b border-[#2A2723]/60 flex items-center justify-between gap-2">
+          <div className="flex items-center gap-3 min-w-0">
+            <span className="bg-[#9B7B54] text-white px-2.5 py-1 rounded font-serif font-bold text-xs tracking-wider shrink-0">
+              {(metricas?.tienda?.nombre || 'A').charAt(0).toUpperCase()}
+            </span>
+            <div className="min-w-0">
+              <h2 className="text-sm font-bold tracking-[0.2em] text-white uppercase font-serif truncate">
+                {metricas?.tienda?.nombre || 'AURA'}
+              </h2>
+              <span className="text-[10px] text-stone-400 font-mono tracking-widest uppercase block truncate">
+                Atelier Admin
+              </span>
+            </div>
+          </div>
+        </div>
+
+        {/* Selector rápido de Tienda en Admin */}
+        <div className="px-4 py-2.5 border-b border-[#2A2723]/60 bg-[#1C1A18] flex items-center justify-between text-stone-200">
+          <span className="text-[10px] uppercase tracking-widest text-stone-400 font-mono">Tienda activa:</span>
+          <div className="bg-white/95 text-stone-900 px-2.5 py-1 rounded shadow-xs">
+            <StoreSwitcher />
           </div>
         </div>
 

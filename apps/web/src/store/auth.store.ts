@@ -60,6 +60,7 @@ export const useAuthStore = create<AuthState>((set) => ({
     localStorage.removeItem('access_token');
     localStorage.removeItem('refresh_token');
     localStorage.removeItem('auth_user');
+    localStorage.removeItem('el-magnifico-cart-storage');
     set({
       user: null,
       accessToken: null,
