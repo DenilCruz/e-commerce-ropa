@@ -1,3 +1,4 @@
+import { DemandChart } from './DemandChart';
 import React, { useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
 import {
@@ -100,7 +101,6 @@ export const AdminPredictiveDashboardPage: React.FC = () => {
   }
 
   const { metricasPredictivas, serieGrafico, recomendacionEstrategica } = ventasPredictivas;
-  const maxValorGrafico = Math.max(...serieGrafico.map((d) => (d.valorReal ?? d.valorProyectado) || 0), 100);
 
   const clientesFiltrados = (churnData.clientes || []).filter((c) => {
     if (tabFiltroRiesgo === 'TODOS') return true;
@@ -158,10 +158,14 @@ export const AdminPredictiveDashboardPage: React.FC = () => {
             <Calendar className="w-4 h-4 text-[#9B7B54]" />
           </div>
           <div className="text-2xl font-serif font-bold text-stone-900">
-            ${metricasPredictivas.proyeccionVentas7Dias.toFixed(2)}
+            {metricasPredictivas.proyeccionVentas7Dias === null
+              ? 'Sin datos'
+              : `$${metricasPredictivas.proyeccionVentas7Dias.toFixed(2)}`}
           </div>
           <p className="text-[11px] text-stone-500 mt-2">
-            Ingresos esperados para la próxima semana.
+            {metricasPredictivas.proyeccionVentas7Dias === null
+              ? 'Falta historial para proyectar.'
+              : 'Ingresos esperados para la próxima semana.'}
           </p>
         </div>
 
@@ -172,10 +176,14 @@ export const AdminPredictiveDashboardPage: React.FC = () => {
             <TrendingUp className="w-4 h-4 text-stone-800" />
           </div>
           <div className="text-2xl font-serif font-bold text-stone-900">
-            ${metricasPredictivas.proyeccionVentas30Dias.toFixed(2)}
+            {metricasPredictivas.proyeccionVentas30Dias === null
+              ? 'Sin datos'
+              : `$${metricasPredictivas.proyeccionVentas30Dias.toFixed(2)}`}
           </div>
           <p className="text-[11px] text-stone-500 mt-2">
-            Volumen acumulado proyectado a 1 mes.
+            {metricasPredictivas.proyeccionVentas30Dias === null
+              ? 'Falta historial para proyectar.'
+              : 'Volumen acumulado proyectado a 1 mes.'}
           </p>
         </div>
 
@@ -195,7 +203,7 @@ export const AdminPredictiveDashboardPage: React.FC = () => {
                   : 'bg-[#FAF8F5] text-stone-900 border border-[#E7E1D7]'
               }`}
             >
-              {metricasPredictivas.tendencia}
+              {metricasPredictivas.tendencia === 'INSUFICIENTE' ? 'Sin datos suficientes' : metricasPredictivas.tendencia}
             </span>
             <span className="text-xs text-stone-400 font-mono">
               m={metricasPredictivas.pendienteDiaria > 0 ? `+${metricasPredictivas.pendienteDiaria}` : metricasPredictivas.pendienteDiaria}
@@ -216,7 +224,9 @@ export const AdminPredictiveDashboardPage: React.FC = () => {
             {metricasPredictivas.nivelConfianza}
           </div>
           <p className="text-[11px] text-stone-500 mt-2">
-            Ajuste de regresión sobre órdenes completadas.
+            {metricasPredictivas.fiabilidad === 'INSUFICIENTE'
+              ? `Solo ${metricasPredictivas.diasConVentas} días con ventas en los últimos ${metricasPredictivas.ventanaDias}.`
+              : `Fiabilidad ${metricasPredictivas.fiabilidad.toLowerCase()}: precisión medida prediciendo los últimos ${metricasPredictivas.diasDePrueba} días reales con los anteriores (modelo: ${metricasPredictivas.modelo === 'PROMEDIO' ? 'promedio, la tendencia no mejoró la predicción' : 'tendencia lineal'}).`}
           </p>
         </div>
       </div>
@@ -244,60 +254,12 @@ export const AdminPredictiveDashboardPage: React.FC = () => {
               Proyección Predictiva de Demanda (Próximos 14 Días)
             </h3>
             <p className="text-xs text-stone-500 mt-0.5">
-              Comparativa entre las ventas reales registradas y la proyección matemática estimada a futuro.
+              Ventas reales de cada día frente a la proyección estimada a futuro.
             </p>
           </div>
-
-          <div className="flex items-center gap-4 text-xs font-semibold">
-            <span className="flex items-center gap-1.5">
-              <span className="w-3 h-3 rounded bg-stone-900 inline-block" />
-              <span className="text-stone-700">Ventas Reales ($)</span>
-            </span>
-            <span className="flex items-center gap-1.5">
-              <span className="w-3 h-3 rounded bg-[#9B7B54] border border-dashed border-[#83653F] inline-block" />
-              <span className="text-[#9B7B54]">Proyección IA ($)</span>
-            </span>
-          </div>
         </div>
 
-        {/* CONTENEDOR DE BARRAS INTERACTIVAS */}
-        <div className="h-64 flex items-end gap-1.5 sm:gap-2 pt-6 pb-2 overflow-x-auto">
-          {serieGrafico.map((punto, idx) => {
-            const esReal = punto.tipo === 'HISTORICO';
-            const valor = esReal ? punto.valorReal || 0 : punto.valorProyectado || 0;
-            const porcentaje = Math.min(100, Math.max(6, (valor / maxValorGrafico) * 100));
-
-            return (
-              <div
-                key={`${punto.fecha}-${idx}`}
-                className="flex-1 min-w-[28px] sm:min-w-[36px] flex flex-col items-center group relative h-full justify-end cursor-pointer"
-              >
-                {/* TOOLTIP */}
-                <div className="opacity-0 group-hover:opacity-100 transition-opacity absolute -top-12 z-20 bg-stone-900 text-white text-[10px] py-1.5 px-2.5 rounded shadow-lg pointer-events-none whitespace-nowrap text-center">
-                  <span className="font-bold">{punto.label}</span>: ${valor.toFixed(2)}
-                  <span className="block text-stone-400 text-[9px] uppercase font-mono mt-0.5">
-                    {esReal ? 'Dato Real' : 'Proyección IA'}
-                  </span>
-                </div>
-
-                {/* BARRA */}
-                <div
-                  style={{ height: `${porcentaje}%` }}
-                  className={`w-full rounded-t-md transition-all duration-300 group-hover:brightness-110 ${
-                    esReal
-                      ? 'bg-stone-900 group-hover:bg-black'
-                      : 'bg-[#9B7B54] border-t-2 border-dashed border-[#83653F] group-hover:bg-[#83653F]'
-                  }`}
-                />
-
-                {/* ETIQUETA EJE X */}
-                <span className="text-[9px] text-stone-400 mt-2 truncate w-full text-center font-mono">
-                  {punto.label}
-                </span>
-              </div>
-            );
-          })}
-        </div>
+        <DemandChart serie={serieGrafico} metricas={metricasPredictivas} />
       </div>
 
       {/* SECCIÓN 2: PREDICCIÓN DE ABANDONO DE CLIENTES (CHURN RISK) */}
@@ -311,7 +273,7 @@ export const AdminPredictiveDashboardPage: React.FC = () => {
               </h3>
             </div>
             <p className="text-xs text-stone-500 mt-0.5">
-              Identificación predictiva de clientes con baja probabilidad de retorno basada en recencia y frecuencia de compra.
+              Segmentación RFM: recencia, frecuencia y monto de cada cliente comparados con los demás compradores de la tienda.
             </p>
           </div>
 
@@ -351,10 +313,17 @@ export const AdminPredictiveDashboardPage: React.FC = () => {
           </div>
 
           <div className="p-4 rounded-xl bg-stone-50 border border-stone-200">
-            <span className="text-[10px] uppercase font-bold text-stone-700 block">Tasa de Retención</span>
-            <span className="text-xl font-serif font-bold text-stone-900 mt-1 block">{churnData.resumen.tasaRetencionEstimada}%</span>
+            <span className="text-[10px] uppercase font-bold text-stone-700 block">Tasa de Recompra</span>
+            <span className="text-xl font-serif font-bold text-stone-900 mt-1 block">{churnData.resumen.tasaRecompra == null ? '—' : `${churnData.resumen.tasaRecompra}%`}</span>
           </div>
         </div>
+
+        {churnData.modelo && !churnData.modelo.suficiente && (
+          <p className="text-xs text-stone-600 bg-[#FAF8F5] border border-[#E7E1D7] rounded-xl p-3">
+            Se necesitan al menos {churnData.modelo.minimoRequerido} clientes con compras para segmentar con RFM y hay{' '}
+            {churnData.modelo.compradores}. Mientras tanto se muestran sus métricas sin clasificar.
+          </p>
+        )}
 
         {/* TABLA DE CLIENTES EN RIESGO */}
         <div className="overflow-x-auto">
@@ -423,7 +392,11 @@ export const AdminPredictiveDashboardPage: React.FC = () => {
                             : 'bg-stone-100 text-stone-800 border border-stone-200'
                         }`}
                       >
-                        {cliente.nivelRiesgo} ({(cliente.scoreRiesgo * 100).toFixed(0)}%)
+                        {cliente.scoreRiesgo === null
+                          ? cliente.nivelRiesgo === 'SIN_COMPRAS'
+                            ? 'Sin compras'
+                            : 'Sin datos'
+                          : `${cliente.nivelRiesgo} (${(cliente.scoreRiesgo * 100).toFixed(0)}%)`}
                       </span>
                     </td>
                     <td className="py-3.5 px-4 text-stone-700 max-w-xs leading-relaxed font-light">
@@ -452,6 +425,12 @@ export const AdminPredictiveDashboardPage: React.FC = () => {
             </div>
           </div>
 
+          {afinidadData.asociaciones.length === 0 && (
+            <p className="text-xs text-stone-600 bg-[#FAF8F5] border border-[#E7E1D7] rounded-xl p-4">
+              Sin asociaciones para mostrar todavía. Cuando los clientes compren varios productos en un mismo pedido aparecerán aquí.
+            </p>
+          )}
+
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             {afinidadData.asociaciones.map((asoc) => (
               <div
@@ -460,7 +439,7 @@ export const AdminPredictiveDashboardPage: React.FC = () => {
               >
                 <div className="flex items-center justify-between">
                   <span className="px-2.5 py-0.5 bg-white border border-[#E7E1D7] text-[#9B7B54] text-[10px] font-bold rounded-md uppercase">
-                    Afinidad #{asoc.ranking} · Score {(asoc.scoreAfinidad * 100).toFixed(0)}%
+                    Afinidad #{asoc.ranking} · Confianza {(asoc.scoreAfinidad * 100).toFixed(0)}% · Lift {asoc.lift.toFixed(2)}
                   </span>
                   <span className="text-xs text-stone-500 font-mono">
                     {asoc.frecuenciaTransaccional} órdenes compartidas

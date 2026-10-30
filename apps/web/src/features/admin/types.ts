@@ -170,13 +170,27 @@ export interface PuntoSeriePredictiva {
 }
 
 export interface MetricasPredictivasVentas {
-  proyeccionVentas7Dias: number;
-  proyeccionVentas14Dias: number;
-  proyeccionVentas30Dias: number;
+  /** null when there is not enough history to project */
+  proyeccionVentas7Dias: number | null;
+  proyeccionVentas14Dias: number | null;
+  proyeccionVentas30Dias: number | null;
   promedioDiarioHistorico: number;
-  tendencia: 'ALCISTA' | 'ESTABLE' | 'BAJISTA';
+  tendencia: 'ALCISTA' | 'ESTABLE' | 'BAJISTA' | 'INSUFICIENTE';
   pendienteDiaria: number;
+  /** Precision measured on held-out days as a percentage, or a notice when there is not enough data */
   nivelConfianza: string;
+  /** model chosen by testing both on the last days: trend line or plain average */
+  modelo: 'REGRESION' | 'PROMEDIO';
+  precision: number | null;
+  errorModelo: number | null;
+  errorPromedioSimple: number | null;
+  diasDePrueba: number;
+  r2: number;
+  fiabilidad: 'INSUFICIENTE' | 'BAJA' | 'MEDIA' | 'ALTA';
+  diasConVentas: number;
+  ordenesAnalizadas: number;
+  ventanaDias: number;
+  mensaje: string | null;
 }
 
 export interface AnalisisPredictivoVentasRespuesta {
@@ -195,8 +209,10 @@ export interface ClienteRiesgoChurn {
   ticketPromedio: number;
   ultimaCompra: string;
   diasSinComprar: number | null;
-  nivelRiesgo: 'ALTO' | 'MEDIO' | 'BAJO';
-  scoreRiesgo: number;
+  nivelRiesgo: 'ALTO' | 'MEDIO' | 'BAJO' | 'SIN_COMPRAS' | 'SIN_DATOS';
+  /** null when the customer cannot be scored (no purchases or not enough buyers) */
+  scoreRiesgo: number | null;
+  rfm: { recencia: number; frecuencia: number; monto: number } | null;
   accionRecomendada: string;
 }
 
@@ -206,8 +222,18 @@ export interface PrediccionChurnRespuesta {
     riesgoAlto: number;
     riesgoMedio: number;
     riesgoBajo: number;
-    tasaRiesgoGlobal: number;
-    tasaRetencionEstimada: number;
+    sinCompras: number;
+    sinDatos: number;
+    clasificados: number;
+    /** % of buyers with two or more purchases; null when there are no buyers */
+    tasaRecompra: number | null;
+  };
+  modelo: {
+    tipo: string;
+    suficiente: boolean;
+    compradores: number;
+    minimoRequerido: number;
+    descripcion: string;
   };
   clientes: ClienteRiesgoChurn[];
 }
@@ -217,6 +243,10 @@ export interface AsociacionProductoAfinidad {
   productoA: { id: string; nombre: string };
   productoB: { id: string; nombre: string };
   frecuenciaTransaccional: number;
+  soporte: number;
+  confianzaAB: number;
+  confianzaBA: number;
+  lift: number;
   scoreAfinidad: number;
   estrategiaSugerida: string;
 }
@@ -224,6 +254,9 @@ export interface AsociacionProductoAfinidad {
 export interface RecomendacionesAfinidadRespuesta {
   tipoAnalisis: string;
   descripcion: string;
+  pedidosAnalizados: number;
+  pedidosConVariosProductos: number;
+  frecuenciaMinima: number;
   asociaciones: AsociacionProductoAfinidad[];
 }
 
