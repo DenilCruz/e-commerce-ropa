@@ -17,6 +17,7 @@ import { OrdenRespuesta } from '../types';
 import { useCartStore } from '../../../store/cart.store';
 
 export const CheckoutReturnPage: React.FC = () => {
+  const { getStoreUrl } = useTenantStore();
   const [searchParams] = useSearchParams();
   const navigate = useNavigate();
   const clearCart = useCartStore((state) => state.clearCart);
@@ -206,14 +207,14 @@ export const CheckoutReturnPage: React.FC = () => {
           {/* ACCIONES */}
           <div className="pt-4 flex flex-col sm:flex-row gap-3">
             <Link
-              to="/pedidos"
+              to={getStoreUrl("/pedidos")}
               className="flex-1 py-3.5 px-6 bg-stone-900 text-white font-medium text-xs uppercase tracking-luxury text-center hover:bg-stone-800 transition flex items-center justify-center gap-2"
             >
               <span>Ver en Mis Pedidos</span>
               <ArrowRight className="w-4 h-4" />
             </Link>
             <Link
-              to="/catalogo"
+              to={getStoreUrl("/catalogo")}
               className="flex-1 py-3.5 px-6 border border-[#D5CCC0] text-stone-800 font-medium text-xs uppercase tracking-luxury text-center hover:bg-stone-100 transition flex items-center justify-center gap-2"
             >
               <ShoppingBag className="w-4 h-4" />

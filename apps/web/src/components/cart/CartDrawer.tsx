@@ -2,6 +2,7 @@ import React, { useEffect, useRef } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { X, Trash2, Plus, Minus, ArrowRight, Sparkles, ShoppingBag } from 'lucide-react';
 import { useCartStore } from '../../store/cart.store';
+import { useTenantStore } from '../../hooks/useTenantStore';
 
 const ASSETS_URL = (import.meta.env.VITE_API_URL || 'http://localhost:3000/api/v1').replace('/api/v1', '');
 
@@ -111,7 +112,7 @@ export const CartDrawer: React.FC = () => {
                 <button
                   onClick={() => {
                     closeDrawer();
-                    navigate('/catalogo');
+                    navigate(getStoreUrl('/catalogo'));
                   }}
                   className="mt-4 inline-flex items-center gap-2 px-6 py-2.5 bg-stone-900 text-white text-xs tracking-widest uppercase hover:bg-stone-800 transition-colors"
                 >
@@ -230,7 +231,7 @@ export const CartDrawer: React.FC = () => {
                 onClick={() => {
                   closeDrawer();
                   const targetId = items[0]?.producto?.id || items[0]?.productoId;
-                  navigate(targetId ? `/probador?producto=${targetId}` : '/probador');
+                  navigate(targetId ? getStoreUrl(`/probador?producto=${targetId}`) : getStoreUrl('/probador'));
                 }}
                 className="px-2.5 py-1 text-[11px] uppercase tracking-wider bg-stone-900 text-white hover:bg-stone-800 transition-colors shrink-0 font-medium cursor-pointer"
               >

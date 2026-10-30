@@ -18,6 +18,7 @@ import { Favorito } from '../types';
 const ASSETS_URL = (import.meta.env.VITE_API_URL || 'http://localhost:3000/api/v1').replace('/api/v1', '');
 
 export const FavoritosPage: React.FC = () => {
+  const { getStoreUrl } = useTenantStore();
   const { user } = useAuthStore();
   const { items, cargarFavoritos, cargando, eliminarFavorito, limpiarTodos, moverAlCarrito } =
     useFavoritosStore();
@@ -171,7 +172,7 @@ export const FavoritosPage: React.FC = () => {
             Explora nuestra colección y guarda tus prendas preferidas haciendo clic en el corazón para comprarlas después.
           </p>
           <Link
-            to="/catalogo"
+            to={getStoreUrl("/catalogo")}
             className="inline-flex items-center gap-2 bg-black text-white text-xs uppercase tracking-widest px-6 py-3.5 rounded-lg hover:bg-gray-800 transition-colors shadow-sm"
           >
             <ShoppingBag className="w-4 h-4" />
@@ -208,7 +209,7 @@ export const FavoritosPage: React.FC = () => {
                 <div>
                   {/* IMAGEN Y BOTÓN QUITAR */}
                   <div className="relative aspect-[3/4] bg-gray-100 overflow-hidden">
-                    <Link to={`/producto/${producto.id}`} className="block w-full h-full">
+                    <Link to={getStoreUrl(`/producto/${producto.id}`)} className="block w-full h-full">
                       <img
                         src={urlImagen}
                         alt={producto.nombre}
@@ -239,7 +240,7 @@ export const FavoritosPage: React.FC = () => {
                   <div className="p-4">
                     <div className="flex justify-between items-start mb-1 gap-2">
                       <h3 className="text-sm font-semibold text-gray-900 line-clamp-1 hover:text-gray-600 transition-colors">
-                        <Link to={`/producto/${producto.id}`}>{producto.nombre}</Link>
+                        <Link to={getStoreUrl(`/producto/${producto.id}`)}>{producto.nombre}</Link>
                       </h3>
                       <p className="text-sm font-bold text-gray-900 whitespace-nowrap">
                         ${Number(producto.precio).toFixed(2)}

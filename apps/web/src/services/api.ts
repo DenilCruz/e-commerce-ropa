@@ -8,20 +8,30 @@ export const api = axios.create({
   },
 });
 
-// Interceptor de Peticiones: Adjuntar Bearer Token o X-Tenant-Slug
+// Interceptor de Peticiones: Adjuntar Bearer Token y/o X-Tenant-Slug
 api.interceptors.request.use(
   (config) => {
     const token = localStorage.getItem('access_token');
+    const tenantSlug = localStorage.getItem('tenant_slug');
+
+    // Identificar slug contextual desde la URL (/t/:slug)
+    const match = typeof window !== 'undefined' ? window.location.pathname.match(/\/t\/([^/]+)/) : null;
+    const routeSlug = match ? match[1] : null;
+    const activeSlug = routeSlug || tenantSlug;
+
+    if (activeSlug && config.headers) {
+      config.headers['X-Tenant-Slug'] = activeSlug;
+    }
+
     if (token && config.headers) {
-      config.headers.Authorization = `Bearer ${token}`;
-    } else if (config.headers) {
-      // Si es un visitante anónimo o cliente viendo una tienda específica,
-      // enviamos la cabecera X-Tenant-Slug para resolución por TenantMiddleware
-      const tenantSlug = localStorage.getItem('tenant_slug');
-      if (tenantSlug) {
-        config.headers['X-Tenant-Slug'] = tenantSlug;
+      // Si la URL apunta a una tienda específica distinta a la sesión activa en el navegador,
+      // no adjuntamos el token ajeno para evitar 403 (La tienda indicada no coincide con tu sesión)
+      const esTiendaDistinta = routeSlug && tenantSlug && routeSlug.toLowerCase() !== tenantSlug.toLowerCase();
+      if (!esTiendaDistinta) {
+        config.headers.Authorization = `Bearer ${token}`;
       }
     }
+
     return config;
   },
   (error) => Promise.reject(error),

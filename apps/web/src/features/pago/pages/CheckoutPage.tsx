@@ -582,7 +582,7 @@ export const CheckoutPage: React.FC = () => {
           <h2 className="text-xl font-bold text-gray-900 mb-2">Tu carrito está vacío</h2>
           <p className="text-gray-500 mb-6 text-sm">Agrega prendas antes de proceder al pago.</p>
           <Link
-            to="/catalogo"
+            to={`/t/${slugActual}/catalogo`}
             className="inline-flex items-center gap-2 bg-black text-white px-6 py-3 rounded-xl font-bold hover:bg-gray-800 transition"
           >
             Explorar Catálogo

@@ -4,6 +4,7 @@ import { ShoppingBag, Check } from 'lucide-react';
 import { Producto } from '../types';
 import { HeartButton } from '../../favoritos/components/HeartButton';
 import { useCartStore } from '../../../store/cart.store';
+import { useTenantStore } from '../../../hooks/useTenantStore';
 import { toast } from 'sonner';
 
 interface ProductCardProps {
@@ -14,6 +15,7 @@ const ASSETS_URL = (import.meta.env.VITE_API_URL || 'http://localhost:3000/api/v
 
 export const ProductCard: React.FC<ProductCardProps> = ({ producto }) => {
   const navigate = useNavigate();
+  const { getStoreUrl } = useTenantStore();
   const addItem = useCartStore((s) => s.addItem);
   const [agregando, setAgregando] = useState(false);
   const [agregadoExito, setAgregadoExito] = useState(false);
@@ -28,6 +30,8 @@ export const ProductCard: React.FC<ProductCardProps> = ({ producto }) => {
 
   const imagenPrincipal = producto.imagenes?.find((img) => img.esPrincipal || (img as any).principal) || producto.imagenes?.[0];
   const urlImagen = imagenPrincipal ? getImageUrl(imagenPrincipal.url) : 'https://images.unsplash.com/photo-1515886657613-9f3515b0c78f?w=600&auto=format&fit=crop&q=80';
+
+  const productUrl = getStoreUrl(`/producto/${producto.id}`);
 
   const handleQuickAdd = async (e: React.MouseEvent) => {
     e.preventDefault();
@@ -49,19 +53,19 @@ export const ProductCard: React.FC<ProductCardProps> = ({ producto }) => {
         setTimeout(() => setAgregadoExito(false), 2000);
         toast.success(`"${producto.nombre}" se agregó a tu bolsa de compras.`);
       } catch {
-        navigate(`/producto/${producto.id}`);
+        navigate(productUrl);
       } finally {
         setAgregando(false);
       }
     } else {
-      navigate(`/producto/${producto.id}`);
+      navigate(productUrl);
     }
   };
 
   return (
     <div className="group bg-white border border-[#E7E1D7] overflow-hidden hover:border-stone-400 transition-all duration-300 flex flex-col justify-between">
       <div className="relative">
-        <Link to={`/producto/${producto.id}`} className="block relative aspect-[3/4] overflow-hidden bg-[#F2ECE1]">
+        <Link to={productUrl} className="block relative aspect-[3/4] overflow-hidden bg-[#F2ECE1]">
           <img 
             src={urlImagen} 
             alt={producto.nombre} 
@@ -88,7 +92,7 @@ export const ProductCard: React.FC<ProductCardProps> = ({ producto }) => {
             </p>
           )}
           <h3 className="font-serif text-sm font-normal text-stone-900 line-clamp-1 group-hover:text-[#9B7B54] transition-colors">
-            <Link to={`/producto/${producto.id}`}>
+            <Link to={productUrl}>
               {producto.nombre}
             </Link>
           </h3>

@@ -12,6 +12,7 @@ import {
 } from 'lucide-react';
 import { useCartStore } from '../../../store/cart.store';
 import { VirtualTryOnModal } from '../components/VirtualTryOnModal';
+import { useTenantStore } from '../../../hooks/useTenantStore';
 
 const ASSETS_URL = (import.meta.env.VITE_API_URL || 'http://localhost:3000/api/v1').replace('/api/v1', '');
 
@@ -147,7 +148,7 @@ export const CartPage: React.FC = () => {
           </div>
           <div>
             <Link
-              to="/catalogo"
+              to={getStoreUrl("/catalogo")}
               className="inline-flex items-center gap-2 bg-stone-900 text-white hover:bg-stone-800 text-xs uppercase tracking-luxury px-8 py-3.5 transition-all shadow-sm"
             >
               <span>Explorar Colección</span>
@@ -318,7 +319,7 @@ export const CartPage: React.FC = () => {
             {/* SEGUIR COMPRANDO */}
             <div className="pt-2">
               <Link
-                to="/catalogo"
+                to={getStoreUrl("/catalogo")}
                 className="text-xs uppercase tracking-luxury text-stone-600 hover:text-stone-900 transition-colors flex items-center gap-2"
               >
                 <span>← Continuar explorando la colección</span>

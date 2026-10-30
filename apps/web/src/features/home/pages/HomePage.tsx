@@ -4,6 +4,7 @@ import { ArrowRight, Sparkles, Shield, RefreshCw, Feather } from 'lucide-react';
 import { obtenerProductos, obtenerCategorias } from '../../catalogo/services/catalogo.api';
 import { Producto, Categoria } from '../../catalogo/types';
 import { ProductCard } from '../../catalogo/components/ProductCard';
+import { useTenantStore } from '../../../hooks/useTenantStore';
 
 const ASSETS_URL = (import.meta.env.VITE_API_URL || 'http://localhost:3000/api/v1').replace('/api/v1', '');
 
@@ -21,23 +22,24 @@ const HERO_SLIDES = [
     image: `${ASSETS_URL}/uploads/vestido_seda_oliva_1790036699102.jpg`,
     title: 'Edición Seda Morera',
     subtitle: 'Fluidez y caída orgánica que desafían el paso del tiempo.',
-    categoryLink: '/catalogo?categoria=Vestidos'
+    categoryQuery: 'Vestidos'
   },
   {
     image: `${ASSETS_URL}/uploads/falda_plisada_camel_1790037005715.jpg`,
     title: 'Movimiento & Textura',
     subtitle: 'Plisados permanentes que crean volumen y armonía al andar.',
-    categoryLink: '/catalogo?categoria=Faldas'
+    categoryQuery: 'Faldas'
   },
   {
     image: `${ASSETS_URL}/uploads/vestido_lino_blanco_1790036743580.jpg`,
     title: 'Puro Lino Italiano',
     subtitle: 'Frescura atemporal hilada con fibras de cultivo sustentable.',
-    categoryLink: '/catalogo?categoria=Vestidos'
+    categoryQuery: 'Vestidos'
   }
 ];
 
 export const HomePage: React.FC = () => {
+  const { getStoreUrl } = useTenantStore();
   const [activeSlide, setActiveSlide] = useState(0);
   const [productos, setProductos] = useState<Producto[]>([]);
   const [categorias, setCategorias] = useState<Categoria[]>([]);
@@ -100,11 +102,10 @@ export const HomePage: React.FC = () => {
           );
         })}
 
-        {/* Contenido Editorial del Hero */}
-        <div className="relative z-20 max-w-7xl mx-auto px-6 sm:px-12 py-20 text-white space-y-6">
-          <div className="inline-flex items-center gap-2 px-3 py-1 bg-white/15 backdrop-blur-md border border-white/20 text-[11px] uppercase tracking-luxury">
+        <div className="relative z-20 max-w-7xl mx-auto px-6 sm:px-12 py-16 space-y-6">
+          <div className="inline-flex items-center gap-2 px-3.5 py-1.5 bg-white/20 backdrop-blur-md border border-white/30 text-white text-[11px] uppercase tracking-luxury">
             <Sparkles className="w-3.5 h-3.5 text-[#EAE2D5]" />
-            <span>Colección Permanente · Alta Costura</span>
+            <span>Colección Exclusiva de Atelier</span>
           </div>
 
           <div className="space-y-3 max-w-xl">
@@ -121,14 +122,14 @@ export const HomePage: React.FC = () => {
 
           <div className="flex flex-wrap items-center gap-4 pt-4">
             <Link
-              to="/catalogo"
+              to={getStoreUrl('/catalogo')}
               className="px-8 py-3.5 bg-white text-stone-900 text-xs uppercase tracking-luxury hover:bg-[#FAF8F5] transition-all flex items-center gap-2.5 font-medium shadow-lg hover:shadow-xl"
             >
               <span>Descubrir Colección</span>
               <ArrowRight className="w-3.5 h-3.5" />
             </Link>
             <Link
-              to="/probador"
+              to={getStoreUrl('/probador')}
               className="px-6 py-3.5 bg-white/10 hover:bg-white/20 backdrop-blur-md border border-white/30 text-white text-xs uppercase tracking-luxury transition-all flex items-center gap-2"
             >
               <Sparkles className="w-3.5 h-3.5 text-[#EAE2D5]" />
@@ -168,7 +169,7 @@ export const HomePage: React.FC = () => {
             return (
               <Link
                 key={cat.id}
-                to={`/catalogo?categoria=${cat.id}`}
+                to={getStoreUrl(`/catalogo?categoria=${cat.id}`)}
                 className="group flex flex-col items-center gap-3 shrink-0"
               >
                 <div className="w-20 h-20 sm:w-24 sm:h-24 rounded-full p-[2px] border border-[#D5CCC0] group-hover:border-stone-900 transition-all duration-300">
@@ -207,7 +208,7 @@ export const HomePage: React.FC = () => {
             </h2>
           </div>
           <Link
-            to="/catalogo"
+            to={getStoreUrl('/catalogo')}
             className="text-xs uppercase tracking-luxury text-stone-800 hover:text-[#9B7B54] flex items-center gap-1.5 font-medium"
           >
             <span>Ver Catálogo Completo</span>
@@ -250,7 +251,7 @@ export const HomePage: React.FC = () => {
             </p>
             <div className="pt-2">
               <Link
-                to="/probador"
+                to={getStoreUrl('/probador')}
                 className="inline-flex items-center gap-2 px-7 py-3.5 bg-[#FAF8F5] text-stone-900 text-xs uppercase tracking-luxury hover:bg-white transition-all font-medium"
               >
                 <span>Acceder al Probador Virtual</span>

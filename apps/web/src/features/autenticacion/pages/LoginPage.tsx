@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { Link, useNavigate, useLocation, useSearchParams, useParams } from 'react-router-dom';
-import { AlertCircle } from 'lucide-react';
+import { AlertCircle, ArrowLeft } from 'lucide-react';
 import { Button } from '../../../components/ui/Button';
 import { Input } from '../../../components/ui/Input';
 import { authApi } from '../services/auth.api';
@@ -61,7 +61,8 @@ export const LoginPage: React.FC = () => {
       } else if (targetSlug) {
         navigate(`/t/${targetSlug}`, { replace: true });
       } else {
-        navigate('/catalogo', { replace: true });
+        const fallbackSlug = localStorage.getItem('tenant_slug') || 'aura';
+        navigate(`/t/${fallbackSlug}/catalogo`, { replace: true });
       }
     } catch (err: any) {
       if (!err.response) {
@@ -75,8 +76,22 @@ export const LoginPage: React.FC = () => {
     }
   };
 
+  const backUrl = targetSlug ? `/t/${targetSlug}` : '/';
+  const backLabel = targetSlug ? `Volver a la tienda (${targetSlug})` : 'Regresar al menú principal';
+
   return (
     <div>
+      {/* Botón de Regreso al Menú Principal */}
+      <div className="mb-4">
+        <Link
+          to={backUrl}
+          className="inline-flex items-center gap-1.5 text-xs text-stone-500 hover:text-stone-900 transition-colors group font-medium"
+        >
+          <ArrowLeft className="w-4 h-4 transition-transform group-hover:-translate-x-0.5 text-[#9B7B54]" />
+          <span>{backLabel}</span>
+        </Link>
+      </div>
+
       <div className="text-center mb-6">
         <h2 className="text-2xl font-bold text-gray-900 tracking-tight font-serif">
           {targetSlug ? `Iniciar Sesión en ${targetSlug}` : '¡Bienvenido de nuevo!'}

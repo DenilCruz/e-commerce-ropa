@@ -138,7 +138,7 @@ export const MainLayout: React.FC = () => {
                   ? matchTenant[1].toUpperCase()
                   : 'AURA'}
               </span>
-              {matchTenant && matchTenant[1] && matchTenant[1].toLowerCase() !== 'aura' && (
+              {activeSlug && activeSlug.toLowerCase() !== 'aura' && (
                 <span className="text-[10px] uppercase font-mono px-2 py-0.5 rounded bg-[#FAF8F5] border border-[#E7E1D7] text-[#9B7B54] font-semibold">
                   Atelier
                 </span>
@@ -268,7 +268,7 @@ export const MainLayout: React.FC = () => {
             {/* FAVORITOS */}
             {isAuthenticated && (
               <Link 
-                to="/favoritos" 
+                to={`${storePrefix}/favoritos`} 
                 className="text-stone-600 hover:text-stone-900 transition-colors relative p-1"
                 title="Lista de Deseos"
               >
@@ -304,7 +304,7 @@ export const MainLayout: React.FC = () => {
               <div className="flex items-center gap-3 pl-2 border-l border-[#E7E1D7]">
                 <StoreSwitcher />
                 <Link
-                  to="/perfil"
+                  to={`${storePrefix}/perfil`}
                   className="flex items-center gap-2 text-xs text-stone-700 hover:text-stone-900 transition-colors py-1"
                 >
                   <span className="w-6 h-6 rounded-full bg-[#EAE2D5] text-stone-800 flex items-center justify-center text-[10px] font-semibold border border-[#D5CCC0]">
@@ -314,7 +314,7 @@ export const MainLayout: React.FC = () => {
                 </Link>
 
                 <Link
-                  to="/pedidos"
+                  to={`${storePrefix}/pedidos`}
                   className="text-stone-600 hover:text-stone-900 transition-colors p-1"
                   title="Mis Pedidos"
                 >
@@ -400,7 +400,7 @@ export const MainLayout: React.FC = () => {
 
               {isAuthenticated && (
                 <>
-                  <Link to="/favoritos" className="p-2 hover:bg-[#F2ECE1] flex items-center justify-between">
+                  <Link to={`${storePrefix}/favoritos`} className="p-2 hover:bg-[#F2ECE1] flex items-center justify-between">
                     <div className="flex items-center gap-2">
                       <Heart className="w-4 h-4" />
                       <span>Lista de Deseos</span>
@@ -411,11 +411,11 @@ export const MainLayout: React.FC = () => {
                       </span>
                     )}
                   </Link>
-                  <Link to="/pedidos" className="p-2 hover:bg-[#F2ECE1] flex items-center gap-2">
+                  <Link to={`${storePrefix}/pedidos`} className="p-2 hover:bg-[#F2ECE1] flex items-center gap-2">
                     <Package className="w-4 h-4" />
                     Mis Pedidos
                   </Link>
-                  <Link to="/perfil" className="p-2 hover:bg-[#F2ECE1] flex items-center gap-2">
+                  <Link to={`${storePrefix}/perfil`} className="p-2 hover:bg-[#F2ECE1] flex items-center gap-2">
                     <User className="w-4 h-4" />
                     Mi Perfil
                   </Link>
@@ -529,10 +529,10 @@ export const MainLayout: React.FC = () => {
             <div className="space-y-3">
               <h4 className="text-xs uppercase tracking-widest text-stone-400 font-medium">Colecciones</h4>
               <ul className="space-y-2 text-xs text-stone-300 font-light">
-                <li><Link to="/catalogo?categoria=Vestidos" className="hover:text-white transition-colors">Vestidos de Seda</Link></li>
-                <li><Link to="/catalogo?categoria=Sastrería" className="hover:text-white transition-colors">Sastrería & Abrigos</Link></li>
-                <li><Link to="/catalogo?categoria=Camisas" className="hover:text-white transition-colors">Camisería Fina</Link></li>
-                <li><Link to="/catalogo?categoria=Pantalones" className="hover:text-white transition-colors">Pantalones Wide-Leg</Link></li>
+                <li><Link to={`${storePrefix}/catalogo?categoria=Vestidos`} className="hover:text-white transition-colors">Vestidos de Seda</Link></li>
+                <li><Link to={`${storePrefix}/catalogo?categoria=Sastrería`} className="hover:text-white transition-colors">Sastrería & Abrigos</Link></li>
+                <li><Link to={`${storePrefix}/catalogo?categoria=Camisas`} className="hover:text-white transition-colors">Camisería Fina</Link></li>
+                <li><Link to={`${storePrefix}/catalogo?categoria=Pantalones`} className="hover:text-white transition-colors">Pantalones Wide-Leg</Link></li>
               </ul>
             </div>
 
@@ -540,7 +540,7 @@ export const MainLayout: React.FC = () => {
             <div className="space-y-3">
               <h4 className="text-xs uppercase tracking-widest text-stone-400 font-medium">Experiencia Atelier</h4>
               <ul className="space-y-2 text-xs text-stone-300 font-light">
-                <li><Link to="/probador" className="hover:text-white transition-colors flex items-center gap-1.5 text-[#9B7B54] font-medium"><Sparkles className="w-3 h-3" /> Probador Virtual IA</Link></li>
+                <li><Link to={`${storePrefix}/probador`} className="hover:text-white transition-colors flex items-center gap-1.5 text-[#9B7B54] font-medium"><Sparkles className="w-3 h-3" /> Probador Virtual IA</Link></li>
                 <li><span className="text-stone-400">Guía de Cuidados de Tejidos</span></li>
                 <li><span className="text-stone-400">Sastrería a Medida</span></li>
                 <li><span className="text-stone-400">Servicio de Concierge</span></li>

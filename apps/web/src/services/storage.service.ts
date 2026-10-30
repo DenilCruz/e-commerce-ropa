@@ -1,5 +1,6 @@
 /**
  * Servicio para gestión segura de caché en LocalStorage para modo offline
+ * Aislado por tienda (inquilino) para prevenir contaminación cruzada de datos
  */
 
 interface CacheEnvelope<T> {
@@ -7,12 +8,23 @@ interface CacheEnvelope<T> {
   timestamp: number;
 }
 
+const getTenantPrefix = (): string => {
+  if (typeof window === 'undefined') return '@aura_aura';
+  const match = window.location.pathname.match(/\/t\/([^/]+)/);
+  const slug = match ? match[1] : (localStorage.getItem('tenant_slug') || 'aura');
+  return `@aura_${slug}`;
+};
+
 export const STORAGE_KEYS = {
-  PRODUCTOS: '@aura_cache_productos',
-  CATEGORIAS: '@aura_cache_categorias',
-  PRODUCTO_DETALLE: (id: string) => `@aura_cache_producto_${id}`,
-  PRODUCTOS_RELACIONADOS: (id: string) => `@aura_cache_relacionados_${id}`,
-} as const;
+  get PRODUCTOS() {
+    return `${getTenantPrefix()}_cache_productos`;
+  },
+  get CATEGORIAS() {
+    return `${getTenantPrefix()}_cache_categorias`;
+  },
+  PRODUCTO_DETALLE: (id: string) => `${getTenantPrefix()}_cache_producto_${id}`,
+  PRODUCTOS_RELACIONADOS: (id: string) => `${getTenantPrefix()}_cache_relacionados_${id}`,
+};
 
 export const storageService = {
   /**

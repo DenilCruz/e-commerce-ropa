@@ -19,10 +19,12 @@ import { ResumenResenas } from '../../resenas/types';
 import { useCartStore } from '../../../store/cart.store';
 import { VirtualTryOnModal } from '../../carrito/components/VirtualTryOnModal';
 import { toast } from 'sonner';
+import { useTenantStore } from '../../../hooks/useTenantStore';
 
 const ASSETS_URL = (import.meta.env.VITE_API_URL || 'http://localhost:3000/api/v1').replace('/api/v1', '');
 
 export const ProductDetailPage: React.FC = () => {
+  const { getStoreUrl } = useTenantStore();
   const { id } = useParams<{ id: string }>();
   const [producto, setProducto] = useState<Producto | null>(null);
   const [relacionados, setRelacionados] = useState<Producto[]>([]);
@@ -129,7 +131,7 @@ export const ProductDetailPage: React.FC = () => {
       <div className="min-h-[70vh] flex flex-col items-center justify-center text-center px-4 space-y-4">
         <p className="font-serif text-xl text-stone-800">Pieza no encontrada</p>
         <Link 
-          to="/catalogo" 
+          to={getStoreUrl("/catalogo")} 
           className="text-xs tracking-luxury uppercase border-b border-stone-900 pb-1 hover:text-[#9B7B54] transition-colors"
         >
           Volver a la Colección
@@ -161,9 +163,9 @@ export const ProductDetailPage: React.FC = () => {
     <div className="max-w-7xl mx-auto space-y-16 pb-16">
       {/* Breadcrumb Minimalista */}
       <nav className="flex text-[10px] uppercase tracking-luxury text-stone-400 space-x-2 pt-2 border-b border-[#E7E1D7] pb-4">
-        <Link to="/" className="hover:text-stone-900 transition-colors">Inicio</Link>
+        <Link to={getStoreUrl("/")} className="hover:text-stone-900 transition-colors">Inicio</Link>
         <span>/</span>
-        <Link to="/catalogo" className="hover:text-stone-900 transition-colors">Colección</Link>
+        <Link to={getStoreUrl("/catalogo")} className="hover:text-stone-900 transition-colors">Colección</Link>
         <span>/</span>
         <span className="text-stone-900">{producto.categoria?.nombre || 'Prenda'}</span>
       </nav>

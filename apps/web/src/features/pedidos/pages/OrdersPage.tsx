@@ -22,6 +22,7 @@ import { ordersApi } from '../services/orders.api';
 import { Pedido, PedidoItem, HistorialAuditoria } from '../types';
 
 export const OrdersPage: React.FC = () => {
+  const { getStoreUrl } = useTenantStore();
   const [pedidos, setPedidos] = useState<Pedido[]>([]);
   const [cargando, setCargando] = useState(true);
   const [filtroEstado, setFiltroEstado] = useState<string>('TODOS');
@@ -212,7 +213,7 @@ export const OrdersPage: React.FC = () => {
               : `No tienes pedidos con estado "${filtroEstado}".`}
           </p>
           <Link
-            to="/catalogo"
+            to={getStoreUrl("/catalogo")}
             className="inline-flex items-center gap-2 bg-black text-white px-6 py-3 rounded-xl font-bold hover:bg-gray-800 transition text-sm"
           >
             Ir al Catálogo

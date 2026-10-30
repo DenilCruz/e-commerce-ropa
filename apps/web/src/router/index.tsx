@@ -1,5 +1,5 @@
 import React from 'react';
-import { Routes, Route, Navigate } from 'react-router-dom';
+import { Routes, Route, Navigate, useLocation, useParams } from 'react-router-dom';
 import { MainLayout } from '../layouts/MainLayout';
 import { AuthLayout } from '../layouts/AuthLayout';
 import { AdminLayout } from '../layouts/AdminLayout';
@@ -44,6 +44,24 @@ import { AdminPagosConfigPage } from '../features/tiendas/pages/AdminPagosConfig
 
 import { TenantStoreResolver } from '../features/tiendas/components/TenantStoreResolver';
 
+/** Redirecciona rutas genéricas directas a la tienda activa (/catalogo -> /t/:slug/catalogo) */
+const DirectStoreRedirect: React.FC<{ target?: string }> = ({ target = '' }) => {
+  const location = useLocation();
+  const slug = (typeof window !== 'undefined' ? localStorage.getItem('tenant_slug') : null) || 'aura';
+  const destination = target ? `/t/${slug}/${target}${location.search}` : `/t/${slug}${location.search}`;
+  return <Navigate to={destination} replace />;
+};
+
+/** Redirecciona rutas con ID directo a la tienda activa (/producto/:id -> /t/:slug/producto/:id) */
+const DirectParamRedirect: React.FC<{ targetPrefix: string }> = ({ targetPrefix }) => {
+  const { id, codigo } = useParams<{ id?: string; codigo?: string }>();
+  const location = useLocation();
+  const slug = (typeof window !== 'undefined' ? localStorage.getItem('tenant_slug') : null) || 'aura';
+  const param = id || codigo || '';
+  const destination = `/t/${slug}/${targetPrefix}/${param}${location.search}`;
+  return <Navigate to={destination} replace />;
+};
+
 export const AppRouter: React.FC = () => {
   return (
     <Routes>
@@ -82,27 +100,21 @@ export const AppRouter: React.FC = () => {
         </Route>
       </Route>
 
-      {/* 3. Tienda Demo / Rutas Directas (usando tenant activo en sesión o localStorage) */}
-      <Route element={<MainLayout />}>
-        <Route path="/tienda" element={<HomePage />} />
-        <Route path="/catalogo" element={<CatalogPage />} />
-        <Route path="/catalogo/:id" element={<ProductDetailPage />} />
-        <Route path="/producto/:id" element={<ProductDetailPage />} />
-        <Route path="/probador" element={<VirtualTryOnPage />} />
-        <Route path="/carrito" element={<CartPage />} />
-        <Route path="/tracking" element={<TrackingPage />} />
-        <Route path="/tracking/:codigo" element={<TrackingPage />} />
-
-        {/* Rutas Protegidas Cliente */}
-        <Route element={<ProtectedRoute />}>
-          <Route path="/checkout" element={<CheckoutPage />} />
-          <Route path="/checkout/return" element={<CheckoutReturnPage />} />
-          <Route path="/pago" element={<Navigate to="/checkout" replace />} />
-          <Route path="/pedidos" element={<OrdersPage />} />
-          <Route path="/perfil" element={<ProfilePage />} />
-          <Route path="/favoritos" element={<FavoritosPage />} />
-        </Route>
-      </Route>
+      {/* 3. Redirecciones Directas a la Tienda Activa (/catalogo -> /t/:slug/catalogo) */}
+      <Route path="/tienda" element={<DirectStoreRedirect target="" />} />
+      <Route path="/catalogo" element={<DirectStoreRedirect target="catalogo" />} />
+      <Route path="/catalogo/:id" element={<DirectParamRedirect targetPrefix="catalogo" />} />
+      <Route path="/producto/:id" element={<DirectParamRedirect targetPrefix="producto" />} />
+      <Route path="/probador" element={<DirectStoreRedirect target="probador" />} />
+      <Route path="/carrito" element={<DirectStoreRedirect target="carrito" />} />
+      <Route path="/tracking" element={<DirectStoreRedirect target="tracking" />} />
+      <Route path="/tracking/:codigo" element={<DirectParamRedirect targetPrefix="tracking" />} />
+      <Route path="/checkout" element={<DirectStoreRedirect target="checkout" />} />
+      <Route path="/checkout/return" element={<DirectStoreRedirect target="checkout/return" />} />
+      <Route path="/pago" element={<DirectStoreRedirect target="checkout" />} />
+      <Route path="/pedidos" element={<DirectStoreRedirect target="pedidos" />} />
+      <Route path="/perfil" element={<DirectStoreRedirect target="perfil" />} />
+      <Route path="/favoritos" element={<DirectStoreRedirect target="favoritos" />} />
 
       {/* Flujos de Autenticación */}
       <Route element={<AuthLayout />}>

@@ -3,6 +3,7 @@ import { useSearchParams, Link } from 'react-router-dom';
 import { Sparkles, ArrowLeft, Check, WifiOff } from 'lucide-react';
 import { obtenerProductos } from '../../catalogo/services/catalogo.api';
 import { Producto } from '../../catalogo/types';
+import { useTenantStore } from '../../../hooks/useTenantStore';
 import { VirtualTryOnModal } from '../../carrito/components/VirtualTryOnModal';
 import { useNetworkStatus } from '../../../hooks/useNetworkStatus';
 
@@ -63,7 +64,7 @@ export const VirtualTryOnPage: React.FC = () => {
       {/* Encabezado */}
       <div className="space-y-3 text-center max-w-2xl mx-auto">
         <Link
-          to="/catalogo"
+          to={getStoreUrl("/catalogo")}
           className="inline-flex items-center gap-1.5 text-xs uppercase tracking-luxury text-stone-500 hover:text-stone-900 transition-colors mb-2"
         >
           <ArrowLeft className="w-3.5 h-3.5" />

@@ -12,6 +12,8 @@ export const LandingSaaSPage: React.FC = () => {
   const { user, isAuthenticated, logout, refreshToken } = useAuthStore();
   const [modalCrear, setModalCrear] = useState(false);
 
+  const activeStoreSlug = (typeof window !== 'undefined' ? localStorage.getItem('tenant_slug') : null) || 'aura';
+
   const handleLogout = async () => {
     try {
       if (refreshToken) {
@@ -72,11 +74,11 @@ export const LandingSaaSPage: React.FC = () => {
                   <span>Nueva Tienda</span>
                 </button>
                 <Link
-                  to="/t/aura"
+                  to={`/t/${activeStoreSlug}`}
                   className="px-3.5 py-2 border border-[#D5CCC0] text-stone-800 hover:border-stone-900 text-xs uppercase tracking-widest font-medium transition-all"
                   title="Ver tienda pública"
                 >
-                  Ver Tienda
+                  {activeStoreSlug !== 'aura' ? `Ver Tienda (${activeStoreSlug})` : 'Ver Tienda'}
                 </Link>
                 <Link
                   to="/admin/dashboard"
