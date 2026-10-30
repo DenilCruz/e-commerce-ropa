@@ -191,9 +191,29 @@ describe('resolverPlanEfectivo', () => {
     expect(resolverPlanEfectivo('FREE_TRIAL', [vigente('ESTANDAR')])).toBe('FREE_TRIAL');
   });
 
-  it('vuelve a la prueba cuando todas las suscripciones vencieron o no se pagaron', () => {
+  it('vuelve a la prueba cuando una suscripción cobrada ya venció y no hay otra vigente', () => {
     expect(resolverPlanEfectivo('ESTANDAR', [vencida('ESTANDAR')])).toBe('FREE_TRIAL');
-    expect(resolverPlanEfectivo('ESTANDAR', [{ plan: 'ESTANDAR', estado: 'PENDIENTE_PAGO', vigente: true }])).toBe('FREE_TRIAL');
+    expect(resolverPlanEfectivo('ESTANDAR', [vencida('ESTANDAR'), { plan: 'CORPORATIVO', estado: 'PENDIENTE_PAGO', vigente: true }])).toBe('FREE_TRIAL');
+  });
+
+  describe('una tienda anterior al cobro no pierde su plan por intentar comprar', () => {
+    const sinCobrar = (estado: string) => ({ plan: 'CORPORATIVO', estado, vigente: false });
+
+    it.each(['PENDIENTE_PAGO', 'FALLIDA', 'EXPIRADA'])('compras %s: conserva el plan que ya tenía', (estado) => {
+      expect(resolverPlanEfectivo('ESTANDAR', [sinCobrar(estado)])).toBe('ESTANDAR');
+      expect(resolverPlanEfectivo('CORPORATIVO', [sinCobrar(estado)])).toBe('CORPORATIVO');
+    });
+
+    it('abrir y cancelar varios checkouts no cambia nada', () => {
+      const intentos = ['PENDIENTE_PAGO', 'EXPIRADA', 'FALLIDA', 'PENDIENTE_PAGO'].map(sinCobrar);
+
+      expect(resolverPlanEfectivo('ESTANDAR', intentos)).toBe('ESTANDAR');
+    });
+
+    it('en cuanto se cobra una suscripción, el plan pasa a depender de ella', () => {
+      expect(resolverPlanEfectivo('ESTANDAR', [sinCobrar('PENDIENTE_PAGO'), vencida('ESTANDAR')])).toBe('FREE_TRIAL');
+      expect(resolverPlanEfectivo('ESTANDAR', [sinCobrar('PENDIENTE_PAGO'), vigente('ESTANDAR')])).toBe('ESTANDAR');
+    });
   });
 
   it('mantiene el plan guardado mientras haya una suscripción vigente de ese nivel o superior', () => {

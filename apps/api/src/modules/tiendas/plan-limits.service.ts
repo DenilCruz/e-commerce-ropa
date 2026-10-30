@@ -49,12 +49,14 @@ export interface FilaSuscripcion {
 }
 
 /**
- * The plan a store really has today. A store with no subscriptions keeps the plan it was created with (it
- * predates billing). Otherwise the plan lasts only while a paid, unexpired subscription backs it, and never
- * exceeds the best one still in force.
+ * The plan a store really has today. A store that has never been charged keeps the plan it was created with (it
+ * predates billing): opening a checkout that is cancelled, expires or fails does not count, because nothing was
+ * ever paid. Once a subscription has been charged, the plan lasts only while a paid, unexpired subscription backs
+ * it, and never exceeds the best one still in force.
  */
 export function resolverPlanEfectivo(planGuardado: TipoPlan, suscripciones: FilaSuscripcion[]): TipoPlan {
-  if (planGuardado === 'FREE_TRIAL' || suscripciones.length === 0) return planGuardado;
+  const alguienPagoAlgunaVez = suscripciones.some((s) => s.estado === 'ACTIVA');
+  if (planGuardado === 'FREE_TRIAL' || !alguienPagoAlgunaVez) return planGuardado;
 
   const pagadosVigentes = suscripciones
     .filter((s) => s.estado === 'ACTIVA' && s.vigente && PLANES_CONFIG[s.plan as TipoPlan])
