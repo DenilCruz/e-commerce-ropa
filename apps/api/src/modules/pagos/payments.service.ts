@@ -1,9 +1,11 @@
 import {
+  HttpException,
   Injectable,
   NotFoundException,
   BadRequestException,
   ConflictException,
   ForbiddenException,
+  InternalServerErrorException,
   Logger,
 } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
@@ -38,6 +40,26 @@ const METODO_CONTRA_ENTREGA_ID = '17817d50-a056-4697-a572-bf7145b63646';
 const METODO_QR_ID = 'dcb8cd5b-18f8-43c7-a7b6-44dfa1beae69';
 
 import { TenantContext } from '../../common/tenant/tenant-context';
+
+/**
+ * Whether trying again can help. A business rule (HttpException) or a rejected row (PostgreSQL classes 22 data
+ * exception, 23 integrity, 42 syntax/access) will fail the same way every time; anything else (deadlocks,
+ * dropped connections, timeouts) may not.
+ */
+export function esFalloTransitorio(error: any): boolean {
+  if (error instanceof HttpException) return false;
+  return !(typeof error?.code === 'string' && /^(22|23|42)/.test(error.code));
+}
+
+/**
+ * The order of a paid payment could not be written. `transitorio` tells a webhook whether retrying can help
+ * (database trouble) or not (no stock, the cart changed): same message and status as before for the customer.
+ */
+export class FalloAlRegistrarPedido extends BadRequestException {
+  constructor(mensaje: string, readonly transitorio: boolean) {
+    super(mensaje);
+  }
+}
 
 @Injectable()
 export class PaymentsService {
@@ -274,6 +296,7 @@ export class PaymentsService {
           },
         ],
         metadata: {
+          tipo: 'PEDIDO',
           tenantId: this.tid,
           usuarioId,
           cuponId: cupon ? cupon.id : '',
@@ -333,7 +356,14 @@ export class PaymentsService {
     }
 
     this.verificarPropietarioDelPago(session.metadata, usuarioId);
+    return this.completarPedidoDeSesion(usuarioId, session);
+  }
 
+  /**
+   * Creates the order of a paid Checkout session exactly once, whoever gets here first: the customer's browser
+   * (session-status) or Stripe's webhook. A lock per session serializes them and the second one finds the order.
+   */
+  async completarPedidoDeSesion(usuarioId: string, session: Stripe.Checkout.Session) {
     if (session.status !== 'complete' && session.payment_status !== 'paid') {
       return {
         status: session.status,
@@ -347,21 +377,21 @@ export class PaymentsService {
       : (session.payment_intent as any)?.id || session.id;
 
     // Verificar si la orden ya fue creada previamente
-    const pagoExistente = await this.paymentRepo.findOne({
+    const opcionesPagoExistente = {
       where: [
-          { idTransaccion: paymentIntentId, tenantId: this.tid },
-          { idTransaccion: session.id, tenantId: this.tid },
-        ],
+        { idTransaccion: paymentIntentId, tenantId: this.tid },
+        { idTransaccion: session.id, tenantId: this.tid },
+      ],
       relations: ['notaventa', 'notaventa.items', 'metodoPago', 'notaventa.envio', 'notaventa.historial'],
+    };
+    const respuestaDePago = (pago: PaymentEntity) => ({
+      status: session.status,
+      paymentStatus: session.payment_status,
+      orden: this.formatearRespuestaPago(pago.notaventa, pago),
     });
 
-    if (pagoExistente) {
-      return {
-        status: session.status,
-        paymentStatus: session.payment_status,
-        orden: this.formatearRespuestaPago(pagoExistente.notaventa, pagoExistente),
-      };
-    }
+    const pagoExistente = await this.paymentRepo.findOne(opcionesPagoExistente);
+    if (pagoExistente) return respuestaDePago(pagoExistente);
 
     // Extraer metadata guardada en la sesión
     const meta = session.metadata || {};
@@ -383,6 +413,14 @@ export class PaymentsService {
     await queryRunner.startTransaction();
 
     try {
+      // One execution at a time per session; a second caller waits here and then sees the first one's order
+      await queryRunner.query('SELECT pg_advisory_xact_lock(hashtext($1))', [`pedido-sesion:${this.tid}:${session.id}`]);
+      const ganador = await queryRunner.manager.findOne(PaymentEntity, opcionesPagoExistente);
+      if (ganador) {
+        await queryRunner.rollbackTransaction();
+        return respuestaDePago(ganador);
+      }
+
       const countOrders = await this.orderRepo.count();
       const orderNro = `NV-${new Date().getFullYear()}-${String(countOrders + 1).padStart(5, '0')}`;
 
@@ -523,12 +561,56 @@ export class PaymentsService {
       };
     } catch (err: any) {
       await queryRunner.rollbackTransaction();
+      // Last barrier: the unique index on (tenant, transaction) rejected a second registration of this payment
+      if (err?.code === '23505') {
+        const ganador = await this.paymentRepo.findOne(opcionesPagoExistente);
+        if (ganador) return respuestaDePago(ganador);
+      }
       this.logger.error(`Error procesando orden de Embedded Checkout: ${err.message}`);
       if (err instanceof ConflictException) throw err;
-      throw new BadRequestException(`Fallo al registrar pedido: ${err.message}`);
+      throw new FalloAlRegistrarPedido(`Fallo al registrar pedido: ${err.message}`, esFalloTransitorio(err));
     } finally {
       await queryRunner.release();
     }
+  }
+
+  /**
+   * Stripe's webhook for a paid order session: it covers a customer who paid and closed the tab before coming back.
+   * Runs under the store and user stamped on the session when it was created (there is no login here).
+   * PROCESADO: order created now; DUPLICADO: it already existed; HUERFANO: paid but the order cannot be written for
+   * a business reason (to review by hand; retrying would not help); other errors are rethrown so Stripe retries.
+   */
+  async completarPedidoDesdeWebhook(session: Stripe.Checkout.Session): Promise<'PROCESADO' | 'DUPLICADO' | 'PENDIENTE' | 'HUERFANO'> {
+    if (session.payment_status !== 'paid') return 'PENDIENTE';
+
+    const tenantId = session.metadata?.tenantId;
+    const usuarioId = session.metadata?.usuarioId;
+    if (!tenantId || !usuarioId) return 'HUERFANO';
+
+    return TenantContext.runAs(tenantId, usuarioId, async () => {
+      const paymentIntentId = typeof session.payment_intent === 'string' ? session.payment_intent : (session.payment_intent as any)?.id;
+      const yaExiste = await this.paymentRepo.findOne({
+        where: [
+          { idTransaccion: session.id, tenantId },
+          ...(paymentIntentId ? [{ idTransaccion: paymentIntentId, tenantId }] : []),
+        ],
+      });
+      if (yaExiste) return 'DUPLICADO';
+
+      try {
+        const resultado = await this.completarPedidoDeSesion(usuarioId, session);
+        return resultado.orden ? 'PROCESADO' : 'PENDIENTE';
+      } catch (error: any) {
+        if (error instanceof FalloAlRegistrarPedido && error.transitorio) throw new InternalServerErrorException(error.message);
+        if (error instanceof ConflictException || error instanceof BadRequestException) {
+          this.logger.error(
+            `Pago ${session.id} (${paymentIntentId ?? 'sin payment_intent'}) cobrado pero sin pedido: ${error.message}. Revisar y reembolsar a mano si corresponde.`,
+          );
+          return 'HUERFANO';
+        }
+        throw error;
+      }
+    });
   }
 
   // =========================================================================
