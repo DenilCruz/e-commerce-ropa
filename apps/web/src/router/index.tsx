@@ -40,6 +40,7 @@ import { AdminShippingPage } from '../features/admin/envios/pages/AdminShippingP
 import { AdminPosPage } from '../features/ventas-pos/pages/AdminPosPage';
 import { TrackingPage } from '../features/envios/pages/TrackingPage';
 import { LandingSaaSPage } from '../features/landing/LandingSaaSPage';
+import { PlanRetornoPage } from '../features/tiendas/pages/PlanRetornoPage';
 import { AdminPagosConfigPage } from '../features/tiendas/pages/AdminPagosConfigPage';
 
 import { TenantStoreResolver } from '../features/tiendas/components/TenantStoreResolver';
@@ -68,6 +69,9 @@ export const AppRouter: React.FC = () => {
       {/* 1. SaaS Landing & Planes (Página Raíz de la Plataforma) */}
       <Route path="/" element={<LandingSaaSPage />} />
       <Route path="/planes" element={<LandingSaaSPage />} />
+      <Route element={<ProtectedRoute />}>
+        <Route path="/planes/retorno" element={<PlanRetornoPage />} />
+      </Route>
       <Route path="/saas" element={<LandingSaaSPage />} />
 
       {/* 2. Tienda de Inquilino Específica (/t/:slug) - Enlace público para compartir con clientes */}

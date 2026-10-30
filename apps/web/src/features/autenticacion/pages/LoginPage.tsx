@@ -7,6 +7,7 @@ import { authApi } from '../services/auth.api';
 import { tiendasApi } from '../../tiendas/services/tiendas.api';
 import { useAuthStore } from '../../../store/auth.store';
 import { useCartStore } from '../../../store/cart.store';
+import { destinoTrasCrearTienda } from '../../tiendas/utils/planes';
 
 export const LoginPage: React.FC = () => {
   const navigate = useNavigate();
@@ -46,7 +47,7 @@ export const LoginPage: React.FC = () => {
           localStorage.removeItem('el-magnifico-cart-storage');
           localStorage.setItem('tenant_slug', resTienda.tienda?.slug || 'aura');
           setAuth(resTienda.usuario, resTienda.accessToken, resTienda.refreshToken);
-          window.location.assign('/admin');
+          window.location.assign(destinoTrasCrearTienda(planPendiente));
           return;
         } catch (storeErr: any) {
           console.warn('No se pudo auto-crear la tienda tras login:', storeErr);

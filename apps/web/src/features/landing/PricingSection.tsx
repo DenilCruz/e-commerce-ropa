@@ -1,21 +1,22 @@
-import React, { useState } from 'react';
-import { useNavigate } from 'react-router-dom';
+import React, { useEffect, useState } from 'react';
+import { useNavigate, useSearchParams } from 'react-router-dom';
+import { toast } from 'sonner';
 import { useQuery } from '@tanstack/react-query';
 import {
   Check,
   X,
   Loader2,
   CreditCard,
-  QrCode,
   ShieldCheck,
   Sparkles,
   Store,
   ArrowRight,
-  CheckCircle2,
 } from 'lucide-react';
 import { useAuthStore } from '../../store/auth.store';
 import { usePlanLimites } from '../tiendas/hooks/usePlanLimites';
 import { tiendasApi } from '../tiendas/services/tiendas.api';
+import { planesApi } from '../tiendas/services/planes.api';
+import { esBajaDePlan, esPlanDePago } from '../tiendas/utils/planes';
 import { MiTienda } from '../tiendas/types';
 import { Modal } from '../../components/ui/Modal';
 
@@ -27,17 +28,9 @@ export const PricingSection: React.FC = () => {
   const [anual, setAnual] = useState<boolean>(false);
   const [planAActualizar, setPlanAActualizar] = useState<'FREE_TRIAL' | 'ESTANDAR' | 'CORPORATIVO' | null>(null);
 
-  // Estados de pasarela de pago para la suscripción
-  const [metodoPago, setMetodoPago] = useState<'STRIPE' | 'QR'>('STRIPE');
-  const [pagoProcesando, setPagoProcesando] = useState(false);
-  const [pagoExitoso, setPagoExitoso] = useState(false);
-  const [transaccionId, setTransaccionId] = useState('');
-  const [datosTarjeta, setDatosTarjeta] = useState({
-    numero: '4242 •••• •••• 4242',
-    expiracion: '12/28',
-    cvc: '888',
-    titular: user ? `${user.nombre} ${user.apellido || ''}`.trim() : 'Juan Pérez',
-  });
+  // Pago del plan: el cobro ocurre en Stripe; aquí solo se prepara y se redirige
+  const [procesando, setProcesando] = useState(false);
+  const [searchParams, setSearchParams] = useSearchParams();
 
   const { data: misTiendas = [] } = useQuery<MiTienda[]>({
     queryKey: ['mis-tiendas-pricing', user?.id],
@@ -145,38 +138,77 @@ export const PricingSection: React.FC = () => {
       return;
     }
 
-    setPagoExitoso(false);
     setPlanAActualizar(planId);
   };
 
   const planElegidoObj = planes.find((p) => p.id === planAActualizar);
   const montoAPagar = planElegidoObj ? (anual ? planElegidoObj.precio * 12 : planElegidoObj.precio) : 0;
+  const esBaja = !!planAActualizar && esBajaDePlan(planActualTienda, planAActualizar);
 
-  const ejecutarPagoYSuscripcion = async () => {
-    if (!planAActualizar) return;
-    setPagoProcesando(true);
-    try {
-      // 1. Si la tienda activa en la sesión no es la administrada, seleccionarla
-      if (tiendaDestino && !tiendaDestino.esActiva) {
-        const sesion = await tiendasApi.seleccionar(tiendaDestino.id);
-        useAuthStore.getState().setAuth(sesion.usuario, sesion.accessToken, sesion.refreshToken);
-        localStorage.setItem('tenant_slug', sesion.tienda?.slug || 'aura');
-      }
-
-      // 2. Simulación de procesamiento en pasarela segura (1.2 segundos)
-      await new Promise((resolve) => setTimeout(resolve, 1200));
-
-      // 3. Ejecutar actualización del plan en el backend
-      await cambiarPlan(planAActualizar);
-
-      setTransaccionId(`STR-SUB-${Math.floor(100000 + Math.random() * 900000)}`);
-      setPagoExitoso(true);
-    } catch (err) {
-      console.error('Error al procesar el pago de la suscripción:', err);
-    } finally {
-      setPagoProcesando(false);
+  // Si la tienda activa en la sesión no es la administrada, se selecciona antes de operar sobre su plan
+  const asegurarTiendaActiva = async () => {
+    if (tiendaDestino && !tiendaDestino.esActiva) {
+      const sesion = await tiendasApi.seleccionar(tiendaDestino.id);
+      useAuthStore.getState().setAuth(sesion.usuario, sesion.accessToken, sesion.refreshToken);
+      localStorage.setItem('tenant_slug', sesion.tienda?.slug || 'aura');
     }
   };
+
+  const mensajeDeError = (err: any, porDefecto: string) => {
+    const msg = err?.response?.data?.message;
+    return Array.isArray(msg) ? msg.join(', ') : msg || porDefecto;
+  };
+
+  // Subir de plan: se paga en Stripe y el plan lo activa el webhook, no esta pantalla
+  const pagarConStripe = async () => {
+    if (!esPlanDePago(planAActualizar)) return;
+    setProcesando(true);
+    try {
+      await asegurarTiendaActiva();
+      const checkout = await planesApi.crearCheckout(planAActualizar, anual ? 'ANUAL' : 'MENSUAL');
+      window.location.assign(checkout.url);
+    } catch (err) {
+      toast.error(mensajeDeError(err, 'No se pudo abrir el pago. Inténtalo de nuevo.'));
+      setProcesando(false);
+    }
+  };
+
+  // Bajar de plan no cuesta nada
+  const confirmarBaja = async () => {
+    if (!planAActualizar) return;
+    setProcesando(true);
+    try {
+      await asegurarTiendaActiva();
+      await cambiarPlan(planAActualizar);
+      setPlanAActualizar(null);
+    } catch {
+      // el hook ya muestra el error
+    } finally {
+      setProcesando(false);
+    }
+  };
+
+  // Tras crear la tienda con un plan de pago elegido, se abre directamente su pago
+  const planElegidoEnUrl = searchParams.get('elegido');
+  useEffect(() => {
+    if (!isAuthenticated || !tiendaDestino || !esPlanDePago(planElegidoEnUrl)) return;
+    const siguiente = new URLSearchParams(searchParams);
+    siguiente.delete('elegido');
+    setSearchParams(siguiente, { replace: true });
+    if (planActualTienda !== planElegidoEnUrl) setPlanAActualizar(planElegidoEnUrl);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [isAuthenticated, tiendaDestino?.id, planElegidoEnUrl]);
+
+  // Stripe devuelve aquí al cliente que cierra el pago sin completarlo
+  useEffect(() => {
+    if (searchParams.get('cancelado') === '1') {
+      toast.info('Cancelaste el pago. No se hizo ningún cargo y tu plan no cambió.');
+      const siguiente = new URLSearchParams(searchParams);
+      siguiente.delete('cancelado');
+      setSearchParams(siguiente, { replace: true });
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   return (
     <section id="planes" className="bg-[#FAF8F5] py-20 text-stone-900 border-t border-[#E7E1D7] relative">
@@ -340,208 +372,79 @@ export const PricingSection: React.FC = () => {
         </div>
       </div>
 
-      {/* Modal de Pasarela de Pagos & Checkout de Suscripción */}
+      {/* Cambio de plan: subir va a Stripe; bajar se confirma sin cobro */}
       <Modal
         isOpen={!!planAActualizar}
         onClose={() => {
-          if (!pagoProcesando) {
-            setPlanAActualizar(null);
-            setPagoExitoso(false);
-          }
+          if (!procesando) setPlanAActualizar(null);
         }}
-        title={pagoExitoso ? 'Recibo de Suscripción' : 'Pasarela de Suscripción SaaS'}
+        title={esBaja ? 'Cambiar de plan' : 'Pagar tu plan'}
       >
-        {pagoExitoso ? (
-          <div className="text-center py-3 space-y-4">
-            <div className="w-14 h-14 bg-emerald-100 text-emerald-600 rounded-full flex items-center justify-center mx-auto">
-              <CheckCircle2 className="w-8 h-8 text-emerald-600" />
-            </div>
-
-            <div className="space-y-1">
-              <h3 className="font-serif text-2xl text-stone-900 font-normal">
-                ¡Pago Procesado con Éxito!
-              </h3>
-              <p className="text-xs text-stone-500">
-                Tu tienda ha sido actualizada y las capacidades premium están habilitadas.
+        <div className="space-y-5 text-stone-900">
+          <div className="p-3.5 bg-[#FAF8F5] border border-[#E7E1D7] rounded-lg flex items-center justify-between">
+            <div>
+              <p className="text-[10px] uppercase font-bold tracking-wider text-stone-500">Plan para:</p>
+              <p className="font-serif text-base font-semibold text-stone-900 flex items-center gap-1.5">
+                <Store className="w-4 h-4 text-[#9B7B54]" />
+                <span>{tiendaDestino?.nombre || 'Mi Tienda'}</span>
               </p>
             </div>
-
-            <div className="p-4 bg-[#FAF8F5] border border-[#E7E1D7] text-left text-xs space-y-2 rounded-lg">
-              <div className="flex justify-between border-b border-[#E7E1D7] pb-2">
-                <span className="text-stone-500">Tienda:</span>
-                <strong className="text-stone-900">{tiendaDestino?.nombre || 'Mi Tienda'}</strong>
-              </div>
-              <div className="flex justify-between border-b border-[#E7E1D7] pb-2">
-                <span className="text-stone-500">Plan Activado:</span>
-                <strong className="text-[#9B7B54] font-semibold">{planElegidoObj?.nombre}</strong>
-              </div>
-              <div className="flex justify-between border-b border-[#E7E1D7] pb-2">
-                <span className="text-stone-500">ID de Transacción:</span>
-                <code className="text-stone-700 font-mono text-[11px]">{transaccionId}</code>
-              </div>
-              <div className="flex justify-between pt-1 text-sm font-bold">
-                <span className="text-stone-800">Total Facturado:</span>
-                <span className="text-stone-900">{montoAPagar} Bs</span>
-              </div>
-            </div>
-
-            <div className="flex flex-col sm:flex-row gap-3 pt-2">
-              <button
-                type="button"
-                onClick={() => window.location.assign('/admin')}
-                className="flex-1 py-3 bg-stone-900 text-white font-semibold text-xs uppercase tracking-widest hover:bg-stone-800 transition-all flex items-center justify-center gap-2"
-              >
-                <span>Ir al Panel de Administración</span>
-                <ArrowRight className="w-4 h-4" />
-              </button>
-              <button
-                type="button"
-                onClick={() => setPlanAActualizar(null)}
-                className="px-5 py-3 border border-[#E7E1D7] text-xs uppercase tracking-widest text-stone-600 hover:bg-[#FAF8F5]"
-              >
-                Cerrar
-              </button>
+            <div className="text-right">
+              <span className="text-lg font-bold text-[#9B7B54]">{esBaja ? 'Sin costo' : `${montoAPagar} Bs`}</span>
+              <span className="text-[11px] text-stone-500 block">
+                {planElegidoObj?.nombre}
+                {!esBaja && (anual ? ' · 12 meses' : ' · 1 mes')}
+              </span>
             </div>
           </div>
-        ) : (
-          <div className="space-y-5 text-stone-900">
-            {/* Resumen del Plan */}
-            <div className="p-3.5 bg-[#FAF8F5] border border-[#E7E1D7] rounded-lg flex items-center justify-between">
-              <div>
-                <p className="text-[10px] uppercase font-bold tracking-wider text-stone-500">Suscripción para:</p>
-                <p className="font-serif text-base font-semibold text-stone-900 flex items-center gap-1.5">
-                  <Store className="w-4 h-4 text-[#9B7B54]" />
-                  <span>{tiendaDestino?.nombre || 'Mi Tienda'}</span>
-                </p>
-              </div>
-              <div className="text-right">
-                <span className="text-lg font-bold text-[#9B7B54]">{montoAPagar} Bs</span>
-                <span className="text-[11px] text-stone-500 block">{anual ? 'Pago anual' : 'Mensual'}</span>
-              </div>
-            </div>
 
-            {/* Selector de Método de Pago */}
-            <div className="space-y-2">
-              <label className="block text-xs font-semibold text-stone-800 uppercase tracking-wider">
-                Selecciona tu Método de Pago:
-              </label>
-              <div className="grid grid-cols-2 gap-3">
-                <button
-                  type="button"
-                  onClick={() => setMetodoPago('STRIPE')}
-                  className={`p-3 border rounded-lg flex items-center justify-center gap-2 text-xs font-semibold uppercase tracking-wider transition-all ${
-                    metodoPago === 'STRIPE'
-                      ? 'border-stone-900 bg-stone-900 text-white shadow-sm'
-                      : 'border-[#E7E1D7] text-stone-600 hover:bg-[#FAF8F5]'
-                  }`}
-                >
+          {esBaja ? (
+            <p className="text-xs text-stone-600 leading-relaxed">
+              Pasar a este plan no tiene costo. Algunas capacidades del plan actual dejarán de estar disponibles y se aplicarán los límites del nuevo
+              plan.
+            </p>
+          ) : (
+            <div className="p-4 bg-white border border-[#E7E1D7] rounded-lg flex items-start gap-3">
+              <ShieldCheck className="w-5 h-5 text-[#9B7B54] shrink-0 mt-0.5" aria-hidden />
+              <p className="text-xs text-stone-600 leading-relaxed">
+                Pagarás en la página segura de Stripe; nosotros nunca vemos los datos de tu tarjeta. Tu plan se activa automáticamente en cuanto Stripe
+                confirma el pago.
+              </p>
+            </div>
+          )}
+
+          <div className="flex justify-end gap-3 pt-3 border-t border-[#E7E1D7]">
+            <button
+              type="button"
+              onClick={() => setPlanAActualizar(null)}
+              disabled={procesando}
+              className="px-5 py-2.5 border border-[#D5CCC0] text-xs uppercase tracking-widest text-stone-700 hover:bg-[#FAF8F5]"
+            >
+              Cancelar
+            </button>
+            <button
+              type="button"
+              onClick={esBaja ? confirmarBaja : pagarConStripe}
+              disabled={procesando}
+              className="px-6 py-2.5 bg-stone-900 text-white text-xs uppercase tracking-widest font-semibold hover:bg-stone-800 disabled:opacity-60 flex items-center gap-2 shadow-md"
+            >
+              {procesando ? (
+                <>
+                  <Loader2 className="w-4 h-4 animate-spin" />
+                  <span>{esBaja ? 'Cambiando…' : 'Abriendo Stripe…'}</span>
+                </>
+              ) : esBaja ? (
+                <span>Confirmar cambio</span>
+              ) : (
+                <>
                   <CreditCard className="w-4 h-4" />
-                  <span>Tarjeta Stripe</span>
-                </button>
-                <button
-                  type="button"
-                  onClick={() => setMetodoPago('QR')}
-                  className={`p-3 border rounded-lg flex items-center justify-center gap-2 text-xs font-semibold uppercase tracking-wider transition-all ${
-                    metodoPago === 'QR'
-                      ? 'border-stone-900 bg-stone-900 text-white shadow-sm'
-                      : 'border-[#E7E1D7] text-stone-600 hover:bg-[#FAF8F5]'
-                  }`}
-                >
-                  <QrCode className="w-4 h-4" />
-                  <span>QR Simple (Bolivia)</span>
-                </button>
-              </div>
-            </div>
-
-            {/* Formulario de Pago según método */}
-            {metodoPago === 'STRIPE' ? (
-              <div className="p-4 bg-white border border-[#E7E1D7] rounded-lg space-y-3 shadow-xs">
-                <div>
-                  <label className="block text-[11px] font-medium text-stone-700 mb-1">
-                    Número de Tarjeta (Stripe Sandbox)
-                  </label>
-                  <input
-                    type="text"
-                    value={datosTarjeta.numero}
-                    onChange={(e) => setDatosTarjeta({ ...datosTarjeta, numero: e.target.value })}
-                    className="w-full px-3 py-2 text-xs border border-[#D5CCC0] rounded-sm focus:outline-none focus:border-stone-900 font-mono tracking-widest"
-                  />
-                </div>
-                <div className="grid grid-cols-2 gap-3">
-                  <div>
-                    <label className="block text-[11px] font-medium text-stone-700 mb-1">Expiración</label>
-                    <input
-                      type="text"
-                      value={datosTarjeta.expiracion}
-                      onChange={(e) => setDatosTarjeta({ ...datosTarjeta, expiracion: e.target.value })}
-                      className="w-full px-3 py-2 text-xs border border-[#D5CCC0] rounded-sm focus:outline-none focus:border-stone-900 font-mono"
-                    />
-                  </div>
-                  <div>
-                    <label className="block text-[11px] font-medium text-stone-700 mb-1">CVC</label>
-                    <input
-                      type="text"
-                      value={datosTarjeta.cvc}
-                      onChange={(e) => setDatosTarjeta({ ...datosTarjeta, cvc: e.target.value })}
-                      className="w-full px-3 py-2 text-xs border border-[#D5CCC0] rounded-sm focus:outline-none focus:border-stone-900 font-mono"
-                    />
-                  </div>
-                </div>
-                <div>
-                  <label className="block text-[11px] font-medium text-stone-700 mb-1">Titular de la Tarjeta</label>
-                  <input
-                    type="text"
-                    value={datosTarjeta.titular}
-                    onChange={(e) => setDatosTarjeta({ ...datosTarjeta, titular: e.target.value })}
-                    className="w-full px-3 py-2 text-xs border border-[#D5CCC0] rounded-sm focus:outline-none focus:border-stone-900 uppercase text-xs"
-                  />
-                </div>
-              </div>
-            ) : (
-              <div className="p-4 bg-white border border-[#E7E1D7] rounded-lg text-center space-y-3">
-                <p className="text-xs text-stone-600">
-                  Escanea con tu aplicación de banca móvil favorita (BCP, BNB, Banco Unión, BMSC):
-                </p>
-                <div className="w-36 h-36 mx-auto bg-stone-900 p-2 rounded-lg flex items-center justify-center text-white">
-                  <QrCode className="w-32 h-32" />
-                </div>
-                <div className="text-xs text-stone-700 font-semibold">
-                  Monto a Transferir: <span className="text-[#9B7B54] text-sm">{montoAPagar} Bs</span>
-                </div>
-              </div>
-            )}
-
-            {/* Acciones */}
-            <div className="flex justify-end gap-3 pt-3 border-t border-[#E7E1D7]">
-              <button
-                type="button"
-                onClick={() => setPlanAActualizar(null)}
-                disabled={pagoProcesando}
-                className="px-5 py-2.5 border border-[#D5CCC0] text-xs uppercase tracking-widest text-stone-700 hover:bg-[#FAF8F5]"
-              >
-                Cancelar
-              </button>
-              <button
-                type="button"
-                onClick={ejecutarPagoYSuscripcion}
-                disabled={pagoProcesando}
-                className="px-6 py-2.5 bg-stone-900 text-white text-xs uppercase tracking-widest font-semibold hover:bg-stone-800 flex items-center gap-2 shadow-md"
-              >
-                {pagoProcesando ? (
-                  <>
-                    <Loader2 className="w-4 h-4 animate-spin" />
-                    <span>Validando Pago Seguro...</span>
-                  </>
-                ) : (
-                  <>
-                    <span>Pagar {montoAPagar} Bs y Activar</span>
-                    <ArrowRight className="w-3.5 h-3.5" />
-                  </>
-                )}
-              </button>
-            </div>
+                  <span>Pagar {montoAPagar} Bs con Stripe</span>
+                  <ArrowRight className="w-3.5 h-3.5" />
+                </>
+              )}
+            </button>
           </div>
-        )}
+        </div>
       </Modal>
     </section>
   );
