@@ -12,6 +12,7 @@
     "lint": "turbo run lint",
     "test": "turbo run test",
     "seed:ventas": "pnpm --filter @ecommerce/api seed:ventas",
+    "seed:sinteticos": "pnpm --filter @ecommerce/api seed:sinteticos",
     "format": "prettier --write \"**/*.{ts,tsx,js,json,md}\""
   },
   "devDependencies": {
