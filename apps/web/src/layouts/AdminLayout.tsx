@@ -1,5 +1,5 @@
-import React from 'react';
-import { Outlet, NavLink, Link, useNavigate } from 'react-router-dom';
+import React, { useEffect, useState } from 'react';
+import { Outlet, NavLink, Link, useLocation, useNavigate } from 'react-router-dom';
 import {
   LayoutDashboard,
   TrendingUp,
@@ -18,6 +18,8 @@ import {
   ArrowLeft,
   LogOut,
   QrCode,
+  Menu,
+  X,
 } from 'lucide-react';
 import { useAuthStore } from '../store/auth.store';
 import { authApi } from '../features/autenticacion/services/auth.api';
@@ -27,9 +29,23 @@ import { usePlanLimites } from '../features/tiendas/hooks/usePlanLimites';
 
 export const AdminLayout: React.FC = () => {
   const navigate = useNavigate();
+  const location = useLocation();
+  const [menuAbierto, setMenuAbierto] = useState(false);
   const { logout, refreshToken } = useAuthStore();
   const { metricas } = usePlanLimites();
   const storeSlug = metricas?.tienda?.slug || 'aura';
+
+  // En pantallas chicas el menú es un panel deslizable: se cierra al navegar o con Escape
+  useEffect(() => {
+    setMenuAbierto(false);
+  }, [location.pathname]);
+
+  useEffect(() => {
+    if (!menuAbierto) return;
+    const alTeclear = (e: KeyboardEvent) => e.key === 'Escape' && setMenuAbierto(false);
+    window.addEventListener('keydown', alTeclear);
+    return () => window.removeEventListener('keydown', alTeclear);
+  }, [menuAbierto]);
 
   const handleLogout = async () => {
     try {
@@ -64,8 +80,23 @@ export const AdminLayout: React.FC = () => {
 
   return (
     <div className="h-screen w-full flex overflow-hidden bg-[#FAF8F5] text-stone-900 font-sans">
-      {/* SIDEBAR */}
-      <aside className="w-64 h-screen bg-[#161513] text-stone-100 flex flex-col shrink-0 border-r border-[#2A2723] shadow-xl z-20">
+      {/* Fondo oscuro detrás del menú deslizable (solo pantallas chicas) */}
+      {menuAbierto && (
+        <button
+          type="button"
+          aria-label="Cerrar menú"
+          onClick={() => setMenuAbierto(false)}
+          className="lg:hidden fixed inset-0 z-30 bg-black/50"
+        />
+      )}
+
+      {/* SIDEBAR: fijo en escritorio, panel deslizable en celular */}
+      <aside
+        id="menu-admin"
+        className={`fixed inset-y-0 left-0 z-40 w-64 max-w-[85vw] h-screen bg-[#161513] text-stone-100 flex flex-col shrink-0 border-r border-[#2A2723] shadow-xl transition-transform duration-200 motion-reduce:transition-none lg:static lg:z-20 lg:max-w-none lg:translate-x-0 ${
+          menuAbierto ? 'translate-x-0' : '-translate-x-full'
+        }`}
+      >
         {/* Header / Selector de Tienda Activa (Fijo arriba) */}
         <div className="p-3.5 pb-3 shrink-0 border-b border-[#2A2723]/60 space-y-2">
           <div className="flex items-center justify-between px-1">
@@ -140,10 +171,28 @@ export const AdminLayout: React.FC = () => {
         </div>
       </aside>
 
-      {/* MAIN CONTENT con scroll independiente */}
-      <main className="flex-1 h-screen min-h-0 overflow-y-auto p-6 lg:p-8 bg-[#FAF8F5]">
-        <Outlet />
-      </main>
+      <div className="flex-1 min-w-0 h-screen flex flex-col">
+        {/* Barra superior con el botón del menú (solo pantallas chicas) */}
+        <header className="lg:hidden shrink-0 h-14 px-4 flex items-center gap-3 bg-[#161513] text-stone-100 border-b border-[#2A2723]">
+          <button
+            type="button"
+            onClick={() => setMenuAbierto((abierto) => !abierto)}
+            aria-label={menuAbierto ? 'Cerrar menú' : 'Abrir menú'}
+            aria-expanded={menuAbierto}
+            aria-controls="menu-admin"
+            className="p-2 -ml-2 rounded-lg hover:bg-stone-900 focus-visible:outline focus-visible:outline-2 focus-visible:outline-[#9B7B54]"
+          >
+            {menuAbierto ? <X className="w-5 h-5" aria-hidden /> : <Menu className="w-5 h-5" aria-hidden />}
+          </button>
+          <span className="font-serif tracking-[0.2em] uppercase text-sm">AURA</span>
+          <span className="ml-auto text-xs text-stone-400 truncate max-w-[50%]">{metricas?.tienda?.nombre}</span>
+        </header>
+
+        {/* MAIN CONTENT con scroll independiente */}
+        <main className="flex-1 min-h-0 overflow-y-auto p-4 sm:p-6 lg:p-8 bg-[#FAF8F5]">
+          <Outlet />
+        </main>
+      </div>
     </div>
   );
 };

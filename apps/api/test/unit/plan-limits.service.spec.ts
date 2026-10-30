@@ -2,8 +2,13 @@ jest.mock('@nestjs/typeorm', () => ({
   InjectRepository: () => () => {},
 }));
 
-import { ForbiddenException, NotFoundException, BadRequestException } from '@nestjs/common';
-import { PlanLimitsService, PLANES_CONFIG } from '../../src/modules/tiendas/plan-limits.service';
+import { ForbiddenException, NotFoundException, BadRequestException, HttpException } from '@nestjs/common';
+import {
+  PlanLimitsService,
+  PLANES_CONFIG,
+  calcularMontoPlan,
+  resolverPlanEfectivo,
+} from '../../src/modules/tiendas/plan-limits.service';
 
 describe('PlanLimitsService (Pilar 1: Multi-Tenant SaaS)', () => {
   let service: PlanLimitsService;
@@ -24,6 +29,7 @@ describe('PlanLimitsService (Pilar 1: Multi-Tenant SaaS)', () => {
         propietarioId: USER_ID,
       }),
       save: jest.fn((entity) => Promise.resolve(entity)),
+      manager: { query: jest.fn().mockResolvedValue([]) },
     };
 
     membershipRepo = {
@@ -75,11 +81,64 @@ describe('PlanLimitsService (Pilar 1: Multi-Tenant SaaS)', () => {
     await expect(service.validarLimiteUsuarios(STORE_ID)).rejects.toThrow(ForbiddenException);
   });
 
-  it('allows an ADMIN or owner to upgrade the store plan to ESTANDAR', async () => {
-    const res = await service.cambiarPlan(STORE_ID, 'ESTANDAR', USER_ID);
-    expect(storeRepo.save).toHaveBeenCalledWith(
-      expect.objectContaining({ plan: 'ESTANDAR' }),
-    );
+  it('reports the effective plan: a paid plan whose subscription expired falls back to the trial', async () => {
+    storeRepo.findOne.mockResolvedValue({ id: STORE_ID, plan: 'ESTANDAR', propietarioId: USER_ID });
+    storeRepo.manager.query.mockResolvedValue([{ plan: 'ESTANDAR', estado: 'ACTIVA', vigente: false }]);
+
+    const res = await service.obtenerMetricasYLimites(STORE_ID);
+
+    expect(res.plan.id).toBe('FREE_TRIAL');
+    expect(res.tienda.plan).toBe('FREE_TRIAL');
+  });
+
+  it('keeps working with the stored plan while the subscriptions table does not exist yet (migration pending)', async () => {
+    storeRepo.findOne.mockResolvedValue({ id: STORE_ID, plan: 'ESTANDAR', propietarioId: USER_ID });
+    storeRepo.manager.query.mockRejectedValue({ code: '42P01' });
+
+    const res = await service.obtenerMetricasYLimites(STORE_ID);
+
+    expect(res.plan.id).toBe('ESTANDAR');
+  });
+
+  it('does not hide other database failures behind the stored plan', async () => {
+    storeRepo.findOne.mockResolvedValue({ id: STORE_ID, plan: 'ESTANDAR', propietarioId: USER_ID });
+    storeRepo.manager.query.mockRejectedValue(new Error('connection lost'));
+
+    await expect(service.obtenerMetricasYLimites(STORE_ID)).rejects.toThrow('connection lost');
+  });
+
+  it('refuses to upgrade to a paid plan without paying (402) and leaves the plan untouched', async () => {
+    await expect(service.cambiarPlan(STORE_ID, 'ESTANDAR', USER_ID)).rejects.toMatchObject({ status: 402 });
+    await expect(service.cambiarPlan(STORE_ID, 'CORPORATIVO', USER_ID)).rejects.toMatchObject({ status: 402 });
+
+    expect(storeRepo.save).not.toHaveBeenCalled();
+  });
+
+  it('refuses the upgrade even for the owner or an ADMIN', async () => {
+    storeRepo.findOne.mockResolvedValue({ id: STORE_ID, plan: 'FREE_TRIAL', propietarioId: USER_ID });
+
+    await expect(service.cambiarPlan(STORE_ID, 'CORPORATIVO', USER_ID)).rejects.toBeInstanceOf(HttpException);
+  });
+
+  it('lets an ADMIN downgrade to a cheaper plan without any charge', async () => {
+    const guardados: string[] = [];
+    storeRepo.findOne.mockImplementation(() => Promise.resolve({ id: STORE_ID, plan: 'CORPORATIVO', propietarioId: USER_ID }));
+    storeRepo.save.mockImplementation((tienda: { plan: string }) => {
+      guardados.push(tienda.plan);
+      return Promise.resolve(tienda);
+    });
+
+    await service.cambiarPlan(STORE_ID, 'ESTANDAR', USER_ID);
+    await service.cambiarPlan(STORE_ID, 'FREE_TRIAL', USER_ID);
+
+    expect(guardados).toEqual(['ESTANDAR', 'FREE_TRIAL']);
+  });
+
+  it('answers 403 before 402: a user without permission learns nothing about billing', async () => {
+    storeRepo.findOne.mockResolvedValue({ id: STORE_ID, plan: 'FREE_TRIAL', propietarioId: 'other-user' });
+    membershipRepo.findOne.mockResolvedValue({ usuarioId: USER_ID, rol: { nombre: 'CLIENTE' } });
+
+    await expect(service.cambiarPlan(STORE_ID, 'CORPORATIVO', USER_ID)).rejects.toBeInstanceOf(ForbiddenException);
   });
 
   it('rejects an invalid plan name with BadRequestException', async () => {
@@ -101,5 +160,68 @@ describe('PlanLimitsService (Pilar 1: Multi-Tenant SaaS)', () => {
     await expect(service.cambiarPlan(STORE_ID, 'ESTANDAR', USER_ID)).rejects.toThrow(
       ForbiddenException,
     );
+  });
+});
+
+describe('calcularMontoPlan', () => {
+  it('cobra el precio mensual por un mes', () => {
+    expect(calcularMontoPlan('ESTANDAR', 'MENSUAL')).toBe(PLANES_CONFIG.ESTANDAR.precioMensual);
+    expect(calcularMontoPlan('CORPORATIVO', 'MENSUAL')).toBe(PLANES_CONFIG.CORPORATIVO.precioMensual);
+  });
+
+  it('cobra el plan anual como 12 meses al precio anual, de una sola vez', () => {
+    expect(calcularMontoPlan('ESTANDAR', 'ANUAL')).toBe(PLANES_CONFIG.ESTANDAR.precioAnual * 12);
+    expect(calcularMontoPlan('CORPORATIVO', 'ANUAL')).toBe(PLANES_CONFIG.CORPORATIVO.precioAnual * 12);
+  });
+
+  it('no vende el plan de prueba', () => {
+    expect(() => calcularMontoPlan('FREE_TRIAL', 'MENSUAL')).toThrow(BadRequestException);
+  });
+});
+
+describe('resolverPlanEfectivo', () => {
+  const vigente = (plan: string) => ({ plan, estado: 'ACTIVA', vigente: true });
+  const vencida = (plan: string) => ({ plan, estado: 'ACTIVA', vigente: false });
+
+  it('una tienda sin suscripciones conserva su plan (creada antes del cobro)', () => {
+    expect(resolverPlanEfectivo('CORPORATIVO', [])).toBe('CORPORATIVO');
+  });
+
+  it('el plan de prueba nunca depende de suscripciones', () => {
+    expect(resolverPlanEfectivo('FREE_TRIAL', [vigente('ESTANDAR')])).toBe('FREE_TRIAL');
+  });
+
+  it('vuelve a la prueba cuando una suscripción cobrada ya venció y no hay otra vigente', () => {
+    expect(resolverPlanEfectivo('ESTANDAR', [vencida('ESTANDAR')])).toBe('FREE_TRIAL');
+    expect(resolverPlanEfectivo('ESTANDAR', [vencida('ESTANDAR'), { plan: 'CORPORATIVO', estado: 'PENDIENTE_PAGO', vigente: true }])).toBe('FREE_TRIAL');
+  });
+
+  describe('una tienda anterior al cobro no pierde su plan por intentar comprar', () => {
+    const sinCobrar = (estado: string) => ({ plan: 'CORPORATIVO', estado, vigente: false });
+
+    it.each(['PENDIENTE_PAGO', 'FALLIDA', 'EXPIRADA'])('compras %s: conserva el plan que ya tenía', (estado) => {
+      expect(resolverPlanEfectivo('ESTANDAR', [sinCobrar(estado)])).toBe('ESTANDAR');
+      expect(resolverPlanEfectivo('CORPORATIVO', [sinCobrar(estado)])).toBe('CORPORATIVO');
+    });
+
+    it('abrir y cancelar varios checkouts no cambia nada', () => {
+      const intentos = ['PENDIENTE_PAGO', 'EXPIRADA', 'FALLIDA', 'PENDIENTE_PAGO'].map(sinCobrar);
+
+      expect(resolverPlanEfectivo('ESTANDAR', intentos)).toBe('ESTANDAR');
+    });
+
+    it('en cuanto se cobra una suscripción, el plan pasa a depender de ella', () => {
+      expect(resolverPlanEfectivo('ESTANDAR', [sinCobrar('PENDIENTE_PAGO'), vencida('ESTANDAR')])).toBe('FREE_TRIAL');
+      expect(resolverPlanEfectivo('ESTANDAR', [sinCobrar('PENDIENTE_PAGO'), vigente('ESTANDAR')])).toBe('ESTANDAR');
+    });
+  });
+
+  it('mantiene el plan guardado mientras haya una suscripción vigente de ese nivel o superior', () => {
+    expect(resolverPlanEfectivo('ESTANDAR', [vigente('ESTANDAR')])).toBe('ESTANDAR');
+    expect(resolverPlanEfectivo('ESTANDAR', [vigente('CORPORATIVO')])).toBe('ESTANDAR'); // bajó voluntariamente
+  });
+
+  it('no deja un plan más caro que el último pagado vigente', () => {
+    expect(resolverPlanEfectivo('CORPORATIVO', [vigente('ESTANDAR'), vencida('CORPORATIVO')])).toBe('ESTANDAR');
   });
 });

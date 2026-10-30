@@ -1,6 +1,8 @@
 import {
   BadRequestException,
   ForbiddenException,
+  HttpException,
+  HttpStatus,
   Injectable,
   NotFoundException,
 } from '@nestjs/common';
@@ -26,6 +28,43 @@ export interface PlanConfig {
   modelosPredictivosMl: boolean;
   soportePrioritario: boolean;
   destacado?: boolean;
+}
+
+export type PeriodoPlan = 'MENSUAL' | 'ANUAL';
+
+/** Amount in Bs for a plan and period. The annual price is a per-month price billed as 12 months at once. */
+export function calcularMontoPlan(plan: TipoPlan, periodo: PeriodoPlan): number {
+  const config = PLANES_CONFIG[plan];
+  if (!config || config.precioMensual <= 0) {
+    throw new BadRequestException(`El plan '${plan}' no se vende: elige ESTANDAR o CORPORATIVO.`);
+  }
+  return periodo === 'ANUAL' ? config.precioAnual * 12 : config.precioMensual;
+}
+
+export interface FilaSuscripcion {
+  plan: string;
+  estado: string;
+  /** true while vence_en is still in the future */
+  vigente: boolean;
+}
+
+/**
+ * The plan a store really has today. A store that has never been charged keeps the plan it was created with (it
+ * predates billing): opening a checkout that is cancelled, expires or fails does not count, because nothing was
+ * ever paid. Once a subscription has been charged, the plan lasts only while a paid, unexpired subscription backs
+ * it, and never exceeds the best one still in force.
+ */
+export function resolverPlanEfectivo(planGuardado: TipoPlan, suscripciones: FilaSuscripcion[]): TipoPlan {
+  const alguienPagoAlgunaVez = suscripciones.some((s) => s.estado === 'ACTIVA');
+  if (planGuardado === 'FREE_TRIAL' || !alguienPagoAlgunaVez) return planGuardado;
+
+  const pagadosVigentes = suscripciones
+    .filter((s) => s.estado === 'ACTIVA' && s.vigente && PLANES_CONFIG[s.plan as TipoPlan])
+    .map((s) => s.plan as TipoPlan);
+  if (pagadosVigentes.length === 0) return 'FREE_TRIAL';
+
+  const mejor = pagadosVigentes.reduce((a, b) => (PLANES_CONFIG[b].precioMensual > PLANES_CONFIG[a].precioMensual ? b : a));
+  return PLANES_CONFIG[planGuardado].precioMensual <= PLANES_CONFIG[mejor].precioMensual ? planGuardado : mejor;
 }
 
 export const PLANES_CONFIG: Record<TipoPlan, PlanConfig> = {
@@ -103,13 +142,38 @@ export class PlanLimitsService {
   /**
    * Consulta el plan de la tienda, su consumo actual y el estado de sus límites.
    */
+  /** The plan a store has right now (subscription expiry included), for callers that sell plans. */
+  async obtenerPlanEfectivo(tiendaId: string): Promise<TipoPlan> {
+    const tienda = await this.storeRepo.findOne({ where: { id: tiendaId } });
+    if (!tienda) throw new NotFoundException('La tienda especificada no existe.');
+    return this.planEfectivo(tienda);
+  }
+
+  /** The plan the store has right now, taking subscription expiry into account. */
+  private async planEfectivo(tienda: StoreEntity): Promise<TipoPlan> {
+    const guardado = (PLANES_CONFIG[tienda.plan as TipoPlan] ? tienda.plan : 'FREE_TRIAL') as TipoPlan;
+    if (guardado === 'FREE_TRIAL') return guardado;
+    try {
+      const filas: FilaSuscripcion[] = await this.storeRepo.manager.query(
+        'SELECT plan, estado, (vence_en IS NOT NULL AND vence_en > now()) AS vigente FROM suscripcion WHERE tenant_id = $1',
+        [tienda.id],
+      );
+      return resolverPlanEfectivo(guardado, filas);
+    } catch (error: any) {
+      // 42P01: the subscriptions table is not there yet (database not migrated); keep the stored plan
+      if (error?.code === '42P01') return guardado;
+      throw error;
+    }
+  }
+
   async obtenerMetricasYLimites(tiendaId: string) {
     const tienda = await this.storeRepo.findOne({ where: { id: tiendaId } });
     if (!tienda) {
       throw new NotFoundException('La tienda especificada no existe.');
     }
 
-    const config = this.obtenerConfiguracionPlan(tienda.plan);
+    const planActual = await this.planEfectivo(tienda);
+    const config = this.obtenerConfiguracionPlan(planActual);
 
     // Conteo de usuarios/empleados miembros de la tienda
     const totalUsuarios = await this.membershipRepo.count({
@@ -126,7 +190,7 @@ export class PlanLimitsService {
         id: tienda.id,
         nombre: tienda.nombre,
         slug: tienda.slug,
-        plan: tienda.plan,
+        plan: planActual,
         propietarioId: tienda.propietarioId,
       },
       plan: config,
@@ -167,7 +231,7 @@ export class PlanLimitsService {
     const tienda = await this.storeRepo.findOne({ where: { id: tiendaId } });
     if (!tienda) return;
 
-    const config = this.obtenerConfiguracionPlan(tienda.plan);
+    const config = this.obtenerConfiguracionPlan(await this.planEfectivo(tienda));
     const totalProductos = await this.productRepo.count({
       where: { tenantId: tiendaId },
     });
@@ -188,7 +252,7 @@ export class PlanLimitsService {
     const tienda = await this.storeRepo.findOne({ where: { id: tiendaId } });
     if (!tienda) return;
 
-    const config = this.obtenerConfiguracionPlan(tienda.plan);
+    const config = this.obtenerConfiguracionPlan(await this.planEfectivo(tienda));
     const totalUsuarios = await this.membershipRepo.count({
       where: { tiendaId, activo: true },
     });
@@ -201,8 +265,28 @@ export class PlanLimitsService {
     }
   }
 
+  /** Returns the store when the user is its owner or an ADMIN; 404 if it does not exist, 403 otherwise. */
+  async verificarAdministradorDeTienda(tiendaId: string, usuarioId: string): Promise<StoreEntity> {
+    const tienda = await this.storeRepo.findOne({ where: { id: tiendaId } });
+    if (!tienda) {
+      throw new NotFoundException('La tienda especificada no existe.');
+    }
+
+    const membresia = await this.membershipRepo.findOne({
+      where: { tiendaId, usuarioId, activo: true },
+      relations: ['rol'],
+    });
+
+    const esPropietario = tienda.propietarioId === usuarioId;
+    const esAdmin = membresia?.rol?.nombre === 'ADMIN';
+    if (!esPropietario && !esAdmin) {
+      throw new ForbiddenException('Solo el propietario o administrador de la tienda puede administrar su plan.');
+    }
+    return tienda;
+  }
+
   /**
-   * Cambia el plan de la tienda (Upgrade / Downgrade).
+   * Baja el plan de la tienda (Downgrade). Subirlo requiere pagar: responde 402.
    * Solo el propietario o un ADMIN de la tienda puede realizar esta acción.
    */
   async cambiarPlan(tiendaId: string, nuevoPlan: string, usuarioId: string) {
@@ -213,22 +297,15 @@ export class PlanLimitsService {
       );
     }
 
-    const tienda = await this.storeRepo.findOne({ where: { id: tiendaId } });
-    if (!tienda) {
-      throw new NotFoundException('La tienda especificada no existe.');
-    }
+    const tienda = await this.verificarAdministradorDeTienda(tiendaId, usuarioId);
 
-    // Verificar que el solicitante sea miembro con rol ADMIN o propietario
-    const membresia = await this.membershipRepo.findOne({
-      where: { tiendaId, usuarioId, activo: true },
-      relations: ['rol'],
-    });
-
-    const esPropietario = tienda.propietarioId === usuarioId;
-    const esAdmin = membresia?.rol?.nombre === 'ADMIN';
-
-    if (!esPropietario && !esAdmin) {
-      throw new ForbiddenException('Solo el propietario o administrador de la tienda puede cambiar el plan.');
+    // Subir de plan se paga: solo el webhook de Stripe lo concede (ver BillingService). Bajar es libre.
+    const planVigente = PLANES_CONFIG[await this.planEfectivo(tienda)];
+    if (PLANES_CONFIG[planKey].precioMensual > planVigente.precioMensual) {
+      throw new HttpException(
+        `Para pasar al plan ${PLANES_CONFIG[planKey].nombre} debes completar el pago desde el checkout de planes.`,
+        HttpStatus.PAYMENT_REQUIRED,
+      );
     }
 
     tienda.plan = planKey;

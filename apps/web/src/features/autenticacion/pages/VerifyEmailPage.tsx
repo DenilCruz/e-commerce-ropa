@@ -6,6 +6,7 @@ import { Input } from '../../../components/ui/Input';
 import { authApi } from '../services/auth.api';
 import { tiendasApi } from '../../tiendas/services/tiendas.api';
 import { useAuthStore } from '../../../store/auth.store';
+import { destinoTrasCrearTienda } from '../../tiendas/utils/planes';
 
 export const VerifyEmailPage: React.FC = () => {
   const [searchParams] = useSearchParams();
@@ -68,7 +69,7 @@ export const VerifyEmailPage: React.FC = () => {
       localStorage.removeItem('el-magnifico-cart-storage');
       localStorage.setItem('tenant_slug', res.tienda?.slug || 'aura');
       setAuth(res.usuario, res.accessToken, res.refreshToken);
-      window.location.assign('/admin');
+      window.location.assign(destinoTrasCrearTienda(planPendiente));
     } catch (err: any) {
       const msg =
         err?.response?.data?.message || 'No se pudo aprovisionar la tienda automáticamente.';

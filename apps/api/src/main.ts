@@ -15,7 +15,15 @@ async function bootstrap() {
 
   app.setGlobalPrefix('api/v1');
 
-  app.use(express.json({ limit: '50mb' }));
+  // Stripe signs the exact bytes it sends, so the webhook keeps its raw body next to the parsed one
+  app.use(
+    express.json({
+      limit: '50mb',
+      verify: (req: any, _res, buf) => {
+        if (req.originalUrl?.split('?')[0].endsWith('/webhooks/stripe')) req.rawBody = buf;
+      },
+    }),
+  );
   app.use(express.urlencoded({ limit: '50mb', extended: true }));
 
   app.useGlobalPipes(

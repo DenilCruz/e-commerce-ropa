@@ -84,6 +84,12 @@ describe('StoresService', () => {
   });
 
   describe('crear', () => {
+    it('never grants a paid plan at creation: the store starts in the trial and a paid plan needs a payment', async () => {
+      const tienda = await service.crear(USER_ID, { nombre: 'Moda Sol', plan: 'CORPORATIVO' });
+
+      expect(tienda.plan).toBe(PLAN_INICIAL);
+    });
+
     it('provisions the store, makes the user its ADMIN and creates the initial category, in one transaction', async () => {
       const tienda = await service.crear(USER_ID, { nombre: ' Moda Luna ' });
 

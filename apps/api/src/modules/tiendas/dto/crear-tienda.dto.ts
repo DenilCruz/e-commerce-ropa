@@ -9,7 +9,7 @@ export class CrearTiendaDto {
   @MaxLength(100, { message: 'El nombre no puede superar los 100 caracteres' })
   nombre: string;
 
-  @ApiPropertyOptional({ example: 'ESTANDAR', enum: ['FREE_TRIAL', 'ESTANDAR', 'CORPORATIVO'], description: 'Plan inicial' })
+  @ApiPropertyOptional({ example: 'ESTANDAR', enum: ['FREE_TRIAL', 'ESTANDAR', 'CORPORATIVO'], description: 'Plan que el usuario quiere contratar. No se concede al crear: toda tienda nace en FREE_TRIAL y un plan pagado se compra desde el checkout de planes.' })
   @IsOptional()
   @IsString()
   plan?: string;

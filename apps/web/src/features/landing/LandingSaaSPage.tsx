@@ -37,7 +37,7 @@ export const LandingSaaSPage: React.FC = () => {
               <span className="font-serif text-2xl tracking-[0.25em] font-normal uppercase text-stone-900 group-hover:text-[#9B7B54] transition-colors">
                 AURA
               </span>
-              <span className="text-[10px] font-semibold uppercase tracking-widest px-2 py-0.5 rounded-full bg-[#EAE2D5] text-[#9B7B54] border border-[#D5CCC0]">
+              <span className="hidden sm:inline-block text-[10px] font-semibold uppercase tracking-widest px-2 py-0.5 rounded-full bg-[#EAE2D5] text-[#9B7B54] border border-[#D5CCC0]">
                 SaaS
               </span>
             </Link>
@@ -57,7 +57,7 @@ export const LandingSaaSPage: React.FC = () => {
 
           <div className="flex items-center gap-3">
             {isAuthenticated ? (
-              <div className="flex items-center gap-2">
+              <div className="flex items-center gap-1.5 sm:gap-2">
                 <div className="hidden sm:flex items-center gap-2 px-3 py-1.5 bg-[#FAF8F5] border border-[#E7E1D7] text-xs text-stone-700">
                   <span className="w-5 h-5 rounded-full bg-[#EAE2D5] text-stone-800 flex items-center justify-center text-[10px] font-semibold border border-[#D5CCC0]">
                     {user?.nombre?.charAt(0).toUpperCase() || 'U'}
@@ -67,22 +67,24 @@ export const LandingSaaSPage: React.FC = () => {
                 <button
                   type="button"
                   onClick={() => setModalCrear(true)}
-                  className="px-3.5 py-2 bg-[#9B7B54] hover:bg-[#856642] text-white font-medium text-xs uppercase tracking-widest transition-all shadow-sm flex items-center gap-1"
+                  className="px-2.5 sm:px-3.5 py-2 bg-[#9B7B54] hover:bg-[#856642] text-white font-medium text-xs uppercase tracking-widest transition-all shadow-sm flex items-center gap-1"
                   title="Crear una tienda nueva"
+                  aria-label="Nueva tienda"
                 >
                   <Plus className="w-3.5 h-3.5" />
-                  <span>Nueva Tienda</span>
+                  <span className="hidden sm:inline">Nueva Tienda</span>
                 </button>
                 <Link
                   to={`/t/${activeStoreSlug}`}
-                  className="px-3.5 py-2 border border-[#D5CCC0] text-stone-800 hover:border-stone-900 text-xs uppercase tracking-widest font-medium transition-all"
+                  className="px-2.5 sm:px-3.5 py-2 border border-[#D5CCC0] text-stone-800 hover:border-stone-900 text-xs uppercase tracking-widest font-medium transition-all"
                   title="Ver tienda pública"
                 >
-                  {activeStoreSlug !== 'aura' ? `Ver Tienda (${activeStoreSlug})` : 'Ver Tienda'}
+                  <span className="sm:hidden">Tienda</span>
+                  <span className="hidden sm:inline">{activeStoreSlug !== 'aura' ? `Ver Tienda (${activeStoreSlug})` : 'Ver Tienda'}</span>
                 </Link>
                 <Link
                   to="/admin/dashboard"
-                  className="px-4 py-2 bg-stone-900 hover:bg-stone-800 text-white font-medium text-xs uppercase tracking-widest transition-all shadow-sm flex items-center gap-1.5"
+                  className="px-3 sm:px-4 py-2 bg-stone-900 hover:bg-stone-800 text-white font-medium text-xs uppercase tracking-widest transition-all shadow-sm flex items-center gap-1.5"
                   title="Ir al panel de administración"
                 >
                   <span>Admin</span>
