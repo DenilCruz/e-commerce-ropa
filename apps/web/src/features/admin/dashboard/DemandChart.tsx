@@ -9,7 +9,7 @@ interface Props {
 const ALTO = 300;
 /** Below this width the chart scrolls inside its box instead of squeezing the bars into unreadable slivers. */
 const ANCHO_MINIMO = 420;
-const MARGEN = { arriba: 30, derecha: 16, abajo: 34, izquierda: 56 };
+const MARGEN = { arriba: 30, derecha: 84, abajo: 34, izquierda: 56 };
 // Same palette as the rest of the admin: stone for facts, bronze for estimates
 const COLOR = {
   real: '#1c1917',
@@ -24,6 +24,7 @@ const COLOR = {
 };
 
 const moneda = (n: number) => `$${n.toLocaleString('es-BO', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
+const monedaEntera = (n: number) => `$${Math.round(n).toLocaleString('es-BO')}`;
 const monedaCorta = (n: number) => (n >= 1000 ? `$${(n / 1000).toFixed(n % 1000 === 0 ? 0 : 1)}k` : `$${Math.round(n)}`);
 const valorDe = (p: PuntoSeriePredictiva) => (p.tipo === 'HISTORICO' ? p.valorReal : p.valorProyectado) ?? 0;
 
@@ -76,7 +77,7 @@ export const DemandChart: React.FC<Props> = ({ serie, metricas }) => {
   const proyectados = serie.filter((p) => p.tipo === 'PROYECCION');
   const promedio = metricas.promedioDiarioHistorico;
 
-  const { tope, ticks } = useMemo(() => escala(Math.max(...serie.map(valorDe), promedio)), [serie, promedio]);
+  const { tope, ticks } = useMemo(() => escala(Math.max(...serie.map(valorDe), ...serie.map((p) => p.rangoAlto ?? 0), promedio)), [serie, promedio]);
 
   const interior = {
     w: Math.max(ancho - MARGEN.izquierda - MARGEN.derecha, 160),
@@ -97,7 +98,13 @@ export const DemandChart: React.FC<Props> = ({ serie, metricas }) => {
 
   const puntosLinea = proyectados.map((p, k) => `${x(corte + k)},${y(p.valorProyectado ?? 0)}`);
   const lineaProyeccion = puntosLinea.length > 0 ? `M${puntosLinea.join(' L')}` : '';
-  const areaProyeccion = puntosLinea.length > 0 ? `${lineaProyeccion} L${x(corte + proyectados.length - 1)},${yBase} L${x(corte)},${yBase} Z` : '';
+  const hayRango = proyectados.some((p) => p.rangoBajo != null && p.rangoAlto != null);
+  const bandaProyeccion = hayRango
+    ? `M${proyectados.map((p, k) => `${x(corte + k)},${y(p.rangoAlto ?? p.valorProyectado ?? 0)}`).join(' L')} L${proyectados
+        .map((p, k) => `${x(corte + k)},${y(p.rangoBajo ?? p.valorProyectado ?? 0)}`)
+        .reverse()
+        .join(' L')} Z`
+    : '';
 
   const moverActivo = (delta: number) => setActivo((actual) => Math.min(serie.length - 1, Math.max(0, (actual ?? Math.max(corte - 1, 0)) + delta)));
 
@@ -118,14 +125,18 @@ export const DemandChart: React.FC<Props> = ({ serie, metricas }) => {
       }`
     : '';
 
+  const descripcionModelo: Record<MetricasPredictivasVentas['modelo'], string> = {
+    PROMEDIO: `promedio diario de ${moneda(promedio)} (ningún otro modelo predijo mejor)`,
+    REGRESION: `tendencia lineal de ${metricas.pendienteDiaria > 0 ? '+' : ''}${metricas.pendienteDiaria} por día`,
+    DIA_DE_SEMANA: 'perfil por día de semana: cada día se proyecta según lo que suele vender ese día',
+    DIA_DE_SEMANA_NIVEL: 'perfil por día de semana ajustado al nivel de las últimas 4 semanas',
+  };
   const modeloTexto =
     metricas.fiabilidad === 'INSUFICIENTE'
       ? metricas.mensaje
-      : `Proyección: ${
-          metricas.modelo === 'PROMEDIO'
-            ? `promedio diario de ${moneda(promedio)} (la tendencia no mejoró la predicción)`
-            : `tendencia lineal de ${metricas.pendienteDiaria > 0 ? '+' : ''}${metricas.pendienteDiaria} por día`
-        } · precisión medida ${metricas.precision !== null ? `${(metricas.precision * 100).toFixed(0)}%` : 'sin datos'} prediciendo los últimos ${metricas.diasDePrueba} días.`;
+      : `Proyección: ${descripcionModelo[metricas.modelo]}. Precisión medida ${
+          metricas.precision !== null ? `${(metricas.precision * 100).toFixed(0)}%` : 'sin datos'
+        } probándolo en ${metricas.ventanasDePrueba} tramos de ${metricas.diasDePrueba} días. La banda muestra el rango en que suele caer un día (entre el 10% y el 90% de los días).`;
 
   return (
     <div className="space-y-3">
@@ -155,6 +166,11 @@ export const DemandChart: React.FC<Props> = ({ serie, metricas }) => {
           {proyectados.length > 0 && (
             <li className="flex items-center gap-1.5">
               <span className="w-4 border-t-2 border-dashed border-[#9B7B54]" aria-hidden /> Proyección
+            </li>
+          )}
+          {hayRango && (
+            <li className="flex items-center gap-1.5">
+              <span className="w-3 h-3 rounded-sm bg-[#9B7B54]/20" aria-hidden /> Rango típico del día
             </li>
           )}
           <li className="flex items-center gap-1.5">
@@ -213,20 +229,8 @@ export const DemandChart: React.FC<Props> = ({ serie, metricas }) => {
                   strokeWidth={1}
                   strokeDasharray="4 4"
                 />
-                <text
-                  x={ancho - MARGEN.derecha - 4}
-                  y={y(promedio) - 6}
-                  textAnchor="end"
-                  fontSize={11}
-                  fill={COLOR.texto}
-                  className="tabular-nums"
-                  style={{
-                    paintOrder: 'stroke',
-                    stroke: '#fff',
-                    strokeWidth: 3,
-                  }}
-                >
-                  Promedio {moneda(promedio)}
+                <text x={ancho - MARGEN.derecha + 6} y={y(promedio) + 4} fontSize={11} fill={COLOR.texto} className="tabular-nums">
+                  Prom. {monedaEntera(promedio)}
                 </text>
               </g>
             )}
@@ -241,10 +245,10 @@ export const DemandChart: React.FC<Props> = ({ serie, metricas }) => {
               );
             })}
 
-            {/* proyección: área suave y línea punteada */}
+            {/* proyección: banda con el rango típico del día y línea punteada con el valor esperado */}
             {proyectados.length > 0 && (
               <g>
-                <path d={areaProyeccion} fill={COLOR.proyeccion} fillOpacity={0.12} />
+                {hayRango && <path d={bandaProyeccion} fill={COLOR.proyeccion} fillOpacity={0.16} />}
                 <path
                   d={lineaProyeccion}
                   fill="none"
@@ -310,14 +314,23 @@ export const DemandChart: React.FC<Props> = ({ serie, metricas }) => {
             <div
               className="pointer-events-none absolute z-10 rounded-lg bg-stone-900 px-3 py-2 text-xs text-white shadow-lg"
               style={{
-                left: Math.min(Math.max(x(activo) - 64, 4), Math.max(ancho - 132, 4)),
-                top: Math.max(y(valorDe(puntoActivo)) - 66, MARGEN.arriba),
-                width: 128,
+                left: Math.min(Math.max(x(activo) - 74, 4), Math.max(ancho - 152, 4)),
+                top: Math.max(y(valorDe(puntoActivo)) - (puntoActivo.tipo === 'PROYECCION' ? 92 : 66), MARGEN.arriba),
+                width: 148,
               }}
             >
               <span className="block text-stone-300 first-letter:uppercase">{etiquetaLarga(puntoActivo)}</span>
               <span className="block text-sm font-semibold tabular-nums">{valorDe(puntoActivo) > 0 ? moneda(valorDe(puntoActivo)) : 'Sin ventas'}</span>
-              {puntoActivo.tipo === 'PROYECCION' && <span className="block text-[#d9bf94]">Estimado</span>}
+              {puntoActivo.tipo === 'PROYECCION' && (
+                <span className="block text-[#d9bf94]">
+                  Estimado
+                  {puntoActivo.rangoBajo != null && puntoActivo.rangoAlto != null && (
+                    <span className="block text-stone-300 tabular-nums">
+                      Entre {monedaEntera(puntoActivo.rangoBajo)} y {monedaEntera(puntoActivo.rangoAlto)}
+                    </span>
+                  )}
+                </span>
+              )}
             </div>
           )}
         </div>

@@ -166,6 +166,9 @@ export interface PuntoSeriePredictiva {
   label: string;
   valorReal: number | null;
   valorProyectado: number | null;
+  /** how far a typical day (10th to 90th percentile) falls from the projection; only on projected points */
+  rangoBajo?: number | null;
+  rangoAlto?: number | null;
   tipo: 'HISTORICO' | 'PROYECCION';
 }
 
@@ -180,11 +183,12 @@ export interface MetricasPredictivasVentas {
   /** Precision measured on held-out days as a percentage, or a notice when there is not enough data */
   nivelConfianza: string;
   /** model chosen by testing both on the last days: trend line or plain average */
-  modelo: 'REGRESION' | 'PROMEDIO';
+  modelo: 'PROMEDIO' | 'REGRESION' | 'DIA_DE_SEMANA' | 'DIA_DE_SEMANA_NIVEL';
   precision: number | null;
   errorModelo: number | null;
   errorPromedioSimple: number | null;
   diasDePrueba: number;
+  ventanasDePrueba: number;
   r2: number;
   fiabilidad: 'INSUFICIENTE' | 'BAJA' | 'MEDIA' | 'ALTA';
   diasConVentas: number;
@@ -247,6 +251,8 @@ export interface AsociacionProductoAfinidad {
   confianzaAB: number;
   confianzaBA: number;
   lift: number;
+  /** standard deviations above what chance alone would give */
+  zScore: number;
   scoreAfinidad: number;
   estrategiaSugerida: string;
 }
