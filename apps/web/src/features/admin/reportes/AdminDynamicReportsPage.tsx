@@ -13,17 +13,16 @@ import {
   Zap,
   FileSpreadsheet,
 } from 'lucide-react';
-import * as XLSX from 'xlsx';
 import { adminApi } from '../services/admin.api';
+import { exportarExcel, inferirCelda, tituloDeColumna } from '../../../lib/exportarExcel';
 import { ReporteDinamicoResultado } from '../types';
 
 export const AdminDynamicReportsPage: React.FC = () => {
   const [prompt, setPrompt] = useState<string>('');
-  const [proveedor, setProveedor] = useState<'GROQ' | 'OLLAMA' | 'GEMINI'>('GROQ');
+  const [proveedor, setProveedor] = useState<'GROQ' | 'GEMINI'>('GROQ');
   const [cargando, setCargando] = useState<boolean>(false);
   const [resultado, setResultado] = useState<ReporteDinamicoResultado | null>(null);
   const [error, setError] = useState<string | null>(null);
-  const [mostrarSql, setMostrarSql] = useState<boolean>(false);
 
   // Estados de Reconocimiento de Voz (Web Speech API)
   const [escuchando, setEscuchando] = useState<boolean>(false);
@@ -170,44 +169,6 @@ export const AdminDynamicReportsPage: React.FC = () => {
     }
   };
 
-  // 3. Exportar resultados dinámicos a Excel (.xlsx) nativo
-  const exportarExcel = () => {
-    if (!resultado || resultado.filas.length === 0) return;
-
-    const cols = columnasVisibles.length > 0 ? columnasVisibles : resultado.columnas;
-
-    // Crear filas formateadas con nombres limpios de cabecera
-    const datosParaExcel = resultado.filas.map((fila) => {
-      const obj: Record<string, any> = {};
-      cols.forEach((col) => {
-        const header = col.replace(/_/g, ' ').toUpperCase();
-        const val = fila[col];
-        obj[header] = val !== null && val !== undefined ? val : '';
-      });
-      return obj;
-    });
-
-    const worksheet = XLSX.utils.json_to_sheet(datosParaExcel);
-
-    // Ajuste automático de ancho de columnas
-    const colWidths = cols.map((col) => {
-      const header = col.replace(/_/g, ' ').toUpperCase();
-      let maxLen = header.length;
-      for (let i = 0; i < Math.min(resultado.filas.length, 100); i++) {
-        const v = String(resultado.filas[i][col] ?? '');
-        if (v.length > maxLen) maxLen = Math.min(v.length, 50);
-      }
-      return { wch: Math.max(maxLen + 4, 12) };
-    });
-    worksheet['!cols'] = colWidths;
-
-    const workbook = XLSX.utils.book_new();
-    XLSX.utils.book_append_sheet(workbook, worksheet, 'Reporte Dinamico');
-
-    const timestamp = new Date().toISOString().replace(/[:.]/g, '-').slice(0, 19);
-    XLSX.writeFile(workbook, `reporte_dinamico_${timestamp}.xlsx`);
-  };
-
   // 1. Exportar resultados dinámicos a CSV sin IDs
   const exportarCSV = () => {
     if (!resultado || resultado.filas.length === 0) return;
@@ -234,6 +195,27 @@ export const AdminDynamicReportsPage: React.FC = () => {
     document.body.appendChild(link);
     link.click();
     document.body.removeChild(link);
+  };
+
+  // Exportar resultados dinámicos a Excel (.xlsx) sin IDs, con números y fechas reales
+  const exportarExcelDinamico = async () => {
+    if (!resultado || resultado.filas.length === 0) return;
+
+    const cols = columnasVisibles.length > 0 ? columnasVisibles : resultado.columnas;
+    try {
+      await exportarExcel({
+        nombreArchivo: `reporte_dinamico_${new Date().toISOString().slice(0, 10)}`,
+        hoja: 'Reporte',
+        columnas: cols.map((col) => ({
+          titulo: tituloDeColumna(col),
+          valor: (fila: Record<string, any>) => inferirCelda(col, fila[col]).valor,
+          formato: inferirCelda(col, resultado.filas.find((f) => f[col] != null)?.[col]).formato,
+        })),
+        filas: resultado.filas,
+      });
+    } catch {
+      setError('No se pudo generar el archivo de Excel. Inténtalo de nuevo.');
+    }
   };
 
   // 2. Exportar a PDF (documento formateado e impresión nativa)
@@ -477,14 +459,6 @@ export const AdminDynamicReportsPage: React.FC = () => {
           >
             Google Gemini
           </button>
-          <button
-            onClick={() => setProveedor('OLLAMA')}
-            className={`px-3 py-1 rounded-md font-bold transition-all ${
-              proveedor === 'OLLAMA' ? 'bg-stone-900 text-white shadow-xs' : 'text-stone-600 hover:bg-[#FAF8F5]'
-            }`}
-          >
-            Ollama Local
-          </button>
         </div>
       </div>
 
@@ -600,22 +574,21 @@ export const AdminDynamicReportsPage: React.FC = () => {
             {/* BOTONES DE EXPORTACIÓN */}
             <div className="flex items-center gap-2 flex-wrap">
               <button
-                onClick={exportarExcel}
-                disabled={resultado.filas.length === 0}
-                className="px-4 py-2 bg-emerald-700 hover:bg-emerald-800 text-white rounded-lg text-xs font-bold uppercase tracking-wider flex items-center gap-2 transition-all disabled:opacity-40 shadow-xs"
-                title="Descargar en formato Excel (.xlsx)"
-              >
-                <FileSpreadsheet className="w-3.5 h-3.5" />
-                <span>Exportar Excel (.xlsx)</span>
-              </button>
-
-              <button
                 onClick={exportarCSV}
                 disabled={resultado.filas.length === 0}
                 className="px-4 py-2 bg-stone-900 text-white hover:bg-stone-800 rounded-lg text-xs font-bold uppercase tracking-wider flex items-center gap-2 transition-all disabled:opacity-40 shadow-xs"
               >
                 <Download className="w-3.5 h-3.5" />
                 <span>Exportar CSV</span>
+              </button>
+
+              <button
+                onClick={exportarExcelDinamico}
+                disabled={resultado.filas.length === 0}
+                className="px-4 py-2 bg-emerald-700 hover:bg-emerald-800 text-white rounded-lg text-xs font-bold uppercase tracking-wider flex items-center gap-2 transition-all disabled:opacity-40 shadow-xs"
+              >
+                <FileSpreadsheet className="w-3.5 h-3.5" />
+                <span>Exportar Excel</span>
               </button>
 
               <button
@@ -647,23 +620,7 @@ export const AdminDynamicReportsPage: React.FC = () => {
                   </div>
                 )}
               </div>
-
-              {resultado.sql && (
-                <button
-                  onClick={() => setMostrarSql(!mostrarSql)}
-                  className="px-2.5 py-1 text-[11px] font-mono text-stone-600 hover:text-stone-900 bg-[#FAF8F5] hover:bg-[#F2ECE1] rounded border border-[#E7E1D7] transition-all self-start sm:self-auto shrink-0"
-                >
-                  {mostrarSql ? 'Ocultar SQL' : 'Ver SQL'}
-                </button>
-              )}
             </div>
-
-            {mostrarSql && resultado.sql && (
-              <div className="bg-[#161513] p-3 text-[11px] font-mono text-emerald-400 border-b border-[#2A2723] overflow-x-auto">
-                <span className="text-stone-500 select-none">SQL &gt; </span>
-                {resultado.sql}
-              </div>
-            )}
 
             {resultado.filas.length === 0 ? (
               <div className="py-16 px-4 text-center space-y-2">
