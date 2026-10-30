@@ -84,7 +84,8 @@ export class StoresService {
   }
 
   /**
-   * Subscribes a new store: creates the tenant, makes the user its ADMIN and
+   * Subscribes a new store: creates the tenant (always in the free trial: a paid plan is bought through the
+   * plans checkout), makes the user its ADMIN and
    * provisions the workspace (default category). Everything happens in one transaction.
    */
   async crear(usuarioId: string, dto: CrearTiendaDto): Promise<StoreEntity> {
@@ -98,15 +99,11 @@ export class StoresService {
     if (!rolAdmin) throw new BadRequestException('El rol ADMIN no existe en el sistema.');
 
     const nombre = dto.nombre.trim();
-    const planElegido = (dto.plan?.toUpperCase() === 'ESTANDAR' || dto.plan?.toUpperCase() === 'CORPORATIVO')
-      ? dto.plan.toUpperCase()
-      : PLAN_INICIAL;
-
     // Two sign-ups with the same name can pick the same slug at once: the loser retries with the next one
     for (let intento = 1; intento <= MAX_INTENTOS_SLUG; intento++) {
       const slug = await this.slugDisponible(generarSlugBase(nombre));
       try {
-        return await this.aprovisionar(usuarioId, rolAdmin.id, nombre, slug, planElegido);
+        return await this.aprovisionar(usuarioId, rolAdmin.id, nombre, slug);
       } catch (error) {
         if (!esSlugDuplicado(error)) throw error;
       }

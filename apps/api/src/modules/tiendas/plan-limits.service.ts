@@ -1,6 +1,8 @@
 import {
   BadRequestException,
   ForbiddenException,
+  HttpException,
+  HttpStatus,
   Injectable,
   NotFoundException,
 } from '@nestjs/common';
@@ -202,7 +204,7 @@ export class PlanLimitsService {
   }
 
   /**
-   * Cambia el plan de la tienda (Upgrade / Downgrade).
+   * Baja el plan de la tienda (Downgrade). Subirlo requiere pagar: responde 402.
    * Solo el propietario o un ADMIN de la tienda puede realizar esta acción.
    */
   async cambiarPlan(tiendaId: string, nuevoPlan: string, usuarioId: string) {
@@ -229,6 +231,15 @@ export class PlanLimitsService {
 
     if (!esPropietario && !esAdmin) {
       throw new ForbiddenException('Solo el propietario o administrador de la tienda puede cambiar el plan.');
+    }
+
+    // Subir de plan se paga: solo el webhook de Stripe lo concede (ver BillingService). Bajar es libre.
+    const planActual = PLANES_CONFIG[tienda.plan as TipoPlan] ?? PLANES_CONFIG.FREE_TRIAL;
+    if (PLANES_CONFIG[planKey].precioMensual > planActual.precioMensual) {
+      throw new HttpException(
+        `Para pasar al plan ${PLANES_CONFIG[planKey].nombre} debes completar el pago desde el checkout de planes.`,
+        HttpStatus.PAYMENT_REQUIRED,
+      );
     }
 
     tienda.plan = planKey;

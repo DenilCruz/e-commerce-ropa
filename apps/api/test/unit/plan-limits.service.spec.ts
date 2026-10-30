@@ -2,7 +2,7 @@ jest.mock('@nestjs/typeorm', () => ({
   InjectRepository: () => () => {},
 }));
 
-import { ForbiddenException, NotFoundException, BadRequestException } from '@nestjs/common';
+import { ForbiddenException, NotFoundException, BadRequestException, HttpException } from '@nestjs/common';
 import { PlanLimitsService, PLANES_CONFIG } from '../../src/modules/tiendas/plan-limits.service';
 
 describe('PlanLimitsService (Pilar 1: Multi-Tenant SaaS)', () => {
@@ -75,11 +75,38 @@ describe('PlanLimitsService (Pilar 1: Multi-Tenant SaaS)', () => {
     await expect(service.validarLimiteUsuarios(STORE_ID)).rejects.toThrow(ForbiddenException);
   });
 
-  it('allows an ADMIN or owner to upgrade the store plan to ESTANDAR', async () => {
-    const res = await service.cambiarPlan(STORE_ID, 'ESTANDAR', USER_ID);
-    expect(storeRepo.save).toHaveBeenCalledWith(
-      expect.objectContaining({ plan: 'ESTANDAR' }),
-    );
+  it('refuses to upgrade to a paid plan without paying (402) and leaves the plan untouched', async () => {
+    await expect(service.cambiarPlan(STORE_ID, 'ESTANDAR', USER_ID)).rejects.toMatchObject({ status: 402 });
+    await expect(service.cambiarPlan(STORE_ID, 'CORPORATIVO', USER_ID)).rejects.toMatchObject({ status: 402 });
+
+    expect(storeRepo.save).not.toHaveBeenCalled();
+  });
+
+  it('refuses the upgrade even for the owner or an ADMIN', async () => {
+    storeRepo.findOne.mockResolvedValue({ id: STORE_ID, plan: 'FREE_TRIAL', propietarioId: USER_ID });
+
+    await expect(service.cambiarPlan(STORE_ID, 'CORPORATIVO', USER_ID)).rejects.toBeInstanceOf(HttpException);
+  });
+
+  it('lets an ADMIN downgrade to a cheaper plan without any charge', async () => {
+    const guardados: string[] = [];
+    storeRepo.findOne.mockImplementation(() => Promise.resolve({ id: STORE_ID, plan: 'CORPORATIVO', propietarioId: USER_ID }));
+    storeRepo.save.mockImplementation((tienda: { plan: string }) => {
+      guardados.push(tienda.plan);
+      return Promise.resolve(tienda);
+    });
+
+    await service.cambiarPlan(STORE_ID, 'ESTANDAR', USER_ID);
+    await service.cambiarPlan(STORE_ID, 'FREE_TRIAL', USER_ID);
+
+    expect(guardados).toEqual(['ESTANDAR', 'FREE_TRIAL']);
+  });
+
+  it('answers 403 before 402: a user without permission learns nothing about billing', async () => {
+    storeRepo.findOne.mockResolvedValue({ id: STORE_ID, plan: 'FREE_TRIAL', propietarioId: 'other-user' });
+    membershipRepo.findOne.mockResolvedValue({ usuarioId: USER_ID, rol: { nombre: 'CLIENTE' } });
+
+    await expect(service.cambiarPlan(STORE_ID, 'CORPORATIVO', USER_ID)).rejects.toBeInstanceOf(ForbiddenException);
   });
 
   it('rejects an invalid plan name with BadRequestException', async () => {
