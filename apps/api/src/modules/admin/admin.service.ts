@@ -9,6 +9,20 @@ import { ProductVariantEntity } from '../productos/entities/product-variant.enti
 import { ReporteVentasFiltroDto } from './dto/reporte-ventas-filtro.dto';
 import { UserStoreEntity } from '../tiendas/entities/user-store.entity';
 import { TenantContext } from '../../common/tenant/tenant-context';
+import {
+  HOLDOUT_DIAS,
+  MIN_DIAS_CON_VENTAS,
+  PESOS_RIESGO,
+  VENTANA_DIAS,
+  ajustarPronostico,
+  claveDiaLocal,
+  clasificarFiabilidad,
+  clasificarTendencia,
+  construirAsociaciones,
+  frecuenciaMinimaConjunta,
+  puntuarRiesgoRfm,
+  tasaRecompra,
+} from './analytics/predictive.math';
 
 @Injectable()
 export class AdminService {
@@ -484,118 +498,111 @@ export class AdminService {
   // ANALÍTICA PREDICTIVA IA 1: PROYECCIÓN Y ANÁLISIS PREDICTIVO DE VENTAS
   // =========================================================================
   async analisisPredictivoVentas() {
-    const ahora = new Date();
-    const inicio60Dias = new Date();
-    inicio60Dias.setDate(ahora.getDate() - 59);
-    inicio60Dias.setHours(0, 0, 0, 0);
+    // Ventana de días COMPLETOS que termina ayer: hoy sigue en curso y falsearía la pendiente
+    const hoy = new Date();
+    hoy.setHours(0, 0, 0, 0);
+    const inicio = new Date(hoy);
+    inicio.setDate(hoy.getDate() - VENTANA_DIAS);
 
-    // 1. Obtener órdenes reales no canceladas de los últimos 60 días
+    // 1. Órdenes reales no canceladas de la ventana de análisis
     const ordenes = await this.orderRepository
       .createQueryBuilder('o')
       .where('o.tenantId = :tid', { tid: this.tid })
-      .andWhere('o.fecha >= :inicio', { inicio: inicio60Dias })
+      .andWhere('o.fecha >= :inicio', { inicio })
+      .andWhere('o.fecha < :hoy', { hoy })
       .andWhere('o.estado != :cancelado', { cancelado: 'CANCELADO' })
       .orderBy('o.fecha', 'ASC')
       .getMany();
 
-    // 2. Mapear ventas reales día a día
+    // 2. Ventas reales día a día, por día local (los días sin ventas cuentan como 0)
     const mapaDias: Record<string, number> = {};
-    for (let i = 0; i < 60; i++) {
-      const d = new Date(inicio60Dias);
-      d.setDate(d.getDate() + i);
-      const key = d.toISOString().slice(0, 10);
-      mapaDias[key] = 0;
+    for (let i = 0; i < VENTANA_DIAS; i++) {
+      const d = new Date(inicio);
+      d.setDate(inicio.getDate() + i);
+      mapaDias[claveDiaLocal(d)] = 0;
     }
-
     ordenes.forEach((o) => {
-      const key = new Date(o.fecha).toISOString().slice(0, 10);
-      if (mapaDias[key] !== undefined) {
-        mapaDias[key] += Number(o.total || 0);
-      }
+      const key = claveDiaLocal(new Date(o.fecha));
+      if (mapaDias[key] !== undefined) mapaDias[key] += Number(o.total || 0);
     });
 
     const entries = Object.entries(mapaDias);
-    const n = entries.length;
+    const valores = entries.map(([, v]) => v);
+    const n = valores.length;
+    const diasConVentas = valores.filter((v) => v > 0).length;
+    const promedioDiario = n > 0 ? valores.reduce((a, b) => a + b, 0) / n : 0;
 
-    // 3. Regresión lineal (y = m*x + b)
-    let sumX = 0;
-    let sumY = 0;
-    let sumXY = 0;
-    let sumXX = 0;
+    // 3. El modelo (recta o promedio) se elige y se mide prediciendo los últimos días reales
+    const pronostico = ajustarPronostico(valores);
+    const { pendiente, intercepto, r2, precision } = pronostico;
+    const fiabilidad = clasificarFiabilidad(precision, diasConVentas);
+    const hayDatosSuficientes = fiabilidad !== 'INSUFICIENTE';
+    const tendencia = !hayDatosSuficientes
+      ? ('INSUFICIENTE' as const)
+      : pronostico.modelo === 'PROMEDIO'
+      ? ('ESTABLE' as const)
+      : clasificarTendencia({ pendiente, promedio: promedioDiario, r2 });
 
-    entries.forEach(([_, y], idx) => {
-      const x = idx + 1;
-      sumX += x;
-      sumY += y;
-      sumXY += x * y;
-      sumXX += x * x;
-    });
+    // 4. Proyección desde hoy: solo si el historial alcanza para que signifique algo
+    const estimado = (i: number) => Math.max(0, pendiente * (n + i) + intercepto);
+    const acumulado = (dias: number) =>
+      hayDatosSuficientes
+        ? Number(Array.from({ length: dias }, (_, k) => estimado(k + 1)).reduce((a, b) => a + b, 0).toFixed(2))
+        : null;
 
-    const denominador = n * sumXX - sumX * sumX;
-    const m = denominador !== 0 ? (n * sumXY - sumX * sumY) / denominador : 0;
-    const b = (sumY - m * sumX) / n;
-
-    // Promedio diario real histórico
-    const promedioDiario = n > 0 ? sumY / n : 0;
-
-    // 4. Proyección a 7, 14 y 30 días
-    let proyeccion7 = 0;
-    let proyeccion14 = 0;
-    let proyeccion30 = 0;
-
-    for (let i = 1; i <= 30; i++) {
-      const xFuturo = n + i;
-      // Proyección con base en tendencia regresiva sin permitir valores negativos
-      const yEstimado = Math.max(0, m * xFuturo + b);
-      if (i <= 7) proyeccion7 += yEstimado;
-      if (i <= 14) proyeccion14 += yEstimado;
-      proyeccion30 += yEstimado;
-    }
-
-    // Tendencia general
-    let tendencia: 'ALCISTA' | 'ESTABLE' | 'BAJISTA' = 'ESTABLE';
-    if (m > 0.5) tendencia = 'ALCISTA';
-    else if (m < -0.5) tendencia = 'BAJISTA';
-
-    // 5. Construcción de serie de tiempo con histórico reciente (últimos 14 días) y proyección (próximos 14 días)
+    // 5. Serie para el gráfico: histórico reciente y, si corresponde, proyección
     const serieHistoricoReciente = entries.slice(-14).map(([fecha, valor]) => ({
       fecha,
       label: new Date(fecha + 'T12:00:00').toLocaleDateString('es-ES', { day: 'numeric', month: 'short' }),
       valorReal: Number(valor.toFixed(2)),
       valorProyectado: null as number | null,
-      tipo: 'HISTORICO',
+      tipo: 'HISTORICO' as const,
     }));
 
-    const serieProyeccion = [];
-    for (let i = 1; i <= 14; i++) {
-      const d = new Date(ahora);
-      d.setDate(ahora.getDate() + i);
-      const fecha = d.toISOString().slice(0, 10);
-      const xFuturo = n + i;
-      const valorPredicho = Number(Math.max(0, m * xFuturo + b).toFixed(2));
+    const serieProyeccion = hayDatosSuficientes
+      ? Array.from({ length: 14 }, (_, k) => {
+          const d = new Date(hoy);
+          d.setDate(hoy.getDate() + k);
+          return {
+            fecha: claveDiaLocal(d),
+            label: d.toLocaleDateString('es-ES', { day: 'numeric', month: 'short' }),
+            valorReal: null as number | null,
+            valorProyectado: Number(estimado(k + 1).toFixed(2)),
+            tipo: 'PROYECCION' as const,
+          };
+        })
+      : [];
 
-      serieProyeccion.push({
-        fecha,
-        label: d.toLocaleDateString('es-ES', { day: 'numeric', month: 'short' }),
-        valorReal: null as number | null,
-        valorProyectado: valorPredicho,
-        tipo: 'PROYECCION',
-      });
-    }
+    const mensaje = hayDatosSuficientes
+      ? null
+      : `Aún no hay historial suficiente para proyectar: se necesitan al menos ${MIN_DIAS_CON_VENTAS} días con ventas en los últimos ${VENTANA_DIAS} (hay ${diasConVentas}) y ventas en los ${HOLDOUT_DIAS} días de prueba.`;
 
     return {
       metricasPredictivas: {
-        proyeccionVentas7Dias: Number(proyeccion7.toFixed(2)),
-        proyeccionVentas14Dias: Number(proyeccion14.toFixed(2)),
-        proyeccionVentas30Dias: Number(proyeccion30.toFixed(2)),
+        proyeccionVentas7Dias: acumulado(7),
+        proyeccionVentas14Dias: acumulado(14),
+        proyeccionVentas30Dias: acumulado(30),
         promedioDiarioHistorico: Number(promedioDiario.toFixed(2)),
         tendencia,
-        pendienteDiaria: Number(m.toFixed(2)),
-        nivelConfianza: '89.4%',
+        pendienteDiaria: Number(pendiente.toFixed(2)),
+        nivelConfianza: precision !== null && hayDatosSuficientes ? `${(precision * 100).toFixed(1)}%` : 'Sin datos suficientes',
+        modelo: pronostico.modelo,
+        precision,
+        errorModelo: pronostico.wapeModelo,
+        errorPromedioSimple: pronostico.wapeBase,
+        diasDePrueba: HOLDOUT_DIAS,
+        r2: Number(r2.toFixed(4)),
+        fiabilidad,
+        diasConVentas,
+        ordenesAnalizadas: ordenes.length,
+        ventanaDias: VENTANA_DIAS,
+        mensaje,
       },
       serieGrafico: [...serieHistoricoReciente, ...serieProyeccion],
       recomendacionEstrategica:
-        tendencia === 'ALCISTA'
+        tendencia === 'INSUFICIENTE'
+          ? mensaje
+          : tendencia === 'ALCISTA'
           ? 'Tendencia positiva detectada: se proyecta aumento sostenido de la demanda. Asegurar reposición de stock en prendas estrella.'
           : tendencia === 'BAJISTA'
           ? 'Tendencia con desaceleración: activar campañas de marketing con cupones dirigidos a clientes en riesgo para estimular la rotación.'
@@ -604,12 +611,12 @@ export class AdminService {
   }
 
   // =========================================================================
-  // ANALÍTICA PREDICTIVA IA 2: PREDICCIÓN DE ABANDONO DE CLIENTES (CHURN RISK)
+  // ANALÍTICA PREDICTIVA IA 2: SEGMENTACIÓN RFM Y RIESGO DE ABANDONO (CHURN)
   // =========================================================================
   async prediccionAbandonoClientes() {
     const ahora = new Date();
 
-    // 1. Obtener todas las órdenes agrupadas por usuario_id
+    // 1. Compras reales por cliente: cantidad, gasto y fecha de la última
     const ordenesPorUsuario = await this.orderRepository
       .createQueryBuilder('o')
       .where('o.tenantId = :tid', { tid: this.tid })
@@ -632,7 +639,7 @@ export class AdminService {
       }
     });
 
-    // 2. Obtener clientes con rol CLIENTE
+    // 2. Clientes de la tienda (rol CLIENTE)
     const membresiasCliente = await this.membershipRepository
       .createQueryBuilder('m')
       .innerJoinAndSelect('m.usuario', 'u')
@@ -641,42 +648,42 @@ export class AdminService {
       .getMany();
     const clientes = membresiasCliente.map((m) => m.usuario);
 
+    const diasDesde = (fecha: Date) => Math.floor((ahora.getTime() - fecha.getTime()) / (1000 * 60 * 60 * 24));
+
+    // 3. RFM contra los demás compradores de esta misma tienda
+    const rfm = puntuarRiesgoRfm(
+      clientes
+        .filter((c) => mapaOrdenes.has(c.id))
+        .map((c) => {
+          const stats = mapaOrdenes.get(c.id)!;
+          return {
+            id: c.id,
+            diasSinComprar: diasDesde(stats.ultimaCompra),
+            totalCompras: stats.totalCompras,
+            gastoTotal: stats.gastoTotal,
+          };
+        }),
+    );
+
+    const ACCIONES = {
+      ALTO: 'Riesgo alto de abandono frente al resto de tus clientes: emitir un cupón de reactivación y un recordatorio personalizado.',
+      MEDIO: 'Riesgo moderado: recomendar colecciones afines a sus compras anteriores.',
+      BAJO: 'Cliente activo y fidelizado: mantener comunicación regular de nuevos arribos o invitarlo a preventas.',
+      SIN_COMPRAS: 'Usuario registrado sin compras: enviar un cupón de bienvenida para incentivar su primer pedido.',
+      SIN_DATOS: `Aún no se puede clasificar: se necesitan al menos ${rfm.minimoRequerido} clientes con compras y hay ${rfm.compradores}.`,
+    } as const;
+
     const clientesAnalizados = clientes.map((c) => {
       const stats = mapaOrdenes.get(c.id);
       const totalCompras = stats?.totalCompras || 0;
       const gastoTotal = stats?.gastoTotal || 0;
+      const puntaje = rfm.puntajes.get(c.id);
 
-      // Fecha de última compra
-      let ultimaCompraFecha: Date | null = stats?.ultimaCompra || null;
-      let diasSinComprar = 999;
-
-      if (ultimaCompraFecha) {
-        const diffMs = ahora.getTime() - ultimaCompraFecha.getTime();
-        diasSinComprar = Math.floor(diffMs / (1000 * 60 * 60 * 24));
-      }
-
-      // Modelo de Scoring de Riesgo de Abandono (Churn)
-      let nivelRiesgo: 'ALTO' | 'MEDIO' | 'BAJO' = 'BAJO';
-      let scoreRiesgo = 0.1; // 0.0 a 1.0
-      let accionRecomendada = 'Cliente activo: mantener comunicación regular de nuevos arribos.';
-
-      if (totalCompras === 0) {
-        nivelRiesgo = 'MEDIO';
-        scoreRiesgo = 0.5;
-        accionRecomendada = 'Usuario registrado sin compras: enviar cupón de bienvenida para incentivar su primer pedido.';
-      } else if (diasSinComprar > 45) {
-        nivelRiesgo = 'ALTO';
-        scoreRiesgo = 0.85;
-        accionRecomendada = 'Riesgo crítico de abandono: emitir cupón de reactivación exclusivo (ej: VUELVE15) y recordatorio personalizado.';
-      } else if (diasSinComprar >= 20) {
-        nivelRiesgo = 'MEDIO';
-        scoreRiesgo = 0.45;
-        accionRecomendada = 'Riesgo moderado: recomendar colecciones afines a sus compras anteriores.';
-      } else {
-        nivelRiesgo = 'BAJO';
-        scoreRiesgo = 0.15;
-        accionRecomendada = 'Cliente altamente fidelizado: invitar al club exclusivo de preventas Aura.';
-      }
+      const nivelRiesgo: 'ALTO' | 'MEDIO' | 'BAJO' | 'SIN_COMPRAS' | 'SIN_DATOS' = !stats
+        ? 'SIN_COMPRAS'
+        : puntaje
+        ? puntaje.nivelRiesgo
+        : 'SIN_DATOS';
 
       return {
         id: c.id,
@@ -686,43 +693,78 @@ export class AdminService {
         totalCompras,
         gastoTotal: Number(gastoTotal.toFixed(2)),
         ticketPromedio: totalCompras > 0 ? Number((gastoTotal / totalCompras).toFixed(2)) : 0,
-        ultimaCompra: ultimaCompraFecha ? ultimaCompraFecha.toISOString().slice(0, 10) : 'Sin compras',
-        diasSinComprar: totalCompras > 0 ? diasSinComprar : null,
+        ultimaCompra: stats ? stats.ultimaCompra.toISOString().slice(0, 10) : 'Sin compras',
+        diasSinComprar: stats ? diasDesde(stats.ultimaCompra) : null,
         nivelRiesgo,
-        scoreRiesgo: Number(scoreRiesgo.toFixed(2)),
-        accionRecomendada,
+        scoreRiesgo: puntaje?.scoreRiesgo ?? null,
+        rfm: puntaje?.rfm ?? null,
+        accionRecomendada: ACCIONES[nivelRiesgo],
       };
     });
 
-    // Ordenar de mayor a menor riesgo
-    clientesAnalizados.sort((a, b) => b.scoreRiesgo - a.scoreRiesgo);
+    // Mayor riesgo primero; los que no se pueden puntuar al final
+    clientesAnalizados.sort((a, b) => (b.scoreRiesgo ?? -1) - (a.scoreRiesgo ?? -1));
 
-    const totalAnalizados = clientesAnalizados.length;
-    const riesgoAlto = clientesAnalizados.filter((c) => c.nivelRiesgo === 'ALTO').length;
-    const riesgoMedio = clientesAnalizados.filter((c) => c.nivelRiesgo === 'MEDIO').length;
-    const riesgoBajo = clientesAnalizados.filter((c) => c.nivelRiesgo === 'BAJO').length;
-
-    const tasaRiesgoGlobal = totalAnalizados > 0 ? Number((((riesgoAlto + riesgoMedio) / totalAnalizados) * 100).toFixed(1)) : 0;
+    const contar = (nivel: string) => clientesAnalizados.filter((c) => c.nivelRiesgo === nivel).length;
+    const riesgoAlto = contar('ALTO');
+    const riesgoMedio = contar('MEDIO');
+    const riesgoBajo = contar('BAJO');
+    const clasificados = riesgoAlto + riesgoMedio + riesgoBajo;
 
     return {
       resumen: {
-        totalClientes: totalAnalizados,
+        totalClientes: clientesAnalizados.length,
         riesgoAlto,
         riesgoMedio,
         riesgoBajo,
-        tasaRiesgoGlobal,
-        tasaRetencionEstimada: Number((100 - tasaRiesgoGlobal).toFixed(1)),
+        sinCompras: contar('SIN_COMPRAS'),
+        sinDatos: contar('SIN_DATOS'),
+        clasificados,
+        tasaRecompra: tasaRecompra(clientes.filter((c) => mapaOrdenes.has(c.id)).map((c) => mapaOrdenes.get(c.id)!.totalCompras)),
+      },
+      modelo: {
+        tipo: 'RFM_RELATIVO',
+        suficiente: rfm.suficiente,
+        compradores: rfm.compradores,
+        minimoRequerido: rfm.minimoRequerido,
+        pesos: PESOS_RIESGO,
+        descripcion:
+          'Riesgo relativo: recencia, frecuencia y monto de cada cliente comparados con los demás compradores de esta tienda.',
       },
       clientes: clientesAnalizados,
     };
   }
 
   // =========================================================================
-  // ANALÍTICA PREDICTIVA IA 3: RECOMENDACIONES DE PRODUCTOS POR AFINIDAD
+  // ANALÍTICA PREDICTIVA IA 3: AFINIDAD DE PRODUCTOS (MARKET BASKET)
   // =========================================================================
   async recomendacionesAfinidadProductos() {
-    // 1. Identificar productos comprados conjuntamente en los mismos pedidos (Market Basket Analysis)
-    const paresReales = await this.orderItemRepository
+    const pedidosValidos = () =>
+      this.orderItemRepository
+        .createQueryBuilder('d')
+        .innerJoin('d.notaventa', 'nv')
+        .where('d.tenantId = :tid', { tid: this.tid })
+        .andWhere('nv.estado != :cancelado', { cancelado: 'CANCELADO' });
+
+    // 1. Totales reales: pedidos analizados y pedidos que contienen cada producto
+    const totales = await pedidosValidos().select('COUNT(DISTINCT d.notaventa_id)', 'total').getRawOne();
+    const totalPedidos = Number(totales?.total || 0);
+
+    const porProducto = await pedidosValidos()
+      .select('d.producto_id', 'productoId')
+      .addSelect('COUNT(DISTINCT d.notaventa_id)', 'pedidos')
+      .groupBy('d.producto_id')
+      .getRawMany();
+    const conteos = new Map<string, number>(porProducto.map((r) => [r.productoId as string, Number(r.pedidos)]));
+
+    const conVariosProductos = await pedidosValidos()
+      .select('d.notaventa_id', 'pedidoId')
+      .groupBy('d.notaventa_id')
+      .having('COUNT(DISTINCT d.producto_id) > 1')
+      .getRawMany();
+
+    // 2. Pares comprados juntos en el mismo pedido, con la frecuencia mínima exigida
+    const paresRaw = await this.orderItemRepository
       .createQueryBuilder('d1')
       .innerJoin(OrderItemEntity, 'd2', 'd1.notaventa_id = d2.notaventa_id AND d1.producto_id < d2.producto_id')
       .innerJoin('d1.notaventa', 'nv')
@@ -735,49 +777,32 @@ export class AdminService {
       .addSelect('COUNT(DISTINCT d1.notaventa_id)', 'frecuenciaConjunta')
       .groupBy('d1.producto_id')
       .addGroupBy('d2.producto_id')
-      .orderBy('"frecuenciaConjunta"', 'DESC')
-      .limit(6)
+      .having('COUNT(DISTINCT d1.notaventa_id) >= :minimo', { minimo: frecuenciaMinimaConjunta(totalPedidos) })
       .getRawMany();
 
-    if (paresReales && paresReales.length > 0) {
-      return {
-        tipoAnalisis: 'FRECUENTEMENTE_COMPRADOS_JUNTOS',
-        descripcion: 'Asociaciones basadas en transacciones simultáneas reales de clientes.',
-        asociaciones: paresReales.map((p, idx) => ({
-          ranking: idx + 1,
-          productoA: { id: p.productoAId, nombre: p.productoANombre },
-          productoB: { id: p.productoBId, nombre: p.productoBNombre },
-          frecuenciaTransaccional: Number(p.frecuenciaConjunta || 1),
-          scoreAfinidad: Number((0.75 + (0.2 / (idx + 1))).toFixed(2)),
-          estrategiaSugerida: 'Crear paquete promocional conjunto con 10% de descuento en la segunda prenda.',
-        })),
-      };
-    }
+    // 3. Soporte, confianza y lift calculados sobre esos datos
+    const asociaciones = construirAsociaciones(
+      paresRaw.map((p) => ({
+        productoAId: p.productoAId,
+        productoANombre: p.productoANombre,
+        productoBId: p.productoBId,
+        productoBNombre: p.productoBNombre,
+        frecuencia: Number(p.frecuenciaConjunta),
+      })),
+      conteos,
+      totalPedidos,
+    );
 
-    // Fallback: Afinidad por categoría y productos estrella más demandados
-    const topProds = await this.obtenerProductosMasVendidos(4);
     return {
-      tipoAnalisis: 'AFINIDAD_POR_POPULARIDAD_Y_CATEGORIA',
-      descripcion: 'Asociaciones predictivas de alta demanda basadas en el catálogo activo.',
-      asociaciones: [
-        {
-          ranking: 1,
-          productoA: { id: topProds[0]?.productoId || 'p1', nombre: topProds[0]?.nombre || 'Vestido de Gala en Seda' },
-          productoB: { id: topProds[1]?.productoId || 'p2', nombre: topProds[1]?.nombre || 'Vestido de Noche en Encaje' },
-          frecuenciaTransaccional: 4,
-          scoreAfinidad: 0.88,
-          estrategiaSugerida: 'Recomendar como alternativa de gala complementaria.',
-        },
-        {
-          ranking: 2,
-          productoA: { id: topProds[0]?.productoId || 'p1', nombre: topProds[0]?.nombre || 'Vestido de Gala en Seda' },
-          productoB: { id: topProds[2]?.productoId || 'p3', nombre: topProds[2]?.nombre || 'Vestido Sirena Noir' },
-          frecuenciaTransaccional: 3,
-          scoreAfinidad: 0.79,
-          estrategiaSugerida: 'Ofrecer en carrusel "Quienes vieron esto también adquirieron".',
-        },
-      ],
+      tipoAnalisis: asociaciones.length > 0 ? 'FRECUENTEMENTE_COMPRADOS_JUNTOS' : 'SIN_DATOS_SUFICIENTES',
+      descripcion:
+        asociaciones.length > 0
+          ? `Asociaciones calculadas sobre ${totalPedidos} pedidos reales: soporte, confianza y lift de cada par de productos.`
+          : `Todavía no hay productos comprados juntos al menos ${frecuenciaMinimaConjunta(totalPedidos)} veces (${totalPedidos} pedidos analizados, ${conVariosProductos.length} con más de un producto).`,
+      pedidosAnalizados: totalPedidos,
+      pedidosConVariosProductos: conVariosProductos.length,
+      frecuenciaMinima: frecuenciaMinimaConjunta(totalPedidos),
+      asociaciones,
     };
   }
 }
-
