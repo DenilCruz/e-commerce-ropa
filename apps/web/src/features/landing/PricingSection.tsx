@@ -1,7 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import { toast } from 'sonner';
-import { useQuery } from '@tanstack/react-query';
+import { useQuery, useQueryClient } from '@tanstack/react-query';
 import {
   Check,
   X,
@@ -24,6 +24,7 @@ export const PricingSection: React.FC = () => {
   const navigate = useNavigate();
   const { user, isAuthenticated } = useAuthStore();
   const { metricas, actualizando, cambiarPlan } = usePlanLimites();
+  const queryClient = useQueryClient();
 
   const [anual, setAnual] = useState<boolean>(false);
   const [planAActualizar, setPlanAActualizar] = useState<'FREE_TRIAL' | 'ESTANDAR' | 'CORPORATIVO' | null>(null);
@@ -180,6 +181,8 @@ export const PricingSection: React.FC = () => {
     try {
       await asegurarTiendaActiva();
       await cambiarPlan(planAActualizar);
+      // La lista de tiendas (con su plan) sigue en caché: se refresca para que la pantalla muestre el plan nuevo
+      await queryClient.invalidateQueries({ queryKey: ['mis-tiendas-pricing'] });
       setPlanAActualizar(null);
     } catch {
       // el hook ya muestra el error
