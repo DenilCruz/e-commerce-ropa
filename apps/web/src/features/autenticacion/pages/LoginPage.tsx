@@ -54,6 +54,28 @@ export const LoginPage: React.FC = () => {
         }
       }
 
+      // HU-01: Si el usuario administra tiendas, cambiar la sesión automáticamente a su tienda
+      try {
+        const misTiendas = await tiendasApi.listarMias();
+        const tiendasAdmin = misTiendas.filter((t) => t.rol !== 'CLIENTE');
+
+        if (tiendasAdmin.length > 0) {
+          const tiendaActiva = tiendasAdmin.find((t) => t.esActiva) || tiendasAdmin[0];
+          const resSesion = await tiendasApi.seleccionar(tiendaActiva.id);
+          setAuth(resSesion.usuario, resSesion.accessToken, resSesion.refreshToken);
+          localStorage.setItem('tenant_slug', resSesion.tienda?.slug || tiendaActiva.slug);
+
+          if (from) {
+            navigate(from, { replace: true });
+          } else {
+            navigate('/admin', { replace: true });
+          }
+          return;
+        }
+      } catch (storeCheckErr) {
+        console.warn('Error verificando tiendas del usuario tras login:', storeCheckErr);
+      }
+
       if (from) {
         navigate(from, { replace: true });
       } else if (data.usuario.rol === 'ADMIN') {

@@ -48,10 +48,11 @@ export const MainLayout: React.FC = () => {
 
   // Rutas multi-inquilino contextuales
   const matchTenant = location.pathname.match(/^\/t\/([^/]+)/);
-  const storePrefix = matchTenant ? `/t/${matchTenant[1]}` : '';
-  const homePath = storePrefix || '/t/aura';
-  const catalogoPath = storePrefix ? `${storePrefix}/catalogo` : '/catalogo';
-  const probadorPath = storePrefix ? `${storePrefix}/probador` : '/probador';
+  const activeSlug = matchTenant ? matchTenant[1] : (localStorage.getItem('tenant_slug') || 'aura');
+  const storePrefix = `/t/${activeSlug}`;
+  const homePath = storePrefix;
+  const catalogoPath = `${storePrefix}/catalogo`;
+  const probadorPath = `${storePrefix}/probador`;
 
   const dropdownRef = useRef<HTMLDivElement>(null);
   const dropdownTimeoutRef = useRef<NodeJS.Timeout | null>(null);
