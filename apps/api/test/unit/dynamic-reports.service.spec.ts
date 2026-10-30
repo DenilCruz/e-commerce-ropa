@@ -1,6 +1,8 @@
 import { BadRequestException } from '@nestjs/common';
+import { plainToInstance } from 'class-transformer';
+import { validate } from 'class-validator';
 import { DynamicReportsService } from '../../src/modules/admin/dynamic-reports/dynamic-reports.service';
-import { ProveedorIA } from '../../src/modules/admin/dynamic-reports/dto/dynamic-reports.dto';
+import { GenerarReporteDinamicoDto, ProveedorIA } from '../../src/modules/admin/dynamic-reports/dto/dynamic-reports.dto';
 
 describe('DynamicReportsService (Unit Tests)', () => {
   let service: DynamicReportsService;
@@ -197,6 +199,77 @@ describe('DynamicReportsService (Unit Tests)', () => {
       expect(resultado.totalFilas).toBe(0);
       expect(resultado.filas).toEqual([]);
       expect(resultado.tiempoEjecucionMs).toBeGreaterThanOrEqual(0);
+    });
+  });
+
+  describe('Series de tiempo en el motor de reglas', () => {
+    it('agrupa las ventas por día cuando se pide una evolución diaria', () => {
+      const r = service.motorReglasNlp('evolución de ventas de los últimos 30 días por día');
+
+      expect(r.sqlGenerado).toContain("date_trunc('day', n.fecha)");
+      expect(r.sqlGenerado).toContain("INTERVAL '30 days'");
+      expect(r.sqlGenerado).toMatch(/GROUP BY/i);
+      expect(r.sugerenciaVisualizacion).toBe('BARRAS');
+    });
+
+    it('agrupa por mes y convierte los meses pedidos en días', () => {
+      const r = service.motorReglasNlp('ingresos mensuales de los últimos 6 meses');
+
+      expect(r.sqlGenerado).toContain("date_trunc('month', n.fecha)");
+      expect(r.sqlGenerado).toContain("INTERVAL '180 days'");
+    });
+
+    it('no confunde una consulta de stock con una serie de tiempo', () => {
+      const r = service.motorReglasNlp('cuánto stock hay de vestidos');
+
+      expect(r.sqlGenerado).toContain('producto_variante');
+      expect(r.sqlGenerado).not.toContain('date_trunc');
+    });
+  });
+
+  describe('Palabras clave dentro de literales y comentarios', () => {
+    it('acepta una palabra prohibida que solo aparece dentro de un literal de texto', async () => {
+      mockDataSource.query.mockResolvedValueOnce([{ nombre: 'Polera' }]);
+
+      await expect(
+        service.ejecutarSqlDirecto("SELECT nombre FROM producto WHERE nombre ILIKE '%update%' OR nombre = 'it''s a drop'"),
+      ).resolves.toBeDefined();
+    });
+
+    it('sigue rechazando la palabra prohibida cuando está fuera del literal', async () => {
+      await expect(
+        service.ejecutarSqlDirecto("WITH b AS (DELETE FROM producto RETURNING 'update') SELECT * FROM b"),
+      ).rejects.toThrow(BadRequestException);
+    });
+
+    it('no deja esconder un DELETE con un literal E\'\\\'\' mal emparejado y un comentario', async () => {
+      await expect(
+        service.ejecutarSqlDirecto("WITH a AS (SELECT E'\\''), b AS (DELETE FROM producto RETURNING 1 /* ' */) SELECT 1"),
+      ).rejects.toThrow(BadRequestException);
+    });
+
+    it('rechaza comillas dólar, que esconden texto al análisis', async () => {
+      await expect(service.ejecutarSqlDirecto("SELECT $$ ' $$, 1")).rejects.toThrow(BadRequestException);
+    });
+
+    it('rechaza literales o comentarios sin cerrar', async () => {
+      await expect(service.ejecutarSqlDirecto("SELECT 'abc FROM producto")).rejects.toThrow(BadRequestException);
+      await expect(service.ejecutarSqlDirecto('SELECT 1 /* sin cerrar')).rejects.toThrow(BadRequestException);
+    });
+  });
+
+  describe('Validación del prompt', () => {
+    it('rechaza un prompt compuesto solo de espacios', async () => {
+      const errores = await validate(plainToInstance(GenerarReporteDinamicoDto, { prompt: '   ' }));
+
+      expect(errores.length).toBeGreaterThan(0);
+    });
+
+    it('acepta un prompt normal y le quita los espacios de los bordes', async () => {
+      const dto = plainToInstance(GenerarReporteDinamicoDto, { prompt: '  ventas por día  ' });
+
+      expect(await validate(dto)).toHaveLength(0);
+      expect(dto.prompt).toBe('ventas por día');
     });
   });
 });

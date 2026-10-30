@@ -591,6 +591,30 @@ EJEMPLOS DE REFERENCIA (FEW-SHOT):
       p.includes('quedan') ||
       p.includes('unidades');
 
+    // --- CASO 0: EVOLUCIÓN EN EL TIEMPO (ventas por día, semana o mes) ---
+    const pideVentas = p.includes('vent') || p.includes('ingres') || p.includes('factur') || p.includes('pedid');
+    const pideSerie =
+      p.includes('evolucion') ||
+      p.includes('tendencia') ||
+      p.includes('por dia') ||
+      p.includes('diari') ||
+      p.includes('por semana') ||
+      p.includes('semanal') ||
+      p.includes('por mes') ||
+      p.includes('mensual');
+    if (pideVentas && pideSerie && !esConsultaStock) {
+      const unidad = /semana|semanal/.test(p) ? 'week' : /mes|mensual/.test(p) ? 'month' : 'day';
+      const rango = /ultim[oa]s?\s+(\d{1,3})\s*(dia|semana|mes)/.exec(p);
+      const diasPorUnidad: Record<string, number> = { dia: 1, semana: 7, mes: 30 };
+      const diasDefecto = unidad === 'month' ? 365 : unidad === 'week' ? 90 : 30;
+      const dias = rango ? Math.min(Number(rango[1]) * diasPorUnidad[rango[2]], 730) : diasDefecto;
+      return {
+        sqlGenerado: `SELECT date_trunc('${unidad}', n.fecha)::date AS periodo, COUNT(n.id) AS total_pedidos, SUM(n.total) AS total_ingresos FROM nota_venta n WHERE n.estado != 'CANCELADO' AND n.fecha >= CURRENT_DATE - INTERVAL '${dias} days' GROUP BY date_trunc('${unidad}', n.fecha) ORDER BY periodo ASC LIMIT 400`,
+        descripcion: `Evolución de pedidos e ingresos por ${unidad === 'day' ? 'día' : unidad === 'week' ? 'semana' : 'mes'} en los últimos ${dias} días`,
+        sugerenciaVisualizacion: 'BARRAS',
+      };
+    }
+
     // --- CASO 1: CONSULTAS DE STOCK E INVENTARIO ---
     if (esConsultaStock) {
       // 1.1 Si pide stock bajo o agotado
@@ -758,6 +782,55 @@ EJEMPLOS DE REFERENCIA (FEW-SHOT):
     return this.motorReglasNlp(prompt);
   }
 
+  /**
+   * Blanks out string literals, quoted identifiers and comments the way PostgreSQL reads them, so the keyword
+   * blacklist only sees code. Anything that makes that reading ambiguous (backslashes, dollar quoting,
+   * unterminated quotes or comments) is rejected instead of guessed.
+   */
+  private ocultarLiteralesYComentarios(sql: string): string {
+    const ambiguo = new BadRequestException(
+      'Seguridad: la consulta usa comillas, comentarios o caracteres de escape que no se pueden analizar de forma segura.',
+    );
+    if (sql.includes('\\') || sql.includes('$')) throw ambiguo;
+
+    let salida = '';
+    let i = 0;
+    while (i < sql.length) {
+      const c = sql[i];
+      const dos = sql.slice(i, i + 2);
+      if (c === "'" || c === '"') {
+        i++;
+        for (;;) {
+          if (i >= sql.length) throw ambiguo;
+          if (sql[i] === c) {
+            if (sql[i + 1] === c) i += 2; // doubled quote is an escaped quote
+            else break;
+          } else i++;
+        }
+        i++;
+        salida += ' ';
+      } else if (dos === '--') {
+        const fin = sql.indexOf('\n', i);
+        i = fin === -1 ? sql.length : fin;
+        salida += ' ';
+      } else if (dos === '/*') {
+        let nivel = 1; // PostgreSQL block comments nest
+        i += 2;
+        while (nivel > 0) {
+          if (i >= sql.length) throw ambiguo;
+          if (sql.slice(i, i + 2) === '/*') { nivel++; i += 2; }
+          else if (sql.slice(i, i + 2) === '*/') { nivel--; i += 2; }
+          else i++;
+        }
+        salida += ' ';
+      } else {
+        salida += c;
+        i++;
+      }
+    }
+    return salida;
+  }
+
   // =========================================================================
   // PIPELINE DE SEGURIDAD Y SANITIZACIÓN SQL
   // =========================================================================
@@ -818,8 +891,10 @@ EJEMPLOS DE REFERENCIA (FEW-SHOT):
       /\bINTO\b/i, // Evita SELECT ... INTO
     ];
 
+    // Keywords are looked up outside string literals, quoted identifiers and comments, which cannot run anything
+    const sqlSinLiterales = this.ocultarLiteralesYComentarios(sql);
     for (const pattern of palabrasProhibidas) {
-      if (pattern.test(sql)) {
+      if (pattern.test(sqlSinLiterales)) {
         throw new BadRequestException(
           `Seguridad: La consulta contiene la palabra clave no permitida [${pattern.source}]. Solo se permiten lecturas SELECT.`,
         );

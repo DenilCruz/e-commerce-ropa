@@ -1,3 +1,4 @@
+import { Transform } from 'class-transformer';
 import { IsNotEmpty, IsString, IsOptional, IsEnum } from 'class-validator';
 import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
 
@@ -12,6 +13,7 @@ export class GenerarReporteDinamicoDto {
     description: 'Instrucción o requerimiento en lenguaje natural (dictado por voz o escrito)',
     example: 'Quiero ver los 5 productos más vendidos y cuánto dinero han generado',
   })
+  @Transform(({ value }) => (typeof value === 'string' ? value.trim() : value))
   @IsNotEmpty({ message: 'El prompt o consulta es requerido' })
   @IsString()
   prompt: string;
