@@ -260,4 +260,53 @@ export interface RecomendacionesAfinidadRespuesta {
   asociaciones: AsociacionProductoAfinidad[];
 }
 
-
+export interface ModelosMachineLearningRespuesta {
+  exito: boolean;
+  timestamp: string;
+  particion: {
+    proporcion: string;
+    totalMuestras: number;
+    entrenamiento: number;
+    prueba: number;
+  };
+  modeloSupervisado: {
+    algoritmo: string;
+    tipo: string;
+    objetivo: string;
+    arbolesEnsamble: number;
+    metricasPrueba20Pct: {
+      exactitud: number;
+      precision: number;
+      exhaustividad: number;
+      f1Score: number;
+      matrizConfusion: {
+        verdaderosPositivos: number;
+        falsosPositivos: number;
+        verdaderosNegativos: number;
+        falsosNegativos: number;
+      };
+      totalEvaluados: number;
+    };
+    importanciaCaracteristicas: { caracteristica: string; peso: number }[];
+    muestrasEvaluadas: { id?: string; real: number; predicho: number; probabilidadFidelidad: number }[];
+  };
+  modeloNoSupervisado: {
+    algoritmo: string;
+    tipo: string;
+    objetivo: string;
+    kClusters: number;
+    iteracionesConvergencia: number;
+    inercia: number;
+    silhouetteScore: number;
+    interpretacionSilhouette: string;
+    clusters: {
+      clusterId: number;
+      nombre: string;
+      descripcion: string;
+      centroideOriginal: number[];
+      cantidadClientes: number;
+      porcentaje: number;
+      clientes: { id: string; nombre: string; correo: string; distanciaAlCentroide: number }[];
+    }[];
+  };
+}

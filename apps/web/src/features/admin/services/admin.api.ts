@@ -79,4 +79,11 @@ export const adminApi = {
     const res = await api.get<import('../types').RecomendacionesAfinidadRespuesta>('/admin/predictivo/afinidad');
     return res.data;
   },
+
+  // MODELOS MACHINE LEARNING (RANDOM FOREST + K-MEANS)
+  obtenerModelosMachineLearning: async (): Promise<import('../types').ModelosMachineLearningRespuesta> => {
+    const res = await api.get<import('../types').ModelosMachineLearningRespuesta>('/admin/predictivo/modelos-ml');
+    return res.data;
+  },
+
 };

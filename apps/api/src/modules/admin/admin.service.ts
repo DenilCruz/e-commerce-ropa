@@ -1,3 +1,10 @@
+import {
+  particionar8020,
+  RandomForestClasificador,
+  KMeansClustering,
+  MuestraSupervisada,
+  MuestraNoSupervisada,
+} from './analytics/ml-models';
 import { Injectable, NotFoundException } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository, Between, LessThanOrEqual, MoreThanOrEqual, In, Not } from 'typeorm';
@@ -805,4 +812,123 @@ export class AdminService {
       asociaciones,
     };
   }
+
+  // =========================================================================
+  // MODELOS MACHINE LEARNING (SUPERVISADO: RANDOM FOREST + NO SUPERVISADO: K-MEANS)
+  // PARTICIÓN 80/20 (TRAIN / TEST SPLIT)
+  // =========================================================================
+  async modelosMachineLearning() {
+    const ahora = new Date();
+
+    const ordenesPorUsuario = await this.orderRepository
+      .createQueryBuilder('o')
+      .leftJoin('o.usuario', 'u')
+      .where('o.tenantId = :tid', { tid: this.tid })
+      .andWhere('o.estado != :cancelado', { cancelado: 'CANCELADO' })
+      .select('o.usuario_id', 'usuarioId')
+      .addSelect('u.nombre', 'nombre')
+      .addSelect('u.apellido', 'apellido')
+      .addSelect('u.correo', 'correo')
+      .addSelect('COUNT(o.id)', 'totalCompras')
+      .addSelect('SUM(o.total)', 'gastoTotal')
+      .addSelect('MAX(o.fecha)', 'ultimaCompra')
+      .groupBy('o.usuario_id')
+      .addGroupBy('u.nombre')
+      .addGroupBy('u.apellido')
+      .addGroupBy('u.correo')
+      .getRawMany();
+
+    const compradores = ordenesPorUsuario.map((r) => {
+      const uCompra = new Date(r.ultimaCompra);
+      const recenciaDias = Math.max(0, Math.floor((ahora.getTime() - uCompra.getTime()) / (1000 * 60 * 60 * 24)));
+      const totalCompras = Number(r.totalCompras || 1);
+      const gastoTotal = Number(r.gastoTotal || 0);
+      const ticketPromedio = totalCompras > 0 ? Number((gastoTotal / totalCompras).toFixed(2)) : 0;
+      const nombreCompleto = `${r.nombre || ''} ${r.apellido || ''}`.trim() || 'Cliente AURA';
+
+      return {
+        id: r.usuarioId,
+        nombre: nombreCompleto,
+        correo: r.correo || 'sin-correo@aura.com',
+        recenciaDias,
+        totalCompras,
+        gastoTotal,
+        ticketPromedio,
+      };
+    });
+
+    const muestrasSupervisadas: MuestraSupervisada[] = compradores.map((c) => ({
+      id: c.id,
+      caracteristicas: [c.recenciaDias, c.totalCompras, c.gastoTotal, c.ticketPromedio],
+      etiqueta: c.totalCompras >= 2 && c.recenciaDias <= 150 ? 1 : 0,
+    }));
+
+    const muestrasNoSupervisadas: MuestraNoSupervisada[] = compradores.map((c) => ({
+      id: c.id,
+      nombre: c.nombre,
+      correo: c.correo,
+      valores: [c.recenciaDias, c.totalCompras, c.gastoTotal],
+    }));
+
+    const partSupervisada = particionar8020(muestrasSupervisadas, 0.20, 42);
+
+    const rf = new RandomForestClasificador(15, 4);
+    rf.entrenar(partSupervisada.entrenamiento);
+    const metricasRF = rf.evaluar(partSupervisada.prueba);
+    const importanciaVars = rf.obtenerImportanciaCaracteristicas();
+
+    const prediccionesRF = partSupervisada.prueba.map((m) => {
+      const prob = rf.predecirProbabilidad(m.caracteristicas);
+      return {
+        id: m.id,
+        real: m.etiqueta,
+        predicho: rf.predecir(m.caracteristicas),
+        probabilidadFidelidad: Number(prob.toFixed(4)),
+      };
+    });
+
+    const partNoSupervisada = particionar8020(muestrasNoSupervisadas, 0.20, 42);
+
+    const kmeans = new KMeansClustering(3, 40);
+    const entKmeans = kmeans.entrenar(partNoSupervisada.entrenamiento);
+    const silhouette = kmeans.calcularSilhouette(partNoSupervisada.prueba);
+    const clusters = kmeans.generarReporteClusters(muestrasNoSupervisadas);
+
+    return {
+      exito: true,
+      timestamp: new Date().toISOString(),
+      particion: {
+        proporcion: '80% Entrenamiento / 20% Prueba',
+        totalMuestras: compradores.length,
+        entrenamiento: partSupervisada.tamanioEntrenamiento,
+        prueba: partSupervisada.tamanioPrueba,
+      },
+      modeloSupervisado: {
+        algoritmo: 'Random Forest (Ensamble de Árboles de Decisión)',
+        tipo: 'SUPERVISADO',
+        objetivo: 'Clasificación de Fidelidad y Recompra de Clientes',
+        arbolesEnsamble: 15,
+        metricasPrueba20Pct: metricasRF,
+        importanciaCaracteristicas: importanciaVars,
+        muestrasEvaluadas: prediccionesRF,
+      },
+      modeloNoSupervisado: {
+        algoritmo: 'K-Means Clustering (Inicialización K-Means++)',
+        tipo: 'NO_SUPERVISADO',
+        objetivo: 'Segmentación de Clientes por Recencia, Frecuencia y Gasto',
+        kClusters: 3,
+        iteracionesConvergencia: entKmeans.iteraciones,
+        inercia: entKmeans.inercia,
+        silhouetteScore: silhouette,
+        interpretacionSilhouette:
+          silhouette > 0.5
+            ? 'Excelente separación y cohesión entre clusters'
+            : silhouette > 0.25
+            ? 'Buena estructura de clusters identificada'
+            : 'Clusters con solapamiento moderado',
+        clusters,
+      },
+    };
+  }
+
 }
