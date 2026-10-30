@@ -17,7 +17,7 @@ import { ReporteDinamicoResultado } from '../types';
 
 export const AdminDynamicReportsPage: React.FC = () => {
   const [prompt, setPrompt] = useState<string>('');
-  const [proveedor, setProveedor] = useState<'GROQ' | 'OLLAMA'>('GROQ');
+  const [proveedor, setProveedor] = useState<'GROQ' | 'OLLAMA' | 'GEMINI'>('GROQ');
   const [cargando, setCargando] = useState<boolean>(false);
   const [resultado, setResultado] = useState<ReporteDinamicoResultado | null>(null);
   const [error, setError] = useState<string | null>(null);
@@ -428,6 +428,14 @@ export const AdminDynamicReportsPage: React.FC = () => {
             }`}
           >
             Groq Cloud (Ultra Rápido)
+          </button>
+          <button
+            onClick={() => setProveedor('GEMINI')}
+            className={`px-3 py-1 rounded-md font-bold transition-all ${
+              proveedor === 'GEMINI' ? 'bg-stone-900 text-white shadow-xs' : 'text-stone-600 hover:bg-[#FAF8F5]'
+            }`}
+          >
+            Google Gemini
           </button>
           <button
             onClick={() => setProveedor('OLLAMA')}

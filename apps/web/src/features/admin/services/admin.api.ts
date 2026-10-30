@@ -48,7 +48,7 @@ export const adminApi = {
   // REPORTES DINÁMICOS POR VOZ / IA
   generarReporteDinamico: async (
     prompt: string,
-    proveedor: 'GROQ' | 'OLLAMA' = 'GROQ',
+    proveedor: 'GROQ' | 'OLLAMA' | 'GEMINI' = 'GROQ',
   ): Promise<import('../types').ReporteDinamicoResultado> => {
     const res = await api.post<import('../types').ReporteDinamicoResultado>(
       '/admin/reportes-dinamicos/generar',
