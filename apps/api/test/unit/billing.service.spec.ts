@@ -2,7 +2,7 @@ jest.mock('@nestjs/typeorm', () => ({
   InjectRepository: () => () => {},
 }));
 
-import { BadRequestException, ForbiddenException } from '@nestjs/common';
+import { BadRequestException, ConflictException, ForbiddenException } from '@nestjs/common';
 import { BillingService } from '../../src/modules/facturacion/billing.service';
 import { PLANES_CONFIG } from '../../src/modules/tiendas/plan-limits.service';
 import { TenantContext } from '../../src/common/tenant/tenant-context';
@@ -61,7 +61,10 @@ describe('BillingService', () => {
       }),
     };
     dataSource = { createQueryRunner: jest.fn(() => qr), query: jest.fn().mockResolvedValue([{ correo: 'admin@aura.com' }]) };
-    planLimits = { verificarAdministradorDeTienda: jest.fn().mockResolvedValue({ id: TENANT, nombre: 'AURA' }) };
+    planLimits = {
+      verificarAdministradorDeTienda: jest.fn().mockResolvedValue({ id: TENANT, nombre: 'AURA' }),
+      obtenerPlanEfectivo: jest.fn().mockResolvedValue('FREE_TRIAL'),
+    };
     const config = { get: jest.fn((k: string) => ({ STRIPE_SECRET_KEY: 'sk_test_dummy', STRIPE_WEBHOOK_SECRET: SECRETO, APP_URL: 'http://localhost:5173' })[k]) };
 
     service = new BillingService(dataSource, config as any, planLimits);
@@ -98,6 +101,24 @@ describe('BillingService', () => {
     it('rechaza un plan que no se vende', async () => {
       await expect(service.crearCheckout(TENANT, USER, 'FREE_TRIAL', 'MENSUAL')).rejects.toThrow(BadRequestException);
       expect(stripeFalso.checkout.sessions.create).not.toHaveBeenCalled();
+    });
+
+    it('no deja comprar un plan inferior al que la tienda tiene vigente y lo explica', async () => {
+      planLimits.obtenerPlanEfectivo.mockResolvedValue('CORPORATIVO');
+
+      const intento = service.crearCheckout(TENANT, USER, 'ESTANDAR', 'MENSUAL');
+
+      await expect(intento).rejects.toThrow(ConflictException);
+      await expect(intento).rejects.toThrow(/ya tienes el plan .*corporativo/i);
+      expect(stripeFalso.checkout.sessions.create).not.toHaveBeenCalled();
+      expect(dataSource.query.mock.calls.some(([sql]: [string]) => /INSERT INTO suscripcion/.test(sql))).toBe(false);
+    });
+
+    it('sí deja renovar el mismo plan y subir a uno superior', async () => {
+      planLimits.obtenerPlanEfectivo.mockResolvedValue('ESTANDAR');
+
+      await expect(service.crearCheckout(TENANT, USER, 'ESTANDAR', 'MENSUAL')).resolves.toBeTruthy();
+      await expect(service.crearCheckout(TENANT, USER, 'CORPORATIVO', 'ANUAL')).resolves.toBeTruthy();
     });
 
     it('exige ser propietario o administrador de la tienda', async () => {

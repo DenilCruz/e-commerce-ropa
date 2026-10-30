@@ -142,6 +142,13 @@ export class PlanLimitsService {
   /**
    * Consulta el plan de la tienda, su consumo actual y el estado de sus límites.
    */
+  /** The plan a store has right now (subscription expiry included), for callers that sell plans. */
+  async obtenerPlanEfectivo(tiendaId: string): Promise<TipoPlan> {
+    const tienda = await this.storeRepo.findOne({ where: { id: tiendaId } });
+    if (!tienda) throw new NotFoundException('La tienda especificada no existe.');
+    return this.planEfectivo(tienda);
+  }
+
   /** The plan the store has right now, taking subscription expiry into account. */
   private async planEfectivo(tienda: StoreEntity): Promise<TipoPlan> {
     const guardado = (PLANES_CONFIG[tienda.plan as TipoPlan] ? tienda.plan : 'FREE_TRIAL') as TipoPlan;

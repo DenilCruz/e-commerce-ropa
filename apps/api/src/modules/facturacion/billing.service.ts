@@ -1,4 +1,4 @@
-import { BadRequestException, Injectable, Logger, NotFoundException, ServiceUnavailableException } from '@nestjs/common';
+import { BadRequestException, ConflictException, Injectable, Logger, NotFoundException, ServiceUnavailableException } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { DataSource, QueryRunner } from 'typeorm';
 import { randomUUID } from 'crypto';
@@ -32,6 +32,14 @@ export class BillingService {
     const planKey = plan?.toUpperCase() as TipoPlan;
     const monto = calcularMontoPlan(planKey, periodo); // 400 si el plan no se vende
     await this.planLimits.verificarAdministradorDeTienda(tenantId, usuarioId);
+
+    // Buying a cheaper plan than the one already in force would charge again for less (renewing the same plan is fine)
+    const planVigente = PLANES_CONFIG[await this.planLimits.obtenerPlanEfectivo(tenantId)];
+    if (PLANES_CONFIG[planKey].precioMensual < planVigente.precioMensual) {
+      throw new ConflictException(
+        `Ya tienes el ${planVigente.nombre} vigente, que incluye todo lo del ${PLANES_CONFIG[planKey].nombre}. No hace falta comprarlo.`,
+      );
+    }
 
     const [usuario] = await this.dataSource.query('SELECT correo FROM usuario WHERE id = $1', [usuarioId]);
     const config = PLANES_CONFIG[planKey];
