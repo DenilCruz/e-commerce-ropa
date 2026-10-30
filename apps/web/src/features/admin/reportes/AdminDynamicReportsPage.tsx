@@ -11,7 +11,9 @@ import {
   AlertCircle,
   ArrowLeft,
   Zap,
+  FileSpreadsheet,
 } from 'lucide-react';
+import * as XLSX from 'xlsx';
 import { adminApi } from '../services/admin.api';
 import { ReporteDinamicoResultado } from '../types';
 
@@ -166,6 +168,44 @@ export const AdminDynamicReportsPage: React.FC = () => {
     } finally {
       setCargando(false);
     }
+  };
+
+  // 3. Exportar resultados dinámicos a Excel (.xlsx) nativo
+  const exportarExcel = () => {
+    if (!resultado || resultado.filas.length === 0) return;
+
+    const cols = columnasVisibles.length > 0 ? columnasVisibles : resultado.columnas;
+
+    // Crear filas formateadas con nombres limpios de cabecera
+    const datosParaExcel = resultado.filas.map((fila) => {
+      const obj: Record<string, any> = {};
+      cols.forEach((col) => {
+        const header = col.replace(/_/g, ' ').toUpperCase();
+        const val = fila[col];
+        obj[header] = val !== null && val !== undefined ? val : '';
+      });
+      return obj;
+    });
+
+    const worksheet = XLSX.utils.json_to_sheet(datosParaExcel);
+
+    // Ajuste automático de ancho de columnas
+    const colWidths = cols.map((col) => {
+      const header = col.replace(/_/g, ' ').toUpperCase();
+      let maxLen = header.length;
+      for (let i = 0; i < Math.min(resultado.filas.length, 100); i++) {
+        const v = String(resultado.filas[i][col] ?? '');
+        if (v.length > maxLen) maxLen = Math.min(v.length, 50);
+      }
+      return { wch: Math.max(maxLen + 4, 12) };
+    });
+    worksheet['!cols'] = colWidths;
+
+    const workbook = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(workbook, worksheet, 'Reporte Dinamico');
+
+    const timestamp = new Date().toISOString().replace(/[:.]/g, '-').slice(0, 19);
+    XLSX.writeFile(workbook, `reporte_dinamico_${timestamp}.xlsx`);
   };
 
   // 1. Exportar resultados dinámicos a CSV sin IDs
@@ -558,7 +598,17 @@ export const AdminDynamicReportsPage: React.FC = () => {
             </div>
 
             {/* BOTONES DE EXPORTACIÓN */}
-            <div className="flex items-center gap-2">
+            <div className="flex items-center gap-2 flex-wrap">
+              <button
+                onClick={exportarExcel}
+                disabled={resultado.filas.length === 0}
+                className="px-4 py-2 bg-emerald-700 hover:bg-emerald-800 text-white rounded-lg text-xs font-bold uppercase tracking-wider flex items-center gap-2 transition-all disabled:opacity-40 shadow-xs"
+                title="Descargar en formato Excel (.xlsx)"
+              >
+                <FileSpreadsheet className="w-3.5 h-3.5" />
+                <span>Exportar Excel (.xlsx)</span>
+              </button>
+
               <button
                 onClick={exportarCSV}
                 disabled={resultado.filas.length === 0}

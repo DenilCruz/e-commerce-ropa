@@ -10,6 +10,7 @@ import {
   X,
   Sparkles,
 } from 'lucide-react';
+import * as XLSX from 'xlsx';
 import { adminApi } from '../services/admin.api';
 import { ReporteVentasRespuesta, ReportePedido, ReporteVentasFiltros } from '../types';
 import { obtenerCategorias } from '../../catalogo/services/catalogo.api';
@@ -121,6 +122,58 @@ export const AdminReportsPage: React.FC = () => {
     e.preventDefault();
     setPagina(1);
     cargarReporte();
+  };
+
+  // Exportación nativa a Excel (.xlsx)
+  const exportarExcel = () => {
+    if (!reporte || reporte.pedidos.length === 0) {
+      alert('No hay datos para exportar.');
+      return;
+    }
+
+    const rows = reporte.pedidos.map((p) => {
+      const fechaStr = new Date(p.creadoEn).toLocaleString('es-BO');
+      const itemsStr = p.items
+        .map((i) => `${i.nombreProducto} x${i.cantidad} (${i.talla || 'N/A'}/${i.color || 'N/A'})`)
+        .join(' | ');
+
+      return {
+        'NRO ORDEN': p.nro,
+        'FECHA Y HORA': fechaStr,
+        'CLIENTE': p.cliente?.nombre || 'General',
+        'EMAIL': p.cliente?.correo || 'N/A',
+        'ESTADO': p.estado,
+        'METODO PAGO': p.metodoPago,
+        'CUPON': p.cuponCodigo || 'Sin cupon',
+        'SUBTOTAL ($)': Number(p.subtotal.toFixed(2)),
+        'DESCUENTO ($)': Number(p.descuento.toFixed(2)),
+        'ENVIO ($)': Number(p.costoEnvio.toFixed(2)),
+        'TOTAL ($)': Number(p.total.toFixed(2)),
+        'PRODUCTOS': itemsStr,
+      };
+    });
+
+    const worksheet = XLSX.utils.json_to_sheet(rows);
+    worksheet['!cols'] = [
+      { wch: 15 },
+      { wch: 20 },
+      { wch: 22 },
+      { wch: 25 },
+      { wch: 14 },
+      { wch: 15 },
+      { wch: 14 },
+      { wch: 14 },
+      { wch: 14 },
+      { wch: 12 },
+      { wch: 14 },
+      { wch: 45 },
+    ];
+
+    const workbook = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(workbook, worksheet, 'Reporte Ventas');
+
+    const fileName = `reporte_ventas_${fechaInicio || 'inicio'}_a_${fechaFin || 'fin'}.xlsx`;
+    XLSX.writeFile(workbook, fileName);
   };
 
   // HU-92: Exportación a CSV formateado con UTF-8 BOM
