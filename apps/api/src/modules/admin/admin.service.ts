@@ -12,14 +12,17 @@ import { TenantContext } from '../../common/tenant/tenant-context';
 import {
   HOLDOUT_DIAS,
   MIN_DIAS_CON_VENTAS,
+  MIN_FRECUENCIA_CONJUNTA,
+  Z_MINIMO_ASOCIACION,
   PESOS_RIESGO,
   VENTANA_DIAS,
   ajustarPronostico,
+  clasificarTendenciaPorNivel,
+  diaSemanaDe,
   claveDiaLocal,
   clasificarFiabilidad,
   clasificarTendencia,
   construirAsociaciones,
-  frecuenciaMinimaConjunta,
   puntuarRiesgoRfm,
   tasaRecompra,
 } from './analytics/predictive.math';
@@ -532,23 +535,27 @@ export class AdminService {
     const diasConVentas = valores.filter((v) => v > 0).length;
     const promedioDiario = n > 0 ? valores.reduce((a, b) => a + b, 0) / n : 0;
 
-    // 3. El modelo (recta o promedio) se elige y se mide prediciendo los últimos días reales
-    const pronostico = ajustarPronostico(valores);
-    const { pendiente, intercepto, r2, precision } = pronostico;
+    // 3. El modelo se elige entre promedio, tendencia y perfil semanal midiendo cuál predijo mejor ventanas reales
+    const pronostico = ajustarPronostico(
+      valores,
+      entries.map(([fecha]) => diaSemanaDe(fecha)),
+    );
+    const { pendiente, r2, precision } = pronostico;
     const fiabilidad = clasificarFiabilidad(precision, diasConVentas);
     const hayDatosSuficientes = fiabilidad !== 'INSUFICIENTE';
+
+    // 4. Proyección desde hoy: solo si el historial alcanza para que signifique algo
+    const predicciones = pronostico.predecir(30);
+    const promedioProyectado = predicciones.slice(0, 14).reduce((a, b) => a + b, 0) / 14;
     const tendencia = !hayDatosSuficientes
       ? ('INSUFICIENTE' as const)
       : pronostico.modelo === 'PROMEDIO'
       ? ('ESTABLE' as const)
-      : clasificarTendencia({ pendiente, promedio: promedioDiario, r2 });
-
-    // 4. Proyección desde hoy: solo si el historial alcanza para que signifique algo
-    const estimado = (i: number) => Math.max(0, pendiente * (n + i) + intercepto);
+      : pronostico.modelo === 'REGRESION'
+      ? clasificarTendencia({ pendiente, promedio: promedioDiario, r2 })
+      : clasificarTendenciaPorNivel(promedioProyectado, promedioDiario);
     const acumulado = (dias: number) =>
-      hayDatosSuficientes
-        ? Number(Array.from({ length: dias }, (_, k) => estimado(k + 1)).reduce((a, b) => a + b, 0).toFixed(2))
-        : null;
+      hayDatosSuficientes ? Number(predicciones.slice(0, dias).reduce((a, b) => a + b, 0).toFixed(2)) : null;
 
     // 5. Serie para el gráfico: histórico reciente y, si corresponde, proyección
     const serieHistoricoReciente = entries.slice(-14).map(([fecha, valor]) => ({
@@ -567,7 +574,10 @@ export class AdminService {
             fecha: claveDiaLocal(d),
             label: d.toLocaleDateString('es-ES', { day: 'numeric', month: 'short' }),
             valorReal: null as number | null,
-            valorProyectado: Number(estimado(k + 1).toFixed(2)),
+            valorProyectado: Number(predicciones[k].toFixed(2)),
+            // Cómo suelen desviarse los días reales de este pronóstico (percentiles 10 y 90 del historial)
+            rangoBajo: Number(Math.max(0, predicciones[k] + pronostico.rangoDia.bajo).toFixed(2)),
+            rangoAlto: Number(Math.max(0, predicciones[k] + pronostico.rangoDia.alto).toFixed(2)),
             tipo: 'PROYECCION' as const,
           };
         })
@@ -591,6 +601,7 @@ export class AdminService {
         errorModelo: pronostico.wapeModelo,
         errorPromedioSimple: pronostico.wapeBase,
         diasDePrueba: HOLDOUT_DIAS,
+        ventanasDePrueba: pronostico.ventanasDePrueba,
         r2: Number(r2.toFixed(4)),
         fiabilidad,
         diasConVentas,
@@ -777,7 +788,7 @@ export class AdminService {
       .addSelect('COUNT(DISTINCT d1.notaventa_id)', 'frecuenciaConjunta')
       .groupBy('d1.producto_id')
       .addGroupBy('d2.producto_id')
-      .having('COUNT(DISTINCT d1.notaventa_id) >= :minimo', { minimo: frecuenciaMinimaConjunta(totalPedidos) })
+      .having('COUNT(DISTINCT d1.notaventa_id) >= :minimo', { minimo: MIN_FRECUENCIA_CONJUNTA })
       .getRawMany();
 
     // 3. Soporte, confianza y lift calculados sobre esos datos
@@ -797,11 +808,12 @@ export class AdminService {
       tipoAnalisis: asociaciones.length > 0 ? 'FRECUENTEMENTE_COMPRADOS_JUNTOS' : 'SIN_DATOS_SUFICIENTES',
       descripcion:
         asociaciones.length > 0
-          ? `Asociaciones calculadas sobre ${totalPedidos} pedidos reales: soporte, confianza y lift de cada par de productos.`
-          : `Todavía no hay productos comprados juntos al menos ${frecuenciaMinimaConjunta(totalPedidos)} veces (${totalPedidos} pedidos analizados, ${conVariosProductos.length} con más de un producto).`,
+          ? `Asociaciones calculadas sobre ${totalPedidos} pedidos reales: solo se muestran los pares que se compran juntos claramente más de lo que daría el azar.`
+          : `Ningún par de productos se compró junto con más frecuencia de la que daría el azar (${totalPedidos} pedidos analizados, ${conVariosProductos.length} con más de un producto).`,
       pedidosAnalizados: totalPedidos,
       pedidosConVariosProductos: conVariosProductos.length,
-      frecuenciaMinima: frecuenciaMinimaConjunta(totalPedidos),
+      frecuenciaMinima: MIN_FRECUENCIA_CONJUNTA,
+      zMinimo: Z_MINIMO_ASOCIACION,
       asociaciones,
     };
   }

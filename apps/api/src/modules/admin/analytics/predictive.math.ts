@@ -7,9 +7,20 @@
  */
 
 /** Completed days of history the sales forecast looks at (today is left out: it is still in progress). */
-export const VENTANA_DIAS = 60;
-/** Last days held out to test the model: it is trained on the rest and must predict these. */
+export const VENTANA_DIAS = 182;
+/** Days each model must predict in a test; the history is cut into consecutive windows of this size. */
 export const HOLDOUT_DIAS = 14;
+/** Days of history a model needs before it is tested on a window. */
+export const MIN_ENTRENAMIENTO_DIAS = 42;
+/** A model replaces the plain average only if its error is at least this share lower (avoids chasing noise). */
+export const MARGEN_MEJORA = 0.02;
+/** Recent days used to scale the weekday profile to the current sales level. */
+export const NIVEL_RECIENTE_DIAS = 28;
+/** Typical range of a day: from the 10th to the 90th percentile of how far days fall from the forecast. */
+export const PERCENTIL_RANGO_BAJO = 0.1;
+export const PERCENTIL_RANGO_ALTO = 0.9;
+/** Projected average vs historical average beyond which the level is called rising or falling. */
+export const UMBRAL_TENDENCIA_NIVEL = 0.1;
 /** Days with at least one sale needed before a forecast means anything. */
 export const MIN_DIAS_CON_VENTAS = 14;
 /** Daily slope relative to the daily average below which the trend is considered flat. */
@@ -27,10 +38,13 @@ export const PESOS_RIESGO = { recencia: 0.6, frecuencia: 0.25, monto: 0.15 } as 
 export const CORTE_RIESGO_ALTO = 2 / 3;
 export const CORTE_RIESGO_MEDIO = 1 / 3;
 
-/** Times a pair must be bought together to be reported (a pair seen twice is noise, however high its lift). */
+/** Times a pair must be bought together to be reported at all. */
 export const MIN_FRECUENCIA_CONJUNTA = 3;
-/** Share of all orders a pair must appear in; it overtakes the fixed minimum in big stores. */
-export const MIN_SOPORTE_CONJUNTO = 0.02;
+/**
+ * How many standard deviations above what chance alone would give a pair's co-purchases must be. Chance is
+ * the share of orders of each product multiplied together; 3 keeps false pairs rare even when testing many.
+ */
+export const Z_MINIMO_ASOCIACION = 3;
 export const MAX_ASOCIACIONES = 6;
 
 const redondear = (n: number, decimales = 4) => Number(n.toFixed(decimales));
@@ -99,53 +113,151 @@ export function claveDiaLocal(fecha: Date): string {
   return `${fecha.getFullYear()}-${mm}-${dd}`;
 }
 
+export type ModeloPronostico = 'PROMEDIO' | 'REGRESION' | 'DIA_DE_SEMANA' | 'DIA_DE_SEMANA_NIVEL';
+
 export interface Pronostico {
-  modelo: 'REGRESION' | 'PROMEDIO';
+  modelo: ModeloPronostico;
   pendiente: number;
   intercepto: number;
-  /** how well the line fits the whole history (descriptive only) */
+  /** how well a straight line fits the whole history (descriptive only) */
   r2: number;
-  /** 1 - WAPE of the chosen model on the held-out days; null when it could not be measured */
+  /** 1 - WAPE of the chosen model across the test windows; null when it could not be measured */
   precision: number | null;
   wapeModelo: number | null;
   wapeBase: number | null;
+  ventanasDePrueba: number;
+  /** forecast for the `dias` days that follow the series */
+  predecir: (dias: number) => number[];
+  /** how far a typical day falls from the forecast: add `bajo` / `alto` (bajo is usually negative) */
+  rangoDia: { bajo: number; alto: number };
 }
 
 const sumar = (xs: number[]) => xs.reduce((a, b) => a + b, 0);
+const promediar = (xs: number[]) => (xs.length > 0 ? sumar(xs) / xs.length : 0);
+
+/** Day of the week (0 = Sunday) of a "YYYY-MM-DD" key, in local time. */
+export function diaSemanaDe(clave: string): number {
+  const [y, m, d] = clave.split('-').map(Number);
+  return new Date(y, m - 1, d).getDay();
+}
+
+/** Compares the projected daily average with the historical one: how the level is expected to move. */
+export function clasificarTendenciaPorNivel(promedioProyectado: number, promedioHistorico: number): Tendencia {
+  if (promedioHistorico <= 0) return 'ESTABLE';
+  const relativa = (promedioProyectado - promedioHistorico) / promedioHistorico;
+  if (Math.abs(relativa) < UMBRAL_TENDENCIA_NIVEL) return 'ESTABLE';
+  return relativa > 0 ? 'ALCISTA' : 'BAJISTA';
+}
+
+type Predictor = (valores: number[], diasSemana: number[], dias: number) => number[];
+
+/** Average sales of each weekday (falls back to the overall average for a weekday with no data). */
+function perfilSemanal(valores: number[], diasSemana: number[]): number[] {
+  const general = promediar(valores);
+  return Array.from({ length: 7 }, (_, d) => {
+    const delDia = valores.filter((_, i) => diasSemana[i] === d);
+    return delDia.length > 0 ? promediar(delDia) : general;
+  });
+}
+
+const siguienteDia = (diasSemana: number[], k: number) => (diasSemana[diasSemana.length - 1] + 1 + k) % 7;
+
+const CANDIDATOS: Record<ModeloPronostico, Predictor> = {
+  PROMEDIO: (valores, _dias, n) => Array(n).fill(promediar(valores)),
+  REGRESION: (valores, _dias, n) => {
+    const { pendiente, intercepto } = regresionLineal(valores);
+    return Array.from({ length: n }, (_, k) => Math.max(0, pendiente * (valores.length + 1 + k) + intercepto));
+  },
+  DIA_DE_SEMANA: (valores, diasSemana, n) => {
+    const perfil = perfilSemanal(valores, diasSemana);
+    return Array.from({ length: n }, (_, k) => perfil[siguienteDia(diasSemana, k)]);
+  },
+  DIA_DE_SEMANA_NIVEL: (valores, diasSemana, n) => {
+    const perfil = perfilSemanal(valores, diasSemana);
+    const general = promediar(valores);
+    const nivel = promediar(valores.slice(-NIVEL_RECIENTE_DIAS));
+    const escala = general > 0 ? nivel / general : 1;
+    return Array.from({ length: n }, (_, k) => perfil[siguienteDia(diasSemana, k)] * escala);
+  },
+};
+
+/** What each model would have said about the days it was fitted on, used to measure how far days fall from it. */
+function ajusteEnMuestra(modelo: ModeloPronostico, valores: number[], diasSemana: number[]): number[] {
+  if (modelo === 'REGRESION') {
+    const { pendiente, intercepto } = regresionLineal(valores);
+    return valores.map((_, i) => Math.max(0, pendiente * (i + 1) + intercepto));
+  }
+  if (modelo === 'PROMEDIO') return valores.map(() => promediar(valores));
+  const perfil = perfilSemanal(valores, diasSemana);
+  return valores.map((_, i) => perfil[diasSemana[i]]);
+}
+
+function percentil(ordenados: number[], p: number): number {
+  if (ordenados.length === 0) return 0;
+  const idx = (ordenados.length - 1) * p;
+  const bajo = Math.floor(idx);
+  const alto = Math.ceil(idx);
+  return ordenados[bajo] + (ordenados[alto] - ordenados[bajo]) * (idx - bajo);
+}
 
 /**
- * Picks between a trend line and the plain average by testing both on the last days of the history:
- * each is trained on the earlier days and asked to predict the held-out ones. The average wins ties,
- * so a slope is only used when it actually predicts better than "tomorrow looks like the average".
+ * Chooses how to forecast daily sales by testing every candidate model (plain average, trend line, weekday
+ * profile, weekday profile scaled to the recent level) on consecutive windows of the history: each is trained
+ * on the days before a window and must predict it. The average wins unless another model is clearly better.
  */
-export function ajustarPronostico(valores: number[]): Pronostico {
+export function ajustarPronostico(valores: number[], diasSemana: number[]): Pronostico {
   const n = valores.length;
   const completa = regresionLineal(valores);
-  const promedio = n > 0 ? sumar(valores) / n : 0;
-  const plano = { modelo: 'PROMEDIO' as const, pendiente: 0, intercepto: promedio, r2: completa.r2 };
 
-  const entrenamiento = valores.slice(0, n - HOLDOUT_DIAS);
-  const prueba = valores.slice(n - HOLDOUT_DIAS);
-  const ventasPrueba = sumar(prueba);
-  if (entrenamiento.length < HOLDOUT_DIAS || prueba.length < HOLDOUT_DIAS || ventasPrueba <= 0) {
-    return { ...plano, precision: null, wapeModelo: null, wapeBase: null };
+  // Consecutive test windows, from the most recent backwards
+  const ventanas: number[] = [];
+  for (let fin = n; fin - HOLDOUT_DIAS >= MIN_ENTRENAMIENTO_DIAS; fin -= HOLDOUT_DIAS) ventanas.push(fin);
+
+  const ventasPrueba = sumar(ventanas.map((fin) => sumar(valores.slice(fin - HOLDOUT_DIAS, fin))));
+  let elegido: ModeloPronostico = 'PROMEDIO';
+  let wapeModelo: number | null = null;
+  let wapeBase: number | null = null;
+
+  if (ventanas.length > 0 && ventasPrueba > 0) {
+    const errorDe = (modelo: ModeloPronostico) => {
+      let error = 0;
+      for (const fin of ventanas) {
+        const entrenamiento = valores.slice(0, fin - HOLDOUT_DIAS);
+        const prueba = valores.slice(fin - HOLDOUT_DIAS, fin);
+        const prediccion = CANDIDATOS[modelo](entrenamiento, diasSemana.slice(0, fin - HOLDOUT_DIAS), HOLDOUT_DIAS);
+        error += prueba.reduce((acc, real, i) => acc + Math.abs(real - prediccion[i]), 0);
+      }
+      return error / ventasPrueba;
+    };
+
+    wapeBase = errorDe('PROMEDIO');
+    wapeModelo = wapeBase;
+    for (const modelo of ['REGRESION', 'DIA_DE_SEMANA', 'DIA_DE_SEMANA_NIVEL'] as const) {
+      const error = errorDe(modelo);
+      if (error < wapeBase * (1 - MARGEN_MEJORA) && error < wapeModelo) {
+        elegido = modelo;
+        wapeModelo = error;
+      }
+    }
   }
 
-  const recta = regresionLineal(entrenamiento);
-  const promedioEntrenamiento = sumar(entrenamiento) / entrenamiento.length;
-  const wape = (predice: (i: number) => number) =>
-    prueba.reduce((acc, real, i) => acc + Math.abs(real - predice(i)), 0) / ventasPrueba;
-
-  const wapeRecta = wape((i) => Math.max(0, recta.pendiente * (entrenamiento.length + 1 + i) + recta.intercepto));
-  const wapeBase = wape(() => promedioEntrenamiento);
-  const usaRecta = wapeRecta < wapeBase;
-  const wapeModelo = usaRecta ? wapeRecta : wapeBase;
+  const ajuste = ajusteEnMuestra(elegido, valores, diasSemana);
+  const residuos = valores.map((v, i) => v - ajuste[i]).sort((a, b) => a - b);
 
   return {
-    ...(usaRecta ? { modelo: 'REGRESION' as const, pendiente: completa.pendiente, intercepto: completa.intercepto, r2: completa.r2 } : plano),
-    precision: redondear(Math.min(1, Math.max(0, 1 - wapeModelo))),
-    wapeModelo: redondear(wapeModelo),
-    wapeBase: redondear(wapeBase),
+    modelo: elegido,
+    pendiente: elegido === 'REGRESION' ? completa.pendiente : 0,
+    intercepto: elegido === 'REGRESION' ? completa.intercepto : promediar(valores),
+    r2: completa.r2,
+    precision: wapeModelo === null ? null : redondear(Math.min(1, Math.max(0, 1 - wapeModelo))),
+    wapeModelo: wapeModelo === null ? null : redondear(wapeModelo),
+    wapeBase: wapeBase === null ? null : redondear(wapeBase),
+    ventanasDePrueba: wapeModelo === null ? 0 : ventanas.length,
+    predecir: (dias) => (n > 0 ? CANDIDATOS[elegido](valores, diasSemana, dias) : Array(dias).fill(0)),
+    rangoDia: {
+      bajo: redondear(percentil(residuos, PERCENTIL_RANGO_BAJO), 2),
+      alto: redondear(percentil(residuos, PERCENTIL_RANGO_ALTO), 2),
+    },
   };
 }
 
@@ -248,13 +360,10 @@ export interface AsociacionProducto {
   confianzaAB: number;
   confianzaBA: number;
   lift: number;
+  /** how far above the chance expectation the co-purchases are, in standard deviations */
+  zScore: number;
   scoreAfinidad: number;
   estrategiaSugerida: string;
-}
-
-/** Orders a pair must share to be reported: the fixed minimum, or a share of all orders in big stores. */
-export function frecuenciaMinimaConjunta(totalPedidos: number): number {
-  return Math.max(MIN_FRECUENCIA_CONJUNTA, Math.ceil(MIN_SOPORTE_CONJUNTO * totalPedidos));
 }
 
 /**
@@ -269,12 +378,16 @@ export function construirAsociaciones(
 ): AsociacionProducto[] {
   if (totalPedidos <= 0) return [];
 
-  const minimo = frecuenciaMinimaConjunta(totalPedidos);
   const calculadas = pares.flatMap((par) => {
-    if (par.frecuencia < minimo) return [];
+    if (par.frecuencia < MIN_FRECUENCIA_CONJUNTA) return [];
     const pedidosA = conteos.get(par.productoAId);
     const pedidosB = conteos.get(par.productoBId);
     if (!pedidosA || !pedidosB) return [];
+
+    // Under independence the pair would share pedidosA * pedidosB / total orders; keep only clear excesses
+    const esperado = (pedidosA * pedidosB) / totalPedidos;
+    const zScore = (par.frecuencia - esperado) / Math.sqrt(esperado);
+    if (zScore < Z_MINIMO_ASOCIACION) return [];
 
     const confianzaAB = par.frecuencia / pedidosA;
     const confianzaBA = par.frecuencia / pedidosB;
@@ -285,6 +398,7 @@ export function construirAsociaciones(
         confianzaAB,
         confianzaBA,
         lift: confianzaAB / (pedidosB / totalPedidos),
+        zScore,
       },
     ];
   });
@@ -300,6 +414,7 @@ export function construirAsociaciones(
     confianzaAB: redondear(c.confianzaAB),
     confianzaBA: redondear(c.confianzaBA),
     lift: redondear(c.lift),
+    zScore: redondear(c.zScore, 2),
     scoreAfinidad: redondear(Math.max(c.confianzaAB, c.confianzaBA)),
     estrategiaSugerida: `Se compraron juntas en ${c.par.frecuencia} de ${totalPedidos} pedidos: ofrecerlas como combo o mostrarlas juntas en la ficha del producto.`,
   }));

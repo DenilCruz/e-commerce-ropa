@@ -1,14 +1,14 @@
 import {
-  HOLDOUT_DIAS,
   MIN_CLIENTES_RFM,
   MIN_DIAS_CON_VENTAS,
   MIN_FRECUENCIA_CONJUNTA,
   ajustarPronostico,
   claveDiaLocal,
+  diaSemanaDe,
   clasificarFiabilidad,
   clasificarTendencia,
+  clasificarTendenciaPorNivel,
   construirAsociaciones,
-  frecuenciaMinimaConjunta,
   puntuarRiesgoRfm,
   regresionLineal,
   tasaRecompra,
@@ -153,13 +153,18 @@ describe('construirAsociaciones', () => {
     expect(a.scoreAfinidad).toBeCloseTo(0.8); // la confianza más alta de las dos direcciones
   });
 
-  it('ordena por lift: un par raro pero específico gana al par entre populares', () => {
+  it('ordena por lift: un par específico gana al par entre productos más populares', () => {
+    const populares = new Map([
+      ['A', 20],
+      ['B', 10],
+      ['C', 30],
+    ]);
     const r = construirAsociaciones(
       [
-        { productoAId: 'A', productoANombre: 'A', productoBId: 'C', productoBNombre: 'C', frecuencia: 12 },
+        { productoAId: 'A', productoANombre: 'A', productoBId: 'C', productoBNombre: 'C', frecuencia: 18 },
         { productoAId: 'A', productoANombre: 'A', productoBId: 'B', productoBNombre: 'B', frecuencia: 8 },
       ],
-      conteos,
+      populares,
       total,
     );
 
@@ -203,45 +208,96 @@ describe('claveDiaLocal', () => {
 });
 
 describe('ajustarPronostico', () => {
-  const dias = 60;
+  const dias = 91;
+  const diasSemana = Array.from({ length: dias }, (_, i) => i % 7);
+  // ventas con un perfil semanal marcado (fin de semana fuerte) y sin tendencia
+  const factores = [1.2, 0.6, 0.7, 0.8, 0.9, 1.3, 1.5];
+  const semanal = diasSemana.map((d) => 100 * factores[d]);
   const conTendencia = Array.from({ length: dias }, (_, i) => 100 + i * 5 + (i % 3));
-  // rises for 46 days, then falls back flat: extrapolating the slope is worse than the average
-  const ruido = Array.from({ length: dias }, (_, i) => (i < dias - HOLDOUT_DIAS ? 100 + i * 6 : 180));
+  const constante = Array(dias).fill(250);
 
-  it('elige la regresión cuando la tendencia es real y la demuestra prediciendo los últimos días', () => {
-    const r = ajustarPronostico(conTendencia);
+  it('elige la regresión cuando hay una tendencia real que predice mejor que el promedio', () => {
+    const r = ajustarPronostico(conTendencia, diasSemana);
 
     expect(r.modelo).toBe('REGRESION');
     expect(r.pendiente).toBeGreaterThan(4);
     expect(r.wapeModelo!).toBeLessThan(r.wapeBase!);
-    expect(r.precision!).toBeGreaterThan(0.8);
   });
 
-  it('cae al promedio cuando la tendencia se revierte y la recta no le gana: proyecta plano', () => {
-    const r = ajustarPronostico(ruido);
+  it('elige un perfil por día de semana cuando el patrón semanal es real', () => {
+    const r = ajustarPronostico(semanal, diasSemana);
+
+    expect(['DIA_DE_SEMANA', 'DIA_DE_SEMANA_NIVEL']).toContain(r.modelo);
+    expect(r.precision!).toBeGreaterThan(0.9);
+  });
+
+  it('proyecta cada día según su día de semana, continuando desde donde termina la serie', () => {
+    const r = ajustarPronostico(semanal, diasSemana);
+    const siguientes = r.predecir(7); // el último día de la serie es i = 90 -> 90 % 7 = 6, el siguiente es domingo (0)
+
+    siguientes.forEach((valor, k) => expect(valor).toBeCloseTo(100 * factores[(k + 0) % 7], 0));
+  });
+
+  it('con una serie constante ningún modelo supera al promedio y se queda con él', () => {
+    const r = ajustarPronostico(constante, diasSemana);
 
     expect(r.modelo).toBe('PROMEDIO');
     expect(r.pendiente).toBe(0);
-    expect(r.intercepto).toBeCloseTo(ruido.reduce((a, b) => a + b, 0) / ruido.length, 5);
+    expect(r.predecir(3)).toEqual([250, 250, 250]);
+  });
+
+  it('exige una mejora mínima sobre el promedio: no cambia de modelo por una diferencia ínfima', () => {
+    const casiConstante = constante.map((v, i) => v + (i % 2 === 0 ? 0.01 : -0.01));
+    const r = ajustarPronostico(casiConstante, diasSemana);
+
+    expect(r.modelo).toBe('PROMEDIO');
   });
 
   it('la precisión sale del error medido, no de un valor fijo', () => {
-    const r = ajustarPronostico(ruido);
+    const r = ajustarPronostico(semanal, diasSemana);
 
     expect(r.precision).toBeCloseTo(1 - r.wapeModelo!, 6);
   });
 
-  it('no puede evaluarse sin ventas en los días de prueba', () => {
-    const r = ajustarPronostico([...conTendencia.slice(0, dias - HOLDOUT_DIAS), ...Array(HOLDOUT_DIAS).fill(0)]);
+  it('el rango típico del día sale de las desviaciones reales y contiene al valor esperado', () => {
+    const ruidosa = diasSemana.map((d, i) => 200 + ((i * 37) % 100) - 50);
+    const r = ajustarPronostico(ruidosa, diasSemana);
+
+    expect(r.rangoDia.bajo).toBeLessThan(0);
+    expect(r.rangoDia.alto).toBeGreaterThan(0);
+    expect(ajustarPronostico(constante, diasSemana).rangoDia).toEqual({ bajo: 0, alto: 0 });
+  });
+
+  it('sin ventas no puede medirse la precisión', () => {
+    const r = ajustarPronostico(Array(dias).fill(0), diasSemana);
 
     expect(r.precision).toBeNull();
   });
 
   it('con muy pocos datos devuelve el promedio y precisión nula', () => {
-    const r = ajustarPronostico([10, 20, 30]);
+    const r = ajustarPronostico([10, 20, 30], [0, 1, 2]);
 
     expect(r.modelo).toBe('PROMEDIO');
     expect(r.precision).toBeNull();
+  });
+});
+
+describe('clasificarTendenciaPorNivel', () => {
+  it('compara el nivel proyectado con el histórico', () => {
+    expect(clasificarTendenciaPorNivel(130, 100)).toBe('ALCISTA');
+    expect(clasificarTendenciaPorNivel(70, 100)).toBe('BAJISTA');
+    expect(clasificarTendenciaPorNivel(103, 100)).toBe('ESTABLE');
+  });
+
+  it('sin historial no afirma nada', () => {
+    expect(clasificarTendenciaPorNivel(50, 0)).toBe('ESTABLE');
+  });
+});
+
+describe('diaSemanaDe', () => {
+  it('devuelve el día de la semana local de una clave YYYY-MM-DD', () => {
+    expect(diaSemanaDe('2026-10-30')).toBe(5); // viernes
+    expect(diaSemanaDe('2026-10-25')).toBe(0); // domingo
   });
 });
 
@@ -251,24 +307,42 @@ describe('clasificarFiabilidad con precisión nula', () => {
   });
 });
 
-describe('soporte mínimo de la afinidad', () => {
-  it('exige al menos la frecuencia base en tiendas chicas', () => {
-    expect(frecuenciaMinimaConjunta(40)).toBe(MIN_FRECUENCIA_CONJUNTA);
+describe('significancia de la afinidad', () => {
+  const par = (a: string, b: string, frecuencia: number) => ({
+    productoAId: a,
+    productoANombre: a,
+    productoBId: b,
+    productoBNombre: b,
+    frecuencia,
   });
 
-  it('sube con el volumen de pedidos de la tienda', () => {
-    expect(frecuenciaMinimaConjunta(10000)).toBeGreaterThan(MIN_FRECUENCIA_CONJUNTA);
+  it('conserva un par comprado juntos mucho más de lo que daría el azar', () => {
+    // A y B están en 10 de 100 pedidos: por azar compartirían ~1; compartirlos 5 veces es z = 4
+    const r = construirAsociaciones([par('A', 'B', 5)], new Map([['A', 10], ['B', 10]]), 100);
+
+    expect(r).toHaveLength(1);
+    expect(r[0].zScore).toBeCloseTo(4, 1);
   });
 
-  it('descarta pares que no llegan al mínimo, aunque tengan lift enorme', () => {
-    const conteos = new Map([
-      ['A', 3],
-      ['B', 3],
-    ]);
+  it('descarta un par que coincide poco más de lo esperable por azar', () => {
+    // esperado ~1 compra conjunta; 3 es z = 2, por debajo del umbral
+    const r = construirAsociaciones([par('A', 'B', 3)], new Map([['A', 10], ['B', 10]]), 100);
+
+    expect(r).toEqual([]);
+  });
+
+  it('descarta pares de productos muy populares aunque se repitan mucho: es lo esperable', () => {
+    // 500 de 1000 pedidos tienen cada uno: por azar compartirían 250; 260 es casi lo mismo
+    const r = construirAsociaciones([par('A', 'B', 260)], new Map([['A', 500], ['B', 500]]), 1000);
+
+    expect(r).toEqual([]);
+  });
+
+  it('exige además la frecuencia mínima, aunque el z sea alto', () => {
     const r = construirAsociaciones(
-      [{ productoAId: 'A', productoANombre: 'A', productoBId: 'B', productoBNombre: 'B', frecuencia: MIN_FRECUENCIA_CONJUNTA - 1 }],
-      conteos,
-      100,
+      [par('A', 'B', MIN_FRECUENCIA_CONJUNTA - 1)],
+      new Map([['A', 2], ['B', 2]]),
+      1000,
     );
 
     expect(r).toEqual([]);
