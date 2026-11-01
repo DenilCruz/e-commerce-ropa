@@ -5,3 +5,5 @@ export { SpatialHotspot } from './SpatialHotspot';
 export { Dress3D, webglAvailable } from './Dress3D';
 export { SmoothScrollProvider } from './SmoothScrollProvider';
 export { useReducedMotion } from './useReducedMotion';
+export { InteractiveSpatialCard } from './InteractiveSpatialCard';
+export { Magnetic } from './Magnetic';

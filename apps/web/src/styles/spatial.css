@@ -124,3 +124,33 @@ textarea { border-radius: var(--r-field) !important; }
   button[type="submit"]:hover:not(:disabled),
   .spatial-catalog > div button:hover:not(:disabled) { transform: none; }
 }
+
+/* InteractiveSpatialCard: cursor spotlight, lit border, forward-moving inner layers. */
+.ispatial { position: relative; transform-style: preserve-3d; --mouse-x: 50%; --mouse-y: 50%; }
+.spatial-glass.ispatial { transition: border-color .22s ease, background-color .22s ease, opacity .35s ease, scale .35s ease; }
+.ispatial::before, .ispatial::after { content: ''; position: absolute; inset: 0; border-radius: inherit; pointer-events: none; opacity: 0; transition: opacity .3s ease; }
+.ispatial::before { background: radial-gradient(350px circle at var(--mouse-x) var(--mouse-y), rgba(212, 175, 55, .22), transparent 70%); }
+.ispatial::after {
+  padding: 1px;
+  background: radial-gradient(260px circle at var(--mouse-x) var(--mouse-y), rgba(240, 208, 128, .95), rgba(212, 175, 55, .22) 55%, transparent 72%);
+  -webkit-mask: linear-gradient(#000 0 0) content-box, linear-gradient(#000 0 0);
+  -webkit-mask-composite: xor;
+  mask: linear-gradient(#000 0 0) content-box exclude, linear-gradient(#000 0 0);
+}
+.ispatial.is-hovered::before, .ispatial.is-hovered::after { opacity: 1; }
+.ispatial > * { transition: transform .4s cubic-bezier(.2,.8,.2,1), filter .4s ease; }
+.ispatial.is-hovered :is(svg, strong, h3, .ispatial-z) { transform: translateZ(24px); filter: drop-shadow(0 8px 10px rgb(0 0 0 / 32%)); }
+.ispatial > * { transform-style: preserve-3d; }
+
+@property --beam-angle { syntax: '<angle>'; inherits: false; initial-value: 0deg; }
+@keyframes ispatial-beam { to { --beam-angle: 360deg; } }
+.ispatial--beam::after {
+  background: conic-gradient(from var(--beam-angle), transparent 0 62%, rgba(212, 175, 55, .25) 78%, #f4d98a 90%, transparent 100%);
+  animation: ispatial-beam 3.2s linear infinite;
+}
+.ispatial--beam.is-hovered { box-shadow: 0 0 46px -10px rgba(212, 175, 55, .45); }
+
+@media (prefers-reduced-motion: reduce) {
+  .ispatial--beam::after { animation: none; }
+  .ispatial.is-hovered :is(svg, strong, h3, .ispatial-z) { transform: none; }
+}

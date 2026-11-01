@@ -3,7 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import { ArrowRight, ShieldCheck, Zap, Layers, WifiOff } from 'lucide-react';
 import { useAuthStore } from '../../store/auth.store';
 import { ModalCrearTienda } from '../tiendas/components/ModalCrearTienda';
-import { SilkCanvasBackground, SpatialGlassCard } from '../../components/spatial';
+import { InteractiveSpatialCard, SilkCanvasBackground } from '../../components/spatial';
 
 export const NetflixHero: React.FC = () => {
   const navigate = useNavigate();
@@ -26,7 +26,7 @@ export const NetflixHero: React.FC = () => {
 
   return (
     <section className="aura-hero">
-      <SilkCanvasBackground className="aura-hero__silk" variant="dark" />
+      <SilkCanvasBackground className="aura-hero__silk" variant="dark" kind="couture" />
       <div className="aura-hero__inner">
         <div className="aura-hero__title">
           <h1>Crea tu tienda de moda. <em>Escala sin límites con IA.</em></h1>
@@ -54,18 +54,18 @@ export const NetflixHero: React.FC = () => {
 
         <div className="aura-hero__stage" role="group" aria-label="Capacidades de AURA">
           <div className="aura-hero__features">
-            <SpatialGlassCard dark strength={1.5} className="aura-feature aura-feature--one">
+            <InteractiveSpatialCard dark className="aura-feature aura-feature--one">
               <Layers aria-hidden="true" /><div><strong>Todas tus marcas</strong><span>Maneja varias tiendas con un solo correo.</span></div>
-            </SpatialGlassCard>
-            <SpatialGlassCard dark strength={1.5} className="aura-feature aura-feature--two">
+            </InteractiveSpatialCard>
+            <InteractiveSpatialCard dark className="aura-feature aura-feature--two">
               <Zap aria-hidden="true" /><div><strong>Probador virtual</strong><span>Tus clientes se prueban la ropa antes de comprar.</span></div>
-            </SpatialGlassCard>
-            <SpatialGlassCard dark strength={1.5} className="aura-feature aura-feature--three">
+            </InteractiveSpatialCard>
+            <InteractiveSpatialCard dark className="aura-feature aura-feature--three">
               <WifiOff aria-hidden="true" /><div><strong>Vende sin internet</strong><span>La caja sigue funcionando y se sincroniza al volver la conexión.</span></div>
-            </SpatialGlassCard>
-            <SpatialGlassCard dark strength={1.5} className="aura-feature aura-feature--four">
+            </InteractiveSpatialCard>
+            <InteractiveSpatialCard dark className="aura-feature aura-feature--four">
               <ShieldCheck aria-hidden="true" /><div><strong>Datos protegidos</strong><span>Cada tienda guarda su información separada y segura.</span></div>
-            </SpatialGlassCard>
+            </InteractiveSpatialCard>
           </div>
         </div>
       </div>

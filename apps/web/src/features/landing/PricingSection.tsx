@@ -22,7 +22,8 @@ import { planesApi } from '../tiendas/services/planes.api';
 import { PLAN_NOMBRES_FALLBACK, esBajaDePlan, esPlanDePago } from '../tiendas/utils/planes';
 import { MiTienda } from '../tiendas/types';
 import { Modal } from '../../components/ui/Modal';
-import { SilkCanvasBackground, SpatialGlassCard } from '../../components/spatial';
+import { motion } from 'framer-motion';
+import { InteractiveSpatialCard, Magnetic, SilkCanvasBackground } from '../../components/spatial';
 
 export const PricingSection: React.FC = () => {
   const navigate = useNavigate();
@@ -236,53 +237,44 @@ export const PricingSection: React.FC = () => {
 
           {isAuthenticated && tiendaDestino && (
             <div className="pt-1">
-              <div className="inline-flex items-center gap-2 px-3.5 py-1.5 rounded-full bg-white border border-[#E7E1D7] text-xs text-stone-700 shadow-sm">
+              <Magnetic strength={0.12}><div className="aura-store-chip inline-flex items-center gap-2 px-3.5 py-1.5 rounded-full bg-white border border-[#E7E1D7] text-xs text-stone-700 shadow-sm">
                 <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse" />
                 <span>Tienda para Upgrade: <strong>{tiendaDestino.nombre}</strong></span>
                 <span className="text-stone-300">|</span>
                 <span className="text-[#9B7B54] font-medium">Plan actual: {planActualTienda}</span>
-              </div>
+              </div></Magnetic>
             </div>
           )}
 
-          {/* Toggle Mensual / Anual */}
-          <div className="pt-4 flex items-center justify-center gap-4">
-            <span className={`text-xs uppercase tracking-wider ${!anual ? 'font-bold text-stone-900' : 'text-stone-500'}`}>
-              Mensual
-            </span>
-            <button
-              type="button"
-              onClick={() => setAnual(!anual)}
-              className="relative inline-flex h-6 w-11 shrink-0 cursor-pointer rounded-full border-2 border-transparent bg-stone-800 transition-colors duration-200 ease-in-out focus:outline-none"
-              role="switch"
-              aria-checked={anual}
-            >
-              <span
-                className={`pointer-events-none inline-block h-5 w-5 transform rounded-full bg-white shadow-lg ring-0 transition duration-200 ease-in-out ${
-                  anual ? 'translate-x-5' : 'translate-x-0'
-                }`}
-              />
-            </button>
-            <span className={`text-xs uppercase tracking-wider flex items-center gap-1.5 ${anual ? 'font-bold text-stone-900' : 'text-stone-500'}`}>
-              <span>Anual</span>
-              <span className="bg-[#FAF8F5] text-[#9B7B54] border border-[#E7E1D7] text-[10px] font-semibold px-2 py-0.5 rounded-full">
-                20% AHORRO
-              </span>
-            </span>
+          {/* Selector Mensual / Anual con cápsula deslizante */}
+          <div className="pt-4 flex items-center justify-center">
+            <div className="aura-billing" role="radiogroup" aria-label="Periodo de facturación">
+              {[{ valor: false, etiqueta: 'Mensual' }, { valor: true, etiqueta: 'Anual' }].map((opcion) => (
+                <Magnetic key={opcion.etiqueta} strength={0.2}>
+                  <button type="button" role="radio" aria-checked={anual === opcion.valor} onClick={() => setAnual(opcion.valor)} className="aura-billing__opt">
+                    {anual === opcion.valor && <motion.span layoutId="billing-pill" className="aura-billing__pill" transition={{ type: 'spring', stiffness: 420, damping: 32 }} />}
+                    <span className="aura-billing__label">{opcion.etiqueta}</span>
+                    {opcion.valor && <span className="aura-billing__save">20% ahorro</span>}
+                  </button>
+                </Magnetic>
+              ))}
+            </div>
           </div>
         </div>
 
         {/* Tarjetas de Precios */}
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-8 items-stretch">
+        <div className="aura-pricing__grid grid grid-cols-1 md:grid-cols-3 gap-8 items-stretch">
           {planes.map((plan) => {
             const esPlanActual = Boolean(isAuthenticated && planActualTienda === plan.id);
 
             return (
-              <SpatialGlassCard
+              <InteractiveSpatialCard
                 key={plan.id}
                 dark
-                strength={1}
-                className={`aura-plan-card relative flex flex-col justify-between rounded-[28px] border transition-all duration-300 ${plan.destacado ? 'aura-plan-card--featured md:-translate-y-2' : ''}`}
+                beam
+                maxTilt={6}
+                lift={12}
+                className={`aura-plan-card relative flex flex-col justify-between rounded-[28px] border ${plan.destacado ? 'aura-plan-card--featured' : ''}`}
               >
                 {plan.destacado && (
                   <div className="absolute -top-3.5 left-1/2 -translate-x-1/2 bg-stone-900 text-white text-[10px] uppercase tracking-widest font-semibold px-4 py-1 shadow-sm">
@@ -317,7 +309,7 @@ export const PricingSection: React.FC = () => {
                   </p>
 
                   {/* Cuotas / Límites del Plan */}
-                  <div className="bg-stone-50/80 p-4 rounded-2xl border border-[#E7E1D7] space-y-1.5 text-xs">
+                  <div className="ispatial-z bg-stone-50/80 p-4 rounded-2xl border border-[#E7E1D7] space-y-1.5 text-xs">
                     <p className="font-semibold text-stone-800 text-[10px] uppercase tracking-wider">
                       Lo que incluye:
                     </p>
@@ -372,7 +364,7 @@ export const PricingSection: React.FC = () => {
                     )}
                   </button>
                 </div>
-              </SpatialGlassCard>
+              </InteractiveSpatialCard>
             );
           })}
         </div>

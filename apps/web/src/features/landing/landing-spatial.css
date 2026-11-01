@@ -30,7 +30,7 @@
   isolation: isolate;
   display: flex;
   flex-direction: column;
-  height: max(780px, calc(100svh - 64px));
+  height: max(780px, calc(100svh - 76px));
   overflow: hidden;
   padding: clamp(2.8rem, 6vh, 5.2rem) max(1.25rem, calc((100vw - 1280px) / 2)) 3.6rem;
   background: #171614;
@@ -259,3 +259,65 @@
   .aura-pricing [role='switch'] > span { animation: none; transition: none; }
   .aura-feature:hover { translate: none; }
 }
+
+/* ---- Floating glass capsule navbar ---- */
+.aura-navwrap { position: sticky; top: 12px; z-index: 50; padding: 0 1rem; margin-bottom: 12px; }
+.aura-capsule { display: flex; align-items: center; gap: 1.25rem; max-width: 1240px; margin: 0 auto; padding: .45rem .5rem .45rem 1.3rem; border: 1px solid rgb(197 168 128 / 20%); border-radius: 999px; background: rgb(12 12 14 / 65%); box-shadow: 0 18px 40px -22px rgb(0 0 0 / 80%), inset 0 1px 0 rgb(255 255 255 / 5%); color: #f4efe6; backdrop-filter: blur(18px); -webkit-backdrop-filter: blur(18px); }
+.aura-capsule__brand { display: flex; align-items: center; gap: .6rem; color: inherit; }
+.aura-capsule__brand span { font-family: 'Playfair Display', Georgia, serif; font-size: 1.3rem; letter-spacing: .25em; }
+.aura-capsule__brand em { padding: .18rem .55rem; border: 1px solid rgb(197 168 128 / 40%); border-radius: 999px; background: rgb(197 168 128 / 10%); color: #c5a880; font-size: .58rem; font-style: normal; letter-spacing: .14em; text-transform: uppercase; }
+.aura-capsule__links { display: flex; gap: .15rem; margin: 0 auto 0 1rem; padding: 0; list-style: none; }
+.aura-capsule__links li { position: relative; display: flex; }
+.aura-capsule__glow { position: absolute; inset: 2px; border: 1px solid rgb(197 168 128 / 22%); border-radius: 999px; background: rgb(197 168 128 / 12%); }
+.aura-capsule__link { position: relative; z-index: 1; display: inline-flex; align-items: center; gap: .4rem; padding: .65rem 1rem; color: #e9e2d4; font-size: .68rem; letter-spacing: .12em; text-transform: uppercase; transition: color .25s; }
+.aura-capsule__link::after { position: absolute; right: 1rem; bottom: .32rem; left: 1rem; height: 1px; background: #c5a880; box-shadow: 0 0 8px rgb(197 168 128 / 80%); content: ''; transform: scaleX(0); transform-origin: left; transition: transform .35s cubic-bezier(.2,.8,.2,1); }
+.aura-capsule__link:hover, .aura-capsule__link:focus-visible { color: #fff7e6; }
+.aura-capsule__link:hover::after, .aura-capsule__link:focus-visible::after { transform: scaleX(1); }
+.aura-capsule__link svg { width: 14px; height: 14px; color: #c5a880; }
+
+.aura-seg { display: flex; align-items: center; gap: .25rem; padding: .25rem; border: 1px solid rgb(197 168 128 / 22%); border-radius: 999px; background: rgb(255 255 255 / 4%); }
+.aura-seg__user { display: inline-flex; align-items: center; gap: .5rem; padding: .25rem .8rem .25rem .3rem; color: #f4efe6; font-size: .7rem; }
+.aura-seg__user i { display: grid; place-items: center; width: 1.5rem; height: 1.5rem; border: 1px solid rgb(197 168 128 / 35%); border-radius: 50%; background: rgb(197 168 128 / 20%); font-size: .65rem; font-style: normal; }
+.aura-seg__user b { max-width: 110px; overflow: hidden; font-weight: 500; text-overflow: ellipsis; white-space: nowrap; }
+.aura-seg__btn { position: relative; display: inline-flex; align-items: center; gap: .4rem; overflow: hidden; padding: .6rem 1.05rem; border: 1px solid rgb(197 168 128 / 28%); border-radius: 999px; background: transparent; color: #f4efe6; font-size: .66rem; letter-spacing: .1em; text-transform: uppercase; white-space: nowrap; cursor: pointer; transition: border-color .25s, background-color .25s; }
+.aura-seg__btn:hover { border-color: rgb(197 168 128 / 55%); background: rgb(197 168 128 / 8%); }
+.aura-seg__btn--primary { background: linear-gradient(135deg, rgb(197 168 128 / 28%), rgb(197 168 128 / 8%)); }
+.aura-seg__btn--primary::before { position: absolute; inset: 0; background: linear-gradient(110deg, transparent 30%, rgb(255 240 205 / 38%) 50%, transparent 70%); content: ''; transform: translateX(-120%); pointer-events: none; }
+.aura-seg__btn--primary:hover::before { animation: aura-shimmer .9s ease; }
+@keyframes aura-shimmer { to { transform: translateX(120%); } }
+.aura-seg__btn svg { width: 14px; height: 14px; }
+.aura-seg__icon { display: grid; place-items: center; width: 2rem; height: 2rem; border: 0; border-radius: 50%; background: transparent; color: #cfc6b4; cursor: pointer; transition: color .2s, background-color .2s; }
+.aura-seg__icon:hover { background: rgb(197 168 128 / 12%); color: #fff; }
+.aura-seg__icon svg { width: 15px; height: 15px; }
+
+/* ---- Billing switch with sliding capsule ---- */
+.aura-billing { display: inline-flex; gap: .25rem; padding: .3rem; border: 1px solid rgb(197 168 128 / 25%); border-radius: 999px; background: rgb(255 255 255 / 5%); }
+.aura-billing__opt { position: relative; display: inline-flex; align-items: center; gap: .5rem; padding: .6rem 1.2rem; border: 0; border-radius: 999px; background: transparent; color: #d9cfbd; font-size: .68rem; letter-spacing: .1em; text-transform: uppercase; cursor: pointer; transition: color .25s; }
+.aura-billing__opt[aria-checked='true'] { color: #1f1a12; }
+.aura-billing__pill { position: absolute; inset: 0; border-radius: 999px; background: linear-gradient(135deg, #ecd6a8, #c5a880); box-shadow: 0 6px 20px -8px rgb(212 175 55 / 70%); }
+.aura-billing__label, .aura-billing__save { position: relative; z-index: 1; }
+.aura-billing__save { padding: .15rem .5rem; border-radius: 999px; background: rgb(0 0 0 / 18%); font-size: .55rem; }
+
+/* ---- Plans: focus on the hovered card, quiet the others ---- */
+.aura-pricing__grid:has(.aura-plan-card.is-hovered) .aura-plan-card:not(.is-hovered) { opacity: .75; scale: .98; }
+.aura-pricing .aura-plan-card.is-hovered { z-index: 3; }
+@media (min-width: 768px) { .aura-pricing .aura-plan-card--featured { translate: 0 -10px; } }
+.aura-store-chip { transition: border-color .25s, box-shadow .25s; }
+.aura-store-chip:hover { border-color: #c5a880; box-shadow: 0 10px 24px -14px rgb(197 168 128 / 80%); }
+
+@media (max-width: 900px) {
+  .aura-capsule__links { display: none; }
+  .aura-capsule { justify-content: space-between; }
+}
+@media (max-width: 640px) {
+  .aura-navwrap { padding: 0 .6rem; }
+  .aura-hide-sm, .aura-seg__user { display: none; }
+  .aura-seg__btn { padding: .55rem .8rem; }
+}
+@media (prefers-reduced-motion: reduce) {
+  .aura-seg__btn--primary:hover::before { animation: none; }
+}
+
+/* Keep the hero cards absolutely placed (InteractiveSpatialCard sets position: relative). */
+@media (min-width: 801px) { .aura-hero .aura-feature.ispatial { position: absolute; } }
+.aura-landing { background: var(--aura-ink) !important; }

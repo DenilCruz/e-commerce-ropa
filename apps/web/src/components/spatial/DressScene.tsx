@@ -3,8 +3,9 @@ import { Canvas, useFrame } from '@react-three/fiber';
 import { ContactShadows, Environment, Lightformer } from '@react-three/drei';
 import {
   BufferAttribute, BufferGeometry, CatmullRomCurve3, DoubleSide, DynamicDrawUsage, Group, MathUtils, Mesh,
-  SplineCurve, TubeGeometry, Vector2, Vector3,
+  TubeGeometry, Vector3,
 } from 'three';
+import { makeProfile } from './profile';
 
 const AROUND = 96;
 const UP = 88;
@@ -13,21 +14,7 @@ const START = -Math.PI / 2; // seam sits at the back centre
 // Half-width of the silhouette from hem (v=0) to neckline (v=1): bias-cut slip dress.
 const KNOTS: [number, number][] = [[0, 0.8], [0.18, 0.6], [0.42, 0.4], [0.58, 0.3], [0.68, 0.235], [0.8, 0.275], [0.92, 0.255], [1, 0.23]];
 
-const profile = (() => {
-  const lut = new Float32Array(257);
-  const pts = new SplineCurve(KNOTS.map(([v, r]) => new Vector2(v, r))).getPoints(512);
-  for (let k = 0; k <= 256; k++) {
-    const v = k / 256;
-    let best = pts[0];
-    for (const p of pts) if (Math.abs(p.x - v) < Math.abs(best.x - v)) best = p;
-    lut[k] = best.y;
-  }
-  return (v: number) => {
-    const f = MathUtils.clamp(v, 0, 1) * 256;
-    const i = Math.floor(f);
-    return MathUtils.lerp(lut[i], lut[Math.min(256, i + 1)], f - i);
-  };
-})();
+const profile = makeProfile(KNOTS);
 
 const neckline = (theta: number) => {
   const s = Math.sin(theta);
