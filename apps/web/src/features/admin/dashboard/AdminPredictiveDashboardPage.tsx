@@ -22,6 +22,7 @@ import {
 } from 'lucide-react';
 import { adminApi } from '../services/admin.api';
 import { useAuthStore } from '../../../store/auth.store';
+import { SpatialGlassCard } from '../../../components/spatial';
 import {
   AnalisisPredictivoVentasRespuesta,
   PrediccionChurnRespuesta,
@@ -172,7 +173,7 @@ export const AdminPredictiveDashboardPage: React.FC = () => {
       {/* METRICAS PREDICTIVAS DE VENTAS (CARDS) */}
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-5">
         {/* PROYECCIÓN 7 DÍAS */}
-        <div className="bg-white rounded-2xl p-6 border border-[#E7E1D7] shadow-xs relative overflow-hidden">
+        <SpatialGlassCard className="admin-kpi p-6" strength={2}>
           <div className="flex items-center justify-between text-stone-500 text-xs font-bold uppercase tracking-wider mb-2">
             <span className="text-stone-400">Proyección 7 Días</span>
             <Calendar className="w-4 h-4 text-[#9B7B54]" />
@@ -187,10 +188,10 @@ export const AdminPredictiveDashboardPage: React.FC = () => {
               ? 'Falta historial para proyectar.'
               : 'Ingresos esperados para la próxima semana.'}
           </p>
-        </div>
+        </SpatialGlassCard>
 
         {/* PROYECCIÓN 30 DÍAS */}
-        <div className="bg-white rounded-2xl p-6 border border-[#E7E1D7] shadow-xs relative overflow-hidden">
+        <SpatialGlassCard className="admin-kpi p-6" strength={2}>
           <div className="flex items-center justify-between text-stone-500 text-xs font-bold uppercase tracking-wider mb-2">
             <span className="text-stone-400">Proyección 30 Días</span>
             <TrendingUp className="w-4 h-4 text-stone-800" />
@@ -205,10 +206,10 @@ export const AdminPredictiveDashboardPage: React.FC = () => {
               ? 'Falta historial para proyectar.'
               : 'Volumen acumulado proyectado a 1 mes.'}
           </p>
-        </div>
+        </SpatialGlassCard>
 
         {/* TENDENCIA ESTIMADA */}
-        <div className="bg-white rounded-2xl p-6 border border-[#E7E1D7] shadow-xs relative overflow-hidden">
+        <SpatialGlassCard className="admin-kpi p-6" strength={2}>
           <div className="flex items-center justify-between text-stone-500 text-xs font-bold uppercase tracking-wider mb-2">
             <span className="text-stone-400">Tendencia Estimada</span>
             <Zap className="w-4 h-4 text-[#9B7B54]" />
@@ -232,10 +233,10 @@ export const AdminPredictiveDashboardPage: React.FC = () => {
           <p className="text-[11px] text-stone-500 mt-2">
             Promedio diario histórico: ${metricasPredictivas.promedioDiarioHistorico.toFixed(2)}
           </p>
-        </div>
+        </SpatialGlassCard>
 
         {/* NIVEL DE CONFIANZA */}
-        <div className="bg-white rounded-2xl p-6 border border-[#E7E1D7] shadow-xs relative overflow-hidden">
+        <SpatialGlassCard className="admin-kpi p-6" strength={2}>
           <div className="flex items-center justify-between text-stone-500 text-xs font-bold uppercase tracking-wider mb-2">
             <span className="text-stone-400">Fiabilidad del Modelo</span>
             <ShieldAlert className="w-4 h-4 text-[#9B7B54]" />
@@ -248,7 +249,7 @@ export const AdminPredictiveDashboardPage: React.FC = () => {
               ? `Solo ${metricasPredictivas.diasConVentas} días con ventas en los últimos ${metricasPredictivas.ventanaDias}.`
               : `Fiabilidad ${metricasPredictivas.fiabilidad.toLowerCase()}: precisión medida prediciendo los últimos ${metricasPredictivas.diasDePrueba} días reales con los anteriores (modelo: ${metricasPredictivas.modelo === 'PROMEDIO' ? 'promedio, la tendencia no mejoró la predicción' : 'tendencia lineal'}).`}
           </p>
-        </div>
+        </SpatialGlassCard>
       </div>
 
       {/* RECOMENDACIÓN ESTRATÉGICA DE IA */}
@@ -267,7 +268,7 @@ export const AdminPredictiveDashboardPage: React.FC = () => {
       </div>
 
       {/* GRÁFICO PREDICTIVO: HISTÓRICO REAL VS PROYECCIÓN A FUTURO */}
-      <div className="bg-white rounded-2xl border border-[#E7E1D7] p-6 sm:p-8 shadow-xs space-y-6">
+      <div className="admin-chart-panel bg-white rounded-2xl border border-[#E7E1D7] p-6 sm:p-8 shadow-xs space-y-6">
         <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pb-4 border-b border-[#E7E1D7]">
           <div>
             <h3 className="text-lg font-serif font-bold text-stone-900">

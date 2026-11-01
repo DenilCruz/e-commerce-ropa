@@ -19,6 +19,7 @@ import {
 } from 'lucide-react';
 import { adminApi } from '../services/admin.api';
 import { useAuthStore } from '../../../store/auth.store';
+import { SpatialGlassCard } from '../../../components/spatial';
 import {
   DashboardMetricas,
   ProductoMasVendido,
@@ -151,7 +152,7 @@ export const AdminDashboardPage: React.FC = () => {
       {/* TARJETAS DE MÉTRICAS PRINCIPALES */}
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-5">
         {/* Ventas Hoy */}
-        <div className="bg-white p-6 rounded-xl border border-[#E7E1D7] shadow-xs hover:border-stone-400 transition-colors">
+        <SpatialGlassCard className="admin-kpi p-6" strength={2}>
           <div className="flex items-center justify-between text-stone-500 mb-3">
             <span className="text-xs font-bold uppercase tracking-wider text-stone-400">Ventas de Hoy</span>
             <div className="w-8 h-8 rounded-lg bg-[#FAF8F5] text-[#9B7B54] border border-[#E7E1D7] flex items-center justify-center">
@@ -164,10 +165,10 @@ export const AdminDashboardPage: React.FC = () => {
           <div className="text-xs text-stone-500 flex items-center gap-1.5">
             <span className="font-semibold text-stone-800">{metricas.ventasHoy.cantidad}</span> pedidos registrados hoy
           </div>
-        </div>
+        </SpatialGlassCard>
 
         {/* Ventas del Mes */}
-        <div className="bg-white p-6 rounded-xl border border-[#E7E1D7] shadow-xs hover:border-stone-400 transition-colors">
+        <SpatialGlassCard className="admin-kpi p-6" strength={2}>
           <div className="flex items-center justify-between text-stone-500 mb-3">
             <span className="text-xs font-bold uppercase tracking-wider text-stone-400">Ventas del Mes</span>
             <div className="w-8 h-8 rounded-lg bg-[#FAF8F5] text-stone-900 border border-[#E7E1D7] flex items-center justify-center">
@@ -192,10 +193,10 @@ export const AdminDashboardPage: React.FC = () => {
             )}
             <span className="text-stone-500">{metricas.ventasMes.cantidad} pedidos este mes</span>
           </div>
-        </div>
+        </SpatialGlassCard>
 
         {/* Ticket Promedio */}
-        <div className="bg-white p-6 rounded-xl border border-[#E7E1D7] shadow-xs hover:border-stone-400 transition-colors">
+        <SpatialGlassCard className="admin-kpi p-6" strength={2}>
           <div className="flex items-center justify-between text-stone-500 mb-3">
             <span className="text-xs font-bold uppercase tracking-wider text-stone-400">Ticket Promedio</span>
             <div className="w-8 h-8 rounded-lg bg-[#FAF8F5] text-[#9B7B54] border border-[#E7E1D7] flex items-center justify-center">
@@ -208,10 +209,10 @@ export const AdminDashboardPage: React.FC = () => {
           <div className="text-xs text-stone-500">
             Promedio por transacción en el mes
           </div>
-        </div>
+        </SpatialGlassCard>
 
         {/* Crecimiento Usuarios */}
-        <div className="bg-white p-6 rounded-xl border border-[#E7E1D7] shadow-xs hover:border-stone-400 transition-colors">
+        <SpatialGlassCard className="admin-kpi p-6" strength={2}>
           <div className="flex items-center justify-between text-stone-500 mb-3">
             <span className="text-xs font-bold uppercase tracking-wider text-stone-400">Nuevos Usuarios</span>
             <div className="w-8 h-8 rounded-lg bg-[#FAF8F5] text-stone-700 border border-[#E7E1D7] flex items-center justify-center">
@@ -226,11 +227,11 @@ export const AdminDashboardPage: React.FC = () => {
               Total registrados: <strong className="text-stone-800">{usuariosData?.resumen.totalUsuarios || 0}</strong>
             </span>
           </div>
-        </div>
+        </SpatialGlassCard>
       </div>
 
       {/* GRÁFICO DE TENDENCIA DE VENTAS (ÚLTIMOS 30 DÍAS) */}
-      <div className="bg-white p-6 md:p-8 rounded-xl border border-gray-200 shadow-sm">
+      <div className="admin-chart-panel bg-white p-6 md:p-8 rounded-xl border border-gray-200 shadow-sm">
         <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 mb-6">
           <div>
             <h2 className="text-lg font-bold text-gray-900">Tendencia de Ingresos Diarios</h2>
@@ -250,7 +251,7 @@ export const AdminDashboardPage: React.FC = () => {
         </div>
 
         {/* Gráfico de Barras SVG / Tailwind */}
-        <div className="h-48 flex items-end gap-1.5 pt-6 pb-2 border-b border-gray-100">
+        <div className="admin-sales-bars h-48 flex items-end gap-1.5 pt-6 pb-2 border-b border-gray-100">
           {metricas.tendenciaVentas.map((dia) => {
             const heightPercent = maxVentaDia > 0 ? (dia.total / maxVentaDia) * 100 : 0;
             const tieneVenta = dia.total > 0;
