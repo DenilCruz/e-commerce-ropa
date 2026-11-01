@@ -10,14 +10,16 @@ uniform float uTime;
 varying vec3 vWorld;
 varying vec3 vNormal;
 varying vec2 vUv;
+// A cloth pinched at the top that falls open into vertical folds with an uneven hem.
 vec3 cloth(vec3 p, vec2 uv) {
-  float t = uTime * 0.32;
-  p.x *= 0.64 + 0.30 * sin(uv.y * 3.14159);
-  p.z += sin(p.x * 7.2 + uv.y * 2.3 + t) * (0.13 + 0.12 * uv.y);
-  p.z += sin(p.x * 13.0 - t * 0.6) * 0.06;
-  p.x += sin(p.y * 1.4 + t) * 0.18;
-  p.y += cos(p.x * 3.2 + t) * 0.17;
-  p.z += cos(p.y * 1.4 + t * 0.7) * 0.32;
+  float t = uTime * 0.28;
+  float h = 1.0 - uv.y;
+  p.x *= mix(0.07, 1.0, pow(h, 0.82));
+  float phase = uv.x * 11.0;
+  float amp = 0.07 + 0.36 * smoothstep(0.0, 1.0, h);
+  p.z += sin(phase + t + h * 1.6) * amp + sin(phase * 1.9 - t * 0.7) * amp * 0.34;
+  p.x += sin(h * 3.0 + t) * 0.12 * h;
+  p.y -= (sin(uv.x * 7.0 + t * 0.8) * 0.5 + 0.5) * 0.34 * smoothstep(0.82, 1.0, h);
   return p;
 }
 void main() {
@@ -39,10 +41,11 @@ void main() {
   vec3 light = normalize(vec3(-0.8,1.3,1.4));
   vec3 view = normalize(-vWorld);
   float diffuse = max(dot(n, light),0.0);
-  float spec = pow(max(dot(n,normalize(light+view)),0.0),42.0);
-  float rim = pow(1.0-abs(dot(n,view)),2.0);
-  vec3 color = vec3(0.56,0.46,0.31) * (0.28 + diffuse * 1.1);
-  color += vec3(1.0,0.94,0.78) * spec * 0.8 + vec3(0.40,0.34,0.23) * rim;
+  float spec = pow(max(dot(n,normalize(light+view)),0.0),18.0);
+  float rim = pow(1.0-abs(dot(n,view)),2.2);
+  float weave = 0.985 + 0.015 * sin(vUv.x * 150.0) * sin(vUv.y * 190.0);
+  vec3 color = vec3(0.66,0.58,0.46) * (0.22 + diffuse * 0.95) * weave;
+  color += vec3(0.95,0.88,0.72) * spec * 0.16 + vec3(0.36,0.30,0.22) * rim * 0.55;
   gl_FragColor = vec4(color,1.0);
 }`;
 
@@ -95,22 +98,48 @@ void main() {
   gl_FragColor = vec4(color, 1.0);
 }`;
 
+const CLOTH_Y = -1.38;
+
+function ellipse(rx: number, ry: number, steps = 120) {
+  const pts = new Float32Array(steps * 3);
+  for (let i = 0; i < steps; i++) {
+    const a = (i / steps) * Math.PI * 2;
+    pts[i * 3] = Math.cos(a) * rx;
+    pts[i * 3 + 1] = Math.sin(a) * ry;
+  }
+  const g = new BufferGeometry();
+  g.setAttribute('position', new BufferAttribute(pts, 3));
+  return g;
+}
+
 function Silk({ reduced }: { reduced: boolean }) {
   const mesh = useRef<Mesh>(null);
+  const rings = useRef<Group>(null);
   const material = useRef<ShaderMaterial>(null);
   const uniforms = useMemo(() => ({ uTime: { value: 0 } }), []);
+  const { pointGeometry, lineGeometry } = useDust(11, 6.2, 150, 9);
+  const ringA = useMemo(() => ellipse(2.3, 2.3), []);
+  const ringB = useMemo(() => ellipse(3.1, 3.1), []);
   useFrame(({ clock, pointer }) => {
     if (!material.current || !mesh.current || reduced) return;
     material.current.uniforms.uTime.value = clock.elapsedTime;
-    mesh.current.rotation.y += (pointer.x * 0.25 - 0.35 - mesh.current.rotation.y) * 0.035;
-    mesh.current.rotation.z += (pointer.y * 0.04 - 0.12 - mesh.current.rotation.z) * 0.035;
+    mesh.current.rotation.y += (pointer.x * 0.3 - mesh.current.rotation.y) * 0.04;
+    if (rings.current) rings.current.rotation.z = clock.elapsedTime * 0.06;
   });
-  return <Float speed={reduced ? 0 : 0.65} rotationIntensity={0.08} floatIntensity={0.18}>
-    <mesh ref={mesh} rotation={[0.08, -0.35, -0.12]}>
-      <planeGeometry args={[3.6, 5, 80, 100]} />
-      <shaderMaterial ref={material} vertexShader={vertexShader} fragmentShader={fragmentShader} uniforms={uniforms} side={DoubleSide} />
-    </mesh>
-  </Float>;
+  return <group position={[0, CLOTH_Y, 0]}>
+    <Float speed={reduced ? 0 : 0.6} rotationIntensity={0.04} floatIntensity={0.12}>
+      <mesh ref={mesh}>
+        <planeGeometry args={[2.8, 3.0, 120, 140]} />
+        <shaderMaterial ref={material} vertexShader={vertexShader} fragmentShader={fragmentShader} uniforms={uniforms} side={DoubleSide} />
+      </mesh>
+    </Float>
+    <group ref={rings} rotation={[1.2, 0, 0.18]}>
+      <lineLoop geometry={ringA}><lineBasicMaterial color="#d9b878" transparent opacity={0.38} depthWrite={false} /></lineLoop>
+      <lineLoop geometry={ringB} rotation={[0.15, 0.1, 0]}><lineBasicMaterial color="#d9b878" transparent opacity={0.22} depthWrite={false} /></lineLoop>
+    </group>
+    <points geometry={pointGeometry}><pointsMaterial color="#ecd3a2" size={0.05} sizeAttenuation transparent opacity={0.85} depthWrite={false} /></points>
+    <lineSegments geometry={lineGeometry}><lineBasicMaterial color="#d9b878" transparent opacity={0.4} depthWrite={false} /></lineSegments>
+  </group>;
 }
 
 function seeded(seed: number) {
@@ -119,18 +148,18 @@ function seeded(seed: number) {
 }
 
 // Gold dust plus a few constellation polylines, deterministic so renders are stable.
-function useDust() {
+function useDust(width = 16, height = 8, count = 360, clusters = 16) {
   return useMemo(() => {
     const rand = seeded(20261031);
-    const points = new Float32Array(360 * 3);
-    for (let i = 0; i < 360; i++) {
-      points[i * 3] = (rand() - 0.5) * 16;
-      points[i * 3 + 1] = (rand() - 0.5) * 8;
+    const points = new Float32Array(count * 3);
+    for (let i = 0; i < count; i++) {
+      points[i * 3] = (rand() - 0.5) * width;
+      points[i * 3 + 1] = (rand() - 0.5) * height;
       points[i * 3 + 2] = rand() * 3 - 0.5;
     }
     const lines: number[] = [];
-    for (let c = 0; c < 16; c++) {
-      let x = (rand() - 0.5) * 15, y = (rand() - 0.5) * 7, z = rand() * 2;
+    for (let c = 0; c < clusters; c++) {
+      let x = (rand() - 0.5) * (width - 1), y = (rand() - 0.5) * (height - 1), z = rand() * 2;
       for (let k = 0; k < 4; k++) {
         const nx = x + (rand() - 0.5) * 1.8, ny = y + (rand() - 0.5) * 1.4, nz = z + (rand() - 0.5) * 0.6;
         lines.push(x, y, z, nx, ny, nz);
@@ -142,7 +171,7 @@ function useDust() {
     const lineGeometry = new BufferGeometry();
     lineGeometry.setAttribute('position', new BufferAttribute(new Float32Array(lines), 3));
     return { pointGeometry, lineGeometry };
-  }, []);
+  }, [width, height, count, clusters]);
 }
 
 function Ribbon({ reduced }: { reduced: boolean }) {
@@ -172,7 +201,7 @@ function Ribbon({ reduced }: { reduced: boolean }) {
 
 export default function SilkScene({ reduced, active, kind = 'cloth' }: { reduced: boolean; active: boolean; kind?: SilkKind }) {
   const frozen = reduced || !active;
-  return <Canvas camera={{ position: [0, 0, kind === 'ribbon' ? 13 : 7], fov: kind === 'ribbon' ? 46 : 42 }} dpr={[1, 1.5]} frameloop={active && !reduced ? 'always' : 'demand'} gl={{ alpha: true, antialias: true, powerPreference: 'low-power' }}>
+  return <Canvas camera={{ position: [0, 0, kind === 'ribbon' ? 13 : 9], fov: kind === 'ribbon' ? 46 : 42 }} dpr={[1, 1.5]} frameloop={active && !reduced ? 'always' : 'demand'} gl={{ alpha: true, antialias: true, powerPreference: 'low-power' }}>
     {kind === 'ribbon' ? <Ribbon reduced={frozen} /> : <Silk reduced={frozen} />}
   </Canvas>;
 }

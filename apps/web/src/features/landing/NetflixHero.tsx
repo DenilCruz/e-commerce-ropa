@@ -30,7 +30,7 @@ export const NetflixHero: React.FC = () => {
       <div className="aura-hero__inner">
         <div className="aura-hero__title">
           <h1>Crea tu tienda de moda. <em>Escala sin límites con IA.</em></h1>
-          <p>"Tecnología atelier y omnicanalidad para marcas contemporáneas."</p>
+          <p>Vende en línea y en tu boutique desde un solo lugar, con inteligencia artificial que te ayuda a decidir.</p>
         </div>
 
         <div className="aura-hero__action">
@@ -47,7 +47,7 @@ export const NetflixHero: React.FC = () => {
             {isAuthenticated ? (
               <button type="button" onClick={() => navigate('/admin/dashboard')}>Ir al Panel Admin de mi tienda actual <ArrowRight aria-hidden="true" /></button>
             ) : (
-              <button type="button" onClick={() => navigate('/t/aura')}>Ver tienda demo (/t/aura) <ArrowRight aria-hidden="true" /></button>
+              <button type="button" onClick={() => navigate('/t/aura')}>Ver tienda de ejemplo <ArrowRight aria-hidden="true" /></button>
             )}
           </div>
         </div>
@@ -55,16 +55,16 @@ export const NetflixHero: React.FC = () => {
         <div className="aura-hero__stage" role="group" aria-label="Capacidades de AURA">
           <div className="aura-hero__features">
             <SpatialGlassCard dark strength={1.5} className="aura-feature aura-feature--one">
-              <Layers aria-hidden="true" /><div><strong>Multi-Tienda</strong><span>Un correo, múltiples marcas</span></div>
+              <Layers aria-hidden="true" /><div><strong>Todas tus marcas</strong><span>Maneja varias tiendas con un solo correo.</span></div>
             </SpatialGlassCard>
             <SpatialGlassCard dark strength={1.5} className="aura-feature aura-feature--two">
-              <Zap aria-hidden="true" /><div><strong>Probador Virtual</strong><span>Lucy 2.5 Realtime AI</span></div>
+              <Zap aria-hidden="true" /><div><strong>Probador virtual</strong><span>Tus clientes se prueban la ropa antes de comprar.</span></div>
             </SpatialGlassCard>
             <SpatialGlassCard dark strength={1.5} className="aura-feature aura-feature--three">
-              <WifiOff aria-hidden="true" /><div><strong>POS 100% Offline</strong><span>Sincronización atómica</span></div>
+              <WifiOff aria-hidden="true" /><div><strong>Vende sin internet</strong><span>La caja sigue funcionando y se sincroniza al volver la conexión.</span></div>
             </SpatialGlassCard>
             <SpatialGlassCard dark strength={1.5} className="aura-feature aura-feature--four">
-              <ShieldCheck aria-hidden="true" /><div><strong>Aislamiento RLS</strong><span>PostgreSQL Row-Level Security</span></div>
+              <ShieldCheck aria-hidden="true" /><div><strong>Datos protegidos</strong><span>Cada tienda guarda su información separada y segura.</span></div>
             </SpatialGlassCard>
           </div>
         </div>

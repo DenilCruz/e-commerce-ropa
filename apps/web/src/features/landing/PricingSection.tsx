@@ -64,19 +64,19 @@ export const PricingSection: React.FC = () => {
       subtitulo: 'Para validar tu marca',
       precio: 0,
       periodo: '14 días de prueba gratis',
-      descripcion: 'Prueba todas las funcionalidades básicas de atelier sin costo inicial.',
+      descripcion: 'Prueba lo esencial para vender tu ropa, sin pagar nada al inicio.',
       limites: {
-        sucursales: '1 Sucursal',
+        sucursales: '1 tienda física',
         usuarios: '2 Usuarios / Empleados',
         productos: 'Hasta 30 productos',
       },
       caracteristicas: [
-        { texto: 'Catálogo web responsive atelier', incluido: true },
+        { texto: 'Tienda en línea lista para celular y computador', incluido: true },
         { texto: 'Bolsa de compras y checkout', incluido: true },
         { texto: 'Probador Virtual con IA básico', incluido: true },
         { texto: 'Punto de Venta (POS) Offline', incluido: false },
-        { texto: 'Reportes por Voz con IA (Groq)', incluido: false },
-        { texto: 'Machine Learning (Random Forest & K-Means)', incluido: false },
+        { texto: 'Pregúntale a la IA por tus ventas, hablando', incluido: false },
+        { texto: 'Predicción de ventas y análisis de clientes', incluido: false },
         { texto: 'Soporte prioritario 24/7', incluido: false },
       ],
       cta: 'Comenzar Gratis',
@@ -90,18 +90,18 @@ export const PricingSection: React.FC = () => {
       periodo: anual ? 'Bs / mes (facturado anualmente)' : 'Bs / mes',
       descripcion: 'Vende omnicanal en boutique física y digital con sincronización offline.',
       limites: {
-        sucursales: 'Hasta 3 Sucursales',
+        sucursales: 'Hasta 3 tiendas físicas',
         usuarios: 'Hasta 10 Usuarios / Empleados',
         productos: 'Hasta 300 productos',
       },
       caracteristicas: [
         { texto: 'Todo lo del plan Free Trial', incluido: true },
         { texto: 'Punto de Venta POS 100% Offline con sync', incluido: true },
-        { texto: 'Reportes dinámicos por voz (Groq/Ollama)', incluido: true },
-        { texto: 'Exportación a PDF y Excel (.xlsx)', incluido: true },
-        { texto: 'Pasarela de pagos Stripe y QR bancario', incluido: true },
-        { texto: 'Machine Learning: Predicción de Demanda', incluido: false },
-        { texto: 'Machine Learning: Segmentación K-Means', incluido: false },
+        { texto: 'Pregúntale a la IA por tus ventas, hablando', incluido: true },
+        { texto: 'Descarga tus reportes en PDF y Excel', incluido: true },
+        { texto: 'Cobra con tarjeta y con QR bancario', incluido: true },
+        { texto: 'Predicción de lo que vas a vender', incluido: false },
+        { texto: 'Grupos de clientes según cómo compran', incluido: false },
       ],
       cta: 'Elegir Estándar',
       destacado: true,
@@ -112,19 +112,19 @@ export const PricingSection: React.FC = () => {
       subtitulo: 'Para franquicias y marcas consolidadas',
       precio: anual ? 399 : 499,
       periodo: anual ? 'Bs / mes (facturado anualmente)' : 'Bs / mes',
-      descripcion: 'Inteligencia Artificial avanzada, algoritmos predictivos y soporte atelier 24/7.',
+      descripcion: 'Inteligencia artificial que anticipa tus ventas, más soporte prioritario todos los días.',
       limites: {
-        sucursales: 'Sucursales Ilimitadas',
+        sucursales: 'Tiendas físicas ilimitadas',
         usuarios: 'Usuarios Ilimitados',
         productos: 'Productos Ilimitados',
       },
       caracteristicas: [
         { texto: 'Todo lo del plan Estándar', incluido: true },
-        { texto: 'Random Forest: Predicción de demanda de stock', incluido: true },
-        { texto: 'K-Means: Segmentación de clientes (Silhouette)', incluido: true },
-        { texto: 'Dashboards BI para Dueño, Vendedor y Cliente', incluido: true },
-        { texto: 'Multi-tienda con aislamiento RLS ilimitado', incluido: true },
-        { texto: 'SLA garantizado y soporte prioritario 24/7', incluido: true },
+        { texto: 'Sabe qué prendas reponer antes de que se agoten', incluido: true },
+        { texto: 'Descubre qué tipo de cliente compra más', incluido: true },
+        { texto: 'Paneles claros para dueño, vendedor y cliente', incluido: true },
+        { texto: 'Todas las tiendas que quieras, con datos separados', incluido: true },
+        { texto: 'Soporte prioritario, todos los días', incluido: true },
         { texto: 'Capacitación personalizada para tu equipo', incluido: true },
       ],
       cta: 'Elegir Corporativo',
@@ -282,7 +282,7 @@ export const PricingSection: React.FC = () => {
                 key={plan.id}
                 dark
                 strength={1}
-                className={`aura-plan-card relative flex flex-col justify-between rounded-none border transition-all duration-300 ${plan.destacado ? 'aura-plan-card--featured md:-translate-y-2' : ''}`}
+                className={`aura-plan-card relative flex flex-col justify-between rounded-[28px] border transition-all duration-300 ${plan.destacado ? 'aura-plan-card--featured md:-translate-y-2' : ''}`}
               >
                 {plan.destacado && (
                   <div className="absolute -top-3.5 left-1/2 -translate-x-1/2 bg-stone-900 text-white text-[10px] uppercase tracking-widest font-semibold px-4 py-1 shadow-sm">
@@ -317,9 +317,9 @@ export const PricingSection: React.FC = () => {
                   </p>
 
                   {/* Cuotas / Límites del Plan */}
-                  <div className="bg-stone-50/80 p-3.5 border border-[#E7E1D7] space-y-1.5 text-xs">
+                  <div className="bg-stone-50/80 p-4 rounded-2xl border border-[#E7E1D7] space-y-1.5 text-xs">
                     <p className="font-semibold text-stone-800 text-[10px] uppercase tracking-wider">
-                      Cuotas de Infraestructura:
+                      Lo que incluye:
                     </p>
                     <p className="aura-plan-limit"><Building2 aria-hidden="true" /> {plan.limites.sucursales}</p>
                     <p className="aura-plan-limit"><Users aria-hidden="true" /> {plan.limites.usuarios}</p>
@@ -329,7 +329,7 @@ export const PricingSection: React.FC = () => {
                   {/* Lista de Características */}
                   <div className="space-y-3 pt-2">
                     <p className="text-[11px] font-semibold uppercase tracking-wider text-stone-500">
-                      Capacidades Atelier:
+                      Lo que podrás hacer:
                     </p>
                     <ul className="space-y-2.5 text-xs text-stone-700">
                       {plan.caracteristicas.map((caract, idx) => (

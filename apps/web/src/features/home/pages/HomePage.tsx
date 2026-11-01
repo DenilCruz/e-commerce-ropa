@@ -8,6 +8,7 @@ import { useTenantStore } from '../../../hooks/useTenantStore';
 import { SpatialHotspot } from '../../../components/spatial/SpatialHotspot';
 import { SpatialGlassCard } from '../../../components/spatial/SpatialGlassCard';
 import { ImageSequenceCanvas } from '../../../components/spatial/ImageSequenceCanvas';
+import { Dress3D, webglAvailable } from '../../../components/spatial/Dress3D';
 import './spatial-store-home.css';
 
 const ASSETS_URL = (import.meta.env.VITE_API_URL || 'http://localhost:3000/api/v1').replace('/api/v1', '');
@@ -32,7 +33,10 @@ const getImageUrl = (url?: string | null) => {
 
 export const HomePage: React.FC = () => {
   const { getStoreUrl } = useTenantStore();
-  const [heroAngle, setHeroAngle] = useState(180);
+  const [heroAngle, setHeroAngle] = useState(0);
+  const [heroMode, setHeroMode] = useState<'model' | '3d'>('model');
+  const [canDress] = useState(webglAvailable);
+  const turnDress = (angle: number) => { setHeroAngle(angle); setHeroMode('3d'); };
   const [productos, setProductos] = useState<Producto[]>([]);
   const [categorias, setCategorias] = useState<Categoria[]>([]);
   const [cargando, setCargando] = useState(true);
@@ -58,7 +62,7 @@ export const HomePage: React.FC = () => {
 
   return (
     <div className="spatial-store-home">
-      <section className="spatial-store-home__hero" aria-label="Edición Seda Morera">
+      <section className={`spatial-store-home__hero ${heroMode === '3d' ? 'spatial-store-home__hero--3d' : ''}`} aria-label="Edición Seda Morera">
         <h1 className="spatial-store-home__headline">
           <span className="spatial-store-home__headline-main">Edición Seda</span>
           {' '}<span className="spatial-store-home__headline-name">Morera</span>
@@ -69,12 +73,24 @@ export const HomePage: React.FC = () => {
             images={[HERO_MODEL]}
             alt="Modelo con vestido de seda oliva"
             mode="scroll-scrub"
-            controls
-            onAngleChange={(angle) => setHeroAngle(Math.round(angle))}
             objectFit="contain"
-            className="spatial-store-home__sequence"
+            className={`spatial-store-home__sequence ${heroMode === '3d' ? 'is-hidden' : ''}`}
           />
+          {canDress && <Dress3D className={`spatial-store-home__dress ${heroMode === '3d' ? 'is-visible' : ''}`} angle={heroAngle} onAngleChange={turnDress} active={heroMode === '3d'} />}
         </div>
+        {canDress && (
+          <div className="spatial-store-home__controls" role="group" aria-label="Vista de la prenda">
+            <div className="spatial-store-home__toggle">
+              <button type="button" aria-pressed={heroMode === 'model'} onClick={() => setHeroMode('model')}>Modelo</button>
+              <button type="button" aria-pressed={heroMode === '3d'} onClick={() => setHeroMode('3d')}>Vestido 3D</button>
+            </div>
+            <label>
+              <span>Girar</span>
+              <output>{Math.round(heroAngle)}°</output>
+              <input type="range" min={0} max={360} value={Math.round(heroAngle)} aria-label="Girar el vestido" onChange={(e) => turnDress(Number(e.target.value))} />
+            </label>
+          </div>
+        )}
         <div className="spatial-store-home__orbit" aria-hidden="true" />
         <div className="spatial-store-home__hero-note">
           <p className="spatial-store-home__quote">“Elegancia sutil, presencia absoluta.”</p>

@@ -28,7 +28,9 @@
 .aura-hero {
   position: relative;
   isolation: isolate;
-  min-height: 90svh;
+  display: flex;
+  flex-direction: column;
+  height: max(780px, calc(100svh - 64px));
   overflow: hidden;
   padding: clamp(2.8rem, 6vh, 5.2rem) max(1.25rem, calc((100vw - 1280px) / 2)) 3.6rem;
   background: #171614;
@@ -64,14 +66,9 @@
   animation: aura-silk-drift 12s ease-in-out infinite alternate;
 }
 
-.aura-hero .silk-background canvas {
-  position: absolute !important;
-  inset: 12% 16% auto !important;
-  width: 68% !important;
-  height: 62% !important;
-}
+.aura-hero .silk-background canvas { position: absolute !important; inset: 0 !important; width: 100% !important; height: 100% !important; }
 
-.aura-hero__inner { position: relative; z-index: 1; max-width: 1320px; margin: 0 auto; }
+.aura-hero__inner { position: relative; z-index: 1; display: flex; flex: 1; flex-direction: column; width: 100%; max-width: 1320px; margin: 0 auto; }
 .aura-hero__title { max-width: 1050px; margin: 0 auto; text-align: center; }
 .aura-hero__title h1 {
   max-width: 900px;
@@ -88,9 +85,9 @@
 
 .aura-hero__stage {
   position: relative;
-  height: clamp(330px, 37vw, 450px);
+  flex: 1;
+  min-height: 300px;
   margin-top: .5rem;
-  overflow: hidden;
 }
 .aura-hero__stage::before {
   position: absolute;
@@ -124,11 +121,11 @@
   display: flex;
   align-items: center;
   gap: .85rem;
-  width: min(220px, 23vw);
-  min-height: 70px;
+  width: min(268px, 24vw);
+  min-height: 78px;
   padding: .85rem 1rem;
   color: #f4ecdf;
-  border-radius: 15px;
+  border-radius: 22px;
   border: 1px solid rgb(245 233 211 / 25%);
   background: linear-gradient(135deg, rgb(255 255 255 / 12%), rgb(255 255 255 / 4%));
   box-shadow: 0 16px 34px rgb(0 0 0 / 18%);
@@ -191,7 +188,7 @@
 .aura-pricing .text-white { color: #fffaf2; }
 .aura-pricing .aura-plan-card {
   min-width: 0;
-  border-radius: 18px;
+  border-radius: 28px;
   border: 1px solid rgb(235 217 185 / 28%);
   background: linear-gradient(145deg, rgb(229 211 180 / 17%), rgb(207 184 145 / 9%));
   color: #f4ecdf;
@@ -223,11 +220,12 @@
 }
 
 @media (max-width: 800px) {
-  .aura-hero { min-height: auto; padding: 3.5rem 1.25rem 3rem; }
+  .aura-hero { height: auto; min-height: 0; padding: 3.5rem 1.25rem 3rem; }
   .aura-hero .silk-background__fallback { top: 31%; width: 96vw; opacity: .57; }
-  .aura-hero .silk-background canvas { inset: 21% 0 auto !important; width: 100% !important; height: 48% !important; }
+  .aura-hero__silk { bottom: auto; height: 820px; }
+  .aura-hero .silk-background canvas { inset: 0 !important; width: 100% !important; height: 100% !important; }
   .aura-hero__title h1 { font-size: clamp(2.6rem, 10vw, 4.5rem); }
-  .aura-hero__stage { display: flex; flex-direction: column; gap: 1.1rem; height: auto; min-height: 0; margin-top: 2rem; overflow: visible; }
+  .aura-hero__stage { display: flex; flex-direction: column; gap: 1.1rem; height: auto; min-height: 0; margin-top: 2rem; padding-top: 270px; overflow: visible; }
   .aura-hero__features { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); order: 1; width: 100%; gap: .7rem; }
   .aura-feature,
   .aura-feature--one,

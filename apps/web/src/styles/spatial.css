@@ -23,7 +23,7 @@ html.lenis, html.lenis body { height: auto; }
 :where(.spatial-glass) {
   background: radial-gradient(ellipse at var(--light-x, 30%) var(--light-y, 0%), rgba(255,255,255,.72), transparent 70%), var(--aura-glass);
   border: 1px solid var(--aura-line);
-  border-radius: 14px;
+  border-radius: var(--r-card, 22px);
   backdrop-filter: blur(20px);
   -webkit-backdrop-filter: blur(20px);
   transform: perspective(1100px) rotateX(var(--tilt-x, 0deg)) rotateY(var(--tilt-y, 0deg));
@@ -87,4 +87,40 @@ html.lenis, html.lenis body { height: auto; }
   *, *::before, *::after { scroll-behavior: auto !important; animation-duration: .01ms !important; animation-iteration-count: 1 !important; transition-duration: .01ms !important; }
   .spatial-glass { transform: none !important; }
   .image-sequence canvas { transform: none !important; }
+}
+
+/* Shape system: pill actions, soft fields, rounded cards. One language across every view. */
+:root { --r-card: 22px; --r-field: 14px; --r-pill: 999px; }
+
+:is(button, a)[class*="uppercase"][class*="tracking"],
+button[type="submit"],
+.spatial-try-on__launch,
+.spatial-store-home__discover,
+.spatial-catalog > div button {
+  border-radius: var(--r-pill) !important;
+  transition: transform .28s cubic-bezier(.2,.8,.2,1), box-shadow .28s ease, background-color .25s ease, color .25s ease, border-color .25s ease;
+}
+:is(button, a)[class*="uppercase"][class*="tracking"]:hover:not(:disabled),
+button[type="submit"]:hover:not(:disabled),
+.spatial-try-on__launch:hover:not(:disabled),
+.spatial-catalog > div button:hover:not(:disabled) {
+  transform: translateY(-2px);
+  box-shadow: 0 12px 24px -14px rgb(40 34 22 / 50%);
+}
+:is(button, a)[class*="uppercase"][class*="tracking"]:active:not(:disabled),
+button[type="submit"]:active:not(:disabled),
+.spatial-try-on__launch:active:not(:disabled) { transform: translateY(0) scale(.98); }
+
+input:not([type="range"], [type="checkbox"], [type="radio"], [type="file"], [type="color"]),
+select,
+textarea { border-radius: var(--r-field) !important; }
+
+.product-card, .spatial-try-on__garment { border-radius: var(--r-card); overflow: hidden; }
+.product-card__badge { border-radius: var(--r-pill); }
+.product-card__visual { border-radius: var(--r-card) var(--r-card) 0 0; }
+
+@media (prefers-reduced-motion: reduce) {
+  :is(button, a)[class*="uppercase"][class*="tracking"]:hover:not(:disabled),
+  button[type="submit"]:hover:not(:disabled),
+  .spatial-catalog > div button:hover:not(:disabled) { transform: none; }
 }
