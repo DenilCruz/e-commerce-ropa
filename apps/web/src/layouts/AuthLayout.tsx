@@ -1,6 +1,8 @@
 import React from 'react';
 import { Outlet, Link, useLocation, useParams } from 'react-router-dom';
 import { ArrowLeft } from 'lucide-react';
+import { SilkCanvasBackground, SpatialGlassCard } from '../components/spatial';
+import '../features/autenticacion/pages/auth.css';
 
 export const AuthLayout: React.FC = () => {
   const location = useLocation();
@@ -12,9 +14,10 @@ export const AuthLayout: React.FC = () => {
   const backLabel = targetSlug ? `Volver a ${targetSlug}` : 'Regresar al Menú Principal';
 
   return (
-    <div className="min-h-screen flex flex-col justify-between bg-[#FAF8F5] text-stone-900 font-sans p-4 sm:p-6 selection:bg-[#E7E1D7]">
+    <div className="auth-scene min-h-screen flex flex-col justify-between text-stone-900 font-sans p-4 sm:p-6 selection:bg-[#E7E1D7]">
+      <SilkCanvasBackground className="auth-scene__silk" variant="dark" kind="ribbon" />
       {/* Barra superior de retorno */}
-      <header className="max-w-4xl w-full mx-auto flex items-center justify-between py-2">
+      <header className="auth-scene__header max-w-4xl w-full mx-auto flex items-center justify-between py-2">
         <Link to={backUrl} className="flex items-center gap-2 group">
           <span className="font-serif text-xl tracking-[0.25em] font-normal uppercase text-stone-900 group-hover:text-[#9B7B54] transition-colors">
             {targetSlug ? targetSlug.toUpperCase() : 'AURA'}
@@ -34,12 +37,14 @@ export const AuthLayout: React.FC = () => {
       </header>
 
       {/* Tarjeta de Contenido Auth */}
-      <main className="w-full max-w-md mx-auto my-auto bg-white rounded-xl shadow-md border border-[#E7E1D7] p-8">
-        <Outlet />
+      <main className="auth-scene__main w-full max-w-md mx-auto my-auto">
+        <SpatialGlassCard className="auth-scene__card p-8 sm:p-9">
+          <Outlet />
+        </SpatialGlassCard>
       </main>
 
       {/* Footer minimalista */}
-      <footer className="text-center py-3 text-xs text-stone-400">
+      <footer className="auth-scene__footer text-center py-3 text-xs text-stone-400">
         © {new Date().getFullYear()} AURA Omnichannel Technologies · Comercio de Moda y Alta Costura
       </footer>
     </div>

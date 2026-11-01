@@ -7,6 +7,7 @@ import { useAuthStore } from '../../store/auth.store';
 import { authApi } from '../autenticacion/services/auth.api';
 import { toast } from 'sonner';
 import { ModalCrearTienda } from '../tiendas/components/ModalCrearTienda';
+import './landing-spatial.css';
 
 export const LandingSaaSPage: React.FC = () => {
   const { user, isAuthenticated, logout, refreshToken } = useAuthStore();
@@ -28,9 +29,9 @@ export const LandingSaaSPage: React.FC = () => {
   };
 
   return (
-    <div className="min-h-screen bg-[#FAF8F5] text-stone-900 font-sans selection:bg-[#E7E1D7] selection:text-stone-900">
+    <div className="aura-landing min-h-screen bg-[#FAF8F5] text-stone-900 font-sans selection:bg-[#E7E1D7] selection:text-stone-900">
       {/* Barra de Navegación AURA SaaS */}
-      <nav className="sticky top-0 z-50 backdrop-blur-md bg-white/80 border-b border-[#E7E1D7] px-4 sm:px-8">
+      <nav className="aura-nav sticky top-0 z-50 backdrop-blur-md bg-white/80 border-b border-[#E7E1D7] px-4 sm:px-8">
         <div className="max-w-7xl mx-auto h-16 flex items-center justify-between">
           <div className="flex items-center gap-10">
             <Link to="/" className="group flex items-center gap-2">
@@ -127,7 +128,7 @@ export const LandingSaaSPage: React.FC = () => {
       <PricingSection />
 
       {/* Footer Estilo Atelier */}
-      <footer className="border-t border-[#E7E1D7] bg-white py-12 text-center text-xs text-stone-500">
+      <footer className="aura-footer border-t border-[#E7E1D7] bg-white py-12 text-center text-xs text-stone-500">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 space-y-3">
           <div className="flex items-center justify-center gap-2 font-serif text-sm tracking-widest uppercase text-stone-800">
             <span>AURA SaaS</span>

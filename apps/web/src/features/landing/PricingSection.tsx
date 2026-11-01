@@ -8,9 +8,12 @@ import {
   Loader2,
   CreditCard,
   ShieldCheck,
+  Building2,
   Sparkles,
   Store,
   ArrowRight,
+  Shirt,
+  Users,
 } from 'lucide-react';
 import { useAuthStore } from '../../store/auth.store';
 import { usePlanLimites } from '../tiendas/hooks/usePlanLimites';
@@ -19,6 +22,7 @@ import { planesApi } from '../tiendas/services/planes.api';
 import { PLAN_NOMBRES_FALLBACK, esBajaDePlan, esPlanDePago } from '../tiendas/utils/planes';
 import { MiTienda } from '../tiendas/types';
 import { Modal } from '../../components/ui/Modal';
+import { SilkCanvasBackground, SpatialGlassCard } from '../../components/spatial';
 
 export const PricingSection: React.FC = () => {
   const navigate = useNavigate();
@@ -217,13 +221,11 @@ export const PricingSection: React.FC = () => {
   }, []);
 
   return (
-    <section id="planes" className="bg-[#FAF8F5] py-20 text-stone-900 border-t border-[#E7E1D7] relative">
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 space-y-12">
+    <section id="planes" className="aura-pricing bg-[#FAF8F5] py-20 text-stone-900 border-t border-[#E7E1D7] relative">
+      <SilkCanvasBackground className="aura-pricing__silk" variant="light" kind="ribbon" />
+      <div className="aura-pricing__content max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 space-y-12">
         {/* Encabezado */}
         <div className="text-center max-w-2xl mx-auto space-y-3">
-          <p className="text-xs uppercase tracking-widest text-[#9B7B54] font-semibold">
-            Tarifas & Suscripciones
-          </p>
           <h2 className="font-serif text-3xl sm:text-5xl font-normal tracking-wide text-stone-900">
             Planes a la medida de tu boutique
           </h2>
@@ -276,13 +278,11 @@ export const PricingSection: React.FC = () => {
             const esPlanActual = Boolean(isAuthenticated && planActualTienda === plan.id);
 
             return (
-              <div
+              <SpatialGlassCard
                 key={plan.id}
-                className={`relative flex flex-col justify-between rounded-none border transition-all duration-300 ${
-                  plan.destacado
-                    ? 'bg-white border-stone-900 shadow-xl md:-translate-y-2'
-                    : 'bg-[#FAF8F5] border-[#E7E1D7] shadow-sm hover:shadow-md'
-                }`}
+                dark
+                strength={1}
+                className={`aura-plan-card relative flex flex-col justify-between rounded-none border transition-all duration-300 ${plan.destacado ? 'aura-plan-card--featured md:-translate-y-2' : ''}`}
               >
                 {plan.destacado && (
                   <div className="absolute -top-3.5 left-1/2 -translate-x-1/2 bg-stone-900 text-white text-[10px] uppercase tracking-widest font-semibold px-4 py-1 shadow-sm">
@@ -321,9 +321,9 @@ export const PricingSection: React.FC = () => {
                     <p className="font-semibold text-stone-800 text-[10px] uppercase tracking-wider">
                       Cuotas de Infraestructura:
                     </p>
-                    <p className="text-stone-600">🏛️ {plan.limites.sucursales}</p>
-                    <p className="text-stone-600">👥 {plan.limites.usuarios}</p>
-                    <p className="text-stone-600">👗 {plan.limites.productos}</p>
+                    <p className="aura-plan-limit"><Building2 aria-hidden="true" /> {plan.limites.sucursales}</p>
+                    <p className="aura-plan-limit"><Users aria-hidden="true" /> {plan.limites.usuarios}</p>
+                    <p className="aura-plan-limit"><Shirt aria-hidden="true" /> {plan.limites.productos}</p>
                   </div>
 
                   {/* Lista de Características */}
@@ -372,7 +372,7 @@ export const PricingSection: React.FC = () => {
                     )}
                   </button>
                 </div>
-              </div>
+              </SpatialGlassCard>
             );
           })}
         </div>
