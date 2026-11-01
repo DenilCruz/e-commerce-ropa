@@ -218,6 +218,7 @@ const ribbonFragment = `
 uniform vec3 uBase;
 uniform vec3 uHem;
 uniform vec3 uSpecTint;
+uniform float uFade;
 varying vec3 vView;
 varying vec3 vNormal;
 varying vec3 vTangent;
@@ -250,7 +251,7 @@ void main() {
   col = mix(col, uHem * (0.4 + wrap * 0.7), band * 0.65);
   col += uHem * stitch * 0.5;
   float edge = smoothstep(0.0, 0.05, vUv.x) * smoothstep(1.0, 0.95, vUv.x);
-  gl_FragColor = vec4(col, edge);
+  gl_FragColor = vec4(col, edge * uFade);
 }`;
 
 type RibbonSpec = { base: [number, number, number]; hem: [number, number, number]; spec: [number, number, number]; width: number; phase: number; y: number; z: number; loop: number };
@@ -260,13 +261,33 @@ const RIBBONS: RibbonSpec[] = [
   { base: [0.62, 0.07, 0.1], hem: [0.95, 0.78, 0.5], spec: [1.0, 0.7, 0.62], width: 0.5, phase: 4.1, y: -0.75, z: 0.5, loop: 1 },
 ];
 
+const scrollProgress = () => (typeof window === 'undefined' ? 0 : MathUtils.clamp(window.scrollY / (window.innerHeight * 0.85), 0, 1));
+
+/** Lifts the showpiece away as the page scrolls toward the plans, while the ribbons keep flowing behind them. */
+function Rig({ children, lift, scaleTo }: { children: React.ReactNode; lift: number; scaleTo: number }) {
+  const ref = useRef<Group>(null);
+  useFrame(() => {
+    if (!ref.current) return;
+    const p = scrollProgress();
+    const e = p * p * (3 - 2 * p);
+    ref.current.position.y = e * lift;
+    ref.current.scale.setScalar(MathUtils.lerp(1, scaleTo, e));
+  });
+  return <group ref={ref}>{children}</group>;
+}
+
 function Ribbon({ spec, reduced }: { spec: RibbonSpec; reduced: boolean }) {
   const material = useRef<ShaderMaterial>(null);
   const uniforms = useMemo(() => ({
     uTime: { value: 0 }, uPhase: { value: spec.phase }, uWidth: { value: spec.width }, uLoop: { value: spec.loop },
-    uBase: { value: spec.base }, uHem: { value: spec.hem }, uSpecTint: { value: spec.spec },
+    uBase: { value: spec.base }, uHem: { value: spec.hem }, uSpecTint: { value: spec.spec }, uFade: { value: 1 },
   }), [spec]);
-  useFrame(({ clock }) => { if (material.current && !reduced) material.current.uniforms.uTime.value = clock.elapsedTime; });
+  useFrame(({ clock }) => {
+    if (!material.current) return;
+    if (!reduced) material.current.uniforms.uTime.value = clock.elapsedTime + window.scrollY * 0.0035;
+    const p = scrollProgress();
+    material.current.uniforms.uFade.value = 1 - 0.68 * p * p * (3 - 2 * p); // calmer behind the plans
+  });
   return <mesh position={[0, spec.y, spec.z]} frustumCulled={false}>
     <planeGeometry args={[1, 1, 520, 24]} />
     <shaderMaterial ref={material} vertexShader={ribbonVertex} fragmentShader={ribbonFragment} uniforms={uniforms} side={DoubleSide} transparent />
@@ -305,15 +326,19 @@ export default function CoutureScene({ reduced, active, dressUrl }: { reduced: b
       <Lightformer form="rect" intensity={1.4} position={[0, -3, 3]} scale={[8, 1.2, 1]} color="#c5a880" />
       <Lightformer form="ring" intensity={1.4} position={[0, 5, -4]} scale={5} />
     </Environment>
-    <group position={[0, Y + 0.3, -1.4]}>
-      {RIBBONS.map((spec) => <Ribbon key={spec.phase} spec={spec} reduced={frozen} />)}
-    </group>
-    <group position={[0, Y, 0]} scale={SCALE}>
-      <Pedestal />
-      {dress.status === 'ready' && dress.model && <PhotoGarment model={dress.model} reduced={frozen} />}
-      {dress.status === 'failed' && <Sculpture reduced={frozen} />}
-      <Orbits reduced={frozen} />
-      <ContactShadows position={[0, -HEIGHT / 2 - 0.02, 0]} opacity={0.5} scale={6} blur={2.4} far={1.6} />
-    </group>
+    <Rig lift={2.1} scaleTo={1.1}>
+      <group position={[0, Y + 0.3, -1.4]}>
+        {RIBBONS.map((spec) => <Ribbon key={spec.phase} spec={spec} reduced={frozen} />)}
+      </group>
+    </Rig>
+    <Rig lift={5.2} scaleTo={0.78}>
+      <group position={[0, Y, 0]} scale={SCALE}>
+        <Pedestal />
+        {dress.status === 'ready' && dress.model && <PhotoGarment model={dress.model} reduced={frozen} />}
+        {dress.status === 'failed' && <Sculpture reduced={frozen} />}
+        <Orbits reduced={frozen} />
+        <ContactShadows position={[0, -HEIGHT / 2 - 0.02, 0]} opacity={0.5} scale={6} blur={2.4} far={1.6} />
+      </group>
+    </Rig>
   </Canvas>;
 }

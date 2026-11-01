@@ -348,3 +348,13 @@
 .aura-hero__piece em { display: inline-flex; align-items: center; justify-content: center; gap: .35rem; color: #d8c9b2; font-size: .68rem; font-style: normal; }
 .aura-hero__piece svg { width: 12px; height: 12px; }
 @media (max-width: 800px) { .aura-hero__piece { position: relative; bottom: auto; left: auto; order: 0; width: 100%; transform: none; } }
+
+/* ---- One continuous stage: the hero scene stays fixed behind the plans ---- */
+.aura-hero { background: transparent; }
+.aura-hero .aura-hero__silk.silk-background { position: fixed; inset: 0; height: 100%; bottom: 0; z-index: -1; }
+.aura-landing .aura-pricing {
+  position: relative;
+  background: linear-gradient(to bottom, rgb(14 12 10 / 0%) 0, rgb(14 12 10 / 40%) 18rem, rgb(14 12 10 / 52%) 100%);
+  overflow: visible;
+}
+.aura-landing .aura-footer { position: relative; background: rgb(14 12 10 / 82%); border-color: rgb(197 168 128 / 14%); }

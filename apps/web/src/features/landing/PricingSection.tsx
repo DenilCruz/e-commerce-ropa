@@ -23,7 +23,7 @@ import { PLAN_NOMBRES_FALLBACK, esBajaDePlan, esPlanDePago } from '../tiendas/ut
 import { MiTienda } from '../tiendas/types';
 import { Modal } from '../../components/ui/Modal';
 import { motion } from 'framer-motion';
-import { InteractiveSpatialCard, Magnetic, SilkCanvasBackground } from '../../components/spatial';
+import { InteractiveSpatialCard, Magnetic } from '../../components/spatial';
 
 export const PricingSection: React.FC = () => {
   const navigate = useNavigate();
@@ -223,7 +223,6 @@ export const PricingSection: React.FC = () => {
 
   return (
     <section id="planes" className="aura-pricing bg-[#FAF8F5] py-20 text-stone-900 border-t border-[#E7E1D7] relative">
-      <SilkCanvasBackground className="aura-pricing__silk" variant="light" kind="ribbon" />
       <div className="aura-pricing__content max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 space-y-12">
         {/* Encabezado */}
         <div className="text-center max-w-2xl mx-auto space-y-3">

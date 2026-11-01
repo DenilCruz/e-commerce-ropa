@@ -4,6 +4,8 @@ export type PhotoGarmentModel = {
   geometry: BufferGeometry;
   /** Front colour: the photo, with the garment's colour extended past its silhouette so no background bleeds in. */
   map: CanvasTexture;
+  /** Relief derived from the photo's own shading, so folds and seams catch the light as real geometry would. */
+  bumpMap: CanvasTexture;
   /** Back colour: a smooth per-row average of the fabric. */
   backMap: CanvasTexture;
   alphaMap: CanvasTexture;
@@ -235,5 +237,24 @@ export async function buildGarmentFromPhoto(url: string, height = 3): Promise<Ph
   const backMap = new CanvasTexture(backCanvas); backMap.colorSpace = SRGBColorSpace;
   const alphaMap = new CanvasTexture(mask);
   alphaMap.channel = 1;
-  return { geometry, map, backMap, alphaMap, sway };
+
+  // Bump map = luminance of the photo relative to its local average (folds are darker/lighter than their surroundings).
+  const lum = document.createElement('canvas');
+  lum.width = WB; lum.height = HB;
+  const lctx = lum.getContext('2d');
+  if (!lctx) return null;
+  const limg = lctx.createImageData(WB, HB);
+  for (let p = 0; p < WB * HB; p++) {
+    const y = 0.299 * bd[p * 4] + 0.587 * bd[p * 4 + 1] + 0.114 * bd[p * 4 + 2];
+    limg.data[p * 4] = y; limg.data[p * 4 + 1] = y; limg.data[p * 4 + 2] = y; limg.data[p * 4 + 3] = 255;
+  }
+  lctx.putImageData(limg, 0, 0);
+  const soft = document.createElement('canvas');
+  soft.width = WB; soft.height = HB;
+  const sctx2 = soft.getContext('2d');
+  if (!sctx2) return null;
+  sctx2.filter = 'blur(1.2px)';
+  sctx2.drawImage(lum, 0, 0);
+  const bumpMap = new CanvasTexture(soft);
+  return { geometry, map, backMap, bumpMap, alphaMap, sway };
 }

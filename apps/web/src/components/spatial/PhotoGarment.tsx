@@ -8,7 +8,7 @@ import { coutureState } from './coutureState';
 export function PhotoGarment({ model, reduced }: { model: PhotoGarmentModel; reduced: boolean }) {
   const group = useRef<Group>(null);
   const base = useMemo(() => (model.geometry.getAttribute('position').array as Float32Array).slice(), [model]);
-  useEffect(() => () => { model.geometry.dispose(); model.map.dispose(); model.backMap.dispose(); model.alphaMap.dispose(); }, [model]);
+  useEffect(() => () => { model.geometry.dispose(); model.map.dispose(); model.backMap.dispose(); model.bumpMap.dispose(); model.alphaMap.dispose(); }, [model]);
 
   useFrame(({ clock, pointer }, rawDt) => {
     const dt = Math.min(rawDt, 1 / 30);
@@ -37,7 +37,7 @@ export function PhotoGarment({ model, reduced }: { model: PhotoGarmentModel; red
 
   return <group ref={group}>
     <mesh geometry={model.geometry} frustumCulled={false}>
-      <meshPhysicalMaterial attach="material-0" map={model.map} alphaMap={model.alphaMap} alphaTest={0.5} vertexColors color="#e4dccf" roughness={0.45} metalness={0} sheen={0.9} sheenColor="#ffe1c2" sheenRoughness={0.35} clearcoat={0.25} clearcoatRoughness={0.4} envMapIntensity={1.1} side={DoubleSide} />
+      <meshPhysicalMaterial attach="material-0" map={model.map} bumpMap={model.bumpMap} bumpScale={3.2} alphaMap={model.alphaMap} alphaTest={0.5} vertexColors color="#efe7da" roughness={0.38} metalness={0} sheen={1} sheenColor="#ffd9c0" sheenRoughness={0.28} clearcoat={0.35} clearcoatRoughness={0.3} envMapIntensity={1.25} side={DoubleSide} />
       <meshPhysicalMaterial attach="material-1" map={model.backMap} alphaMap={model.alphaMap} alphaTest={0.5} vertexColors color="#e4dccf" roughness={0.4} metalness={0} sheen={0.9} sheenColor="#ffe1c2" sheenRoughness={0.35} clearcoat={0.3} clearcoatRoughness={0.35} envMapIntensity={1.1} side={DoubleSide} />
     </mesh>
   </group>;
