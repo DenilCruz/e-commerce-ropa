@@ -1,0 +1,53 @@
+.spatial-try-on {
+  --studio-ink: #252b23;
+  --studio-olive: #5a644f;
+  --studio-paper: #f5f1e8;
+  color: var(--studio-ink);
+}
+
+.spatial-try-on > div:first-child { max-width: 56rem; display: flex; flex-direction: column; align-items: center; gap: .85rem; }
+.spatial-try-on > div:first-child h1 { font-size: clamp(2.1rem, 4vw, 3.5rem); letter-spacing: -.04em; }
+.spatial-try-on__studio { display: grid; grid-template-columns: minmax(0, 1.35fr) minmax(270px, .8fr); min-height: 610px; background: #e8e4d9; }
+.spatial-try-on__stage { position: relative; min-height: 600px; overflow: hidden; background: radial-gradient(ellipse at 50% 42%, #f9f7f1, #e2ddcf 76%, #d1cdbc); }
+.spatial-try-on__sequence.image-sequence { position: absolute; inset: 0; width: 100%; height: 100%; touch-action: pan-y; }
+.spatial-try-on__sequence .image-sequence__placeholder, .spatial-try-on__sequence canvas { position: absolute; inset: 0; width: 100%; height: 100%; display: block; }
+.spatial-try-on__sequence .image-sequence__placeholder { opacity: .76; }
+.spatial-try-on__sequence canvas { transition: transform .18s ease-out; }
+.spatial-try-on__sequence .image-sequence__controls { position: absolute; z-index: 3; right: 1.3rem; bottom: 1.2rem; left: 1.3rem; width: auto; box-sizing: border-box; padding: .9rem 1rem; color: #fff; background: rgb(39 45 36 / 72%); backdrop-filter: blur(18px); }
+.spatial-try-on__sequence .image-sequence__controls label { display: grid; grid-template-columns: 1fr auto; gap: .45rem 1rem; align-items: center; font-size: .63rem; letter-spacing: .09em; text-transform: uppercase; }
+.spatial-try-on__sequence .image-sequence__controls input { grid-column: 1 / -1; width: 100%; accent-color: #ebe6d8; }
+.spatial-try-on__stage-caption { position: absolute; z-index: 2; top: 1.2rem; left: 1.3rem; display: flex; gap: .6rem; align-items: center; padding: .5rem .7rem; color: #30372b; background: rgb(248 246 239 / 78%); font-size: .57rem; letter-spacing: .09em; text-transform: uppercase; backdrop-filter: blur(13px); }
+.spatial-try-on__stage-caption span + span { padding-left: .6rem; border-left: 1px solid #a9ac9d; color: #59634f; }
+.spatial-try-on__guide { position: absolute; z-index: 1; inset: 7% 10% 18%; width: 80%; height: 75%; fill: none; stroke: rgb(72 81 64 / 60%); stroke-width: .22; stroke-dasharray: 1.2 1; pointer-events: none; animation: guide-appear .35s ease-out both; }
+.spatial-try-on__stage-tools { position: absolute; z-index: 4; top: 1.05rem; right: 1.15rem; display: flex; align-items: center; gap: .65rem; }
+.spatial-try-on__guide-toggle, .spatial-try-on__angle { display: inline-flex; align-items: center; min-height: 2rem; padding: .45rem .65rem; color: #30372b; background: rgb(248 246 239 / 78%); font-size: .57rem; letter-spacing: .07em; text-transform: uppercase; backdrop-filter: blur(13px); }
+.spatial-try-on__guide-toggle { gap: .45rem; cursor: pointer; }
+.spatial-try-on__guide-toggle input { accent-color: var(--studio-olive); }
+.spatial-try-on__angle { font-variant-numeric: tabular-nums; }
+.spatial-try-on__selection { display: flex; flex-direction: column; justify-content: center; padding: clamp(1.5rem, 4vw, 3rem); color: #f8f5eb; background: linear-gradient(145deg, rgb(41 47 38 / 95%), rgb(31 36 30 / 97%)); backdrop-filter: blur(18px); }
+.spatial-try-on__collection-label { color: #d4d4c6; font-size: .61rem; letter-spacing: .15em; text-transform: uppercase; }
+.spatial-try-on__selection h2 { margin: .75rem 0 .5rem; font: 400 clamp(1.9rem, 3vw, 3rem)/1.05 Georgia, 'Times New Roman', serif; }
+.spatial-try-on__price { color: #f7f4eb; font-size: .92rem; font-variant-numeric: tabular-nums; }
+.spatial-try-on__selection-note { max-width: 34ch; margin: 1.4rem 0 2rem; color: #e0dfd3; font-size: .74rem; line-height: 1.7; }
+.spatial-try-on__launch { display: inline-flex; min-height: 3rem; align-items: center; justify-content: center; gap: .65rem; padding: .8rem 1rem; border: 1px solid #e5e1d4; color: #30372b; background: #f3f0e6; font-size: .62rem; letter-spacing: .08em; text-transform: uppercase; cursor: pointer; transition: color .25s ease, background .25s ease; }
+.spatial-try-on__launch:hover:not(:disabled) { color: #fff; background: transparent; }
+.spatial-try-on__launch:disabled { color: #c9c9bd; background: #454b41; border-color: #61675c; cursor: not-allowed; }
+.spatial-try-on__garment { display: block; padding: 0; text-align: left; cursor: pointer; }
+.spatial-try-on__garment:focus-visible, .spatial-try-on__launch:focus-visible { outline: 2px solid #68735c; outline-offset: 3px; }
+.spatial-try-on__garment .aspect-\[3\/4\] img { transition: transform .5s cubic-bezier(.2,.8,.2,1); }
+.spatial-try-on__garment:hover .aspect-\[3\/4\] img { transform: scale(1.045); }
+.spatial-try-on__garment > div:last-child { background: #f5f1e8; }
+
+@keyframes guide-appear { from { opacity: 0; } to { opacity: 1; } }
+
+@media (max-width: 760px) {
+  .spatial-try-on__studio { grid-template-columns: 1fr; }
+  .spatial-try-on__stage { min-height: 66svh; }
+  .spatial-try-on__selection { padding: 1.6rem; }
+  .spatial-try-on__selection-note { margin: 1rem 0 1.4rem; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .spatial-try-on__sequence canvas, .spatial-try-on__launch, .spatial-try-on__garment .aspect-\[3\/4\] img { transition: none; }
+  .spatial-try-on__guide { animation: none; }
+}

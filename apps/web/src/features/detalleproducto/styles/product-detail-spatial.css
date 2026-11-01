@@ -1,0 +1,67 @@
+.spatial-product-detail {
+  --detail-ink: #292e26;
+  --detail-olive: #59634f;
+  color: var(--detail-ink);
+}
+
+.spatial-product-detail nav { color: #656a5d; }
+
+.spatial-product-detail__stage {
+  position: relative;
+  aspect-ratio: 3 / 4;
+  overflow: hidden;
+  background: radial-gradient(ellipse at 50% 40%, #f4f0e5, #e1dccf 80%);
+}
+
+.spatial-product-detail__sequence.image-sequence {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  touch-action: pan-y;
+}
+
+.spatial-product-detail__sequence .image-sequence__placeholder,
+.spatial-product-detail__sequence canvas {
+  display: block;
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+}
+
+.spatial-product-detail__sequence .image-sequence__placeholder { opacity: .7; }
+.spatial-product-detail__sequence canvas { transition: transform .18s ease-out; }
+.spatial-product-detail__sequence .image-sequence__controls {
+  position: absolute;
+  z-index: 3;
+  right: 1rem;
+  bottom: 1rem;
+  left: 1rem;
+  padding: .7rem .9rem;
+  color: #fff;
+  background: rgb(42 47 39 / 67%);
+  backdrop-filter: blur(16px);
+}
+
+.spatial-product-detail__sequence .image-sequence__controls label { display: grid; grid-template-columns: 1fr auto; gap: .4rem .8rem; align-items: center; font-size: .62rem; letter-spacing: .07em; text-transform: uppercase; }
+.spatial-product-detail__sequence .image-sequence__controls input { grid-column: 1 / -1; width: 100%; accent-color: #e9e4d8; }
+.spatial-product-detail__sequence .image-sequence__controls label > span:last-child { color: #f2efe7; }
+.spatial-product-detail__badge { position: absolute; z-index: 2; top: 1rem; left: 1rem; padding: .45rem .7rem; color: #fff; background: rgb(42 47 39 / 84%); font-size: .56rem; letter-spacing: .12em; text-transform: uppercase; backdrop-filter: blur(10px); }
+.spatial-product-detail__favorite { position: absolute; z-index: 3; top: 1rem; right: 1rem; }
+.spatial-product-detail__hotspot { z-index: 2; }
+
+.spatial-product-detail > div:nth-of-type(2) > div:last-child { padding: clamp(1.4rem, 3vw, 2.6rem); background: #f8f5ee; }
+.spatial-product-detail h1 { color: #292e26; font-size: clamp(1.9rem, 3.3vw, 3rem); letter-spacing: -.035em; }
+.spatial-product-detail select, .spatial-product-detail input { accent-color: var(--detail-olive); }
+.spatial-product-detail button:focus-visible, .spatial-product-detail a:focus-visible { outline: 2px solid var(--detail-olive); outline-offset: 3px; }
+
+@media (max-width: 640px) {
+  .spatial-product-detail__stage { aspect-ratio: 4 / 5; }
+  .spatial-product-detail__sequence .image-sequence__controls { right: .55rem; bottom: .55rem; left: .55rem; }
+  .spatial-product-detail__hotspot { display: none; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .spatial-product-detail__sequence canvas { transition: none; }
+}

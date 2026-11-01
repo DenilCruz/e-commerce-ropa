@@ -6,6 +6,9 @@ import { Producto } from '../../catalogo/types';
 import { useTenantStore } from '../../../hooks/useTenantStore';
 import { VirtualTryOnModal } from '../../carrito/components/VirtualTryOnModal';
 import { useNetworkStatus } from '../../../hooks/useNetworkStatus';
+import { ImageSequenceCanvas } from '../../../components/spatial/ImageSequenceCanvas';
+import { SpatialGlassCard } from '../../../components/spatial/SpatialGlassCard';
+import './virtual-try-on-spatial.css';
 
 const ASSETS_URL = (import.meta.env.VITE_API_URL || 'http://localhost:3000/api/v1').replace('/api/v1', '');
 
@@ -27,6 +30,8 @@ export const VirtualTryOnPage: React.FC = () => {
   const [productoSeleccionado, setProductoSeleccionado] = useState<Producto | null>(null);
   const [modalAbierto, setModalAbierto] = useState(false);
   const [cargando, setCargando] = useState(true);
+  const [anguloVista, setAnguloVista] = useState(180);
+  const [mostrarGuiaVisual, setMostrarGuiaVisual] = useState(false);
 
   useEffect(() => {
     obtenerProductos()
@@ -61,7 +66,7 @@ export const VirtualTryOnPage: React.FC = () => {
   } : null;
 
   return (
-    <div className="space-y-12 max-w-5xl mx-auto py-4">
+    <div className="spatial-try-on space-y-12 max-w-6xl mx-auto py-4">
       {/* Encabezado */}
       <div className="space-y-3 text-center max-w-2xl mx-auto">
         <Link
@@ -79,7 +84,7 @@ export const VirtualTryOnPage: React.FC = () => {
           Probador Virtual de Alta Costura
         </h1>
         <p className="text-xs sm:text-sm text-stone-600 font-light leading-relaxed">
-          Selecciona una prenda de nuestra colección para simular su caída, proporciones y ajuste realista en tu fotografía o en nuestros avatares de estudio.
+          Explora las imágenes de cada prenda y abre el flujo de prueba virtual para continuar con las opciones disponibles.
         </p>
       </div>
 
@@ -100,44 +105,46 @@ export const VirtualTryOnPage: React.FC = () => {
 
       {/* Prenda Seleccionada y Trigger */}
       {productoSeleccionado && (
-        <div className="bg-white border border-[#E7E1D7] p-6 sm:p-8 flex flex-col sm:flex-row items-center justify-between gap-6 shadow-xs">
-          <div className="flex items-center gap-5">
-            <div className="w-20 h-28 shrink-0 bg-[#F2ECE1] overflow-hidden border border-[#E7E1D7]">
-              <img
-                src={getImageUrl(productoSeleccionado.imagenes?.[0]?.url)}
-                alt={productoSeleccionado.nombre}
-                className="w-full h-full object-cover"
-              />
+        <div className="spatial-try-on__studio">
+          <div className="spatial-try-on__stage">
+            <ImageSequenceCanvas
+              images={(productoSeleccionado.imagenes || []).map((image) => getImageUrl(image.url))}
+              alt={productoSeleccionado.nombre}
+              mode="drag-and-hover-orbit"
+              controls
+              onAngleChange={setAnguloVista}
+              objectFit="contain"
+              className="spatial-try-on__sequence"
+            />
+            <div className="spatial-try-on__stage-caption">
+              <span>Vista de la prenda</span><span>{(productoSeleccionado.imagenes?.length || 0) > 1 ? 'Imágenes de catálogo' : 'Vista simulada'}</span>
             </div>
-            <div className="space-y-1">
-              <span className="text-[10px] uppercase tracking-luxury text-[#9B7B54] font-medium">
-                {productoSeleccionado.categoria?.nombre || 'Colección'}
-              </span>
-              <h2 className="font-serif text-xl text-stone-900">
-                {productoSeleccionado.nombre}
-              </h2>
-              <p className="font-sans text-sm font-semibold text-stone-900">
-                ${Number(productoSeleccionado.precio).toFixed(2)}
-              </p>
+            {mostrarGuiaVisual && <svg className="spatial-try-on__guide" viewBox="0 0 100 100" preserveAspectRatio="none" aria-hidden="true">
+              <path d="M50 4V96M18 31C34 26 66 26 82 31M24 54C39 49 61 49 76 54M30 76C42 72 58 72 70 76M33 18C42 12 58 12 67 18" />
+              <path d="M35 18C26 32 27 67 35 83M65 18C74 32 73 67 65 83M43 10V90M57 10V90" />
+            </svg>}
+            <div className="spatial-try-on__stage-tools">
+              <label className="spatial-try-on__guide-toggle">
+                <input type="checkbox" checked={mostrarGuiaVisual} onChange={(event) => setMostrarGuiaVisual(event.target.checked)} />
+                <span>Guía visual</span>
+              </label>
+              <span className="spatial-try-on__angle">{Math.round(anguloVista)}°</span>
             </div>
           </div>
-
-          <button
-            onClick={() => {
-              if (isOnline) {
-                setModalAbierto(true);
-              }
-            }}
-            disabled={!isOnline}
-            className={`w-full sm:w-auto px-8 py-3.5 text-xs uppercase tracking-luxury flex items-center justify-center gap-2 shadow-sm font-medium transition-colors ${
-              !isOnline
-                ? 'bg-stone-300 text-stone-500 cursor-not-allowed border border-stone-300'
-                : 'bg-stone-900 text-white hover:bg-stone-800'
-            }`}
-          >
-            <Sparkles className="w-4 h-4 text-[#EAE2D5]" />
-            <span>{isOnline ? 'Iniciar Prueba Virtual' : 'Conexión Requerida para IA'}</span>
-          </button>
+          <SpatialGlassCard className="spatial-try-on__selection" strength={1}>
+            <span className="spatial-try-on__collection-label">{productoSeleccionado.categoria?.nombre || 'Colección'}</span>
+            <h2>{productoSeleccionado.nombre}</h2>
+            <p className="spatial-try-on__price">${Number(productoSeleccionado.precio).toFixed(2)}</p>
+            <p className="spatial-try-on__selection-note">Gira la imagen para explorar las fotografías disponibles. La guía visual es orientativa.</p>
+            <button
+              onClick={() => { if (isOnline) setModalAbierto(true); }}
+              disabled={!isOnline}
+              className="spatial-try-on__launch"
+            >
+              <Sparkles className="w-4 h-4" />
+              <span>{isOnline ? 'Continuar con la prueba virtual' : 'Conexión requerida para IA'}</span>
+            </button>
+          </SpatialGlassCard>
         </div>
       )}
 
@@ -160,13 +167,14 @@ export const VirtualTryOnPage: React.FC = () => {
               const imgUrl = getImageUrl(prod.imagenes?.[0]?.url);
 
               return (
-                <div
+                <button
                   key={prod.id}
                   onClick={() => {
                     setProductoSeleccionado(prod);
                     setModalAbierto(true);
                   }}
-                  className={`cursor-pointer group relative bg-white border transition-all duration-200 overflow-hidden ${
+                  type="button"
+                  className={`spatial-try-on__garment group relative bg-white border transition-all duration-200 overflow-hidden ${
                     isSelected ? 'border-stone-900 ring-2 ring-stone-900' : 'border-[#E7E1D7] hover:border-stone-400'
                   }`}
                 >
@@ -190,7 +198,7 @@ export const VirtualTryOnPage: React.FC = () => {
                       ${Number(prod.precio).toFixed(2)}
                     </p>
                   </div>
-                </div>
+                </button>
               );
             })}
           </div>

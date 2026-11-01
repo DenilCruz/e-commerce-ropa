@@ -131,7 +131,7 @@ export const MainLayout: React.FC = () => {
   };
 
   return (
-    <div className="min-h-screen flex flex-col bg-[#FAF8F5] text-stone-900 font-sans selection:bg-[#E7E1D7] selection:text-stone-900">
+    <div className="aura-store min-h-screen flex flex-col bg-[#FAF8F5] text-stone-900 font-sans selection:bg-[#E7E1D7] selection:text-stone-900">
       {/* HEADER PRINCIPAL AURA */}
       <header className="bg-white/80 backdrop-blur-md border-b border-[#E7E1D7] px-4 sm:px-8 py-3.5 sticky top-0 z-40 transition-colors">
         <div className="max-w-7xl mx-auto flex items-center justify-between gap-4">
@@ -507,7 +507,7 @@ export const MainLayout: React.FC = () => {
       </header>
 
       {/* CONTENIDO PRINCIPAL */}
-      <main className="flex-1 max-w-7xl mx-auto w-full p-4 sm:p-6 lg:p-8">
+      <main className="store-content flex-1 max-w-7xl mx-auto w-full p-4 sm:p-6 lg:p-8">
         <Outlet />
       </main>
 

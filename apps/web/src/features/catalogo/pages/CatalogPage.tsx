@@ -13,6 +13,7 @@ import {
 import { Producto, Categoria } from '../types';
 import { obtenerProductos, obtenerCategorias } from '../services/catalogo.api';
 import { ProductCard } from '../components/ProductCard';
+import '../styles/catalog-spatial.css';
 
 export const CatalogPage: React.FC = () => {
   const [searchParams, setSearchParams] = useSearchParams();
@@ -282,7 +283,7 @@ export const CatalogPage: React.FC = () => {
   }
 
   return (
-    <div className="space-y-8 pb-16">
+      <div className="spatial-catalog space-y-8 pb-16">
       
       {/* Título Principal AURA */}
       <div className="border-b border-[#E7E1D7] pb-6">
