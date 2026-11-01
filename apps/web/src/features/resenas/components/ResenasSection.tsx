@@ -17,6 +17,7 @@ import { resenasApi } from '../services/resenas.api';
 import { Resena, ResumenResenas, EstadoCompraResena } from '../types';
 import { useAuthStore } from '../../../store/auth.store';
 
+import { askConfirm } from '../../../components/ui/DialogHost';
 const ASSETS_URL = (import.meta.env.VITE_API_URL || 'http://localhost:3000/api/v1').replace('/api/v1', '');
 
 const resolverAvatar = (url?: string) => {
@@ -140,7 +141,8 @@ export const ResenasSection: React.FC<ResenasSectionProps> = ({ productoId }) =>
   // Eliminar propia reseña (HU-68)
   const handleEliminarPropia = async (resenaId: string) => {
     if (!user) return;
-    if (!confirm('¿Seguro que deseas eliminar tu reseña? Esta acción no se puede deshacer.')) return;
+    const ok = await askConfirm({ title: '¿Eliminar tu reseña?', message: 'Esta acción no se puede deshacer.', confirmLabel: 'Eliminar', tone: 'danger' });
+    if (!ok) return;
 
     try {
       const toastId = toast.loading('Eliminando reseña...');

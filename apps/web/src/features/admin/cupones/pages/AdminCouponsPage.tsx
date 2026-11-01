@@ -3,6 +3,7 @@ import { Ticket, AlertCircle } from 'lucide-react';
 import { cuponesApi } from '../../../cupones/services/cupones.api';
 import { Cupon, CrearCuponPayload } from '../../../cupones/types';
 
+import { toast } from 'sonner';
 export const AdminCouponsPage: React.FC = () => {
   const [cupones, setCupones] = useState<Cupon[]>([]);
   const [cargando, setCargando] = useState(true);
@@ -46,7 +47,7 @@ export const AdminCouponsPage: React.FC = () => {
       const updated = await cuponesApi.cambiarEstado(id, !estadoActual);
       setCupones((prev) => prev.map((c) => (c.id === id ? updated : c)));
     } catch (err: any) {
-      alert(err?.response?.data?.message || 'No se pudo cambiar el estado del cupón.');
+      toast.error(err?.response?.data?.message || 'No se pudo cambiar el estado del cupón.');
     }
   };
 
@@ -56,7 +57,7 @@ export const AdminCouponsPage: React.FC = () => {
       await cuponesApi.eliminarCupon(id);
       setCupones((prev) => prev.filter((c) => c.id !== id));
     } catch (err: any) {
-      alert(err?.response?.data?.message || 'Error al eliminar cupón.');
+      toast.error(err?.response?.data?.message || 'No se pudo eliminar el cupón.');
     }
   };
 

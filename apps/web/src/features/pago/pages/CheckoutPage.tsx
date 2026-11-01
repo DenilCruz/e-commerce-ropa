@@ -30,6 +30,7 @@ import { useNetworkStatus } from '../../../hooks/useNetworkStatus';
 import { pagosConfigApi, StorePublicPaymentConfig } from '../../tiendas/services/pagos-config.api';
 import { shippingApi, MetodoEnvio } from '../../envios/services/shipping.api';
 
+import { toast } from 'sonner';
 // Shipping rules the API applies when it charges the order: standard is free from $200 and $15 below it, express is always $30.
 const FREE_SHIPPING_FROM = 200;
 const STANDARD_SHIPPING = 15;
@@ -201,7 +202,7 @@ export const CheckoutPage: React.FC = () => {
 
   const obtenerUbicacionGPS = () => {
     if (!navigator.geolocation) {
-      alert('La geolocalización no es compatible con tu navegador.');
+      toast.error('Tu navegador no permite detectar la ubicación. Escribe tu dirección o elígela en el mapa.');
       return;
     }
     setGeolocalizando(true);
@@ -240,7 +241,7 @@ export const CheckoutPage: React.FC = () => {
       },
       (err) => {
         setGeolocalizando(false);
-        alert('No pudimos acceder a tu ubicación. Revisa los permisos del navegador e inténtalo de nuevo.');
+        toast.error('No pudimos acceder a tu ubicación. Revisa los permisos del navegador e inténtalo de nuevo.');
       },
       { enableHighAccuracy: true, timeout: 10000 }
     );

@@ -14,6 +14,7 @@ import { useCartStore } from '../../../store/cart.store';
 import { VirtualTryOnModal } from '../components/VirtualTryOnModal';
 import { useTenantStore } from '../../../hooks/useTenantStore';
 
+import { askConfirm } from '../../../components/ui/DialogHost';
 const ASSETS_URL = (import.meta.env.VITE_API_URL || 'http://localhost:3000/api/v1').replace('/api/v1', '');
 
 export const CartPage: React.FC = () => {
@@ -107,10 +108,14 @@ export const CartPage: React.FC = () => {
 
         {items.length > 0 && (
           <button
-            onClick={() => {
-              if (window.confirm('¿Deseas vaciar todos los artículos de tu bolsa?')) {
-                clearCart();
-              }
+            onClick={async () => {
+              const ok = await askConfirm({
+                title: '¿Vaciar tu bolsa?',
+                message: 'Quitaremos todas las prendas que elegiste. Podrás volver a añadirlas desde la colección.',
+                confirmLabel: 'Vaciar bolsa',
+                tone: 'danger',
+              });
+              if (ok) clearCart();
             }}
             className="text-xs uppercase tracking-luxury text-stone-500 hover:text-red-700 transition-colors flex items-center gap-1.5 self-start sm:self-auto"
           >

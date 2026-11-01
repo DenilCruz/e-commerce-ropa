@@ -17,6 +17,7 @@ import { ReporteVentasRespuesta, ReportePedido, ReporteVentasFiltros } from '../
 import { obtenerCategorias } from '../../catalogo/services/catalogo.api';
 import { adminUsuariosApi, UsuarioAdmin } from '../usuarios/admin-usuarios.api';
 
+import { toast } from 'sonner';
 export const AdminReportsPage: React.FC = () => {
   // Preset de fechas
   const [preset, setPreset] = useState<string>('este_mes');
@@ -129,7 +130,7 @@ export const AdminReportsPage: React.FC = () => {
   // HU-92: Exportación a CSV formateado con UTF-8 BOM
   const exportarCSV = () => {
     if (!reporte || reporte.pedidos.length === 0) {
-      alert('No hay datos para exportar.');
+      toast.info('No hay datos para exportar.');
       return;
     }
 
@@ -190,7 +191,7 @@ export const AdminReportsPage: React.FC = () => {
   // Excel (.xlsx): todos los pedidos del filtro actual, no solo la página visible
   const exportarExcelVentas = async () => {
     if (!reporte || reporte.pedidos.length === 0) {
-      alert('No hay datos para exportar.');
+      toast.info('No hay datos para exportar.');
       return;
     }
 
@@ -236,7 +237,7 @@ export const AdminReportsPage: React.FC = () => {
       });
     } catch (error) {
       console.error('Error exportando el reporte a Excel', error);
-      alert('No se pudo generar el archivo de Excel. Inténtalo de nuevo.');
+      toast.error('No se pudo generar el archivo de Excel. Inténtalo de nuevo.');
     } finally {
       setExportando(false);
     }

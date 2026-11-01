@@ -9,6 +9,7 @@ import {
   Eye,
   CreditCard,
   Truck,
+  PackageCheck,
   AlertTriangle,
   RefreshCw,
 } from 'lucide-react';
@@ -16,6 +17,8 @@ import { ordersApi } from '../../pedidos/services/orders.api';
 import { paymentsApi } from '../../pago/services/payments.api';
 import { Pedido, PedidoItem, HistorialAuditoria } from '../../pedidos/types';
 
+import { askText } from '../../../components/ui/DialogHost';
+import { toast } from 'sonner';
 export const AdminOrdersPage: React.FC = () => {
   const [pedidos, setPedidos] = useState<Pedido[]>([]);
   const [cargando, setCargando] = useState(true);
@@ -81,11 +84,15 @@ export const AdminOrdersPage: React.FC = () => {
   // Actualizar estado logístico de orden (HU-54 y HU-55)
   const handleCambiarEstado = async (id: string, nuevoEstado: string) => {
     try {
-      const comentario =
-        window.prompt(
-          `Ingrese un comentario u observación para registrar en el historial de auditoría al cambiar a "${nuevoEstado}":`,
-          `Actualizado por administrador a ${nuevoEstado}`,
-        ) || undefined;
+      const respuesta = await askText({
+        title: `Cambiar estado a ${nuevoEstado}`,
+        message: 'Deja una observación: quedará registrada en el historial de auditoría del pedido.',
+        inputLabel: 'Observación',
+        initialValue: `Actualizado por administrador a ${nuevoEstado}`,
+        confirmLabel: 'Cambiar estado',
+      });
+      if (respuesta === null) return; // cancelled: leave the order untouched
+      const comentario = respuesta || undefined;
 
       await ordersApi.actualizarEstadoAdmin(id, nuevoEstado, comentario);
       cargarPedidos();
@@ -93,7 +100,7 @@ export const AdminOrdersPage: React.FC = () => {
         setPedidoSeleccionado((prev: Pedido | null) => (prev ? { ...prev, estado: nuevoEstado as any } : null));
       }
     } catch (err: any) {
-      alert(err.response?.data?.message || 'Error al actualizar estado.');
+      toast.error(err.response?.data?.message || 'No se pudo actualizar el estado.');
     }
   };
 
@@ -105,42 +112,29 @@ export const AdminOrdersPage: React.FC = () => {
     .filter((p) => p.estado === 'PAGADO' || p.pago?.estado === 'APROBADO')
     .reduce((acc, p) => acc + (Number(p.total) || 0), 0);
 
+  // The order's own status decides the badge; a pending payment only matters while the order itself is still pending
+  // (cash on delivery stays "pending" for the payment long after the parcel has shipped).
   const getStatusBadge = (estado: string, estadoPago?: string) => {
-    if (estado === 'REEMBOLSADO' || estadoPago === 'REEMBOLSADO') {
-      return (
-        <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-xs font-bold bg-[#FAF8F5] text-stone-700 border border-[#E7E1D7]">
-          <RotateCcw className="w-3 h-3 text-[#9B7B54]" />
-          Reembolsado
-        </span>
-      );
-    }
-    if (estado === 'PAGADO' || estadoPago === 'APROBADO') {
-      return (
-        <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-xs font-bold bg-[#FAF8F5] text-stone-900 border border-[#E7E1D7]">
-          <CheckCircle2 className="w-3 h-3 text-[#9B7B54]" />
-          Pagado
-        </span>
-      );
-    }
-    if (estado === 'PENDIENTE' || estadoPago === 'PENDIENTE') {
-      return (
-        <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-xs font-bold bg-amber-50 text-amber-800 border border-amber-200">
-          <Clock className="w-3 h-3" />
-          Pendiente
-        </span>
-      );
-    }
-    if (estado === 'CANCELADO') {
-      return (
-        <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-xs font-bold bg-rose-50 text-rose-800 border border-rose-200">
-          <XCircle className="w-3 h-3" />
-          Cancelado
-        </span>
-      );
-    }
+    const warm = 'bg-[#FAF8F5] text-stone-900 border border-[#E7E1D7]';
+    const badges: Record<string, { label: string; icon: React.ReactNode; tone: string }> = {
+      REEMBOLSADO: { label: 'Reembolsado', icon: <RotateCcw className="w-3 h-3 text-[#9B7B54]" />, tone: warm },
+      CANCELADO: { label: 'Cancelado', icon: <XCircle className="w-3 h-3" />, tone: 'bg-rose-50 text-rose-800 border border-rose-200' },
+      ENTREGADO: { label: 'Entregado', icon: <PackageCheck className="w-3 h-3 text-emerald-700" />, tone: 'bg-emerald-50 text-emerald-800 border border-emerald-200' },
+      ENVIADO: { label: 'Enviado', icon: <Truck className="w-3 h-3 text-[#9B7B54]" />, tone: warm },
+      PAGADO: { label: 'Pagado', icon: <CheckCircle2 className="w-3 h-3 text-[#9B7B54]" />, tone: warm },
+      PENDIENTE: { label: 'Pendiente', icon: <Clock className="w-3 h-3" />, tone: 'bg-amber-50 text-amber-800 border border-amber-200' },
+    };
+    const key =
+      estadoPago === 'REEMBOLSADO' ? 'REEMBOLSADO'
+      : badges[estado] ? estado
+      : estadoPago === 'APROBADO' ? 'PAGADO'
+      : estadoPago === 'PENDIENTE' ? 'PENDIENTE'
+      : null;
+    const badge = key ? badges[key] : { label: estado, icon: null, tone: warm };
     return (
-      <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-xs font-bold bg-[#FAF8F5] text-stone-800 border border-[#E7E1D7]">
-        {estado}
+      <span className={`inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-xs font-bold ${badge.tone}`}>
+        {badge.icon}
+        {badge.label}
       </span>
     );
   };
@@ -247,7 +241,7 @@ export const AdminOrdersPage: React.FC = () => {
 
         <div className="flex items-center gap-2 w-full md:w-auto overflow-x-auto">
           <span className="text-[10px] font-bold text-stone-500 uppercase tracking-wider whitespace-nowrap">Estado:</span>
-          {['TODOS', 'PAGADO', 'PENDIENTE', 'REEMBOLSADO'].map((st) => (
+          {['TODOS', 'PENDIENTE', 'PAGADO', 'ENVIADO', 'ENTREGADO', 'CANCELADO', 'REEMBOLSADO'].map((st) => (
             <button
               key={st}
               onClick={() => setEstadoFiltro(st)}

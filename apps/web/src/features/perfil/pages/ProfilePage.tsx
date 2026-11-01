@@ -5,6 +5,7 @@ import { Direccion } from '../types';
 import { toast } from 'sonner';
 import { Star, Trash2, Camera, UploadCloud } from 'lucide-react';
 
+import { askConfirm } from '../../../components/ui/DialogHost';
 const ASSETS_URL = (import.meta.env.VITE_API_URL || 'http://localhost:3000/api/v1').replace('/api/v1', '');
 
 const getImageUrl = (url?: string) => {
@@ -137,7 +138,8 @@ export const ProfilePage: React.FC = () => {
   // Eliminar foto de perfil (HU-82)
   const handleEliminarFoto = async () => {
     if (!user || !foto) return;
-    if (!confirm('¿Deseas quitar tu foto de perfil?')) return;
+    const ok = await askConfirm({ title: '¿Quitar tu foto de perfil?', confirmLabel: 'Quitar foto', tone: 'danger' });
+    if (!ok) return;
 
     try {
       setSubiendoFoto(true);

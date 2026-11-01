@@ -17,6 +17,7 @@ import { adminApi } from '../services/admin.api';
 import { exportarExcel, inferirCelda, tituloDeColumna } from '../../../lib/exportarExcel';
 import { ReporteDinamicoResultado } from '../types';
 
+import { toast } from 'sonner';
 export const AdminDynamicReportsPage: React.FC = () => {
   const [prompt, setPrompt] = useState<string>('');
   const [proveedor, setProveedor] = useState<'GROQ' | 'GEMINI'>('GROQ');
@@ -233,7 +234,7 @@ export const AdminDynamicReportsPage: React.FC = () => {
 
     const printWindow = window.open('', '_blank');
     if (!printWindow) {
-      alert('Por favor permite las ventanas emergentes en tu navegador para generar el PDF.');
+      toast.error('Permite las ventanas emergentes en tu navegador para generar el PDF.');
       return;
     }
 

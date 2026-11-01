@@ -6,6 +6,7 @@ import { OfflineBanner } from './components/OfflineBanner';
 import { useCartStore } from './store/cart.store';
 import { SmoothScrollProvider } from './components/spatial/SmoothScrollProvider';
 
+import { DialogHost } from './components/ui/DialogHost';
 export const App: React.FC = () => {
   useEffect(() => {
     useCartStore.getState().cargarCarrito();
@@ -17,6 +18,7 @@ export const App: React.FC = () => {
       <OfflineBanner />
       <AppRouter />
       <Toaster position="top-right" richColors />
+      <DialogHost />
       </SmoothScrollProvider>
     </BrowserRouter>
   );
