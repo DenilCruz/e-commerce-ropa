@@ -1,9 +1,10 @@
-import React, { useState } from 'react';
+import React, { useRef, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { ArrowRight, ShieldCheck, Zap, Layers, WifiOff } from 'lucide-react';
 import { useAuthStore } from '../../store/auth.store';
 import { ModalCrearTienda } from '../tiendas/components/ModalCrearTienda';
 import { InteractiveSpatialCard, SilkCanvasBackground } from '../../components/spatial';
+import { coutureState } from '../../components/spatial/coutureState';
 
 export const NetflixHero: React.FC = () => {
   const navigate = useNavigate();
@@ -11,6 +12,7 @@ export const NetflixHero: React.FC = () => {
   const [email, setEmail] = useState('');
   const [nombreTienda, setNombreTienda] = useState('');
   const [modalCrear, setModalCrear] = useState(false);
+  const drag = useRef<number | null>(null);
 
   const handleEmpezar = (e: React.FormEvent) => {
     e.preventDefault();
@@ -52,7 +54,16 @@ export const NetflixHero: React.FC = () => {
           </div>
         </div>
 
-        <div className="aura-hero__stage" role="group" aria-label="Capacidades de AURA">
+        <div
+          className="aura-hero__stage"
+          role="group"
+          aria-label="Capacidades de AURA"
+          onPointerDown={(e) => { drag.current = e.clientX; e.currentTarget.setPointerCapture(e.pointerId); }}
+          onPointerMove={(e) => { if (drag.current !== null) { coutureState.spin += (e.clientX - drag.current) * 0.01; drag.current = e.clientX; } }}
+          onPointerUp={() => { drag.current = null; }}
+          onPointerCancel={() => { drag.current = null; }}
+        >
+          <p className="aura-hero__hint">Arrastra para girar la pieza · 360°</p>
           <div className="aura-hero__features">
             <InteractiveSpatialCard dark className="aura-feature aura-feature--one">
               <Layers aria-hidden="true" /><div><strong>Todas tus marcas</strong><span>Maneja varias tiendas con un solo correo.</span></div>

@@ -146,7 +146,8 @@ textarea { border-radius: var(--r-field) !important; }
 @keyframes ispatial-beam { to { --beam-angle: 360deg; } }
 .ispatial--beam::after {
   background: conic-gradient(from var(--beam-angle), transparent 0 62%, rgba(212, 175, 55, .25) 78%, #f4d98a 90%, transparent 100%);
-  animation: ispatial-beam 3.2s linear infinite;
+  padding: 2px;
+  animation: ispatial-beam 2.6s linear infinite;
 }
 .ispatial--beam.is-hovered { box-shadow: 0 0 46px -10px rgba(212, 175, 55, .45); }
 
