@@ -49,3 +49,7 @@ graphify-out/
 
 # Archivos subidos en tiempo de ejecución (las imágenes del catálogo ya versionadas siguen en git)
 apps/api/uploads/
+
+# Editor and browser-automation scratch
+.vscode/
+.playwright-mcp/
