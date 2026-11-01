@@ -340,3 +340,11 @@
 @media (max-width: 800px) { .aura-hero__hint { display: none; } }
 .aura-hero .aura-feature { background: linear-gradient(135deg, rgb(14 12 10 / 62%), rgb(14 12 10 / 38%)); }
 .aura-hero__hint { left: 1rem; transform: none; }
+
+.aura-hero__piece { position: absolute; z-index: 3; bottom: -1.7rem; left: 50%; display: grid; gap: .1rem; min-width: 250px; padding: .55rem 1.2rem; border: 1px solid rgb(197 168 128 / 30%); border-radius: 18px; background: rgb(12 12 14 / 55%); color: #f4efe6; text-align: center; transform: translateX(-50%); backdrop-filter: blur(14px); transition: border-color .25s, background-color .25s, translate .3s cubic-bezier(.2,.8,.2,1); }
+.aura-hero__piece:hover { border-color: rgb(240 208 128 / 65%); background: rgb(12 12 14 / 72%); translate: 0 -4px; }
+.aura-hero__piece span { color: #c5a880; font-size: .55rem; letter-spacing: .18em; text-transform: uppercase; }
+.aura-hero__piece strong { font: 500 .92rem 'Playfair Display', Georgia, serif; }
+.aura-hero__piece em { display: inline-flex; align-items: center; justify-content: center; gap: .35rem; color: #d8c9b2; font-size: .68rem; font-style: normal; }
+.aura-hero__piece svg { width: 12px; height: 12px; }
+@media (max-width: 800px) { .aura-hero__piece { position: relative; bottom: auto; left: auto; order: 0; width: 100%; transform: none; } }

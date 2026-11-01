@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { Canvas, useFrame } from '@react-three/fiber';
 import { ContactShadows, Environment, Lightformer } from '@react-three/drei';
 import {
@@ -7,6 +7,8 @@ import {
 } from 'three';
 import { makeProfile } from './profile';
 import { coutureState } from './coutureState';
+import { buildGarmentFromPhoto, PhotoGarmentModel } from './garmentFromPhoto';
+import { PhotoGarment } from './PhotoGarment';
 
 const AROUND = 128;
 const UP = 96;
@@ -67,8 +69,9 @@ function Sculpture({ reduced }: { reduced: boolean }) {
   const { geometry, contours, base, meta } = useMemo(buildSculpture, []);
   useEffect(() => () => { geometry.dispose(); contours.dispose(); }, [geometry, contours]);
 
-  useFrame(({ clock, pointer }) => {
+  useFrame(({ clock, pointer }, rawDt) => {
     const t = reduced ? 0 : clock.elapsedTime;
+    if (!reduced && !coutureState.dragging) coutureState.spin += Math.min(rawDt, 1 / 30) * 0.2;
     const pos = geometry.getAttribute('position') as BufferAttribute;
     const arr = pos.array as Float32Array;
     for (let n = 0; n < arr.length / 3; n++) {
@@ -173,65 +176,117 @@ const ribbonVertex = `
 uniform float uTime;
 uniform float uPhase;
 uniform float uWidth;
-varying vec3 vWorld;
+uniform float uLoop;
+varying vec3 vView;
 varying vec3 vNormal;
+varying vec3 vTangent;
 varying vec2 vUv;
-vec3 ribbon(vec2 uv) {
+vec3 centre(float s, float t) {
+  float x = (s - 0.5) * 26.0;
+  float y = sin(s * 4.2 + t) * 1.05 + sin(s * 9.0 - t * 1.3) * 0.22;
+  float z = sin(s * 5.3 + t * 1.1) * 1.1 + cos(s * 2.1 - t) * 0.5;
+  // an occasional loop, like a ribbon unrolled in the wind
+  float loopy = uLoop * exp(-pow((s - 0.5) * 7.0, 2.0));
+  return vec3(x, y + loopy * sin(s * 30.0) * 0.5, z + loopy * cos(s * 30.0) * 0.5);
+}
+void ribbon(vec2 uv, out vec3 p, out vec3 tangent, out vec3 normal) {
   float t = uTime * 0.3 + uPhase;
+  vec3 c = centre(uv.x, t);
+  tangent = normalize(centre(uv.x + 0.002, t) - centre(uv.x - 0.002, t));
+  vec3 up = abs(tangent.y) > 0.92 ? vec3(1.0, 0.0, 0.0) : vec3(0.0, 1.0, 0.0);
+  vec3 n0 = normalize(cross(tangent, up));
+  vec3 b0 = cross(tangent, n0);
+  float tw = sin(uv.x * 3.1 + t) * 1.25 + sin(uv.x * 7.3 - t * 1.4) * 0.45;
+  vec3 side = n0 * cos(tw) + b0 * sin(tw);
   float w = (uv.y - 0.5) * uWidth;
-  float tw = sin(uv.x * 3.0 + t) * 1.0 + sin(uv.x * 7.0 - t * 1.4) * 0.35;
-  float cy = sin(uv.x * 4.0 + t) * 0.9 + sin(uv.x * 9.0 - t * 1.3) * 0.2;
-  float cz = sin(uv.x * 5.0 + t * 1.1) * 0.7 + cos(uv.x * 2.3 - t) * 0.4;
-  // soft longitudinal ripples across the width, like loose satin
-  float ripple = sin(uv.x * 38.0 + uv.y * 4.0 + t * 2.0) * 0.025;
-  return vec3((uv.x - 0.5) * 24.0, cy + w * cos(tw), cz + w * sin(tw) + ripple);
+  // soft creases that run along the ribbon, strongest where it bends
+  float crease = sin(uv.x * 46.0 + uv.y * 5.0 + t * 1.6) * 0.018 + sin(uv.x * 13.0 - t) * 0.03 * smoothstep(0.35, 0.5, abs(sin(uv.x * 3.1 + t)));
+  normal = normalize(cross(tangent, side));
+  p = c + side * w + normal * crease;
 }
 void main() {
   vUv = uv;
-  vec3 p = ribbon(uv);
-  vec3 px = ribbon(uv + vec2(0.002, 0.0));
-  vec3 py = ribbon(uv + vec2(0.0, 0.01));
-  vNormal = normalize(normalMatrix * cross(px - p, py - p));
-  vec4 world = modelViewMatrix * vec4(p, 1.0);
-  vWorld = world.xyz;
-  gl_Position = projectionMatrix * world;
+  vec3 p, t, n;
+  ribbon(uv, p, t, n);
+  vec4 mv = modelViewMatrix * vec4(p, 1.0);
+  vView = -mv.xyz;
+  vNormal = normalize(normalMatrix * n);
+  vTangent = normalize(normalMatrix * t);
+  gl_Position = projectionMatrix * mv;
 }`;
 const ribbonFragment = `
-uniform float uTone;
-varying vec3 vWorld;
+uniform vec3 uBase;
+uniform vec3 uHem;
+uniform vec3 uSpecTint;
+varying vec3 vView;
 varying vec3 vNormal;
+varying vec3 vTangent;
 varying vec2 vUv;
+float aniso(vec3 T, vec3 L, vec3 V, float power) {
+  vec3 H = normalize(L + V);
+  float th = dot(T, H);
+  return pow(sqrt(max(0.0, 1.0 - th * th)), power);
+}
 void main() {
-  vec3 n = normalize(vNormal) * (gl_FrontFacing ? 1.0 : -1.0);
+  vec3 N = normalize(vNormal) * (gl_FrontFacing ? 1.0 : -1.0);
+  vec3 V = normalize(vView);
+  vec3 T = normalize(vTangent);
   vec3 key = normalize(vec3(-0.5, 0.9, 1.2));
-  vec3 rimL = normalize(vec3(0.9, 0.2, -0.6));
-  vec3 view = normalize(-vWorld);
-  float diffuse = max(dot(n, key), 0.0);
-  float spec = pow(max(dot(n, normalize(key + view)), 0.0), 90.0);
-  float spec2 = pow(max(dot(n, normalize(rimL + view)), 0.0), 40.0);
-  float sheen = pow(1.0 - abs(dot(n, view)), 2.2);
-  float band = 0.5 + 0.5 * sin(vUv.x * 11.0 + n.z * 2.5);
-  vec3 champagne = mix(vec3(0.5, 0.37, 0.22), vec3(0.97, 0.86, 0.64), band) * (0.2 + diffuse * 0.85);
-  vec3 dark = vec3(0.05, 0.05, 0.065) * (0.6 + diffuse * 1.2);
-  vec3 color = mix(champagne, dark, uTone);
-  color += vec3(1.0, 0.94, 0.8) * spec * mix(0.9, 0.35, uTone) + vec3(1.0, 0.82, 0.55) * spec2 * 0.25;
-  color += mix(vec3(0.5, 0.38, 0.22), vec3(0.14, 0.14, 0.2), uTone) * sheen * 0.75;
-  float edge = smoothstep(0.0, 0.07, vUv.x) * smoothstep(1.0, 0.93, vUv.x);
-  gl_FragColor = vec4(color, edge);
+  vec3 rim = normalize(vec3(0.9, 0.2, -0.6));
+  float diffuse = max(dot(N, key), 0.0);
+  float wrap = max(dot(N, key) * 0.5 + 0.5, 0.0);
+  float sat1 = aniso(T, key, V, 70.0) * smoothstep(0.0, 0.3, diffuse + 0.12);
+  float sat2 = aniso(T, rim, V, 40.0) * 0.5;
+  float fres = pow(1.0 - abs(dot(N, V)), 2.4);
+  float weave = 0.965 + 0.035 * sin(vUv.x * 1800.0) * sin(vUv.y * 90.0);
+  float sheet = 0.5 + 0.5 * sin(vUv.x * 14.0 + N.z * 2.2 + N.y * 1.4);
+  vec3 col = uBase * (0.16 + wrap * 0.78) * mix(0.78, 1.18, sheet) * weave;
+  col += uSpecTint * (sat1 * 0.95 + sat2 * 0.35);
+  col += uBase * fres * 0.55;
+  // woven selvedge: a lighter band, a thin gold stitch line and a dashed stitch
+  float d = abs(vUv.y - 0.5) * 2.0;
+  float band = smoothstep(0.80, 0.84, d) * (1.0 - smoothstep(0.97, 1.0, d));
+  float stitch = smoothstep(0.855, 0.865, d) * (1.0 - smoothstep(0.88, 0.89, d)) * step(0.5, fract(vUv.x * 520.0));
+  col = mix(col, uHem * (0.4 + wrap * 0.7), band * 0.65);
+  col += uHem * stitch * 0.5;
+  float edge = smoothstep(0.0, 0.05, vUv.x) * smoothstep(1.0, 0.95, vUv.x);
+  gl_FragColor = vec4(col, edge);
 }`;
 
-function Ribbon({ tone, phase, y, z, width, reduced }: { tone: number; phase: number; y: number; z: number; width: number; reduced: boolean }) {
+type RibbonSpec = { base: [number, number, number]; hem: [number, number, number]; spec: [number, number, number]; width: number; phase: number; y: number; z: number; loop: number };
+const RIBBONS: RibbonSpec[] = [
+  { base: [0.82, 0.66, 0.42], hem: [0.98, 0.86, 0.58], spec: [1.0, 0.92, 0.74], width: 0.95, phase: 0, y: 0.55, z: 0.1, loop: 1 },
+  { base: [0.07, 0.07, 0.085], hem: [0.76, 0.6, 0.36], spec: [0.7, 0.7, 0.85], width: 0.8, phase: 2.4, y: -0.1, z: -0.7, loop: 0 },
+  { base: [0.62, 0.07, 0.1], hem: [0.95, 0.78, 0.5], spec: [1.0, 0.7, 0.62], width: 0.5, phase: 4.1, y: -0.75, z: 0.5, loop: 1 },
+];
+
+function Ribbon({ spec, reduced }: { spec: RibbonSpec; reduced: boolean }) {
   const material = useRef<ShaderMaterial>(null);
-  const uniforms = useMemo(() => ({ uTime: { value: 0 }, uPhase: { value: phase }, uTone: { value: tone }, uWidth: { value: width } }), [phase, tone, width]);
+  const uniforms = useMemo(() => ({
+    uTime: { value: 0 }, uPhase: { value: spec.phase }, uWidth: { value: spec.width }, uLoop: { value: spec.loop },
+    uBase: { value: spec.base }, uHem: { value: spec.hem }, uSpecTint: { value: spec.spec },
+  }), [spec]);
   useFrame(({ clock }) => { if (material.current && !reduced) material.current.uniforms.uTime.value = clock.elapsedTime; });
-  return <mesh position={[0, y, z]} frustumCulled={false}>
-    <planeGeometry args={[1, 1, 360, 40]} />
+  return <mesh position={[0, spec.y, spec.z]} frustumCulled={false}>
+    <planeGeometry args={[1, 1, 520, 24]} />
     <shaderMaterial ref={material} vertexShader={ribbonVertex} fragmentShader={ribbonFragment} uniforms={uniforms} side={DoubleSide} transparent />
   </mesh>;
 }
 
-export default function CoutureScene({ reduced, active }: { reduced: boolean; active: boolean }) {
+type DressState = { status: 'loading' | 'ready' | 'failed'; model?: PhotoGarmentModel };
+
+export default function CoutureScene({ reduced, active, dressUrl }: { reduced: boolean; active: boolean; dressUrl?: string }) {
   const frozen = reduced || !active;
+  const [dress, setDress] = useState<DressState>({ status: dressUrl ? 'loading' : 'failed' });
+  useEffect(() => {
+    if (!dressUrl) { setDress({ status: 'failed' }); return; }
+    let cancelled = false;
+    buildGarmentFromPhoto(dressUrl, HEIGHT)
+      .then((model) => { if (!cancelled) setDress(model ? { status: 'ready', model } : { status: 'failed' }); })
+      .catch(() => { if (!cancelled) setDress({ status: 'failed' }); });
+    return () => { cancelled = true; };
+  }, [dressUrl]);
+
   return <Canvas
     camera={{ position: [0, 0, 9], fov: 42 }}
     dpr={[1, 1.75]}
@@ -250,14 +305,13 @@ export default function CoutureScene({ reduced, active }: { reduced: boolean; ac
       <Lightformer form="rect" intensity={1.4} position={[0, -3, 3]} scale={[8, 1.2, 1]} color="#c5a880" />
       <Lightformer form="ring" intensity={1.4} position={[0, 5, -4]} scale={5} />
     </Environment>
-    <group position={[0, Y + 0.25, -1.4]}>
-      <Ribbon tone={0} phase={0} y={0.45} z={0} width={1.5} reduced={frozen} />
-      <Ribbon tone={1} phase={2.4} y={-0.15} z={-0.6} width={1.2} reduced={frozen} />
-      <Ribbon tone={0} phase={4.1} y={-0.75} z={0.4} width={0.55} reduced={frozen} />
+    <group position={[0, Y + 0.3, -1.4]}>
+      {RIBBONS.map((spec) => <Ribbon key={spec.phase} spec={spec} reduced={frozen} />)}
     </group>
     <group position={[0, Y, 0]} scale={SCALE}>
       <Pedestal />
-      <Sculpture reduced={frozen} />
+      {dress.status === 'ready' && dress.model && <PhotoGarment model={dress.model} reduced={frozen} />}
+      {dress.status === 'failed' && <Sculpture reduced={frozen} />}
       <Orbits reduced={frozen} />
       <ContactShadows position={[0, -HEIGHT / 2 - 0.02, 0]} opacity={0.5} scale={6} blur={2.4} far={1.6} />
     </group>
