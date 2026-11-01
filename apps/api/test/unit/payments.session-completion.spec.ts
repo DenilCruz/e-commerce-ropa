@@ -63,6 +63,8 @@ describe('PaymentsService: a paid Checkout session creates its order exactly onc
         save: jest.fn(async (...args: any[]) => (args.length === 1 ? args[0] : { id: 'guardado', ...args[0] })),
         increment: jest.fn(),
         delete: jest.fn(),
+        query: jest.fn().mockResolvedValue([]),
+        count: jest.fn().mockResolvedValue(0),
       },
     };
     dataSource = { createQueryRunner: jest.fn(() => qr) };

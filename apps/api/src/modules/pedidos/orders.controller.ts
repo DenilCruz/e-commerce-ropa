@@ -6,6 +6,7 @@ import {
   Query,
   Body,
   UseGuards,
+  ParseUUIDPipe,
 } from '@nestjs/common';
 import {
   ApiTags,
@@ -54,7 +55,7 @@ export class OrdersController {
   })
   @ApiParam({ name: 'id', description: 'ID de la orden a cancelar' })
   cancelarPedidoCliente(
-    @Param('id') id: string,
+    @Param('id', new ParseUUIDPipe()) id: string,
     @CurrentUser('userId') usuarioId: string,
     @Body('motivo') motivo?: string,
   ) {
@@ -96,7 +97,7 @@ export class OrdersController {
   @ApiBearerAuth()
   @ApiOperation({ summary: 'HU-54: Actualizar estado de una orden y registrar auditoría (Admin)' })
   actualizarEstadoAdmin(
-    @Param('id') id: string,
+    @Param('id', new ParseUUIDPipe()) id: string,
     @Body('estado') nuevoEstado: string,
     @Body('comentario') comentario: string,
     @CurrentUser('userId') adminId: string,
@@ -112,7 +113,7 @@ export class OrdersController {
   @ApiBearerAuth()
   @ApiOperation({ summary: 'HU-55: Obtener historial de auditoría de un pedido' })
   @ApiParam({ name: 'id', description: 'ID de la orden' })
-  obtenerHistorial(@Param('id') id: string) {
+  obtenerHistorial(@Param('id', new ParseUUIDPipe()) id: string) {
     return this.ordersService.obtenerHistorial(id);
   }
 
@@ -125,7 +126,7 @@ export class OrdersController {
   @ApiOperation({ summary: 'HU-50: Obtener detalle y estado de un pedido por ID' })
   @ApiParam({ name: 'id', description: 'ID de la orden' })
   obtenerDetalle(
-    @Param('id') id: string,
+    @Param('id', new ParseUUIDPipe()) id: string,
     @CurrentUser('userId') usuarioId: string,
     @CurrentUser('role') role: string,
   ) {

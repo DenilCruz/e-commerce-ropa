@@ -28,6 +28,8 @@ describe('PaymentsService stock conflict', () => {
         create: jest.fn((_e, v) => v),
         save: jest.fn(async (v) => ({ id: 'o1', ...v })),
         findOne: jest.fn(),
+        query: jest.fn().mockResolvedValue([]),
+        count: jest.fn(async (entidad: any) => (entidad?.name === 'CartItemEntity' ? 1 : 0)),
       },
     };
     const orderRepo = { count: jest.fn().mockResolvedValue(0) };

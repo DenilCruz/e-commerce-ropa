@@ -9,7 +9,7 @@ import {
   Logger,
 } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
-import { Repository, DataSource, EntityManager } from 'typeorm';
+import { Repository, DataSource, EntityManager, In } from 'typeorm';
 import { ConfigService } from '@nestjs/config';
 import Stripe from 'stripe';
 const StripeClient = require('stripe');
@@ -26,6 +26,7 @@ import { CouponEntity } from '../cupones/entities/coupon.entity';
 import { CouponUsageEntity } from '../cupones/entities/coupon-usage.entity';
 import { descuentoDeCupon, motivoCuponNoAplicable } from '../cupones/coupon-rules';
 import { costoDeEnvio, diasDeEntrega, elegirMetodoPorTipo } from '../envios/shipping-rules';
+import { tipoDePago } from './payment-kinds';
 import { UserEntity } from '../usuarios/entities/user.entity';
 import { ShippingEntity } from '../envios/entities/shipping.entity';
 import { ShippingMethodEntity } from '../envios/entities/shipping-method.entity';
@@ -37,11 +38,6 @@ import { ConfirmarPagoTarjetaDto } from './dto/confirmar-pago-tarjeta.dto';
 import { PagoContraEntregaDto } from './dto/pago-contra-entrega.dto';
 import { PagoQrDto } from './dto/pago-qr.dto';
 import { ReembolsarPagoDto } from './dto/reembolsar-pago.dto';
-
-const METODO_TARJETA_ID = '5d6c0b39-63f4-4cb1-b0df-66aa706e44e5';
-const METODO_CONTRA_ENTREGA_ID = '17817d50-a056-4697-a572-bf7145b63646';
-const METODO_QR_ID = 'dcb8cd5b-18f8-43c7-a7b6-44dfa1beae69';
-
 import { TenantContext } from '../../common/tenant/tenant-context';
 
 /**
@@ -211,49 +207,42 @@ export class PaymentsService {
   // HELPER: Resolver ID dinámico y real del método de pago en BD
   // Evita violaciones de clave foránea FK (pago_metodo_pago_id_fkey)
   // =========================================================================
-  private async resolverMetodoPagoId(tipo: 'tarjeta' | 'contra_entrega' | 'qr'): Promise<string> {
-    try {
-      let metodo: PaymentMethodEntity | null = null;
-      if (tipo === 'tarjeta') {
-        metodo = await this.paymentMethodRepo
-          .createQueryBuilder('m')
-          .where('LOWER(m.nombre) LIKE :k1 OR LOWER(m.nombre) LIKE :k2', {
-            k1: '%tarjeta%',
-            k2: '%stripe%',
-          })
-          .getOne();
-      } else if (tipo === 'contra_entrega') {
-        metodo = await this.paymentMethodRepo
-          .createQueryBuilder('m')
-          .where('LOWER(m.nombre) LIKE :k1 OR LOWER(m.nombre) LIKE :k2', {
-            k1: '%efectivo%',
-            k2: '%contra%',
-          })
-          .getOne();
-      } else if (tipo === 'qr') {
-        metodo = await this.paymentMethodRepo
-          .createQueryBuilder('m')
-          .where('LOWER(m.nombre) LIKE :k1 OR LOWER(m.nombre) LIKE :k2', {
-            k1: '%qr%',
-            k2: '%transferencia%',
-          })
-          .getOne();
-      }
-
-      if (metodo) {
-        return metodo.id;
-      }
-    } catch (err: any) {
-      this.logger.warn(`Error buscando método de pago "${tipo}" en BD: ${err.message}`);
+  /**
+   * Serializes the payment of one user's cart. The cart was read before the transaction, so without this a double
+   * click or a second tab could turn the same cart into two orders. After taking the lock the cart must still have
+   * items: the first payment empties it before it releases the lock.
+   */
+  private async bloquearCarrito(manager: EntityManager, usuarioId: string, carritoId: string): Promise<void> {
+    await manager.query('SELECT pg_advisory_xact_lock(hashtext($1))', [`carrito:${this.tid}:${usuarioId}`]);
+    if ((await manager.count(CartItemEntity, { where: { carritoId } })) === 0) {
+      throw new BadRequestException('Tu carrito está vacío o ya se procesó. Revisa Mis pedidos antes de volver a pagar.');
     }
-
-    const fallback = await this.paymentMethodRepo.findOne({ where: { activo: true } });
-    if (fallback) return fallback.id;
-
-    if (tipo === 'qr') return 'dcb8cd5b-18f8-43c7-a7b6-44dfa1beae69';
-    if (tipo === 'contra_entrega') return '7082b2da-8046-4f75-8bbf-88f7be385e7f';
-    return 'e939257b-8c33-4688-8236-68a214c561b7';
   }
+
+  /**
+   * The next order number of the store. Taken under a transaction-level lock so two purchases made at the same
+   * moment cannot get the same number, and checked against the numbers already in use.
+   */
+  private async siguienteNroOrden(manager: EntityManager): Promise<string> {
+    await manager.query('SELECT pg_advisory_xact_lock(hashtext($1))', [`orden-nro:${this.tid}`]);
+    let n = (await manager.count(OrderEntity, { where: { tenantId: this.tid } })) + 1;
+    for (;;) {
+      const nro = `NV-${new Date().getFullYear()}-${String(n).padStart(5, '0')}`;
+      if ((await manager.count(OrderEntity, { where: { tenantId: this.tid, nro } })) === 0) return nro;
+      n += 1;
+    }
+  }
+
+  /** The payment method row of a kind (card, cash on delivery, QR), found by what the store named it. */
+  private async resolverMetodoPagoId(tipo: 'tarjeta' | 'contra_entrega' | 'qr'): Promise<string> {
+    const activos = await this.paymentMethodRepo.find({ where: { activo: true } });
+    const metodo = activos.find((m) => tipoDePago(m.nombre) === tipo);
+    if (!metodo) {
+      throw new BadRequestException('Este método de pago no está disponible en la tienda. Elige otro o contáctala.');
+    }
+    return metodo.id;
+  }
+
 
   // =========================================================================
   // STRIPE EMBEDDED / HOSTED CHECKOUT (HU-56: Checkout Oficial)
@@ -424,8 +413,7 @@ export class PaymentsService {
         return respuestaDePago(ganador);
       }
 
-      const countOrders = await this.orderRepo.count();
-      const orderNro = `NV-${new Date().getFullYear()}-${String(countOrders + 1).padStart(5, '0')}`;
+      const orderNro = await this.siguienteNroOrden(queryRunner.manager);
 
       const nuevaOrden = queryRunner.manager.create(OrderEntity, {
         nro: orderNro,
@@ -676,9 +664,9 @@ export class PaymentsService {
     await queryRunner.startTransaction();
 
     try {
+      await this.bloquearCarrito(queryRunner.manager, usuarioId, cart.id);
       // 1. Generar número de orden único (HU-48)
-      const countOrders = await this.orderRepo.count();
-      const orderNro = `NV-${new Date().getFullYear()}-${String(countOrders + 1).padStart(5, '0')}`;
+      const orderNro = await this.siguienteNroOrden(queryRunner.manager);
 
       // 2. Crear nota_venta
       const nuevaOrden = queryRunner.manager.create(OrderEntity, {
@@ -852,8 +840,8 @@ export class PaymentsService {
     await queryRunner.startTransaction();
 
     try {
-      const countOrders = await this.orderRepo.count();
-      const orderNro = `NV-${new Date().getFullYear()}-${String(countOrders + 1).padStart(5, '0')}`;
+      await this.bloquearCarrito(queryRunner.manager, usuarioId, cart.id);
+      const orderNro = await this.siguienteNroOrden(queryRunner.manager);
 
       // 1. Crear nota_venta con estado PENDIENTE (HU-48)
       const nuevaOrden = queryRunner.manager.create(OrderEntity, {
@@ -1017,13 +1005,20 @@ export class PaymentsService {
     await queryRunner.startTransaction();
 
     try {
-      const countOrders = await this.orderRepo.count();
-      const orderNro = `NV-${new Date().getFullYear()}-${String(countOrders + 1).padStart(5, '0')}`;
-      const trxRef = dto.nroComprobante?.trim()
-        ? `QR-${dto.nroComprobante.trim().toUpperCase()}`
-        : `QR-${Math.random().toString(36).substring(2, 8).toUpperCase()}`;
+      await this.bloquearCarrito(queryRunner.manager, usuarioId, cart.id);
+      const orderNro = await this.siguienteNroOrden(queryRunner.manager);
+      const trxRef = `QR-${dto.nroComprobante.trim().toUpperCase()}`;
 
-      // 1. Crear nota_venta con estado PAGADO (confirmado por transferencia QR)
+      // A transfer receipt can back only one order: serialize attempts that use the same one, then look for it.
+      await queryRunner.manager.query('SELECT pg_advisory_xact_lock(hashtext($1))', [`qr-comprobante:${this.tid}:${trxRef}`]);
+      const yaRegistrado = await queryRunner.manager.count(PaymentEntity, {
+        where: { tenantId: this.tid, idTransaccion: trxRef, estado: In(['PENDIENTE', 'APROBADO']) },
+      });
+      if (yaRegistrado > 0) {
+        throw new ConflictException('Este número de comprobante ya está registrado en otro pedido. Revisa el número o contacta a la tienda.');
+      }
+
+      // 1. Crear nota_venta PENDIENTE: el pedido no cuenta como pagado hasta que la tienda verifique la transferencia
       const nuevaOrden = queryRunner.manager.create(OrderEntity, {
         nro: orderNro,
         usuarioId,
@@ -1031,7 +1026,7 @@ export class PaymentsService {
         descuento,
         costoEnvio: envio,
         total: totalFinal,
-        estado: 'PAGADO',
+        estado: 'PENDIENTE',
         cuponId: cupon ? cupon.id : null,
       });
 
@@ -1092,21 +1087,21 @@ export class PaymentsService {
       const tieneQr = Boolean(tiendaRows[0]?.qr_url && tiendaRows[0]?.qr_url.trim() !== '');
       const modalidad = tieneQr ? 'MODELO_B_DIRECTO' : 'MODELO_A_CUSTODIA';
 
-      // Crear registro pago con estado APROBADO
+      // El pago queda PENDIENTE: lo aprueba la tienda al comprobar que la transferencia llegó
       const nuevoPago = queryRunner.manager.create(PaymentEntity, {
         notaventaId: ordenGuardada.id,
         metodoPagoId: await this.resolverMetodoPagoId('qr'),
         monto: totalFinal,
-        estado: 'APROBADO',
+        estado: 'PENDIENTE',
         idTransaccion: trxRef,
-        fechaPago: new Date(),
         respuestaPasarela: {
           gateway: 'qr_simple',
           modalidadPago: modalidad,
           referenciaComprobante: trxRef,
+          verificacion: 'PENDIENTE',
           instrucciones: modalidad === 'MODELO_B_DIRECTO'
-            ? 'Pago directo recibido en cuenta bancaria del comercio.'
-            : 'Pago en custodia central recibido por plataforma AURA.',
+            ? 'La tienda verificará la transferencia recibida en su cuenta bancaria.'
+            : 'La plataforma verificará la transferencia recibida en custodia.',
           direccionEnvio: dto.direccionEnvio || '',
           telefono: dto.telefono || '',
         },
@@ -1139,8 +1134,8 @@ export class PaymentsService {
       const historial = queryRunner.manager.create(OrderHistoryEntity, {
         notaventaId: ordenGuardada.id,
         estadoAnterior: null,
-        estadoNuevo: 'PAGADO',
-        comentario: `Pago con QR Simple registrado exitosamente (Ref: ${trxRef}). Guía: ${trackingCode}`,
+        estadoNuevo: 'PENDIENTE',
+        comentario: `Pedido registrado con pago por QR (comprobante ${trxRef}). Pendiente de verificación por la tienda. Guía: ${trackingCode}`,
         usuarioId,
       });
       await queryRunner.manager.save(historial);
