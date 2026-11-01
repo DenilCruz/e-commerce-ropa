@@ -101,6 +101,12 @@ describe('PaymentsService QR availability and method lookup', () => {
     return new PaymentsService(none, methodRepo as any, none, none, none, none, none, none, none, none, none, none, none, none, dataSource as any, { get: () => undefined } as any);
   };
 
+  beforeEach(() => {
+    delete process.env.PLATFORM_PAYMENT_QR_URL;
+    delete process.env.PLATFORM_PAYMENT_HOLDER;
+    delete process.env.PLATFORM_PAYMENT_BANK;
+  });
+
   afterEach(() => {
     jest.restoreAllMocks();
     delete process.env.PLATFORM_PAYMENT_QR_URL;

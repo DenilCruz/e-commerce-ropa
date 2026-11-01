@@ -252,9 +252,11 @@ export const CheckoutPage: React.FC = () => {
   useEffect(() => {
     if (!qrDisponible && metodoPago === 'qr') setMetodoPago('tarjeta');
   }, [qrDisponible, metodoPago]);
+  const [intentoCotizacion, setIntentoCotizacion] = useState(0);
   useEffect(() => {
     let vigente = true;
     setErrorCotizacion(false);
+    setCotizacion(null);
     shippingApi
       .cotizarEnvio(subtotal)
       .then((c) => vigente && setCotizacion(c))
@@ -267,11 +269,12 @@ export const CheckoutPage: React.FC = () => {
     return () => {
       vigente = false;
     };
-  }, [subtotal]);
+  }, [subtotal, intentoCotizacion]);
   const opcionDe = (tipo: 'ESTANDAR' | 'EXPRESS') =>
     cotizacion?.opciones.find((o) => (tipo === 'EXPRESS' ? o.esExpress : o.esEstandar));
   const opcionElegida = opcionDe(tipoEnvio) ?? opcionDe('ESTANDAR') ?? cotizacion?.opciones[0];
-  const envioListo = subtotal === 0 || cotizacion !== null;
+  const sinOpcionesDeEnvio = cotizacion !== null && cotizacion.opciones.length === 0;
+  const envioListo = subtotal === 0 || (cotizacion !== null && !sinOpcionesDeEnvio);
   const costoEnvio = subtotal === 0 ? 0 : opcionElegida?.costoFinal ?? 0;
   const totalFinal = Number(Math.max(0, (totalConDescuento || subtotal) + costoEnvio).toFixed(2));
   const metodoEnvioId = opcionElegida?.id;
@@ -797,7 +800,15 @@ export const CheckoutPage: React.FC = () => {
               </div>
 
               {errorCotizacion && (
-                <p className="text-xs text-rose-700">No pudimos calcular el envío. Recarga la página para intentarlo de nuevo.</p>
+                <p className="text-xs text-rose-700">
+                  No pudimos calcular el envío.{' '}
+                  <button type="button" className="underline font-semibold" onClick={() => setIntentoCotizacion((n) => n + 1)}>
+                    Reintentar
+                  </button>
+                </p>
+              )}
+              {sinOpcionesDeEnvio && (
+                <p className="text-xs text-rose-700">Esta tienda no tiene métodos de envío disponibles por ahora. Intenta más tarde.</p>
               )}
               {!cotizacion && !errorCotizacion && subtotal > 0 && <p className="text-xs text-stone-500">Calculando el envío…</p>}
 
