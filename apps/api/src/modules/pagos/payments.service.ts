@@ -9,7 +9,7 @@ import {
   Logger,
 } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
-import { Repository, DataSource } from 'typeorm';
+import { Repository, DataSource, EntityManager } from 'typeorm';
 import { ConfigService } from '@nestjs/config';
 import Stripe from 'stripe';
 const StripeClient = require('stripe');
@@ -23,6 +23,9 @@ import { ProductEntity } from '../productos/entities/product.entity';
 import { CartEntity } from '../carrito/entities/cart.entity';
 import { CartItemEntity } from '../carrito/entities/cart-item.entity';
 import { CouponEntity } from '../cupones/entities/coupon.entity';
+import { CouponUsageEntity } from '../cupones/entities/coupon-usage.entity';
+import { descuentoDeCupon, motivoCuponNoAplicable } from '../cupones/coupon-rules';
+import { costoDeEnvio, diasDeEntrega, elegirMetodoPorTipo } from '../envios/shipping-rules';
 import { UserEntity } from '../usuarios/entities/user.entity';
 import { ShippingEntity } from '../envios/entities/shipping.entity';
 import { ShippingMethodEntity } from '../envios/entities/shipping-method.entity';
@@ -141,7 +144,7 @@ export class PaymentsService {
   // HU-56: CREAR INTENTO DE PAGO CON STRIPE (PaymentIntent)
   // =========================================================================
   async crearIntentoPago(usuarioId: string, dto: CrearIntentoPagoDto) {
-    const { subtotal, descuento, envio, totalFinal, cart, cupon } =
+    const { subtotal, descuento, envio, totalFinal, cart, cupon, metodoEnvio } =
       await this.calcularTotalesCarrito(usuarioId, dto.cuponId, dto.metodoEnvioId, dto.tipoEnvio);
 
     if (!cart.items || cart.items.length === 0) {
@@ -256,7 +259,7 @@ export class PaymentsService {
   // STRIPE EMBEDDED / HOSTED CHECKOUT (HU-56: Checkout Oficial)
   // =========================================================================
   async crearSesionEmbebida(usuarioId: string, dto: CrearIntentoPagoDto) {
-    const { subtotal, descuento, envio, totalFinal, cart, cupon } =
+    const { subtotal, descuento, envio, totalFinal, cart, cupon, metodoEnvio } =
       await this.calcularTotalesCarrito(usuarioId, dto.cuponId, dto.metodoEnvioId, dto.tipoEnvio);
 
     if (!cart.items || cart.items.length === 0) {
@@ -404,7 +407,7 @@ export class PaymentsService {
     const latitud = meta.latitud ? Number(meta.latitud) : null;
     const longitud = meta.longitud ? Number(meta.longitud) : null;
 
-    const { subtotal, descuento, envio, totalFinal, cart, cupon } =
+    const { subtotal, descuento, envio, totalFinal, cart, cupon, metodoEnvio } =
       await this.calcularTotalesCarrito(usuarioId, cuponId, metodoEnvioId, tipoEnvio);
     this.verificarMontoPagado(session.amount_total, totalFinal);
 
@@ -504,13 +507,13 @@ export class PaymentsService {
       const anio = new Date().getFullYear();
       const aleatorio = Math.random().toString(36).substring(2, 7).toUpperCase();
       const trackingCode = `TRK-BO-${anio}-${aleatorio}`;
-      const diasEntrega = tipoEnvio.toUpperCase() === 'EXPRESS' ? 1 : 3;
+      const diasEntrega = diasDeEntrega(metodoEnvio!);
       const fechaEstimada = new Date();
       fechaEstimada.setDate(fechaEstimada.getDate() + diasEntrega);
 
       const nuevoEnvio = queryRunner.manager.create(ShippingEntity, {
         notaventaId: ordenGuardada.id,
-        metodoEnvioId: metodoEnvioId || 'e1000000-0000-0000-0000-000000000001',
+        metodoEnvioId: metodoEnvio!.id,
         numeroTracking: trackingCode,
         estado: 'PREPARANDO',
         empresaTransportadora: 'Courier Express Asociado',
@@ -533,7 +536,7 @@ export class PaymentsService {
       await queryRunner.manager.save(entradaHistorial);
 
       if (cupon) {
-        await queryRunner.manager.increment(CouponEntity, { id: cupon.id }, 'usosActuales', 1);
+        await this.registrarUsoCupon(queryRunner.manager, cupon, usuarioId, ordenGuardada.id, subtotal);
       }
 
       await queryRunner.manager.delete(CartItemEntity, { carritoId: cart.id });
@@ -659,7 +662,7 @@ export class PaymentsService {
       return this.formatearRespuestaPago(pagoExistente.notaventa, pagoExistente);
     }
 
-    const { subtotal, descuento, envio, totalFinal, cart, cupon } =
+    const { subtotal, descuento, envio, totalFinal, cart, cupon, metodoEnvio } =
       await this.calcularTotalesCarrito(usuarioId, dto.cuponId, dto.metodoEnvioId, dto.tipoEnvio);
 
     if (!cart.items || cart.items.length === 0) {
@@ -763,13 +766,13 @@ export class PaymentsService {
       const anio = new Date().getFullYear();
       const aleatorio = Math.random().toString(36).substring(2, 7).toUpperCase();
       const trackingCode = `TRK-BO-${anio}-${aleatorio}`;
-      const diasEntrega = dto.tipoEnvio?.toUpperCase() === 'EXPRESS' ? 1 : 3;
+      const diasEntrega = diasDeEntrega(metodoEnvio!);
       const fechaEstimada = new Date();
       fechaEstimada.setDate(fechaEstimada.getDate() + diasEntrega);
 
       const nuevoEnvio = queryRunner.manager.create(ShippingEntity, {
         notaventaId: ordenGuardada.id,
-        metodoEnvioId: dto.metodoEnvioId || 'e1000000-0000-0000-0000-000000000001',
+        metodoEnvioId: metodoEnvio!.id,
         direccionTexto: dto.direccionEnvio || 'Dirección entregada al pagar',
         empresaTransportadora: 'Courier Local Express',
         numeroTracking: trackingCode,
@@ -793,7 +796,7 @@ export class PaymentsService {
       await queryRunner.manager.update(CartEntity, { id: cart.id }, { total: 0 });
 
       if (cupon) {
-        await queryRunner.manager.increment(CouponEntity, { id: cupon.id }, 'usosActuales', 1);
+        await this.registrarUsoCupon(queryRunner.manager, cupon, usuarioId, ordenGuardada.id, subtotal);
       }
 
       await queryRunner.commitTransaction();
@@ -828,7 +831,7 @@ export class PaymentsService {
   // HU-60: PAGO CONTRA ENTREGA (EFECTIVO)
   // =========================================================================
   async pagoContraEntrega(usuarioId: string, dto: PagoContraEntregaDto) {
-    const { subtotal, descuento, envio, totalFinal, cart, cupon } =
+    const { subtotal, descuento, envio, totalFinal, cart, cupon, metodoEnvio } =
       await this.calcularTotalesCarrito(usuarioId, dto.cuponId, dto.metodoEnvioId, dto.tipoEnvio);
 
     if (!cart.items || cart.items.length === 0) {
@@ -934,13 +937,13 @@ export class PaymentsService {
       const anio = new Date().getFullYear();
       const aleatorio = Math.random().toString(36).substring(2, 7).toUpperCase();
       const trackingCode = `TRK-BO-${anio}-${aleatorio}`;
-      const diasEntrega = dto.tipoEnvio?.toUpperCase() === 'EXPRESS' ? 1 : 3;
+      const diasEntrega = diasDeEntrega(metodoEnvio!);
       const fechaEstimada = new Date();
       fechaEstimada.setDate(fechaEstimada.getDate() + diasEntrega);
 
       const nuevoEnvio = queryRunner.manager.create(ShippingEntity, {
         notaventaId: ordenGuardada.id,
-        metodoEnvioId: dto.metodoEnvioId || 'e1000000-0000-0000-0000-000000000001',
+        metodoEnvioId: metodoEnvio!.id,
         direccionTexto: dto.direccionEnvio || 'Dirección acordada con el cliente',
         empresaTransportadora: 'Courier Local Express',
         numeroTracking: trackingCode,
@@ -967,7 +970,7 @@ export class PaymentsService {
       await queryRunner.manager.update(CartEntity, { id: cart.id }, { total: 0 });
 
       if (cupon) {
-        await queryRunner.manager.increment(CouponEntity, { id: cupon.id }, 'usosActuales', 1);
+        await this.registrarUsoCupon(queryRunner.manager, cupon, usuarioId, ordenGuardada.id, subtotal);
       }
 
       await queryRunner.commitTransaction();
@@ -1002,7 +1005,7 @@ export class PaymentsService {
   // PAGO CON QR SIMPLE (TRANSFERENCIA BANCARIA INMEDIATA)
   // =========================================================================
   async pagoQr(usuarioId: string, dto: PagoQrDto) {
-    const { subtotal, descuento, envio, totalFinal, cart, cupon } =
+    const { subtotal, descuento, envio, totalFinal, cart, cupon, metodoEnvio } =
       await this.calcularTotalesCarrito(usuarioId, dto.cuponId, dto.metodoEnvioId, dto.tipoEnvio);
 
     if (!cart.items || cart.items.length === 0) {
@@ -1114,13 +1117,13 @@ export class PaymentsService {
       const anio = new Date().getFullYear();
       const aleatorio = Math.random().toString(36).substring(2, 7).toUpperCase();
       const trackingCode = `TRK-BO-${anio}-${aleatorio}`;
-      const diasEntrega = dto.tipoEnvio?.toUpperCase() === 'EXPRESS' ? 1 : 3;
+      const diasEntrega = diasDeEntrega(metodoEnvio!);
       const fechaEstimada = new Date();
       fechaEstimada.setDate(fechaEstimada.getDate() + diasEntrega);
 
       const nuevoEnvio = queryRunner.manager.create(ShippingEntity, {
         notaventaId: ordenGuardada.id,
-        metodoEnvioId: dto.metodoEnvioId || 'e1000000-0000-0000-0000-000000000001',
+        metodoEnvioId: metodoEnvio!.id,
         direccionTexto: dto.direccionEnvio || 'Dirección acordada con el cliente',
         empresaTransportadora: 'Courier Local Express',
         numeroTracking: trackingCode,
@@ -1147,7 +1150,7 @@ export class PaymentsService {
       await queryRunner.manager.update(CartEntity, { id: cart.id }, { total: 0 });
 
       if (cupon) {
-        await queryRunner.manager.increment(CouponEntity, { id: cupon.id }, 'usosActuales', 1);
+        await this.registrarUsoCupon(queryRunner.manager, cupon, usuarioId, ordenGuardada.id, subtotal);
       }
 
       await queryRunner.commitTransaction();
@@ -1333,15 +1336,61 @@ export class PaymentsService {
   // =========================================================================
   // HELPERS
   // =========================================================================
+  /** The shipping method an order uses: the one the client names, or the store's matching or cheapest active one. */
+  private async resolverMetodoEnvio(metodoEnvioId?: string, tipoEnvio?: string): Promise<ShippingMethodEntity> {
+    if (metodoEnvioId) {
+      const esUuid = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(metodoEnvioId);
+      const metodo = esUuid
+        ? await this.shippingMethodRepo.findOne({ where: { id: metodoEnvioId, activo: true } })
+        : null;
+      if (!metodo) throw new BadRequestException('El método de envío indicado no existe o no está disponible.');
+      return metodo;
+    }
+    const activos = await this.shippingMethodRepo.find({ where: { activo: true } });
+    const metodo = elegirMetodoPorTipo(activos, tipoEnvio);
+    if (!metodo) {
+      throw new BadRequestException('La tienda aún no tiene métodos de envío disponibles. Inténtalo más tarde.');
+    }
+    return metodo;
+  }
+
+  /**
+   * Counts one redemption of a coupon and records who used it. The coupon row is locked first, so two payments
+   * made at the same moment cannot both pass a global or per-user limit that only has room for one.
+   */
+  private async registrarUsoCupon(
+    manager: EntityManager,
+    cupon: CouponEntity,
+    usuarioId: string,
+    notaventaId: string,
+    subtotal: number,
+  ): Promise<void> {
+    const bloqueado = await manager.findOne(CouponEntity, {
+      where: { id: cupon.id, tenantId: this.tid },
+      lock: { mode: 'pessimistic_write' },
+    });
+    if (!bloqueado) throw new BadRequestException('El cupón ya no está disponible.');
+
+    const usosDelUsuario = await manager.count(CouponUsageEntity, {
+      where: { tenantId: this.tid, cuponId: cupon.id, usuarioId },
+    });
+    const motivo = motivoCuponNoAplicable(bloqueado, subtotal, usosDelUsuario);
+    if (motivo) throw new ConflictException(`${motivo} Quita el cupón e inténtalo de nuevo.`);
+
+    await manager.increment(CouponEntity, { id: cupon.id }, 'usosActuales', 1);
+    await manager.save(
+      manager.create(CouponUsageEntity, { tenantId: this.tid, cuponId: cupon.id, usuarioId, notaventaId }),
+    );
+  }
+
   private async calcularTotalesCarrito(
     usuarioId: string,
     cuponId?: string,
     metodoEnvioId?: string,
     tipoEnvio?: string,
   ) {
-    if (metodoEnvioId && !(await this.shippingMethodRepo.count({ where: { id: metodoEnvioId } }))) {
-      throw new BadRequestException('El método de envío indicado no existe.');
-    }
+    // A method named by the client must exist even before the cart is read.
+    const metodoElegido = metodoEnvioId ? await this.resolverMetodoEnvio(metodoEnvioId, tipoEnvio) : null;
 
     let cart = await this.cartRepo.findOne({
       where: { usuarioId, tenantId: this.tid },
@@ -1359,50 +1408,47 @@ export class PaymentsService {
       cart.items = [];
     }
 
-    let subtotal = 0;
+    let subtotalBruto = 0;
     if (cart.items && cart.items.length > 0) {
       for (const item of cart.items) {
         const precio = Number(item.precioUnitario || item.variante?.producto?.precio || 0);
-        subtotal += precio * item.cantidad;
+        subtotalBruto += precio * item.cantidad;
       }
     }
+    const subtotal = Number(subtotalBruto.toFixed(2));
 
+    // The coupon must pass the same rules the cart screen applied: dates, limits, minimum purchase.
     let cupon: CouponEntity | null = null;
     let descuento = 0;
-
     if (cuponId) {
-      cupon = await this.couponRepo.findOne({ where: { id: cuponId, activo: true, tenantId: this.tid } });
-      if (cupon) {
-        if (cupon.tipo === 'PORCENTAJE') {
-          descuento = (subtotal * Number(cupon.valor)) / 100;
-        } else {
-          descuento = Number(cupon.valor);
-        }
-        descuento = Math.min(descuento, subtotal);
-      }
+      cupon = await this.couponRepo.findOne({ where: { id: cuponId, tenantId: this.tid } });
+      if (!cupon) throw new BadRequestException('El cupón indicado no existe o no es válido.');
+      const usosDelUsuario =
+        cupon.usosPorUsuario > 0
+          ? await this.dataSource
+              .getRepository(CouponUsageEntity)
+              .count({ where: { tenantId: this.tid, cuponId: cupon.id, usuarioId } })
+          : 0;
+      const motivo = motivoCuponNoAplicable(cupon, subtotal, usosDelUsuario);
+      if (motivo) throw new BadRequestException(motivo);
+      descuento = descuentoDeCupon(cupon, subtotal);
     }
 
-    // Calcular costo de envío según HU-62 y HU-63
-    const esExpress =
-      tipoEnvio?.toUpperCase() === 'EXPRESS' ||
-      metodoEnvioId === 'e2000000-0000-0000-0000-000000000002';
-
-    let envio = 15;
-    if (esExpress) {
-      envio = 30;
-    } else {
-      envio = subtotal >= 200 || subtotal === 0 ? 0 : 15;
-    }
+    // Shipping is priced by the method's own configured cost; an empty cart ships nothing.
+    const hayItems = Boolean(cart.items && cart.items.length > 0);
+    const metodoEnvio = metodoElegido ?? (hayItems ? await this.resolverMetodoEnvio(undefined, tipoEnvio) : null);
+    const envio = metodoEnvio && hayItems ? costoDeEnvio(metodoEnvio, subtotal) : 0;
 
     const totalFinal = Number(Math.max(0, subtotal - descuento + envio).toFixed(2));
 
     return {
-      subtotal: Number(subtotal.toFixed(2)),
+      subtotal,
       descuento: Number(descuento.toFixed(2)),
       envio,
       totalFinal,
       cart,
       cupon,
+      metodoEnvio,
     };
   }
 

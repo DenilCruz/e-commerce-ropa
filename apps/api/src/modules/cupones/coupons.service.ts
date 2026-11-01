@@ -16,6 +16,7 @@ import { AplicarCuponDto } from './dto/aplicar-cupon.dto';
 
 import { TenantContext } from '../../common/tenant/tenant-context';
 
+import { descuentoDeCupon, motivoCuponNoAplicable } from './coupon-rules';
 @Injectable()
 export class CouponsService {
   private get tid(): string {
@@ -224,77 +225,19 @@ export class CouponsService {
       throw new BadRequestException(`El cupón "${codigoBuscado}" no existe o no es válido.`);
     }
 
-    // 2. Verificar si está activo (HU-75)
-    if (!cupon.activo) {
-      throw new BadRequestException(`El cupón "${cupon.codigo}" está actualmente desactivado.`);
-    }
-
-    // 3. Validar rango de fechas (HU-72 / HU-74)
-    const ahora = new Date();
-    const fechaInicio = new Date(cupon.fechaInicio);
-    const fechaFin = new Date(cupon.fechaFin);
-
-    if (ahora < fechaInicio) {
-      throw new BadRequestException(
-        `El cupón "${cupon.codigo}" aún no está vigente. Estará disponible a partir del ${fechaInicio.toLocaleDateString()}.`,
-      );
-    }
-
-    if (ahora > fechaFin) {
-      throw new BadRequestException(
-        `El cupón "${cupon.codigo}" ha expirado el ${fechaFin.toLocaleDateString()}.`,
-      );
-    }
-
-    // 4. Validar usos máximos globales (HU-72 / HU-74)
-    if (cupon.usosMaximos !== null && cupon.usosActuales >= cupon.usosMaximos) {
-      throw new BadRequestException(
-        `El cupón "${cupon.codigo}" ha alcanzado el límite máximo de usos permitidos.`,
-      );
-    }
-
-    // 5. Validar monto mínimo de compra (HU-72 / HU-74)
+    // 2. Reglas de vigencia, usos y monto mínimo: las mismas que se exigen al cobrar
     const subtotal = Number(dto.subtotal);
+    const usosDelUsuario =
+      usuarioId && cupon.usosPorUsuario > 0
+        ? await this.couponUsageRepo.count({ where: { tenantId: this.tid, cuponId: cupon.id, usuarioId } })
+        : 0;
+    const motivo = motivoCuponNoAplicable(cupon, subtotal, usosDelUsuario);
+    if (motivo) throw new BadRequestException(motivo);
     const montoMinimo = Number(cupon.montoMinimo);
-
-    if (subtotal < montoMinimo) {
-      throw new BadRequestException(
-        `El subtotal de la compra (Bs. ${subtotal.toFixed(2)}) no alcanza el monto mínimo requerido de Bs. ${montoMinimo.toFixed(2)} para aplicar el cupón "${cupon.codigo}".`,
-      );
-    }
-
-    // 6. Validar usos por usuario (si está autenticado) (HU-72 / HU-74)
-    if (usuarioId && cupon.usosPorUsuario > 0) {
-      const usosDelUsuario = await this.couponUsageRepo.count({
-        where: {
-          tenantId: this.tid,
-          cuponId: cupon.id,
-          usuarioId: usuarioId,
-        },
-      });
-
-      if (usosDelUsuario >= cupon.usosPorUsuario) {
-        throw new BadRequestException(
-          `Ya has utilizado este cupón ${usosDelUsuario} vez/veces. El límite permitido por usuario es ${cupon.usosPorUsuario}.`,
-        );
-      }
-    }
-
-    // 7. Calcular descuento según tipo (HU-71 / HU-73)
-    let descuento = 0;
     const valor = Number(cupon.valor);
 
-    if (cupon.tipo === TipoCupon.PORCENTAJE) {
-      descuento = Number(((subtotal * valor) / 100).toFixed(2));
-    } else {
-      // MONTO_FIJO
-      descuento = Math.min(valor, subtotal);
-    }
-
-    // Asegurar que el descuento nunca supere el subtotal
-    if (descuento > subtotal) {
-      descuento = subtotal;
-    }
+    // 3. Calcular descuento según tipo
+    const descuento = descuentoDeCupon(cupon, subtotal);
 
     const totalConDescuento = Number((subtotal - descuento).toFixed(2));
 

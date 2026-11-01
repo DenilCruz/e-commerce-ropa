@@ -18,6 +18,7 @@ import { ActualizarEstadoEnvioDto } from './dto/actualizar-estado-envio.dto';
 
 import { TenantContext } from '../../common/tenant/tenant-context';
 
+import { UMBRAL_ENVIO_GRATIS, costoDeEnvio, esEnvioEstandar, esEnvioExpress } from './shipping-rules';
 @Injectable()
 export class ShippingService {
   private get tid(): string {
@@ -124,14 +125,12 @@ export class ShippingService {
       order: { costo: 'ASC' },
     });
 
-    const UMBRAL_ENVIO_GRATIS = 200;
     const calificaEnvioGratis = subtotal >= UMBRAL_ENVIO_GRATIS;
     const montoFaltanteParaGratis = Math.max(0, UMBRAL_ENVIO_GRATIS - subtotal);
 
     const opciones = metodos.map((m) => {
-      const esEstandar = m.nombre.toLowerCase().includes('estándar') || m.nombre.toLowerCase().includes('estandar');
       const costoOriginal = Number(m.costo);
-      const costoFinal = esEstandar && calificaEnvioGratis ? 0 : costoOriginal;
+      const costoFinal = costoDeEnvio(m, subtotal);
 
       return {
         id: m.id,
@@ -141,8 +140,8 @@ export class ShippingService {
         costoOriginal,
         costoFinal,
         esGratis: costoFinal === 0,
-        esEstandar,
-        esExpress: m.nombre.toLowerCase().includes('express'),
+        esEstandar: esEnvioEstandar(m.nombre),
+        esExpress: esEnvioExpress(m.nombre),
       };
     });
 
@@ -478,7 +477,8 @@ export class ShippingService {
         where: { activo: true },
         order: { costo: 'ASC' },
       });
-      metodoId = defaultMetodo?.id || 'e1000000-0000-0000-0000-000000000001';
+      if (!defaultMetodo) throw new BadRequestException('La tienda aún no tiene métodos de envío disponibles.');
+      metodoId = defaultMetodo.id;
     }
 
     const anio = new Date().getFullYear();

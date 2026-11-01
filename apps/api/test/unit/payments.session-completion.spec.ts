@@ -69,7 +69,7 @@ describe('PaymentsService: a paid Checkout session creates its order exactly onc
 
     service = build();
     (service as any).calcularTotalesCarrito = jest.fn().mockResolvedValue({
-      subtotal: TOTAL, descuento: 0, envio: 0, totalFinal: TOTAL, cupon: null, cart: { id: 'cart-1', items: [] },
+      subtotal: TOTAL, descuento: 0, envio: 0, totalFinal: TOTAL, cupon: null, metodoEnvio: { id: 'metodo-1', nombre: 'Envío Estándar' }, cart: { id: 'cart-1', items: [] },
     });
     (service as any).resolverMetodoPagoId = jest.fn().mockResolvedValue('mp-1');
     (service as any).enviarConfirmacionEmailSeguro = jest.fn();
@@ -148,7 +148,7 @@ describe('PaymentsService: a paid Checkout session creates its order exactly onc
       const vistas: Array<string | undefined> = [];
       (service as any).calcularTotalesCarrito.mockImplementation(async () => {
         vistas.push(TenantContext.get(), TenantContext.getUser());
-        return { subtotal: TOTAL, descuento: 0, envio: 0, totalFinal: TOTAL, cupon: null, cart: { id: 'cart-1', items: [] } };
+        return { subtotal: TOTAL, descuento: 0, envio: 0, totalFinal: TOTAL, cupon: null, metodoEnvio: { id: 'metodo-1', nombre: 'Envío Estándar' }, cart: { id: 'cart-1', items: [] } };
       });
       jest.restoreAllMocks();
       jest.spyOn(TenantContext, 'require').mockImplementation(() => TenantContext.get() as string);
