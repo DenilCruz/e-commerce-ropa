@@ -14,6 +14,15 @@ import { toast } from 'sonner';
 import { shippingApi, MetodoEnvio, ActualizarEstadoEnvioDto } from '../../../envios/services/shipping.api';
 import { Link } from 'react-router-dom';
 
+const ETIQUETA_ESTADO: Record<string, string> = {
+  TODOS: 'Todos',
+  PREPARANDO: 'Preparando',
+  EN_CAMINO: 'En camino',
+  EN_REPARTO: 'En reparto',
+  ENTREGADO: 'Entregado',
+  FALLIDO: 'Fallido',
+};
+
 export const AdminShippingPage: React.FC = () => {
   const [activeTab, setActiveTab] = useState<'envios' | 'metodos'>('envios');
 
@@ -186,7 +195,7 @@ export const AdminShippingPage: React.FC = () => {
             Gestión y Control de Envíos
           </h1>
           <p className="text-sm text-stone-500">
-            Administra los despachos de paquetes (HU-65) y configura tarifas y zonas de cobertura (HU-61).
+            Administra los despachos de paquetes y configura tarifas y zonas de cobertura.
           </p>
         </div>
 
@@ -200,7 +209,7 @@ export const AdminShippingPage: React.FC = () => {
                 : 'text-stone-600 hover:text-stone-900'
             }`}
           >
-            Despachos y Guías (HU-65)
+            Despachos y Guías
           </button>
           <button
             onClick={() => setActiveTab('metodos')}
@@ -210,7 +219,7 @@ export const AdminShippingPage: React.FC = () => {
                 : 'text-stone-600 hover:text-stone-900'
             }`}
           >
-            Zonas y Costos de Envío (HU-61)
+            Zonas y Costos de Envío
           </button>
         </div>
       </div>
@@ -231,7 +240,7 @@ export const AdminShippingPage: React.FC = () => {
                       : 'bg-[#FAF8F5] text-stone-600 border border-[#E7E1D7] hover:bg-[#F2ECE1]'
                   }`}
                 >
-                  {st}
+                  {ETIQUETA_ESTADO[st] ?? st}
                 </button>
               ))}
             </div>
@@ -310,7 +319,7 @@ export const AdminShippingPage: React.FC = () => {
                               : 'bg-stone-100 text-stone-700 border border-stone-200'
                           }`}
                         >
-                          {e.estado}
+                          {ETIQUETA_ESTADO[e.estado] ?? e.estado}
                         </span>
                       </td>
                       <td className="px-6 py-4 text-xs text-stone-500">
@@ -349,7 +358,7 @@ export const AdminShippingPage: React.FC = () => {
             <div>
               <h2 className="font-serif text-xl font-bold text-stone-900 flex items-center gap-2">
                 <MapPin className="w-5 h-5 text-[#9B7B54]" />
-                Zonas y Tarifas de Entrega (HU-61)
+                Zonas y Tarifas de Entrega
               </h2>
               <p className="text-xs text-stone-500 mt-1">
                 Define las zonas geográficas, modalidades de despacho y costos de envío que se aplicarán automáticamente a los pedidos de los clientes.
@@ -458,11 +467,11 @@ export const AdminShippingPage: React.FC = () => {
                   onChange={(e: any) => setNuevoEstado(e.target.value)}
                   className="w-full px-3 py-2 border border-[#E7E1D7] rounded-xl text-sm focus:ring-2 focus:ring-stone-900 focus:outline-none bg-white text-stone-900"
                 >
-                  <option value="PREPARANDO">PREPARANDO (En almacén)</option>
-                  <option value="EN_CAMINO">EN_CAMINO (Despachado en tránsito)</option>
-                  <option value="EN_REPARTO">EN_REPARTO (En moto/camión de reparto local)</option>
-                  <option value="ENTREGADO">ENTREGADO (Paquete recibido por cliente)</option>
-                  <option value="FALLIDO">FALLIDO (No se pudo entregar)</option>
+                  <option value="PREPARANDO">Preparando (en almacén)</option>
+                  <option value="EN_CAMINO">En camino (despachado, en tránsito)</option>
+                  <option value="EN_REPARTO">En reparto (con el repartidor local)</option>
+                  <option value="ENTREGADO">Entregado (recibido por el cliente)</option>
+                  <option value="FALLIDO">Fallido (no se pudo entregar)</option>
                 </select>
               </div>
 
@@ -541,7 +550,7 @@ export const AdminShippingPage: React.FC = () => {
               {metodoEditando ? 'Modificar Zona y Tarifa de Envío' : 'Nueva Zona y Tarifa de Envío'}
             </h3>
             <p className="text-xs text-stone-500 mb-4">
-              HU-61: Define la zona o modalidad y la tarifa que abonará el cliente durante el pedido.
+              Define la zona o modalidad y la tarifa que abonará el cliente durante el pedido.
             </p>
 
             <form onSubmit={guardarMetodo} className="space-y-4">

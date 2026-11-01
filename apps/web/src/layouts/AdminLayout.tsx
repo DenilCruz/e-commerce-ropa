@@ -15,6 +15,7 @@ import {
   Image as ImageIcon,
   Store,
   Star,
+  MapPin,
   ArrowLeft,
   LogOut,
   QrCode,
@@ -26,12 +27,14 @@ import { authApi } from '../features/autenticacion/services/auth.api';
 import { AdminPlanBadge } from '../features/tiendas/components/AdminPlanBadge';
 import { StoreSwitcher } from '../features/tiendas/components/StoreSwitcher';
 import { usePlanLimites } from '../features/tiendas/hooks/usePlanLimites';
+import { esDueno } from '../lib/roles';
+import '../features/admin/styles/admin.css';
 
 export const AdminLayout: React.FC = () => {
   const navigate = useNavigate();
   const location = useLocation();
   const [menuAbierto, setMenuAbierto] = useState(false);
-  const { logout, refreshToken } = useAuthStore();
+  const { logout, refreshToken, user } = useAuthStore();
   const { metricas } = usePlanLimites();
   const storeSlug = metricas?.tienda?.slug || 'aura';
 
@@ -60,26 +63,34 @@ export const AdminLayout: React.FC = () => {
     }
   };
 
+  const dueno = esDueno(user?.rol);
+  const caps = metricas?.capacidades;
   const navItems = [
-    { to: '/admin', label: 'Dashboard Descriptivo', icon: LayoutDashboard, end: true },
-    { to: '/admin/dashboard-predictivo', label: 'Dashboard Predictivo (IA)', icon: TrendingUp },
-    { to: '/admin/reportes', label: 'Reportes de Ventas', icon: BarChart3 },
-    { to: '/admin/reportes-dinamicos', label: 'Reportes por Voz (IA)', icon: Sparkles },
-    { to: '/admin/productos', label: 'Productos', icon: Shirt },
-    { to: '/admin/categorias', label: 'Categorías', icon: FolderTree },
+    { to: '/admin/puesto', label: 'Puesto', icon: Store, end: false },
+    { to: '/admin', label: 'Dashboard Descriptivo', icon: LayoutDashboard, end: true, dueno: true },
+    { to: '/admin/dashboard-predictivo', label: 'Dashboard Predictivo (IA)', icon: TrendingUp, dueno: true, capacidad: 'modelosPredictivosMl' as const },
+    { to: '/admin/reportes', label: 'Reportes de Ventas', icon: BarChart3, dueno: true },
+    { to: '/admin/reportes-dinamicos', label: 'Reportes por Voz (IA)', icon: Sparkles, dueno: true, capacidad: 'reportesVozNlp' as const },
+    { to: '/admin/productos', label: 'Productos', icon: Shirt, dueno: true },
+    { to: '/admin/categorias', label: 'Categorías', icon: FolderTree, dueno: true },
     { to: '/admin/inventario', label: 'Inventario', icon: Boxes },
-    { to: '/admin/ventas', label: 'Punto de Venta', icon: Store },
+    { to: '/admin/ventas', label: 'Punto de Venta', icon: Store, capacidad: 'posOffline' as const },
     { to: '/admin/pedidos', label: 'Pedidos', icon: ShoppingBag },
-    { to: '/admin/envios', label: 'Envíos y Despachos', icon: Truck },
-    { to: '/admin/cupones', label: 'Cupones', icon: Ticket },
-    { to: '/admin/usuarios', label: 'Usuarios', icon: Users },
-    { to: '/admin/pagos-config', label: 'Pasarela & QR Propio', icon: QrCode },
-    { to: '/admin/archivos', label: 'Archivos', icon: ImageIcon },
-    { to: '/admin/resenas', label: 'Reseñas', icon: Star },
-  ];
+    { to: '/admin/envios', label: 'Envíos y Despachos', icon: Truck, dueno: true },
+    { to: '/admin/cupones', label: 'Cupones', icon: Ticket, dueno: true },
+    { to: '/admin/usuarios', label: 'Usuarios', icon: Users, dueno: true },
+    { to: '/admin/sucursales', label: 'Sucursales', icon: MapPin, dueno: true },
+    { to: '/admin/pagos-config', label: 'Pasarela & QR Propio', icon: QrCode, dueno: true },
+    { to: '/admin/archivos', label: 'Archivos', icon: ImageIcon, dueno: true },
+    { to: '/admin/resenas', label: 'Reseñas', icon: Star, dueno: true },
+  ].filter((item) => {
+    if (item.dueno && !dueno) return false;
+    if (item.capacidad && caps && !caps[item.capacidad]) return false;
+    return true;
+  });
 
   return (
-    <div className="h-screen w-full flex overflow-hidden bg-[#FAF8F5] text-stone-900 font-sans">
+    <div className="admin-shell h-screen w-full flex overflow-hidden bg-[#FAF8F5] text-stone-900 font-sans">
       {/* Fondo oscuro detrás del menú deslizable (solo pantallas chicas) */}
       {menuAbierto && (
         <button
@@ -189,7 +200,7 @@ export const AdminLayout: React.FC = () => {
         </header>
 
         {/* MAIN CONTENT con scroll independiente */}
-        <main className="flex-1 min-h-0 overflow-y-auto p-4 sm:p-6 lg:p-8 bg-[#FAF8F5]">
+        <main className="admin-main flex-1 min-h-0 overflow-y-auto p-4 sm:p-6 lg:p-8 bg-[#FAF8F5]">
           <Outlet />
         </main>
       </div>

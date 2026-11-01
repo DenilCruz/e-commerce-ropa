@@ -14,10 +14,12 @@ import { useCartStore } from '../../../store/cart.store';
 import { VirtualTryOnModal } from '../components/VirtualTryOnModal';
 import { useTenantStore } from '../../../hooks/useTenantStore';
 
+import { askConfirm } from '../../../components/ui/DialogHost';
 const ASSETS_URL = (import.meta.env.VITE_API_URL || 'http://localhost:3000/api/v1').replace('/api/v1', '');
 
 export const CartPage: React.FC = () => {
   const navigate = useNavigate();
+  const { getStoreUrl } = useTenantStore();
   const {
     cart,
     cargando,
@@ -106,10 +108,14 @@ export const CartPage: React.FC = () => {
 
         {items.length > 0 && (
           <button
-            onClick={() => {
-              if (window.confirm('¿Deseas vaciar todos los artículos de tu bolsa?')) {
-                clearCart();
-              }
+            onClick={async () => {
+              const ok = await askConfirm({
+                title: '¿Vaciar tu bolsa?',
+                message: 'Quitaremos todas las prendas que elegiste. Podrás volver a añadirlas desde la colección.',
+                confirmLabel: 'Vaciar bolsa',
+                tone: 'danger',
+              });
+              if (ok) clearCart();
             }}
             className="text-xs uppercase tracking-luxury text-stone-500 hover:text-red-700 transition-colors flex items-center gap-1.5 self-start sm:self-auto"
           >
@@ -140,10 +146,10 @@ export const CartPage: React.FC = () => {
           </div>
           <div className="space-y-2">
             <h2 className="font-serif text-2xl text-stone-900 font-normal">
-              Tu bolsa de compras está vacía
+              Tu bolsa te está esperando
             </h2>
             <p className="text-xs text-stone-500 font-light max-w-md mx-auto leading-relaxed">
-              Descubre nuestra colección permanente de alta costura, donde cada silueta está diseñada para perdurar.
+              Cada pieza de AURA está pensada para durar. Elige la que te enamore y llévala a casa.
             </p>
           </div>
           <div>
@@ -163,7 +169,7 @@ export const CartPage: React.FC = () => {
           <div className="lg:col-span-7 xl:col-span-8 space-y-6">
             
             {/* CALLOUT PROBADOR VIRTUAL IA */}
-            <div className="bg-[#F2ECE1] border border-[#D5CCC0] p-5 flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+            <div className="bg-[#F2ECE1] border border-[#D5CCC0] rounded-[22px] p-5 flex flex-col sm:flex-row sm:items-center justify-between gap-4">
               <div className="flex items-center gap-3.5">
                 <div className="w-10 h-10 rounded-full bg-white flex items-center justify-center shrink-0 border border-[#D5CCC0]">
                   <Sparkles className="w-5 h-5 text-[#9B7B54]" />

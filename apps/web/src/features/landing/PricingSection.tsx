@@ -8,17 +8,23 @@ import {
   Loader2,
   CreditCard,
   ShieldCheck,
+  Building2,
   Sparkles,
   Store,
   ArrowRight,
+  Shirt,
+  Users,
 } from 'lucide-react';
 import { useAuthStore } from '../../store/auth.store';
 import { usePlanLimites } from '../tiendas/hooks/usePlanLimites';
 import { tiendasApi } from '../tiendas/services/tiendas.api';
+import { esDueno } from '../../lib/roles';
 import { planesApi } from '../tiendas/services/planes.api';
 import { PLAN_NOMBRES_FALLBACK, esBajaDePlan, esPlanDePago } from '../tiendas/utils/planes';
 import { MiTienda } from '../tiendas/types';
 import { Modal } from '../../components/ui/Modal';
+import { motion } from 'framer-motion';
+import { InteractiveSpatialCard, Magnetic } from '../../components/spatial';
 
 export const PricingSection: React.FC = () => {
   const navigate = useNavigate();
@@ -41,7 +47,7 @@ export const PricingSection: React.FC = () => {
   });
 
   // Identificar la tienda que administra el usuario
-  const tiendasAdmin = misTiendas.filter((t) => t.rol === 'ADMIN');
+  const tiendasAdmin = misTiendas.filter((t) => esDueno(t.rol));
   const tiendaDestino = tiendasAdmin.find((t) => t.esActiva) || tiendasAdmin[0] || (metricas?.tienda ? {
     id: metricas.tienda.id,
     nombre: metricas.tienda.nombre,
@@ -60,19 +66,19 @@ export const PricingSection: React.FC = () => {
       subtitulo: 'Para validar tu marca',
       precio: 0,
       periodo: '14 días de prueba gratis',
-      descripcion: 'Prueba todas las funcionalidades básicas de atelier sin costo inicial.',
+      descripcion: 'Prueba lo esencial para vender tu ropa, sin pagar nada al inicio.',
       limites: {
-        sucursales: '1 Sucursal',
+        sucursales: '1 tienda física',
         usuarios: '2 Usuarios / Empleados',
         productos: 'Hasta 30 productos',
       },
       caracteristicas: [
-        { texto: 'Catálogo web responsive atelier', incluido: true },
+        { texto: 'Tienda en línea lista para celular y computador', incluido: true },
         { texto: 'Bolsa de compras y checkout', incluido: true },
         { texto: 'Probador Virtual con IA básico', incluido: true },
         { texto: 'Punto de Venta (POS) Offline', incluido: false },
-        { texto: 'Reportes por Voz con IA (Groq)', incluido: false },
-        { texto: 'Machine Learning (Random Forest & K-Means)', incluido: false },
+        { texto: 'Pregúntale a la IA por tus ventas, hablando', incluido: false },
+        { texto: 'Predicción de ventas y análisis de clientes', incluido: false },
         { texto: 'Soporte prioritario 24/7', incluido: false },
       ],
       cta: 'Comenzar Gratis',
@@ -86,18 +92,18 @@ export const PricingSection: React.FC = () => {
       periodo: anual ? 'Bs / mes (facturado anualmente)' : 'Bs / mes',
       descripcion: 'Vende omnicanal en boutique física y digital con sincronización offline.',
       limites: {
-        sucursales: 'Hasta 3 Sucursales',
+        sucursales: 'Hasta 3 tiendas físicas',
         usuarios: 'Hasta 10 Usuarios / Empleados',
         productos: 'Hasta 300 productos',
       },
       caracteristicas: [
         { texto: 'Todo lo del plan Free Trial', incluido: true },
         { texto: 'Punto de Venta POS 100% Offline con sync', incluido: true },
-        { texto: 'Reportes dinámicos por voz (Groq/Ollama)', incluido: true },
-        { texto: 'Exportación a PDF y Excel (.xlsx)', incluido: true },
-        { texto: 'Pasarela de pagos Stripe y QR bancario', incluido: true },
-        { texto: 'Machine Learning: Predicción de Demanda', incluido: false },
-        { texto: 'Machine Learning: Segmentación K-Means', incluido: false },
+        { texto: 'Pregúntale a la IA por tus ventas, hablando', incluido: true },
+        { texto: 'Descarga tus reportes en PDF y Excel', incluido: true },
+        { texto: 'Cobra con tarjeta y con QR bancario', incluido: true },
+        { texto: 'Predicción de lo que vas a vender', incluido: false },
+        { texto: 'Grupos de clientes según cómo compran', incluido: false },
       ],
       cta: 'Elegir Estándar',
       destacado: true,
@@ -108,19 +114,19 @@ export const PricingSection: React.FC = () => {
       subtitulo: 'Para franquicias y marcas consolidadas',
       precio: anual ? 399 : 499,
       periodo: anual ? 'Bs / mes (facturado anualmente)' : 'Bs / mes',
-      descripcion: 'Inteligencia Artificial avanzada, algoritmos predictivos y soporte atelier 24/7.',
+      descripcion: 'Inteligencia artificial que anticipa tus ventas, más soporte prioritario todos los días.',
       limites: {
-        sucursales: 'Sucursales Ilimitadas',
+        sucursales: 'Tiendas físicas ilimitadas',
         usuarios: 'Usuarios Ilimitados',
         productos: 'Productos Ilimitados',
       },
       caracteristicas: [
         { texto: 'Todo lo del plan Estándar', incluido: true },
-        { texto: 'Random Forest: Predicción de demanda de stock', incluido: true },
-        { texto: 'K-Means: Segmentación de clientes (Silhouette)', incluido: true },
-        { texto: 'Dashboards BI para Dueño, Vendedor y Cliente', incluido: true },
-        { texto: 'Multi-tienda con aislamiento RLS ilimitado', incluido: true },
-        { texto: 'SLA garantizado y soporte prioritario 24/7', incluido: true },
+        { texto: 'Sabe qué prendas reponer antes de que se agoten', incluido: true },
+        { texto: 'Descubre qué tipo de cliente compra más', incluido: true },
+        { texto: 'Paneles claros para dueño, vendedor y cliente', incluido: true },
+        { texto: 'Todas las tiendas que quieras, con datos separados', incluido: true },
+        { texto: 'Soporte prioritario, todos los días', incluido: true },
         { texto: 'Capacitación personalizada para tu equipo', incluido: true },
       ],
       cta: 'Elegir Corporativo',
@@ -217,13 +223,10 @@ export const PricingSection: React.FC = () => {
   }, []);
 
   return (
-    <section id="planes" className="bg-[#FAF8F5] py-20 text-stone-900 border-t border-[#E7E1D7] relative">
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 space-y-12">
+    <section id="planes" className="aura-pricing bg-[#FAF8F5] py-20 text-stone-900 border-t border-[#E7E1D7] relative">
+      <div className="aura-pricing__content max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 space-y-12">
         {/* Encabezado */}
         <div className="text-center max-w-2xl mx-auto space-y-3">
-          <p className="text-xs uppercase tracking-widest text-[#9B7B54] font-semibold">
-            Tarifas & Suscripciones
-          </p>
           <h2 className="font-serif text-3xl sm:text-5xl font-normal tracking-wide text-stone-900">
             Planes a la medida de tu boutique
           </h2>
@@ -234,55 +237,44 @@ export const PricingSection: React.FC = () => {
 
           {isAuthenticated && tiendaDestino && (
             <div className="pt-1">
-              <div className="inline-flex items-center gap-2 px-3.5 py-1.5 rounded-full bg-white border border-[#E7E1D7] text-xs text-stone-700 shadow-sm">
+              <Magnetic strength={0.12}><div className="aura-store-chip inline-flex items-center gap-2 px-3.5 py-1.5 rounded-full bg-white border border-[#E7E1D7] text-xs text-stone-700 shadow-sm">
                 <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse" />
                 <span>Tienda para Upgrade: <strong>{tiendaDestino.nombre}</strong></span>
                 <span className="text-stone-300">|</span>
                 <span className="text-[#9B7B54] font-medium">Plan actual: {planActualTienda}</span>
-              </div>
+              </div></Magnetic>
             </div>
           )}
 
-          {/* Toggle Mensual / Anual */}
-          <div className="pt-4 flex items-center justify-center gap-4">
-            <span className={`text-xs uppercase tracking-wider ${!anual ? 'font-bold text-stone-900' : 'text-stone-500'}`}>
-              Mensual
-            </span>
-            <button
-              type="button"
-              onClick={() => setAnual(!anual)}
-              className="relative inline-flex h-6 w-11 shrink-0 cursor-pointer rounded-full border-2 border-transparent bg-stone-800 transition-colors duration-200 ease-in-out focus:outline-none"
-              role="switch"
-              aria-checked={anual}
-            >
-              <span
-                className={`pointer-events-none inline-block h-5 w-5 transform rounded-full bg-white shadow-lg ring-0 transition duration-200 ease-in-out ${
-                  anual ? 'translate-x-5' : 'translate-x-0'
-                }`}
-              />
-            </button>
-            <span className={`text-xs uppercase tracking-wider flex items-center gap-1.5 ${anual ? 'font-bold text-stone-900' : 'text-stone-500'}`}>
-              <span>Anual</span>
-              <span className="bg-[#FAF8F5] text-[#9B7B54] border border-[#E7E1D7] text-[10px] font-semibold px-2 py-0.5 rounded-full">
-                20% AHORRO
-              </span>
-            </span>
+          {/* Selector Mensual / Anual con cápsula deslizante */}
+          <div className="pt-4 flex items-center justify-center">
+            <div className="aura-billing" role="radiogroup" aria-label="Periodo de facturación">
+              {[{ valor: false, etiqueta: 'Mensual' }, { valor: true, etiqueta: 'Anual' }].map((opcion) => (
+                <Magnetic key={opcion.etiqueta} strength={0.2}>
+                  <button type="button" role="radio" aria-checked={anual === opcion.valor} onClick={() => setAnual(opcion.valor)} className="aura-billing__opt">
+                    {anual === opcion.valor && <motion.span layoutId="billing-pill" className="aura-billing__pill" transition={{ type: 'spring', stiffness: 420, damping: 32 }} />}
+                    <span className="aura-billing__label">{opcion.etiqueta}</span>
+                    {opcion.valor && <span className="aura-billing__save">20% ahorro</span>}
+                  </button>
+                </Magnetic>
+              ))}
+            </div>
           </div>
         </div>
 
         {/* Tarjetas de Precios */}
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-8 items-stretch">
+        <div className="aura-pricing__grid grid grid-cols-1 md:grid-cols-3 gap-8 items-stretch">
           {planes.map((plan) => {
             const esPlanActual = Boolean(isAuthenticated && planActualTienda === plan.id);
 
             return (
-              <div
+              <InteractiveSpatialCard
                 key={plan.id}
-                className={`relative flex flex-col justify-between rounded-none border transition-all duration-300 ${
-                  plan.destacado
-                    ? 'bg-white border-stone-900 shadow-xl md:-translate-y-2'
-                    : 'bg-[#FAF8F5] border-[#E7E1D7] shadow-sm hover:shadow-md'
-                }`}
+                dark
+                beam
+                maxTilt={6}
+                lift={12}
+                className={`aura-plan-card relative flex flex-col justify-between rounded-[28px] border ${plan.destacado ? 'aura-plan-card--featured' : ''}`}
               >
                 {plan.destacado && (
                   <div className="absolute -top-3.5 left-1/2 -translate-x-1/2 bg-stone-900 text-white text-[10px] uppercase tracking-widest font-semibold px-4 py-1 shadow-sm">
@@ -317,19 +309,19 @@ export const PricingSection: React.FC = () => {
                   </p>
 
                   {/* Cuotas / Límites del Plan */}
-                  <div className="bg-stone-50/80 p-3.5 border border-[#E7E1D7] space-y-1.5 text-xs">
+                  <div className="ispatial-z bg-stone-50/80 p-4 rounded-2xl border border-[#E7E1D7] space-y-1.5 text-xs">
                     <p className="font-semibold text-stone-800 text-[10px] uppercase tracking-wider">
-                      Cuotas de Infraestructura:
+                      Lo que incluye:
                     </p>
-                    <p className="text-stone-600">🏛️ {plan.limites.sucursales}</p>
-                    <p className="text-stone-600">👥 {plan.limites.usuarios}</p>
-                    <p className="text-stone-600">👗 {plan.limites.productos}</p>
+                    <p className="aura-plan-limit"><Building2 aria-hidden="true" /> {plan.limites.sucursales}</p>
+                    <p className="aura-plan-limit"><Users aria-hidden="true" /> {plan.limites.usuarios}</p>
+                    <p className="aura-plan-limit"><Shirt aria-hidden="true" /> {plan.limites.productos}</p>
                   </div>
 
                   {/* Lista de Características */}
                   <div className="space-y-3 pt-2">
                     <p className="text-[11px] font-semibold uppercase tracking-wider text-stone-500">
-                      Capacidades Atelier:
+                      Lo que podrás hacer:
                     </p>
                     <ul className="space-y-2.5 text-xs text-stone-700">
                       {plan.caracteristicas.map((caract, idx) => (
@@ -372,7 +364,7 @@ export const PricingSection: React.FC = () => {
                     )}
                   </button>
                 </div>
-              </div>
+              </InteractiveSpatialCard>
             );
           })}
         </div>

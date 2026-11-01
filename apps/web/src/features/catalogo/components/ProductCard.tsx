@@ -6,6 +6,7 @@ import { HeartButton } from '../../favoritos/components/HeartButton';
 import { useCartStore } from '../../../store/cart.store';
 import { useTenantStore } from '../../../hooks/useTenantStore';
 import { toast } from 'sonner';
+import './ProductCard.css';
 
 interface ProductCardProps {
   producto: Producto;
@@ -63,28 +64,28 @@ export const ProductCard: React.FC<ProductCardProps> = ({ producto }) => {
   };
 
   return (
-    <div className="group bg-white border border-[#E7E1D7] overflow-hidden hover:border-stone-400 transition-all duration-300 flex flex-col justify-between">
-      <div className="relative">
-        <Link to={productUrl} className="block relative aspect-[3/4] overflow-hidden bg-[#F2ECE1]">
+    <article className="product-card group">
+      <div className="product-card__visual">
+        <Link to={productUrl} className="product-card__image-link">
           <img 
             src={urlImagen} 
             alt={producto.nombre} 
-            className="w-full h-full object-cover object-top group-hover:scale-104 transition-transform duration-700 ease-out"
+            className="product-card__image"
           />
           {producto.destacado && (
-            <span className="absolute top-2.5 left-2.5 bg-stone-900/90 backdrop-blur-xs text-white text-[9px] uppercase tracking-luxury px-2 py-0.5">
+            <span className="product-card__badge">
               Atelier Pick
             </span>
           )}
         </Link>
         
         {/* Guardar en favoritos */}
-        <div className="absolute top-2.5 right-2.5 z-10">
+        <div className="product-card__favorite">
           <HeartButton productoId={producto.id} variant="floating" />
         </div>
       </div>
       
-      <div className="p-4 flex flex-col flex-1 justify-between bg-white">
+      <div className="product-card__details">
         <div className="space-y-1 mb-3">
           {producto.categoria && (
             <p className="text-[10px] uppercase tracking-luxury text-[#9B7B54] font-medium">
@@ -96,7 +97,7 @@ export const ProductCard: React.FC<ProductCardProps> = ({ producto }) => {
               {producto.nombre}
             </Link>
           </h3>
-          <p className="font-sans text-xs font-semibold text-stone-900 tracking-tight pt-0.5">
+          <p className="product-card__price">
             ${Number(producto.precio).toFixed(2)}
           </p>
         </div>
@@ -104,7 +105,7 @@ export const ProductCard: React.FC<ProductCardProps> = ({ producto }) => {
         <button
           onClick={handleQuickAdd}
           disabled={agregando}
-          className={`w-full py-2.5 px-3 border text-xs uppercase tracking-luxury transition-all flex items-center justify-center gap-1.5 font-medium ${
+          className={`product-card__quick-add ${
             agregadoExito
               ? 'bg-stone-900 border-stone-900 text-white'
               : 'border-[#D5CCC0] text-stone-800 hover:bg-stone-900 hover:text-white hover:border-stone-900'
@@ -125,6 +126,6 @@ export const ProductCard: React.FC<ProductCardProps> = ({ producto }) => {
           )}
         </button>
       </div>
-    </div>
+    </article>
   );
 };

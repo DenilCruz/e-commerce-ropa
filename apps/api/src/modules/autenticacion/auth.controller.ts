@@ -32,6 +32,8 @@ import { ActualizarConfigPagoDto } from '../tiendas/dto/actualizar-config-pago.d
 import { PlanLimitsService } from '../tiendas/plan-limits.service';
 import { StoresService } from '../tiendas/stores.service';
 import { JwtAuthGuard } from './guards/jwt-auth.guard';
+import { RolesGuard } from './guards/roles.guard';
+import { Roles } from './decorators/roles.decorator';
 import { CurrentUser } from './decorators/current-user.decorator';
 
 @ApiTags('Autenticación')
@@ -271,6 +273,25 @@ export class AuthController {
     return this.planLimitsService.obtenerMetricasYLimites(tenantId);
   }
 
+  @Get('tiendas/sucursales')
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles('ADMIN', 'VENDEDOR')
+  @ApiBearerAuth()
+  @ApiOperation({ summary: 'Listar las sucursales activas de la tienda' })
+  async listarSucursales(@CurrentUser() usuario: any) {
+    return this.planLimitsService.listarSucursales(usuario.tenantId);
+  }
+
+  @Post('tiendas/sucursales')
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles('ADMIN')
+  @ApiBearerAuth()
+  @HttpCode(HttpStatus.CREATED)
+  @ApiOperation({ summary: 'Abrir una sucursal si el plan todavía tiene cupo' })
+  async crearSucursal(@CurrentUser() usuario: any, @Body() body: { nombre?: string; direccion?: string }) {
+    return this.planLimitsService.crearSucursal(usuario.tenantId, body?.nombre ?? '', body?.direccion);
+  }
+
   @Patch('tiendas/cambiar-plan')
   @UseGuards(JwtAuthGuard)
   @ApiBearerAuth()
@@ -301,7 +322,8 @@ export class AuthController {
   }
 
   @Get('tiendas/mi-config-pago')
-  @UseGuards(JwtAuthGuard)
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles('ADMIN')
   @ApiBearerAuth()
   @ApiOperation({
     summary: 'Consultar configuración de cobro y saldo en custodia de la tienda activa (Admin)',
@@ -313,7 +335,8 @@ export class AuthController {
   }
 
   @Patch('tiendas/mi-config-pago')
-  @UseGuards(JwtAuthGuard)
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles('ADMIN')
   @ApiBearerAuth()
   @HttpCode(HttpStatus.OK)
   @ApiOperation({

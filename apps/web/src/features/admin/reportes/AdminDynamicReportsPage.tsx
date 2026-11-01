@@ -6,7 +6,7 @@ import {
   Sparkles,
   Send,
   Download,
-  Printer,
+
   RefreshCw,
   AlertCircle,
   ArrowLeft,
@@ -15,8 +15,10 @@ import {
 } from 'lucide-react';
 import { adminApi } from '../services/admin.api';
 import { exportarExcel, inferirCelda, tituloDeColumna } from '../../../lib/exportarExcel';
+import { construirPdfTabla, descargarPdf } from '../../../lib/exportarPdf';
 import { ReporteDinamicoResultado } from '../types';
 
+import { toast } from 'sonner';
 export const AdminDynamicReportsPage: React.FC = () => {
   const [prompt, setPrompt] = useState<string>('');
   const [proveedor, setProveedor] = useState<'GROQ' | 'GEMINI'>('GROQ');
@@ -218,128 +220,18 @@ export const AdminDynamicReportsPage: React.FC = () => {
     }
   };
 
-  // 2. Exportar a PDF (documento formateado e impresión nativa)
   const exportarPDF = () => {
     if (!resultado || resultado.filas.length === 0) return;
 
     const cols = columnasVisibles.length > 0 ? columnasVisibles : resultado.columnas;
-    const fechaGeneracion = new Date().toLocaleString('es-BO', {
-      day: '2-digit',
-      month: 'long',
-      year: 'numeric',
-      hour: '2-digit',
-      minute: '2-digit',
-    });
-
-    const printWindow = window.open('', '_blank');
-    if (!printWindow) {
-      alert('Por favor permite las ventanas emergentes en tu navegador para generar el PDF.');
-      return;
-    }
-
-    const filasHtml = resultado.filas
-      .map(
-        (fila, idx) => `
-        <tr>
-          <td style="padding: 8px 10px; border-bottom: 1px solid #e2e8f0; text-align: center; color: #64748b; font-size: 11px;">${idx + 1}</td>
-          ${cols
-            .map((col) => {
-              const val = fila[col];
-              let displayVal = val === null || val === undefined ? '-' : String(val);
-              const colLower = col.toLowerCase();
-              if (
-                (colLower.includes('precio') ||
-                  colLower.includes('total') ||
-                  colLower.includes('subtotal') ||
-                  colLower.includes('descuento') ||
-                  colLower.includes('ingreso') ||
-                  colLower.includes('monto')) &&
-                typeof val === 'number'
-              ) {
-                displayVal = `$${val.toFixed(2)}`;
-              }
-              return `<td style="padding: 8px 10px; border-bottom: 1px solid #e2e8f0; font-size: 12px; color: #1e293b;">${displayVal}</td>`;
-            })
-            .join('')}
-        </tr>
-      `,
-      )
-      .join('');
-
-    const columnasHtml = cols
-      .map(
-        (col) => `
-        <th style="padding: 10px 10px; text-align: left; background: #f8fafc; color: #475569; font-size: 11px; text-transform: uppercase; font-weight: 700; border-bottom: 2px solid #cbd5e1;">
-          ${col.replace(/_/g, ' ')}
-        </th>
-      `,
-      )
-      .join('');
-
-    printWindow.document.write(`
-      <!DOCTYPE html>
-      <html>
-      <head>
-        <title>Reporte_Dinamico_${Date.now()}</title>
-        <meta charset="utf-8" />
-        <style>
-          body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif; margin: 30px; color: #0f172a; }
-          .header { display: flex; justify-content: space-between; align-items: flex-start; border-bottom: 2px solid #0f172a; padding-bottom: 15px; margin-bottom: 20px; }
-          .logo { font-size: 20px; font-weight: 900; letter-spacing: -0.5px; text-transform: uppercase; }
-          .logo span { background: #0f172a; color: white; padding: 2px 6px; border-radius: 4px; font-size: 12px; margin-right: 6px; }
-          .meta { font-size: 11px; color: #64748b; text-align: right; }
-          .query-box { background: #f8fafc; border: 1px solid #e2e8f0; padding: 12px 16px; border-radius: 8px; margin-bottom: 20px; font-size: 12px; }
-          .query-box strong { color: #0f172a; }
-          table { width: 100%; border-collapse: collapse; margin-top: 10px; }
-          .footer { margin-top: 30px; border-top: 1px solid #e2e8f0; padding-top: 15px; font-size: 11px; color: #94a3b8; text-align: center; }
-          @media print {
-            body { margin: 15mm; }
-            @page { size: auto; margin: 10mm; }
-          }
-        </style>
-      </head>
-      <body>
-        <div class="header">
-          <div>
-            <div class="logo"><span>A</span> AURA Atelier</div>
-            <div style="font-size: 13px; color: #475569; margin-top: 4px; font-weight: 600;">Reporte Dinámico de Datos</div>
-          </div>
-          <div class="meta">
-            <div><strong>Fecha de Emisión:</strong> ${fechaGeneracion}</div>
-            <div><strong>Total Filas:</strong> ${resultado.totalFilas}</div>
-          </div>
-        </div>
-
-        <div class="query-box">
-          <strong>Consulta Solicitada:</strong> "${resultado.promptOriginal}"
-        </div>
-
-        <table>
-          <thead>
-            <tr>
-              <th style="padding: 10px 8px; text-align: center; background: #f8fafc; color: #475569; font-size: 11px; text-transform: uppercase; font-weight: 700; border-bottom: 2px solid #cbd5e1; width: 30px;">#</th>
-              ${columnasHtml}
-            </tr>
-          </thead>
-          <tbody>
-            ${filasHtml}
-          </tbody>
-        </table>
-
-        <div class="footer">
-          Documento oficial emitido por el Sistema de Administración de AURA.
-        </div>
-
-        <script>
-          window.onload = function() {
-            window.print();
-          }
-        </script>
-      </body>
-      </html>
-    `);
-    printWindow.document.close();
+    const bytes = construirPdfTabla(
+      resultado.descripcion || 'Reporte',
+      cols.map((col) => tituloDeColumna(col)),
+      resultado.filas.map((fila) => cols.map((col) => (fila[col] == null ? '' : String(fila[col])))),
+    );
+    descargarPdf(`reporte_dinamico_${new Date().toISOString().slice(0, 10)}.pdf`, bytes);
   };
+
 
   // Sugerencias de voz
   const sugerencias = [
@@ -567,7 +459,7 @@ export const AdminDynamicReportsPage: React.FC = () => {
                 Total registros: <strong className="text-stone-900">{resultado.totalFilas}</strong>
               </span>
               <span className="text-xs text-stone-600 font-mono bg-[#FAF8F5] px-2.5 py-1 rounded border border-[#E7E1D7]">
-                ⚡ {resultado.tiempoEjecucionMs} ms
+                {resultado.tiempoEjecucionMs} ms
               </span>
             </div>
 
@@ -596,7 +488,7 @@ export const AdminDynamicReportsPage: React.FC = () => {
                 disabled={resultado.filas.length === 0}
                 className="px-4 py-2 bg-[#9B7B54] hover:bg-[#83653F] text-white rounded-lg text-xs font-bold uppercase tracking-wider flex items-center gap-2 transition-all disabled:opacity-40 shadow-xs"
               >
-                <Printer className="w-3.5 h-3.5" />
+                <Download className="w-3.5 h-3.5" />
                 <span>Exportar PDF</span>
               </button>
             </div>

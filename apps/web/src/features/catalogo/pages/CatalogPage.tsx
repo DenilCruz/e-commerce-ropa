@@ -13,6 +13,7 @@ import {
 import { Producto, Categoria } from '../types';
 import { obtenerProductos, obtenerCategorias } from '../services/catalogo.api';
 import { ProductCard } from '../components/ProductCard';
+import '../styles/catalog-spatial.css';
 
 export const CatalogPage: React.FC = () => {
   const [searchParams, setSearchParams] = useSearchParams();
@@ -282,10 +283,10 @@ export const CatalogPage: React.FC = () => {
   }
 
   return (
-    <div className="space-y-8 pb-16">
+      <div className="spatial-catalog space-y-8 pb-16">
       
       {/* Título Principal AURA */}
-      <div className="border-b border-[#E7E1D7] pb-6">
+      <div className="pb-6">
         <p className="text-[11px] uppercase tracking-luxury text-[#9B7B54] font-semibold mb-1">
           Colección Permanente
         </p>
@@ -344,7 +345,7 @@ export const CatalogPage: React.FC = () => {
         </div>
 
         {/* Categorías Principales Pills (HU-34) */}
-        <div className="flex gap-2 overflow-x-auto pb-1 no-scrollbar">
+        <div className="flex gap-2 overflow-x-auto pb-1 no-scrollbar min-w-0 max-w-full">
           <button
             onClick={() => setMostrarArbol(!mostrarArbol)}
             className={`px-4 py-2 text-xs uppercase tracking-luxury font-medium whitespace-nowrap transition-all flex items-center gap-1.5 border ${
@@ -633,13 +634,13 @@ export const CatalogPage: React.FC = () => {
       {/* CONTROLES DE PAGINACIÓN (HU-24) */}
       {totalPaginas > 1 && (
         <div className="flex justify-center items-center gap-2 pt-8 border-t border-gray-100">
-          <button
+          <button aria-label="Página anterior"
             onClick={() => cambiarPagina(paginaActual - 1)}
             disabled={paginaActual === 1}
             className="inline-flex items-center gap-1 px-4 py-2 text-sm font-medium border border-gray-300 rounded-lg hover:bg-gray-50 disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
           >
             <ChevronLeft className="w-4 h-4" />
-            <span>Anterior</span>
+            <span className="hidden sm:inline">Anterior</span>
           </button>
 
           <div className="flex gap-1">
@@ -658,12 +659,12 @@ export const CatalogPage: React.FC = () => {
             ))}
           </div>
 
-          <button
+          <button aria-label="Página siguiente"
             onClick={() => cambiarPagina(paginaActual + 1)}
             disabled={paginaActual === totalPaginas}
             className="inline-flex items-center gap-1 px-4 py-2 text-sm font-medium border border-gray-300 rounded-lg hover:bg-gray-50 disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
           >
-            <span>Siguiente</span>
+            <span className="hidden sm:inline">Siguiente</span>
             <ChevronRight className="w-4 h-4" />
           </button>
         </div>

@@ -38,7 +38,7 @@ describe('PaymentsService: a paid Checkout session creates its order exactly onc
   const build = () => {
     const none = {} as any;
     return new PaymentsService(
-      paymentRepo, none, { count: jest.fn().mockResolvedValue(0) } as any, none, none, none, none, none, none, none, none, none, none, none, dataSource,
+      paymentRepo, { findOne: jest.fn().mockResolvedValue({ id: 'metodo-tarjeta', nombre: 'Tarjeta de Débito/Crédito' }) } as any, { count: jest.fn().mockResolvedValue(0) } as any, none, none, none, none, none, none, none, none, none, none, none, dataSource,
       { get: (key: string) => (key === 'STRIPE_SECRET_KEY' ? 'sk_test_123' : undefined) } as any,
     );
   };
@@ -63,13 +63,15 @@ describe('PaymentsService: a paid Checkout session creates its order exactly onc
         save: jest.fn(async (...args: any[]) => (args.length === 1 ? args[0] : { id: 'guardado', ...args[0] })),
         increment: jest.fn(),
         delete: jest.fn(),
+        query: jest.fn().mockResolvedValue([]),
+        count: jest.fn().mockResolvedValue(0),
       },
     };
     dataSource = { createQueryRunner: jest.fn(() => qr) };
 
     service = build();
     (service as any).calcularTotalesCarrito = jest.fn().mockResolvedValue({
-      subtotal: TOTAL, descuento: 0, envio: 0, totalFinal: TOTAL, cupon: null, cart: { id: 'cart-1', items: [] },
+      subtotal: TOTAL, descuento: 0, envio: 0, totalFinal: TOTAL, cupon: null, metodoEnvio: { id: 'metodo-1', nombre: 'Envío Estándar' }, cart: { id: 'cart-1', items: [] },
     });
     (service as any).resolverMetodoPagoId = jest.fn().mockResolvedValue('mp-1');
     (service as any).enviarConfirmacionEmailSeguro = jest.fn();
@@ -148,7 +150,7 @@ describe('PaymentsService: a paid Checkout session creates its order exactly onc
       const vistas: Array<string | undefined> = [];
       (service as any).calcularTotalesCarrito.mockImplementation(async () => {
         vistas.push(TenantContext.get(), TenantContext.getUser());
-        return { subtotal: TOTAL, descuento: 0, envio: 0, totalFinal: TOTAL, cupon: null, cart: { id: 'cart-1', items: [] } };
+        return { subtotal: TOTAL, descuento: 0, envio: 0, totalFinal: TOTAL, cupon: null, metodoEnvio: { id: 'metodo-1', nombre: 'Envío Estándar' }, cart: { id: 'cart-1', items: [] } };
       });
       jest.restoreAllMocks();
       jest.spyOn(TenantContext, 'require').mockImplementation(() => TenantContext.get() as string);

@@ -13,11 +13,11 @@ export const Modal: React.FC<ModalProps> = ({ isOpen, onClose, title, children }
   // Rendered in <body>: an ancestor with backdrop-filter (like the sticky header) would otherwise become
   // the containing block of this fixed overlay and clip it.
   return createPortal(
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4">
-      <div className="bg-white rounded-xl max-w-lg w-full p-6 shadow-xl">
+    <div className="aura-overlay fixed inset-0 z-50 flex items-center justify-center p-4" onMouseDown={(e) => { if (e.target === e.currentTarget) onClose(); }}>
+      <div role="dialog" aria-modal="true" aria-label={title} className="aura-dialog max-w-lg w-full p-6">
         <div className="flex justify-between items-center mb-4">
-          <h3 className="text-lg font-bold">{title}</h3>
-          <button onClick={onClose} className="text-gray-400 hover:text-gray-600">&times;</button>
+          <h3 className="font-serif text-xl text-stone-900">{title}</h3>
+          <button type="button" onClick={onClose} aria-label="Cerrar" className="aura-dialog__close">&times;</button>
         </div>
         {children}
       </div>

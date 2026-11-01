@@ -204,10 +204,11 @@ export class AuthService {
       where: { usuarioId: usuario.id, tiendaId: tenantId, activo: true },
       relations: ['rol'],
     });
-    if (!membresia) {
+    const esOperador = usuario.rol?.nombre === 'SUPERADMIN';
+    if (!membresia && !esOperador) {
       throw new UnauthorizedException('No tienes acceso a esta tienda.');
     }
-    const rolEnTienda = membresia.rol?.nombre || 'CLIENTE';
+    const rolEnTienda = esOperador ? 'SUPERADMIN' : membresia?.rol?.nombre || 'CLIENTE';
 
     // Actualizar último login
     usuario.ultimoLogin = new Date();
@@ -559,11 +560,22 @@ export class AuthService {
   }
 
   async listarMisTiendas(usuarioId: string) {
+    const usuario = await this.userRepo.findOne({ where: { id: usuarioId }, relations: ['rol'] });
+    if (usuario?.rol?.nombre === 'SUPERADMIN') return this.storesService.listarTodasActivas();
     return this.storesService.listarMias(usuarioId);
   }
 
   /** Switches the active store: same person, new session scoped to the chosen store. */
   async seleccionarTienda(usuarioId: string, tiendaId: string) {
+    const operador = await this.userRepo.findOne({ where: { id: usuarioId }, relations: ['rol'] });
+    if (operador?.rol?.nombre === 'SUPERADMIN') {
+      const tienda = await this.storesService.obtenerActiva(tiendaId);
+      const sesion = await this.construirSesion(usuarioId, tiendaId, 'SUPERADMIN', 'Tienda activa cambiada.');
+      return {
+        ...sesion,
+        tienda: { id: tienda.id, nombre: tienda.nombre, slug: tienda.slug, plan: tienda.plan },
+      };
+    }
     const membresia = await this.storesService.obtenerMembresia(usuarioId, tiendaId);
     const sesion = await this.construirSesion(
       usuarioId,
@@ -593,11 +605,12 @@ export class AuthService {
   }
 
   private async construirSesion(usuarioId: string, tenantId: string, rolEnTienda: string, message: string) {
-    const usuario = await this.userRepo.findOne({ where: { id: usuarioId } });
+    const usuario = await this.userRepo.findOne({ where: { id: usuarioId }, relations: ['rol'] });
     if (!usuario) {
       throw new UnauthorizedException('Usuario no válido o inactivo.');
     }
-    const tokens = await this.generarTokens(usuario, tenantId, rolEnTienda);
+    const rol = usuario.rol?.nombre === 'SUPERADMIN' ? 'SUPERADMIN' : rolEnTienda;
+    const tokens = await this.generarTokens(usuario, tenantId, rol);
     return {
       message,
       ...tokens,
@@ -606,7 +619,7 @@ export class AuthService {
         nombre: usuario.nombre,
         apellido: usuario.apellido,
         correo: usuario.correo,
-        rol: rolEnTienda,
+        rol,
         tenantId,
         emailVerificado: usuario.emailVerificado,
       },

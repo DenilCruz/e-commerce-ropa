@@ -9,6 +9,7 @@ import {
   Eye,
   CreditCard,
   Truck,
+  PackageCheck,
   AlertTriangle,
   RefreshCw,
 } from 'lucide-react';
@@ -16,6 +17,10 @@ import { ordersApi } from '../../pedidos/services/orders.api';
 import { paymentsApi } from '../../pago/services/payments.api';
 import { Pedido, PedidoItem, HistorialAuditoria } from '../../pedidos/types';
 
+import { askText } from '../../../components/ui/DialogHost';
+import { toast } from 'sonner';
+import { tipoDePago } from '../../../lib/paymentKind';
+import { estadosPermitidos } from '../../../lib/orderTransitions';
 export const AdminOrdersPage: React.FC = () => {
   const [pedidos, setPedidos] = useState<Pedido[]>([]);
   const [cargando, setCargando] = useState(true);
@@ -79,13 +84,22 @@ export const AdminOrdersPage: React.FC = () => {
   };
 
   // Actualizar estado logístico de orden (HU-54 y HU-55)
-  const handleCambiarEstado = async (id: string, nuevoEstado: string) => {
+  const handleCambiarEstado = async (
+    id: string,
+    nuevoEstado: string,
+    texto?: { titulo: string; mensaje: string; inicial: string; boton: string; peligro?: boolean },
+  ) => {
     try {
-      const comentario =
-        window.prompt(
-          `Ingrese un comentario u observación para registrar en el historial de auditoría (HU-55) al cambiar a "${nuevoEstado}":`,
-          `Actualizado por administrador a ${nuevoEstado}`,
-        ) || undefined;
+      const respuesta = await askText({
+        title: texto?.titulo ?? `Cambiar estado a ${nuevoEstado}`,
+        message: texto?.mensaje ?? 'Deja una observación: quedará registrada en el historial de auditoría del pedido.',
+        inputLabel: 'Observación',
+        initialValue: texto?.inicial ?? `Actualizado por administrador a ${nuevoEstado}`,
+        confirmLabel: texto?.boton ?? 'Cambiar estado',
+        tone: texto?.peligro ? 'danger' : 'default',
+      });
+      if (respuesta === null) return; // cancelled: leave the order untouched
+      const comentario = respuesta || undefined;
 
       await ordersApi.actualizarEstadoAdmin(id, nuevoEstado, comentario);
       cargarPedidos();
@@ -93,7 +107,7 @@ export const AdminOrdersPage: React.FC = () => {
         setPedidoSeleccionado((prev: Pedido | null) => (prev ? { ...prev, estado: nuevoEstado as any } : null));
       }
     } catch (err: any) {
-      alert(err.response?.data?.message || 'Error al actualizar estado.');
+      toast.error(err.response?.data?.message || 'No se pudo actualizar el estado.');
     }
   };
 
@@ -105,42 +119,29 @@ export const AdminOrdersPage: React.FC = () => {
     .filter((p) => p.estado === 'PAGADO' || p.pago?.estado === 'APROBADO')
     .reduce((acc, p) => acc + (Number(p.total) || 0), 0);
 
-  const getStatusBadge = (estado: string, estadoPago?: string) => {
-    if (estado === 'REEMBOLSADO' || estadoPago === 'REEMBOLSADO') {
-      return (
-        <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-xs font-bold bg-[#FAF8F5] text-stone-700 border border-[#E7E1D7]">
-          <RotateCcw className="w-3 h-3 text-[#9B7B54]" />
-          Reembolsado
-        </span>
-      );
-    }
-    if (estado === 'PAGADO' || estadoPago === 'APROBADO') {
-      return (
-        <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-xs font-bold bg-[#FAF8F5] text-stone-900 border border-[#E7E1D7]">
-          <CheckCircle2 className="w-3 h-3 text-[#9B7B54]" />
-          Pagado
-        </span>
-      );
-    }
-    if (estado === 'PENDIENTE' || estadoPago === 'PENDIENTE') {
-      return (
-        <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-xs font-bold bg-amber-50 text-amber-800 border border-amber-200">
-          <Clock className="w-3 h-3" />
-          Pendiente
-        </span>
-      );
-    }
-    if (estado === 'CANCELADO') {
-      return (
-        <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-xs font-bold bg-rose-50 text-rose-800 border border-rose-200">
-          <XCircle className="w-3 h-3" />
-          Cancelado
-        </span>
-      );
-    }
+  // The order's own status decides the badge; a pending payment only matters while the order itself is still pending
+  // (cash on delivery stays "pending" for the payment long after the parcel has shipped).
+  const getStatusBadge = (estado: string, estadoPago?: string, metodoPago?: string) => {
+    const warm = 'bg-[#FAF8F5] text-stone-900 border border-[#E7E1D7]';
+    const badges: Record<string, { label: string; icon: React.ReactNode; tone: string }> = {
+      REEMBOLSADO: { label: 'Reembolsado', icon: <RotateCcw className="w-3 h-3 text-[#9B7B54]" />, tone: warm },
+      CANCELADO: { label: 'Cancelado', icon: <XCircle className="w-3 h-3" />, tone: 'bg-rose-50 text-rose-800 border border-rose-200' },
+      ENTREGADO: { label: 'Entregado', icon: <PackageCheck className="w-3 h-3 text-emerald-700" />, tone: 'bg-emerald-50 text-emerald-800 border border-emerald-200' },
+      ENVIADO: { label: 'Enviado', icon: <Truck className="w-3 h-3 text-[#9B7B54]" />, tone: warm },
+      PAGADO: { label: 'Pagado', icon: <CheckCircle2 className="w-3 h-3 text-[#9B7B54]" />, tone: warm },
+      PENDIENTE: { label: tipoDePago(metodoPago) === 'qr' && estadoPago === 'PENDIENTE' ? 'Por verificar' : 'Pendiente', icon: <Clock className="w-3 h-3" />, tone: 'bg-amber-50 text-amber-800 border border-amber-200' },
+    };
+    const key =
+      estadoPago === 'REEMBOLSADO' ? 'REEMBOLSADO'
+      : badges[estado] ? estado
+      : estadoPago === 'APROBADO' ? 'PAGADO'
+      : estadoPago === 'PENDIENTE' ? 'PENDIENTE'
+      : null;
+    const badge = key ? badges[key] : { label: estado, icon: null, tone: warm };
     return (
-      <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-xs font-bold bg-[#FAF8F5] text-stone-800 border border-[#E7E1D7]">
-        {estado}
+      <span className={`inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-xs font-bold ${badge.tone}`}>
+        {badge.icon}
+        {badge.label}
       </span>
     );
   };
@@ -247,7 +248,7 @@ export const AdminOrdersPage: React.FC = () => {
 
         <div className="flex items-center gap-2 w-full md:w-auto overflow-x-auto">
           <span className="text-[10px] font-bold text-stone-500 uppercase tracking-wider whitespace-nowrap">Estado:</span>
-          {['TODOS', 'PAGADO', 'PENDIENTE', 'REEMBOLSADO'].map((st) => (
+          {['TODOS', 'PENDIENTE', 'PAGADO', 'ENVIADO', 'ENTREGADO', 'CANCELADO', 'REEMBOLSADO'].map((st) => (
             <button
               key={st}
               onClick={() => setEstadoFiltro(st)}
@@ -331,7 +332,7 @@ export const AdminOrdersPage: React.FC = () => {
                         ${Number(pedido.total || 0).toFixed(2)}
                       </td>
                       <td className="py-3.5 px-4">
-                        {getStatusBadge(pedido.estado, pedido.pago?.estado)}
+                        {getStatusBadge(pedido.estado, pedido.pago?.estado, pedido.pago?.metodoPago)}
                       </td>
                       <td className="py-3.5 px-4 text-right">
                         <div className="flex items-center justify-end gap-2">
@@ -375,7 +376,7 @@ export const AdminOrdersPage: React.FC = () => {
                 <RotateCcw className="w-6 h-6" />
               </div>
               <div>
-                <h3 className="font-serif text-lg font-bold text-stone-900">Reembolsar Pago (HU-59)</h3>
+                <h3 className="font-serif text-lg font-bold text-stone-900">Reembolsar Pago</h3>
                 <p className="text-xs text-stone-500">Orden: {reembolsandoPedido.nro}</p>
               </div>
             </div>
@@ -452,6 +453,51 @@ export const AdminOrdersPage: React.FC = () => {
             </div>
 
             <div className="py-6 space-y-6">
+              {/* TRANSFERENCIA POR QR POR VERIFICAR */}
+              {pedidoSeleccionado.pago?.estado === 'PENDIENTE' && tipoDePago(pedidoSeleccionado.pago?.metodoPago) === 'qr' && pedidoSeleccionado.estado === 'PENDIENTE' && (
+                <div className="rounded-2xl border border-amber-200 bg-amber-50/60 p-4 space-y-3">
+                  <div>
+                    <span className="text-[10px] font-bold uppercase tracking-wider text-amber-900">Transferencia por verificar</span>
+                    <p className="mt-1 text-xs text-stone-700 leading-relaxed">
+                      Comprueba en tu banco que llegaron <strong>${Number(pedidoSeleccionado.total).toFixed(2)}</strong> con el
+                      comprobante <code className="rounded bg-white/70 px-1.5 py-0.5 font-mono">{pedidoSeleccionado.pago?.idTransaccion}</code>.
+                      El pedido no se despacha hasta que lo confirmes.
+                    </p>
+                  </div>
+                  <div className="flex flex-wrap gap-2">
+                    <button
+                      type="button"
+                      onClick={() =>
+                        handleCambiarEstado(pedidoSeleccionado.id, 'PAGADO', {
+                          titulo: 'Confirmar pago recibido',
+                          mensaje: 'Al confirmar, el pedido pasa a pagado y queda listo para prepararse.',
+                          inicial: `Transferencia verificada (${pedidoSeleccionado.pago?.idTransaccion})`,
+                          boton: 'Confirmar pago',
+                        })
+                      }
+                      className="rounded-full bg-stone-900 px-5 py-2 text-xs uppercase tracking-widest text-white hover:bg-stone-800"
+                    >
+                      Confirmar pago recibido
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() =>
+                        handleCambiarEstado(pedidoSeleccionado.id, 'CANCELADO', {
+                          titulo: 'Rechazar el pago',
+                          mensaje: 'El pedido se cancela y las prendas vuelven al stock. Indica el motivo para dejarlo registrado.',
+                          inicial: 'No se encontró la transferencia en el banco',
+                          boton: 'Rechazar y cancelar',
+                          peligro: true,
+                        })
+                      }
+                      className="rounded-full border border-rose-300 px-5 py-2 text-xs uppercase tracking-widest text-rose-700 hover:bg-rose-50"
+                    >
+                      Rechazar y cancelar
+                    </button>
+                  </div>
+                </div>
+              )}
+
               {/* CAMBIO DE ESTADO ADMIN */}
               <div className="bg-[#FAF8F5] p-4 rounded-2xl border border-[#E7E1D7] flex flex-col sm:flex-row sm:items-center justify-between gap-3">
                 <div>
@@ -461,15 +507,13 @@ export const AdminOrdersPage: React.FC = () => {
                 <div className="flex items-center gap-2">
                   <select
                     value={pedidoSeleccionado.estado}
+                    disabled={estadosPermitidos(pedidoSeleccionado.estado, tipoDePago(pedidoSeleccionado.pago?.metodoPago)).length === 0}
                     onChange={(e) => handleCambiarEstado(pedidoSeleccionado.id, e.target.value)}
                     className="px-3 py-1.5 bg-white border border-[#E7E1D7] rounded-xl text-xs font-bold focus:outline-none focus:ring-2 focus:ring-stone-900 text-stone-900"
                   >
-                    <option value="PENDIENTE">PENDIENTE</option>
-                    <option value="PAGADO">PAGADO</option>
-                    <option value="ENVIADO">ENVIADO</option>
-                    <option value="ENTREGADO">ENTREGADO</option>
-                    <option value="CANCELADO">CANCELADO</option>
-                    <option value="REEMBOLSADO">REEMBOLSADO</option>
+                    {[pedidoSeleccionado.estado, ...estadosPermitidos(pedidoSeleccionado.estado, tipoDePago(pedidoSeleccionado.pago?.metodoPago))].map((e) => (
+                      <option key={e} value={e}>{e}</option>
+                    ))}
                   </select>
                 </div>
               </div>
@@ -549,7 +593,7 @@ export const AdminOrdersPage: React.FC = () => {
               {pedidoSeleccionado.historial && pedidoSeleccionado.historial.length > 0 && (
                 <div className="space-y-2 pt-2">
                   <span className="font-bold text-stone-900 uppercase text-[10px] tracking-wider block">
-                    Historial de Auditoría y Cambios de Estado (HU-55):
+                    Historial de Auditoría y Cambios de Estado:
                   </span>
                   <div className="bg-[#FAF8F5] p-3.5 rounded-2xl border border-[#E7E1D7] space-y-2.5">
                     {pedidoSeleccionado.historial.map((h: HistorialAuditoria, idx: number) => (

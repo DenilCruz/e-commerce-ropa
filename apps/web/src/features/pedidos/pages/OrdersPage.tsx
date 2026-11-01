@@ -20,7 +20,9 @@ import {
 } from 'lucide-react';
 import { ordersApi } from '../services/orders.api';
 import { Pedido, PedidoItem, HistorialAuditoria } from '../types';
+import { useTenantStore } from '../../../hooks/useTenantStore';
 
+import { tipoDePago } from '../../../lib/paymentKind';
 export const OrdersPage: React.FC = () => {
   const { getStoreUrl } = useTenantStore();
   const [pedidos, setPedidos] = useState<Pedido[]>([]);
@@ -93,7 +95,7 @@ export const OrdersPage: React.FC = () => {
     return true;
   });
 
-  const getStatusBadge = (estado: string, estadoPago?: string) => {
+  const getStatusBadge = (estado: string, estadoPago?: string, metodoPago?: string) => {
     if (estado === 'REEMBOLSADO' || estadoPago === 'REEMBOLSADO') {
       return (
         <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-bold bg-[#FAF8F5] text-stone-700 border border-[#E7E1D7]">
@@ -130,7 +132,7 @@ export const OrdersPage: React.FC = () => {
       return (
         <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-bold bg-amber-100 text-amber-800">
           <Clock className="w-3.5 h-3.5" />
-          Pago Pendiente
+          {tipoDePago(metodoPago) === 'qr' ? 'Pago en verificación' : 'Pago Pendiente'}
         </span>
       );
     }
@@ -159,7 +161,7 @@ export const OrdersPage: React.FC = () => {
             <ChevronRight className="w-3.5 h-3.5" />
             <span>Mis Compras</span>
           </div>
-          <h1 className="text-3xl font-black text-gray-900 tracking-tight">
+          <h1 className="font-serif text-3xl sm:text-4xl font-normal text-stone-900">
             Historial de Pedidos
           </h1>
           <p className="text-sm text-gray-500 mt-1">
@@ -206,17 +208,17 @@ export const OrdersPage: React.FC = () => {
           <div className="w-16 h-16 bg-gray-100 text-gray-400 rounded-full flex items-center justify-center mx-auto mb-4">
             <ShoppingBag className="w-8 h-8" />
           </div>
-          <h3 className="text-lg font-bold text-gray-900 mb-1">No hay pedidos</h3>
+          <h3 className="font-serif text-xl font-normal text-stone-900 mb-1">Tu primer pedido te espera</h3>
           <p className="text-gray-500 text-xs mb-6">
             {filtroEstado === 'TODOS'
-              ? 'Aún no has realizado ninguna compra en AURA.'
-              : `No tienes pedidos con estado "${filtroEstado}".`}
+              ? 'Descubre piezas que vas a querer estrenar esta semana.'
+              : `No tienes pedidos con estado "${filtroEstado}" por ahora.`}
           </p>
           <Link
             to={getStoreUrl("/catalogo")}
             className="inline-flex items-center gap-2 bg-black text-white px-6 py-3 rounded-xl font-bold hover:bg-gray-800 transition text-sm"
           >
-            Ir al Catálogo
+            Descubrir la colección
           </Link>
         </div>
       ) : (
@@ -248,7 +250,7 @@ export const OrdersPage: React.FC = () => {
                 </div>
 
                 <div className="flex items-center gap-3 self-start sm:self-auto">
-                  {getStatusBadge(pedido.estado, pedido.pago?.estado)}
+                  {getStatusBadge(pedido.estado, pedido.pago?.estado, pedido.pago?.metodoPago)}
                 </div>
               </div>
 
@@ -278,7 +280,7 @@ export const OrdersPage: React.FC = () => {
                     <div className="flex justify-between">
                       <span>Método de Pago:</span>
                       <span className="font-bold text-gray-900">
-                        {pedido.pago?.metodoPago || 'Tarjeta Stripe'}
+                        {pedido.pago?.metodoPago || 'Tarjeta'}
                       </span>
                     </div>
                     {pedido.envio?.numeroTracking && (
@@ -418,7 +420,7 @@ export const OrdersPage: React.FC = () => {
                   <span className="text-xs text-gray-500 block">Estado Actual</span>
                   <p className="text-sm font-bold text-gray-900">{pedidoSeleccionado.estado}</p>
                 </div>
-                {getStatusBadge(pedidoSeleccionado.estado, pedidoSeleccionado.pago?.estado)}
+                {getStatusBadge(pedidoSeleccionado.estado, pedidoSeleccionado.pago?.estado, pedidoSeleccionado.pago?.metodoPago)}
               </div>
 
               {/* GUÍA DE ENVÍO */}
@@ -488,7 +490,7 @@ export const OrdersPage: React.FC = () => {
                 <div className="space-y-3 pt-2">
                   <h3 className="text-xs font-bold text-gray-500 uppercase tracking-wider flex items-center gap-1.5">
                     <History className="w-4 h-4 text-[#9B7B54]" />
-                    Historial de Cambios de Estado (HU-55)
+                    Historial de Cambios de Estado
                   </h3>
                   <div className="bg-white border border-gray-200 rounded-2xl p-4 space-y-3 divide-y divide-gray-100">
                     {pedidoSeleccionado.historial.map((h: HistorialAuditoria, i: number) => (

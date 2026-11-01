@@ -266,7 +266,7 @@ export const Garment3DViewer: React.FC<Garment3DViewerProps> = ({
           setLoading(false);
           setError(null);
         } catch (meshErr) {
-          setError('No se pudo renderizar el modelo 3D. Verifica la conexión con el servidor.');
+          setError('No pudimos mostrar la prenda en 3D. Inténtalo de nuevo.');
           setLoading(false);
         }
       },

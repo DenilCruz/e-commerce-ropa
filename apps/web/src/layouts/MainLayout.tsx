@@ -15,6 +15,7 @@ import {
   Layers
 } from 'lucide-react';
 import { useAuthStore } from '../store/auth.store';
+import { esPersonal } from '../lib/roles';
 import { useFavoritosStore } from '../features/favoritos/store/favoritos.store';
 import { useCartStore } from '../store/cart.store';
 import { authApi } from '../features/autenticacion/services/auth.api';
@@ -131,7 +132,7 @@ export const MainLayout: React.FC = () => {
   };
 
   return (
-    <div className="min-h-screen flex flex-col bg-[#FAF8F5] text-stone-900 font-sans selection:bg-[#E7E1D7] selection:text-stone-900">
+    <div className="aura-store min-h-screen flex flex-col bg-[#FAF8F5] text-stone-900 font-sans selection:bg-[#E7E1D7] selection:text-stone-900">
       {/* HEADER PRINCIPAL AURA */}
       <header className="bg-white/80 backdrop-blur-md border-b border-[#E7E1D7] px-4 sm:px-8 py-3.5 sticky top-0 z-40 transition-colors">
         <div className="max-w-7xl mx-auto flex items-center justify-between gap-4">
@@ -326,8 +327,15 @@ export const MainLayout: React.FC = () => {
                 >
                   <Package className="w-4 h-4" />
                 </Link>
+                <Link
+                  to={`${storePrefix}/actividad`}
+                  className="text-xs text-stone-600 hover:text-stone-900 hidden md:inline"
+                  title="Tu actividad"
+                >
+                  Actividad
+                </Link>
 
-                {user?.rol === 'ADMIN' && (
+                {esPersonal(user?.rol) && (
                   <Link 
                     to="/admin" 
                     className="text-xs uppercase tracking-widest text-[#9B7B54] font-semibold hover:text-stone-900 flex items-center gap-1"
@@ -356,7 +364,7 @@ export const MainLayout: React.FC = () => {
                 </Link>
                 <Link
                   to={storePrefix ? `${storePrefix}/registro` : "/registro"}
-                  className="bg-stone-900 text-white hover:bg-stone-800 px-3 py-1.5 transition-colors font-medium hidden sm:inline-block"
+                  className="bg-stone-900 text-white hover:bg-stone-800 rounded-full px-5 py-2 transition-colors font-medium hidden sm:inline-block"
                 >
                   Crear Cuenta
                 </Link>
@@ -421,6 +429,10 @@ export const MainLayout: React.FC = () => {
                     <Package className="w-4 h-4" />
                     Mis Pedidos
                   </Link>
+                  <Link to={`${storePrefix}/actividad`} className="p-2 hover:bg-[#F2ECE1] flex items-center gap-2">
+                    <Package className="w-4 h-4" />
+                    Tu actividad
+                  </Link>
                   <Link to={`${storePrefix}/perfil`} className="p-2 hover:bg-[#F2ECE1] flex items-center gap-2">
                     <User className="w-4 h-4" />
                     Mi Perfil
@@ -428,7 +440,7 @@ export const MainLayout: React.FC = () => {
                 </>
               )}
 
-              {user?.rol === 'ADMIN' && (
+              {esPersonal(user?.rol) && (
                 <Link to="/admin" className="p-2 bg-[#F2ECE1] text-[#9B7B54] font-semibold flex items-center gap-2">
                   <ShieldCheck className="w-4 h-4" />
                   Panel de Administración
@@ -447,7 +459,7 @@ export const MainLayout: React.FC = () => {
                   <Link
                     to={storePrefix ? `${storePrefix}/registro` : "/registro"}
                     onClick={() => setMenuMovilAbierto(false)}
-                    className="w-full text-center py-2 bg-stone-900 text-white hover:bg-stone-800 transition-colors font-medium text-xs uppercase tracking-widest"
+                    className="w-full text-center py-2.5 rounded-full bg-stone-900 text-white hover:bg-stone-800 transition-colors font-medium text-xs uppercase tracking-widest"
                   >
                     Crear Cuenta
                   </Link>
@@ -507,7 +519,7 @@ export const MainLayout: React.FC = () => {
       </header>
 
       {/* CONTENIDO PRINCIPAL */}
-      <main className="flex-1 max-w-7xl mx-auto w-full p-4 sm:p-6 lg:p-8">
+      <main className="store-content flex-1 max-w-7xl mx-auto w-full p-4 sm:p-6 lg:p-8">
         <Outlet />
       </main>
 
@@ -531,14 +543,14 @@ export const MainLayout: React.FC = () => {
               </p>
             </div>
 
-            {/* Enlaces de Colección */}
+            {/* Enlaces de Colección: las categorías reales de esta tienda */}
             <div className="space-y-3">
               <h4 className="text-xs uppercase tracking-widest text-stone-400 font-medium">Colecciones</h4>
               <ul className="space-y-2 text-xs text-stone-300 font-light">
-                <li><Link to={`${storePrefix}/catalogo?categoria=Vestidos`} className="hover:text-white transition-colors">Vestidos de Seda</Link></li>
-                <li><Link to={`${storePrefix}/catalogo?categoria=Sastrería`} className="hover:text-white transition-colors">Sastrería & Abrigos</Link></li>
-                <li><Link to={`${storePrefix}/catalogo?categoria=Camisas`} className="hover:text-white transition-colors">Camisería Fina</Link></li>
-                <li><Link to={`${storePrefix}/catalogo?categoria=Pantalones`} className="hover:text-white transition-colors">Pantalones Wide-Leg</Link></li>
+                {categorias.filter(c => c.activa !== false).slice(0, 4).map(cat => (
+                  <li key={cat.id}><Link to={`${storePrefix}/catalogo?categoria=${cat.id}`} className="hover:text-white transition-colors">{cat.nombre}</Link></li>
+                ))}
+                <li><Link to={`${storePrefix}/catalogo`} className="hover:text-white transition-colors">Ver toda la colección</Link></li>
               </ul>
             </div>
 
@@ -546,33 +558,32 @@ export const MainLayout: React.FC = () => {
             <div className="space-y-3">
               <h4 className="text-xs uppercase tracking-widest text-stone-400 font-medium">Experiencia Atelier</h4>
               <ul className="space-y-2 text-xs text-stone-300 font-light">
-                <li><Link to={`${storePrefix}/probador`} className="hover:text-white transition-colors flex items-center gap-1.5 text-[#9B7B54] font-medium"><Sparkles className="w-3 h-3" /> Probador Virtual IA</Link></li>
-                <li><span className="text-stone-400">Guía de Cuidados de Tejidos</span></li>
-                <li><span className="text-stone-400">Sastrería a Medida</span></li>
-                <li><span className="text-stone-400">Servicio de Concierge</span></li>
+                <li><Link to={`${storePrefix}/probador`} className="hover:text-white transition-colors flex items-center gap-1.5 text-[#c5a880] font-medium"><Sparkles className="w-3 h-3" /> Probador Virtual IA</Link></li>
+                <li><Link to={`${storePrefix}/tracking`} className="hover:text-white transition-colors">Seguir mi pedido</Link></li>
+                <li><Link to={`${storePrefix}/favoritos`} className="hover:text-white transition-colors">Mis favoritos</Link></li>
+                <li><Link to={`${storePrefix}/info/cuidados`} className="hover:text-white transition-colors">Guía de cuidados</Link></li>
               </ul>
             </div>
 
-            {/* Servicio al Cliente & Moneda */}
+            {/* Compra con confianza */}
             <div className="space-y-3">
-              <h4 className="text-xs uppercase tracking-widest text-stone-400 font-medium">Atelier & Divisa</h4>
-              <p className="text-xs text-stone-400 leading-relaxed font-light">
-                Precios expresados en Dólares Estadounidenses ($ USD). Envíos y entregas aseguradas en empaque atelier.
+              <h4 className="text-xs uppercase tracking-widest text-stone-400 font-medium">Compra con confianza</h4>
+              <ul className="space-y-2 text-xs text-stone-300 font-light">
+                <li><Link to={`${storePrefix}/info/envios`} className="hover:text-white transition-colors">Envíos y entregas</Link></li>
+                <li><Link to={`${storePrefix}/info/pagos`} className="hover:text-white transition-colors">Formas de pago</Link></li>
+              </ul>
+              <p className="text-xs text-stone-400 leading-relaxed font-light pt-1">
+                Precios en dólares estadounidenses (USD).
               </p>
-              <div className="pt-2">
-                <span className="inline-block px-2.5 py-1 text-[10px] tracking-widest uppercase border border-stone-700 text-stone-300">
-                  USD ($) · Global Checkout
-                </span>
-              </div>
             </div>
           </div>
 
           <div className="pt-8 flex flex-col sm:flex-row items-center justify-between gap-4 text-xs text-stone-400">
             <p>© {new Date().getFullYear()} AURA Atelier. Todos los derechos reservados.</p>
             <div className="flex gap-6 tracking-wide">
-              <span>Términos de Privacidad</span>
+              <Link to={`${storePrefix}/info/privacidad`} className="hover:text-white transition-colors">Privacidad</Link>
               <span>·</span>
-              <span>Políticas de Atelier</span>
+              <Link to={`${storePrefix}/info/politicas`} className="hover:text-white transition-colors">Políticas de Atelier</Link>
             </div>
           </div>
         </div>

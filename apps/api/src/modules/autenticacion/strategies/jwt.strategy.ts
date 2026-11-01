@@ -4,6 +4,7 @@ import { InjectRepository } from '@nestjs/typeorm';
 import { ExtractJwt, Strategy } from 'passport-jwt';
 import { Repository } from 'typeorm';
 import { UserStoreEntity } from '../../tiendas/entities/user-store.entity';
+import { UserEntity } from '../../usuarios/entities/user.entity';
 import { TenantContext } from '../../../common/tenant/tenant-context';
 
 @Injectable()
@@ -11,6 +12,8 @@ export class JwtStrategy extends PassportStrategy(Strategy) {
   constructor(
     @InjectRepository(UserStoreEntity)
     private readonly memberships: Repository<UserStoreEntity>,
+    @InjectRepository(UserEntity)
+    private readonly users: Repository<UserEntity>,
   ) {
     super({
       jwtFromRequest: ExtractJwt.fromAuthHeaderAsBearerToken(),
@@ -27,6 +30,16 @@ export class JwtStrategy extends PassportStrategy(Strategy) {
     // The signed claim selects the store; it must be active before querying (row-level security)
     TenantContext.set(payload.tid);
     TenantContext.setUser(payload.sub);
+
+    const cuenta = await this.users.findOne({ where: { id: payload.sub }, relations: ['rol'] });
+    if (cuenta?.rol?.nombre === 'SUPERADMIN') {
+      return {
+        userId: payload.sub,
+        email: payload.email,
+        role: 'SUPERADMIN',
+        tenantId: payload.tid,
+      };
+    }
 
     // The role always comes from the live membership, not from the token claim
     const membership = await this.memberships.findOne({

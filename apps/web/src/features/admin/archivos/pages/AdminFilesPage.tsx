@@ -24,6 +24,7 @@ import { toast } from 'sonner';
 import { archivosApi } from '../services/archivos.api';
 import { ArchivoMultimedia, EstadoCloudinary } from '../types';
 
+import { askConfirm } from '../../../../components/ui/DialogHost';
 const ASSETS_URL = (import.meta.env.VITE_API_URL || 'http://localhost:3000/api/v1').replace('/api/v1', '');
 
 const resolverUrl = (url: string) => {
@@ -136,9 +137,13 @@ export const AdminFilesPage: React.FC = () => {
   // Eliminar imagen individual (HU-81)
   const handleEliminar = async (archivo: ArchivoMultimedia) => {
     const ident = archivo.id || archivo.url;
-    if (!confirm(`¿Deseas eliminar permanentemente esta imagen (${archivo.nombreArchivo}) del almacenamiento?`)) {
-      return;
-    }
+    const ok = await askConfirm({
+      title: '¿Eliminar esta imagen?',
+      message: `${archivo.nombreArchivo} se borrará permanentemente del almacenamiento.`,
+      confirmLabel: 'Eliminar',
+      tone: 'danger',
+    });
+    if (!ok) return;
 
     try {
       const toastId = toast.loading('Eliminando imagen...');

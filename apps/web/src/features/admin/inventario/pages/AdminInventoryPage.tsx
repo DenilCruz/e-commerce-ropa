@@ -301,10 +301,10 @@ export const AdminInventoryPage: React.FC = () => {
                   <th className="py-3.5 px-4">Prenda / Producto</th>
                   <th className="py-3.5 px-4">SKU</th>
                   <th className="py-3.5 px-4">Variante (Talla / Color)</th>
-                  <th className="py-3.5 px-4 text-center">Stock Actual (HU-35)</th>
+                  <th className="py-3.5 px-4 text-center">Stock Actual</th>
                   <th className="py-3.5 px-4 text-center">Stock Mínimo</th>
-                  <th className="py-3.5 px-4 text-center">Estado (HU-37)</th>
-                  <th className="py-3.5 px-4 text-right">Acción (HU-36)</th>
+                  <th className="py-3.5 px-4 text-center">Estado</th>
+                  <th className="py-3.5 px-4 text-right">Acción</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-gray-100">
@@ -423,7 +423,7 @@ export const AdminInventoryPage: React.FC = () => {
               <div>
                 <h3 className="text-lg font-bold text-gray-900 flex items-center gap-2">
                   <Package className="w-5 h-5 text-black" />
-                  Actualizar Stock (HU-36)
+                  Actualizar Stock
                 </h3>
                 <p className="text-xs text-gray-500 mt-0.5">
                   {varianteSeleccionada.producto?.nombre} · SKU: <strong>{varianteSeleccionada.sku}</strong>

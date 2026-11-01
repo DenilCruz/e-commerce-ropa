@@ -37,12 +37,21 @@ export interface MetricasYLimitesResponse {
     productos: ConsumoDetalle;
     sucursales: ConsumoDetalle;
   };
+  pruebaVencida?: boolean;
+  pruebaVenceEn?: string | null;
   capacidades: {
     posOffline: boolean;
     reportesVozNlp: boolean;
     modelosPredictivosMl: boolean;
     soportePrioritario: boolean;
   };
+}
+
+export interface Sucursal {
+  id: string;
+  nombre: string;
+  direccion: string | null;
+  activa: boolean;
 }
 
 export type PlanComprable = 'ESTANDAR' | 'CORPORATIVO';
@@ -79,6 +88,16 @@ export const planesApi = {
    */
   obtenerConsumoYLimites: async (): Promise<MetricasYLimitesResponse> => {
     const res = await api.get('/auth/tiendas/plan-limites');
+    return res.data;
+  },
+
+  listarSucursales: async (): Promise<Sucursal[]> => {
+    const res = await api.get('/auth/tiendas/sucursales');
+    return res.data;
+  },
+
+  crearSucursal: async (nombre: string, direccion?: string): Promise<Sucursal> => {
+    const res = await api.post('/auth/tiendas/sucursales', { nombre, direccion });
     return res.data;
   },
 

@@ -17,6 +17,7 @@ import { resenasApi } from '../services/resenas.api';
 import { Resena, ResumenResenas, EstadoCompraResena } from '../types';
 import { useAuthStore } from '../../../store/auth.store';
 
+import { askConfirm } from '../../../components/ui/DialogHost';
 const ASSETS_URL = (import.meta.env.VITE_API_URL || 'http://localhost:3000/api/v1').replace('/api/v1', '');
 
 const resolverAvatar = (url?: string) => {
@@ -140,7 +141,8 @@ export const ResenasSection: React.FC<ResenasSectionProps> = ({ productoId }) =>
   // Eliminar propia reseña (HU-68)
   const handleEliminarPropia = async (resenaId: string) => {
     if (!user) return;
-    if (!confirm('¿Seguro que deseas eliminar tu reseña? Esta acción no se puede deshacer.')) return;
+    const ok = await askConfirm({ title: '¿Eliminar tu reseña?', message: 'Esta acción no se puede deshacer.', confirmLabel: 'Eliminar', tone: 'danger' });
+    if (!ok) return;
 
     try {
       const toastId = toast.loading('Eliminando reseña...');
@@ -351,9 +353,9 @@ export const ResenasSection: React.FC<ResenasSectionProps> = ({ productoId }) =>
           {resenas.length === 0 ? (
             <div className="py-12 text-center bg-gray-50 rounded-2xl border border-dashed border-gray-200 p-8 space-y-2">
               <Star className="w-8 h-8 text-gray-300 mx-auto" />
-              <p className="text-sm font-semibold text-gray-700">Aún no hay opiniones</p>
+              <p className="text-sm font-semibold text-gray-700">Sé la primera opinión</p>
               <p className="text-xs text-gray-400 max-w-sm mx-auto">
-                Sé el primero en calificar este producto tras comprarlo.
+                Si ya tienes esta prenda, cuéntanos cómo te queda.
               </p>
             </div>
           ) : (

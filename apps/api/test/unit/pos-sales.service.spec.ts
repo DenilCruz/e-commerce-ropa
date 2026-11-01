@@ -235,9 +235,11 @@ describe('PosSalesService idempotency key', () => {
 });
 
 describe('PosSalesController', () => {
-  it('refuses a sale without Idempotency-Key, since a retry would duplicate it', () => {
-    const controller = new PosSalesController({ registrar: jest.fn() } as any);
+  it('refuses a sale without Idempotency-Key, since a retry would duplicate it', async () => {
+    const registrar = jest.fn();
+    const controller = new PosSalesController({ registrar } as any, { exigirCapacidad: jest.fn() } as any);
 
-    expect(() => controller.registrar('seller-1', {} as any, undefined)).toThrow(BadRequestException);
+    await expect(controller.registrar('seller-1', {} as any, undefined)).rejects.toThrow(BadRequestException);
+    expect(registrar).not.toHaveBeenCalled();
   });
 });

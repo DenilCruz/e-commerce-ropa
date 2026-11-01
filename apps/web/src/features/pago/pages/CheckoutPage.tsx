@@ -1,3 +1,4 @@
+import { useTenantStore } from '../../../hooks/useTenantStore';
 import React, { useState, useEffect, useRef } from 'react';
 import { Link } from 'react-router-dom';
 import {
@@ -27,6 +28,10 @@ import { OrdenRespuesta } from '../types';
 import { getImageUrl } from '../../../lib/utils';
 import { useNetworkStatus } from '../../../hooks/useNetworkStatus';
 import { pagosConfigApi, StorePublicPaymentConfig } from '../../tiendas/services/pagos-config.api';
+import { shippingApi, CotizacionEnvio } from '../../envios/services/shipping.api';
+import { COMPROBANTE_VALIDO, tipoDePago } from '../../../lib/paymentKind';
+
+import { toast } from 'sonner';
 
 declare global {
   interface Window {
@@ -42,6 +47,7 @@ const STRIPE_PUBLIC_KEY =
 export const CheckoutPage: React.FC = () => {
   const { cart, cupon, descuento, totalConDescuento, cargarCarrito, clearCart } = useCartStore();
   const { user } = useAuthStore();
+  const { getStoreUrl } = useTenantStore();
   const { isOnline } = useNetworkStatus();
 
   // Estados del formulario de envío
@@ -82,6 +88,9 @@ export const CheckoutPage: React.FC = () => {
   const [errorPago, setErrorPago] = useState<string | null>(null);
   const [ordenCompletada, setOrdenCompletada] = useState<OrdenRespuesta | null>(null);
   const [configPago, setConfigPago] = useState<StorePublicPaymentConfig | null>(null);
+  // Shipping prices come from the API's quote, the same rules the payment applies when it charges the order.
+  const [cotizacion, setCotizacion] = useState<CotizacionEnvio | null>(null);
+  const [errorCotizacion, setErrorCotizacion] = useState(false);
 
   useEffect(() => {
     cargarCarrito();
@@ -189,7 +198,7 @@ export const CheckoutPage: React.FC = () => {
 
   const obtenerUbicacionGPS = () => {
     if (!navigator.geolocation) {
-      alert('La geolocalización no es compatible con tu navegador.');
+      toast.error('Tu navegador no permite detectar la ubicación. Escribe tu dirección o elígela en el mapa.');
       return;
     }
     setGeolocalizando(true);
@@ -228,7 +237,7 @@ export const CheckoutPage: React.FC = () => {
       },
       (err) => {
         setGeolocalizando(false);
-        alert('No se pudo acceder a tu ubicación GPS: ' + err.message);
+        toast.error('No pudimos acceder a tu ubicación. Revisa los permisos del navegador e inténtalo de nuevo.');
       },
       { enableHighAccuracy: true, timeout: 10000 }
     );
@@ -237,11 +246,41 @@ export const CheckoutPage: React.FC = () => {
   const items = cart?.items || [];
   const subtotal = cart?.total || 0;
   const esExpress = tipoEnvio === 'EXPRESS';
-  const costoEnvio = esExpress ? 30 : (subtotal >= 200 || subtotal === 0 ? 0 : 15);
+  // Until the store's payment configuration arrives the QR option is assumed available, to avoid a flicker.
+  const qrDisponible = configPago ? configPago.disponible !== false : true;
+  const comprobanteValido = COMPROBANTE_VALIDO.test(nroComprobanteQr.trim());
+  useEffect(() => {
+    if (!qrDisponible && metodoPago === 'qr') setMetodoPago('tarjeta');
+  }, [qrDisponible, metodoPago]);
+  const [intentoCotizacion, setIntentoCotizacion] = useState(0);
+  useEffect(() => {
+    let vigente = true;
+    setErrorCotizacion(false);
+    setCotizacion(null);
+    shippingApi
+      .cotizarEnvio(subtotal)
+      .then((c) => vigente && setCotizacion(c))
+      .catch(() => {
+        if (vigente) {
+          setCotizacion(null);
+          setErrorCotizacion(true);
+        }
+      });
+    return () => {
+      vigente = false;
+    };
+  }, [subtotal, intentoCotizacion]);
+  const opcionDe = (tipo: 'ESTANDAR' | 'EXPRESS') =>
+    cotizacion?.opciones.find((o) => (tipo === 'EXPRESS' ? o.esExpress : o.esEstandar));
+  const opcionElegida = opcionDe(tipoEnvio) ?? opcionDe('ESTANDAR') ?? cotizacion?.opciones[0];
+  const sinOpcionesDeEnvio = cotizacion !== null && cotizacion.opciones.length === 0;
+  const envioListo = subtotal === 0 || (cotizacion !== null && !sinOpcionesDeEnvio);
+  const costoEnvio = subtotal === 0 ? 0 : opcionElegida?.costoFinal ?? 0;
   const totalFinal = Number(Math.max(0, (totalConDescuento || subtotal) + costoEnvio).toFixed(2));
-  const metodoEnvioId = esExpress
-    ? 'e2000000-0000-0000-0000-000000000002'
-    : 'e1000000-0000-0000-0000-000000000001';
+  const metodoEnvioId = opcionElegida?.id;
+  useEffect(() => {
+    if (cotizacion && !opcionDe('EXPRESS') && tipoEnvio === 'EXPRESS') setTipoEnvio('ESTANDAR');
+  }, [cotizacion, tipoEnvio]);
 
   const limpiarMensajeError = (rawMsg: any): string => {
     const msg = typeof rawMsg === 'string' ? rawMsg : (rawMsg?.message || '');
@@ -292,7 +331,7 @@ export const CheckoutPage: React.FC = () => {
 
       const stripe = window.Stripe ? window.Stripe(STRIPE_PUBLIC_KEY) : null;
       if (!stripe) {
-        throw new Error('El SDK de Stripe no está disponible en la página.');
+        throw new Error('No pudimos cargar el formulario de pago. Recarga la página e inténtalo de nuevo.');
       }
 
       const checkout = await stripe.initEmbeddedCheckout({
@@ -360,6 +399,11 @@ export const CheckoutPage: React.FC = () => {
       return;
     }
 
+    if (!COMPROBANTE_VALIDO.test(nroComprobanteQr.trim())) {
+      setErrorPago('Ingresa el número de comprobante de tu transferencia: entre 4 y 40 caracteres, con letras, números, puntos o guiones.');
+      return;
+    }
+
     setProcesando(true);
     setErrorPago(null);
 
@@ -368,7 +412,7 @@ export const CheckoutPage: React.FC = () => {
         direccionEnvio: `${direccion}, ${ciudad}`,
         telefono,
         notas,
-        nroComprobante: nroComprobanteQr || undefined,
+        nroComprobante: nroComprobanteQr.trim(),
         cuponId: cupon?.id,
         metodoEnvioId,
         tipoEnvio,
@@ -408,6 +452,7 @@ export const CheckoutPage: React.FC = () => {
   // =========================================================================
   if (ordenCompletada) {
     const esAprobado = ordenCompletada.pago?.estado === 'APROBADO';
+    const enVerificacion = !esAprobado && tipoDePago(ordenCompletada.pago?.metodoPago) === 'qr';
 
     return (
       <div className="py-10 max-w-3xl mx-auto px-4">
@@ -428,13 +473,15 @@ export const CheckoutPage: React.FC = () => {
                 : 'bg-amber-100 text-amber-800'
             }`}
           >
-            {esAprobado ? 'Pago Aprobado con Éxito' : 'Pago Pendiente (Contra Entrega)'}
+            {esAprobado ? 'Pago aprobado' : enVerificacion ? 'Pago en verificación' : 'Pago pendiente (contra entrega)'}
           </span>
 
           <h1 className="text-3xl font-black text-gray-900 mb-2">¡Gracias por tu compra!</h1>
           <p className="text-gray-600 max-w-md mx-auto mb-8 text-sm leading-relaxed">
             {esAprobado
-              ? 'Hemos procesado tu pago de forma segura mediante Stripe. Tu pedido ya está en preparación.'
+              ? 'Recibimos tu pago de forma segura. Tu pedido ya está en preparación.'
+              : enVerificacion
+              ? 'Recibimos tu pedido y la tienda está verificando tu transferencia. Apenas la confirme, pasa a preparación. Puedes seguir su estado en Mis pedidos.'
               : 'Tu pedido ha sido registrado con éxito. Podrás pagar en efectivo al momento de recibir tus prendas.'}
           </p>
 
@@ -486,7 +533,7 @@ export const CheckoutPage: React.FC = () => {
                 to={`/tracking/${ordenCompletada.envio?.numeroTracking || ordenCompletada.nroOrden}`}
                 className="text-xs font-bold text-stone-900 hover:text-[#9B7B54] flex items-center gap-1"
               >
-                <span>Ver Mapa Leaflet</span>
+                <span>Ver en el mapa</span>
                 <ArrowRight className="w-3.5 h-3.5 text-[#9B7B54]" />
               </Link>
             </div>
@@ -526,7 +573,7 @@ export const CheckoutPage: React.FC = () => {
                 <span>{ordenCompletada.costoEnvio === 0 ? 'Gratis' : `$${ordenCompletada.costoEnvio.toFixed(2)}`}</span>
               </div>
               <div className="flex justify-between text-base font-black text-gray-900 pt-2 border-t border-gray-300">
-                <span>Total Pagado</span>
+                <span>{ordenCompletada.estadoOrden === 'PENDIENTE' ? 'Total a pagar' : 'Total pagado'}</span>
                 <span>${ordenCompletada.total.toFixed(2)}</span>
               </div>
             </div>
@@ -571,9 +618,9 @@ export const CheckoutPage: React.FC = () => {
         <div className="flex items-center gap-2 text-xs font-semibold text-gray-500 uppercase tracking-wider mb-2">
           <Link to="/carrito" className="hover:text-black">Carrito</Link>
           <ChevronRight className="w-3.5 h-3.5" />
-          <span className="text-black">Checkout y Pasarela de Pago</span>
+          <span className="text-black">Pago seguro</span>
         </div>
-        <h1 className="text-3xl font-black text-gray-900 tracking-tight">Finalizar Compra</h1>
+        <h1 className="font-serif text-3xl sm:text-4xl font-normal text-stone-900">Finalizar Compra</h1>
       </div>
 
       {items.length === 0 ? (
@@ -582,7 +629,7 @@ export const CheckoutPage: React.FC = () => {
           <h2 className="text-xl font-bold text-gray-900 mb-2">Tu carrito está vacío</h2>
           <p className="text-gray-500 mb-6 text-sm">Agrega prendas antes de proceder al pago.</p>
           <Link
-            to={`/t/${slugActual}/catalogo`}
+            to={getStoreUrl('/catalogo')}
             className="inline-flex items-center gap-2 bg-black text-white px-6 py-3 rounded-xl font-bold hover:bg-gray-800 transition"
           >
             Explorar Catálogo
@@ -620,7 +667,7 @@ export const CheckoutPage: React.FC = () => {
               <div className="flex flex-col sm:flex-row sm:items-center justify-between pb-3 border-b border-gray-100 gap-3">
                 <div className="flex items-center gap-2">
                   <MapPin className="w-5 h-5 text-gray-900" />
-                  <h2 className="text-lg font-bold text-gray-900">1. Dirección de Entrega</h2>
+                  <h2 className="font-serif text-xl font-normal text-stone-900">1. Dirección de Entrega</h2>
                 </div>
 
                 {/* BOTONES MAPA Y GPS */}
@@ -644,7 +691,7 @@ export const CheckoutPage: React.FC = () => {
                     ) : (
                       <Navigation className="w-3.5 h-3.5 text-[#9B7B54]" />
                     )}
-                    <span>{geolocalizando ? 'Detectando GPS...' : 'Mi GPS'}</span>
+                    <span>{geolocalizando ? 'Buscando tu ubicación...' : 'Mi ubicación'}</span>
                   </button>
                 </div>
               </div>
@@ -743,58 +790,55 @@ export const CheckoutPage: React.FC = () => {
               <div className="flex items-center justify-between pb-3 border-b border-gray-100">
                 <div className="flex items-center gap-2">
                   <Truck className="w-5 h-5 text-gray-900" />
-                  <h2 className="text-lg font-bold text-gray-900">2. Método de Envío</h2>
+                  <h2 className="font-serif text-xl font-normal text-stone-900">2. Método de Envío</h2>
                 </div>
-                {subtotal >= 200 && (
+                {cotizacion?.calificaEnvioGratis && (
                   <span className="text-xs bg-emerald-100 text-emerald-800 font-bold px-2.5 py-1 rounded-full">
                     ¡Califica a Envío Estándar Gratis!
                   </span>
                 )}
               </div>
 
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                {/* Opción Estándar */}
-                <button
-                  type="button"
-                  onClick={() => setTipoEnvio('ESTANDAR')}
-                  className={`p-4 rounded-xl border-2 text-left transition flex flex-col justify-between ${
-                    tipoEnvio === 'ESTANDAR'
-                      ? 'border-stone-900 bg-[#F2ECE1] shadow-xs'
-                      : 'border-[#D5CCC0] hover:border-stone-400 bg-white'
-                  }`}
-                >
-                  <div className="flex items-center justify-between mb-2">
-                    <span className="text-sm font-medium text-stone-900">Envío Estándar Atelier</span>
-                    <span className="font-semibold text-stone-900 text-xs uppercase tracking-luxury">
-                      {subtotal >= 100 ? 'Cortesía' : '$10.00'}
-                    </span>
-                  </div>
-                  <p className="text-xs text-stone-500 font-light">2 a 3 días hábiles en empaque rígido protegido</p>
-                </button>
+              {errorCotizacion && (
+                <p className="text-xs text-rose-700">
+                  No pudimos calcular el envío.{' '}
+                  <button type="button" className="underline font-semibold" onClick={() => setIntentoCotizacion((n) => n + 1)}>
+                    Reintentar
+                  </button>
+                </p>
+              )}
+              {sinOpcionesDeEnvio && (
+                <p className="text-xs text-rose-700">Esta tienda no tiene métodos de envío disponibles por ahora. Intenta más tarde.</p>
+              )}
+              {!cotizacion && !errorCotizacion && subtotal > 0 && <p className="text-xs text-stone-500">Calculando el envío…</p>}
 
-                {/* Opción Express */}
-                <button
-                  type="button"
-                  onClick={() => setTipoEnvio('EXPRESS')}
-                  className={`p-4 rounded-xs border text-left transition flex flex-col justify-between ${
-                    tipoEnvio === 'EXPRESS'
-                      ? 'border-stone-900 bg-[#F2ECE1] shadow-xs'
-                      : 'border-[#D5CCC0] hover:border-stone-400 bg-white'
-                  }`}
-                >
-                  <div className="flex items-center justify-between mb-2">
-                    <div className="flex items-center gap-1.5">
-                      <span className="text-sm font-medium text-stone-900">Envío Express Prioritario</span>
-                      <span className="text-[9px] uppercase tracking-luxury bg-stone-900 text-white px-1.5 py-0.5">
-                        24h
-                      </span>
-                    </div>
-                    <span className="font-semibold text-stone-900 text-xs">
-                      $20.00
-                    </span>
-                  </div>
-                  <p className="text-xs text-stone-500 font-light">Entrega prioritaria asegurada en 24 horas</p>
-                </button>
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                {(['ESTANDAR', 'EXPRESS'] as const).map((tipo) => {
+                  const opcion = opcionDe(tipo);
+                  if (!opcion) return null;
+                  const elegido = opcionElegida?.id === opcion.id;
+                  return (
+                    <button
+                      key={tipo}
+                      type="button"
+                      onClick={() => setTipoEnvio(tipo)}
+                      aria-pressed={elegido}
+                      className={`p-4 rounded-xl border-2 text-left transition flex flex-col justify-between ${
+                        elegido ? 'border-stone-900 bg-[#F2ECE1] shadow-xs' : 'border-[#D5CCC0] hover:border-stone-400 bg-white'
+                      }`}
+                    >
+                      <div className="flex items-center justify-between mb-2 gap-2">
+                        <span className="text-sm font-medium text-stone-900">{opcion.nombre}</span>
+                        <span className="font-semibold text-stone-900 text-xs uppercase tracking-luxury shrink-0">
+                          {opcion.costoFinal === 0 ? 'Cortesía' : `$${opcion.costoFinal.toFixed(2)}`}
+                        </span>
+                      </div>
+                      <p className="text-xs text-stone-500 font-light">
+                        {[opcion.tiempoEstimado, opcion.descripcion].filter(Boolean).join(' · ')}
+                      </p>
+                    </button>
+                  );
+                })}
               </div>
             </div>
 
@@ -803,7 +847,7 @@ export const CheckoutPage: React.FC = () => {
               <div className="flex items-center justify-between pb-3 border-b border-gray-100">
                 <div className="flex items-center gap-2">
                   <Lock className="w-5 h-5 text-gray-900" />
-                  <h2 className="text-lg font-bold text-gray-900">3. Método de Pago Seguro</h2>
+                  <h2 className="font-serif text-xl font-normal text-stone-900">3. Método de Pago Seguro</h2>
                 </div>
                 <span className="text-xs bg-emerald-100 text-emerald-800 font-bold px-2.5 py-1 rounded-full flex items-center gap-1">
                   <ShieldCheck className="w-3.5 h-3.5" />
@@ -825,7 +869,7 @@ export const CheckoutPage: React.FC = () => {
                   <div className="flex items-center justify-between mb-2">
                     <CreditCard className={`w-5 h-5 ${metodoPago === 'tarjeta' ? 'text-black' : 'text-gray-400'}`} />
                     <span className="text-[10px] font-bold uppercase tracking-wider bg-[#FAF8F5] text-stone-900 border border-[#E7E1D7] px-2 py-0.5 rounded">
-                      Stripe
+                      Seguro
                     </span>
                   </div>
                   <div>
@@ -836,6 +880,8 @@ export const CheckoutPage: React.FC = () => {
 
                 <button
                   type="button"
+                  disabled={!qrDisponible}
+                  title={qrDisponible ? undefined : 'Esta tienda aún no tiene el pago por QR disponible'}
                   onClick={() => setMetodoPago('qr')}
                   className={`p-4 rounded-xl border-2 text-left transition flex flex-col justify-between ${
                     metodoPago === 'qr'
@@ -851,7 +897,7 @@ export const CheckoutPage: React.FC = () => {
                   </div>
                   <div>
                     <p className="font-bold text-sm text-gray-900">Transferencia QR</p>
-                    <p className="text-xs text-gray-500">Banca móvil nacional</p>
+                    <p className="text-xs text-gray-500">{qrDisponible ? 'Desde la app de tu banco' : 'No disponible en esta tienda'}</p>
                   </div>
                 </button>
 
@@ -886,8 +932,8 @@ export const CheckoutPage: React.FC = () => {
                         <Lock className="w-5 h-5" />
                       </div>
                       <div>
-                        <h4 className="font-serif font-bold text-sm text-stone-900">Stripe Embedded Checkout Oficial</h4>
-                        <p className="text-xs text-stone-500">Formulario seguro incrustado con cifrado bancario de Stripe</p>
+                        <h4 className="font-serif font-bold text-sm text-stone-900">Pago con tarjeta</h4>
+                        <p className="text-xs text-stone-500">Formulario de pago seguro, con cifrado bancario</p>
                       </div>
                     </div>
                     <span className="text-[10px] font-bold uppercase tracking-wider bg-stone-900 text-[#FAF8F5] px-2.5 py-1 rounded-full">
@@ -902,7 +948,7 @@ export const CheckoutPage: React.FC = () => {
                         <CreditCard className="w-7 h-7" />
                       </div>
                       <div>
-                        <h4 className="font-serif font-bold text-base text-stone-900">Pasarela de Tarjetas Lista</h4>
+                        <h4 className="font-serif font-bold text-base text-stone-900">Pago con tarjeta disponible</h4>
                         <p className="text-xs text-stone-500 max-w-sm mx-auto mt-1">
                           Acepta tarjetas de débito/crédito (Visa, Mastercard, Amex) y métodos digitales de forma directa.
                         </p>
@@ -917,7 +963,7 @@ export const CheckoutPage: React.FC = () => {
                         {cargandoEmbedded ? (
                           <>
                             <Loader2 className="w-4 h-4 animate-spin text-[#9B7B54]" />
-                            <span>Iniciando Pasarela Stripe...</span>
+                            <span>Preparando tu pago seguro...</span>
                           </>
                         ) : (
                           <>
@@ -932,7 +978,7 @@ export const CheckoutPage: React.FC = () => {
                       <div className="flex items-center justify-between text-xs text-gray-500 px-1">
                         <span className="flex items-center gap-1.5 font-semibold text-emerald-700">
                           <CheckCircle2 className="w-3.5 h-3.5" />
-                          Formulario Seguro de Stripe Activo
+                          Formulario de pago seguro activo
                         </span>
                         <button
                           type="button"
@@ -951,111 +997,94 @@ export const CheckoutPage: React.FC = () => {
                   )}
                 </div>
               ) : metodoPago === 'qr' ? (
-                /* OPCIÓN: PAGO CON QR SIMPLE (MODELO A CUSTODIA O MODELO B DIRECTO) */
+                /* Transferencia por QR: los datos de cobro salen de la configuración de la tienda, nunca del código */
                 <div className="space-y-4 pt-2">
-                  <div
-                    className="border border-[#E7E1D7] bg-[#FAF8F5] rounded-2xl p-4 flex items-center justify-between gap-3"
-                  >
-                    <div className="flex items-center gap-3">
-                      <div className="w-10 h-10 rounded-xl text-[#9B7B54] bg-stone-900 flex items-center justify-center font-bold text-sm shadow-xs">
-                        <QrCode className="w-5 h-5" />
-                      </div>
-                      <div>
-                        <h4 className="font-serif font-bold text-sm text-stone-900">
-                          {configPago?.modalidad === 'MODELO_B_DIRECTO'
-                            ? `Cobro Directo · ${configPago.nombre}`
-                            : 'AURA Pagos (Transferencia QR Central)'}
-                        </h4>
-                        <p className="text-xs text-stone-500">
-                          {configPago?.modalidad === 'MODELO_B_DIRECTO'
-                            ? `Transfiere directamente a la cuenta verificada de la tienda ${configPago.nombre}`
-                            : `Pago centralizado en custodia para la tienda ${configPago?.nombre || 'activa'}`}
-                        </p>
-                      </div>
+                  {!qrDisponible ? (
+                    <div className="rounded-2xl border border-[#E7E1D7] bg-[#FAF8F5] p-5 text-sm text-stone-600">
+                      Esta tienda aún no tiene el pago por QR disponible. Elige tarjeta o pago contra entrega.
                     </div>
-                    <span
-                      className="text-[10px] font-bold uppercase tracking-wider px-2.5 py-1 rounded-full bg-[#FAF8F5] text-stone-900 border border-[#E7E1D7]"
-                    >
-                      {configPago?.modalidad === 'MODELO_B_DIRECTO' ? 'Modelo B · Cobro Directo' : 'Modelo A · En Custodia'}
-                    </span>
-                  </div>
-
-                  <div
-                    className="bg-white border-2 border-dashed border-[#E7E1D7] rounded-2xl p-6 flex flex-col items-center text-center space-y-4"
-                  >
-                    <div className="p-3 bg-white rounded-2xl shadow-xs border border-[#E7E1D7] inline-block">
-                      <img
-                        src={configPago?.qrUrl || '/qr_pago_aura.png'}
-                        alt={`Código QR de Pago - ${configPago?.nombre || 'AURA'}`}
-                        className="w-56 h-56 object-contain rounded-xl"
-                      />
-                    </div>
-
-                    {/* Ficha Informativa de la Cuenta */}
-                    <div className="w-full max-w-sm bg-[#FAF8F5] border border-[#E7E1D7] rounded-xl p-3.5 text-xs text-left space-y-1.5">
-                      <div className="flex justify-between items-center">
-                        <span className="text-stone-500 font-medium">Titular de Cuenta:</span>
-                        <span className="font-bold text-stone-900">{configPago?.titularCuenta || 'AURA S.R.L.'}</span>
-                      </div>
-                      <div className="flex justify-between items-center">
-                        <span className="text-stone-500 font-medium">Banco:</span>
-                        <span className="font-semibold text-stone-800">{configPago?.banco || 'Banco Nacional de Bolivia'}</span>
-                      </div>
-                      {configPago?.numeroCuenta && (
-                        <div className="flex justify-between items-center">
-                          <span className="text-stone-500 font-medium">Nro. de Cuenta:</span>
-                          <span className="font-mono font-semibold text-stone-800">{configPago.numeroCuenta}</span>
+                  ) : (
+                    <>
+                      <div className="border border-[#E7E1D7] bg-[#FAF8F5] rounded-2xl p-4 flex items-center gap-3">
+                        <div className="w-10 h-10 rounded-xl bg-stone-900 text-[#c5a880] flex items-center justify-center shrink-0">
+                          <QrCode className="w-5 h-5" />
                         </div>
-                      )}
-                      <p className="pt-1.5 border-t border-[#E7E1D7] text-[11px] text-stone-500 leading-relaxed">
-                        {configPago?.descripcion}
-                      </p>
-                    </div>
+                        <div>
+                          <h4 className="font-serif text-base font-normal text-stone-900">Transferencia con QR</h4>
+                          <p className="text-xs text-stone-500">{configPago?.descripcion}</p>
+                        </div>
+                      </div>
 
-                    <div className="space-y-1 max-w-sm">
-                      <p className="text-xs text-stone-500 uppercase tracking-wider font-semibold">Monto a transferir:</p>
-                      <p className="text-2xl font-serif font-bold text-stone-900 font-mono">
-                        ${totalFinal.toFixed(2)} USD <span className="text-xs font-normal text-stone-500">(o equivalente en Bs)</span>
-                      </p>
-                      <p className="text-xs text-stone-500 mt-2 leading-relaxed">
-                        1. Abre tu aplicación bancaria móvil (Banco Unión, BNB, BCP, Mercantil Santa Cruz, etc.).<br />
-                        2. Escanea el código QR de arriba y confirma la transacción.<br />
-                        3. Ingresa tu número de comprobante o referencia y confirma tu pedido.
-                      </p>
-                    </div>
+                      <div className="bg-white border-2 border-dashed border-[#E7E1D7] rounded-2xl p-6 flex flex-col items-center text-center space-y-4">
+                        <div className="p-3 bg-white rounded-2xl shadow-xs border border-[#E7E1D7] inline-block">
+                          <img
+                            src={getImageUrl(configPago?.qrUrl)}
+                            alt={`Código QR para pagar a ${configPago?.nombre ?? 'la tienda'}`}
+                            className="w-56 h-56 object-contain rounded-xl"
+                          />
+                        </div>
 
-                    <div className="w-full max-w-sm text-left pt-2 border-t border-[#E7E1D7]">
-                      <label className="block text-xs font-bold text-stone-700 uppercase mb-1">
-                        Nro. de Comprobante / Referencia Bancaria (Opcional)
-                      </label>
-                      <input
-                        type="text"
-                        placeholder="Ej. TRX-984321 o número de operación"
-                        value={nroComprobanteQr}
-                        onChange={(e) => setNroComprobanteQr(e.target.value)}
-                        className="w-full px-3.5 py-2.5 bg-[#FAF8F5] border border-[#E7E1D7] rounded-xl text-sm focus:bg-white focus:ring-1 focus:ring-[#9B7B54] focus:border-[#9B7B54] focus:outline-none transition"
-                      />
-                    </div>
+                        <dl className="w-full max-w-sm bg-[#FAF8F5] border border-[#E7E1D7] rounded-xl p-3.5 text-xs text-left space-y-1.5">
+                          {configPago?.titularCuenta && (
+                            <div className="flex justify-between gap-3">
+                              <dt className="text-stone-500 font-medium">Titular</dt>
+                              <dd className="font-semibold text-stone-900 text-right">{configPago.titularCuenta}</dd>
+                            </div>
+                          )}
+                          {configPago?.banco && (
+                            <div className="flex justify-between gap-3">
+                              <dt className="text-stone-500 font-medium">Banco</dt>
+                              <dd className="font-semibold text-stone-800 text-right">{configPago.banco}</dd>
+                            </div>
+                          )}
+                          {configPago?.numeroCuenta && (
+                            <div className="flex justify-between gap-3">
+                              <dt className="text-stone-500 font-medium">Cuenta</dt>
+                              <dd className="font-mono font-semibold text-stone-800 text-right">{configPago.numeroCuenta}</dd>
+                            </div>
+                          )}
+                        </dl>
 
-                    <button
-                      type="button"
-                      onClick={procesarPagoQr}
-                      disabled={procesando}
-                      className="w-full max-w-sm py-4 text-white text-sm font-bold bg-stone-900 hover:bg-stone-800 rounded-xl transition shadow-xs flex items-center justify-center gap-2 cursor-pointer"
-                    >
-                      {procesando ? (
-                        <>
-                          <Loader2 className="w-4 h-4 animate-spin" />
-                          <span>Confirmando Pago QR...</span>
-                        </>
-                      ) : (
-                        <>
-                          <CheckCircle2 className="w-4 h-4" />
-                          <span>Ya transferí · Confirmar Pedido</span>
-                        </>
-                      )}
-                    </button>
-                  </div>
+                        <div className="space-y-1 max-w-sm">
+                          <p className="text-xs text-stone-500 uppercase tracking-wider font-semibold">Monto a transferir</p>
+                          <p className="text-2xl font-serif font-normal text-stone-900">${totalFinal.toFixed(2)} USD</p>
+                          <ol className="text-xs text-stone-500 mt-2 leading-relaxed text-left list-decimal pl-4 space-y-0.5">
+                            <li>Abre la aplicación de tu banco y escanea el código QR.</li>
+                            <li>Transfiere exactamente el monto indicado.</li>
+                            <li>Copia el número de comprobante o de operación y pégalo abajo.</li>
+                            <li>Registra tu pedido: la tienda verifica tu transferencia antes de prepararlo.</li>
+                          </ol>
+                        </div>
+
+                        <div className="w-full max-w-sm text-left pt-2 border-t border-[#E7E1D7]">
+                          <label htmlFor="comprobante-qr" className="block text-xs font-bold text-stone-700 uppercase mb-1">
+                            Número de comprobante
+                          </label>
+                          <input
+                            id="comprobante-qr"
+                            type="text"
+                            inputMode="text"
+                            autoComplete="off"
+                            maxLength={40}
+                            placeholder="Ej. 984321 o número de operación"
+                            value={nroComprobanteQr}
+                            onChange={(e) => setNroComprobanteQr(e.target.value)}
+                            aria-invalid={nroComprobanteQr !== '' && !comprobanteValido}
+                            aria-describedby="comprobante-ayuda"
+                            className="w-full px-3.5 py-2.5 bg-[#FAF8F5] border border-[#E7E1D7] rounded-xl text-sm focus:bg-white focus:ring-1 focus:ring-stone-900 outline-none"
+                          />
+                          <p
+                            id="comprobante-ayuda"
+                            className={`mt-1 text-[11px] ${nroComprobanteQr !== '' && !comprobanteValido ? 'text-rose-700' : 'text-stone-500'}`}
+                          >
+                            {nroComprobanteQr !== '' && !comprobanteValido
+                              ? 'Entre 4 y 40 caracteres: letras, números, puntos o guiones.'
+                              : 'Cada comprobante respalda un solo pedido.'}
+                          </p>
+                        </div>
+                      </div>
+                    </>
+                  )}
                 </div>
               ) : (
                 /* OPCION: PAGO CONTRA ENTREGA */
@@ -1080,7 +1109,7 @@ export const CheckoutPage: React.FC = () => {
           <div className="lg:col-span-5">
             <div className="bg-white p-6 border border-[#E7E1D7] sticky top-6 space-y-6">
               <h2 className="font-serif text-lg font-normal text-stone-900 pb-3 border-b border-[#E7E1D7]">
-                Resumen del Pedido ({cart?.totalItems || 0} prendas)
+                Resumen del Pedido ({cart?.totalItems || 0} {(cart?.totalItems || 0) === 1 ? 'prenda' : 'prendas'})
               </h2>
 
               {/* LISTADO DE ITEMS */}
@@ -1161,7 +1190,7 @@ export const CheckoutPage: React.FC = () => {
                 <div className="p-4 bg-[#F2ECE1] border border-[#D5CCC0] rounded-xs text-center space-y-1 text-xs text-stone-800">
                   <div className="font-medium flex items-center justify-center gap-1.5">
                     <Lock className="w-3.5 h-3.5 text-[#9B7B54]" />
-                    <span>Completa el pago en el formulario seguro de Stripe</span>
+                    <span>Completa el pago en el formulario seguro</span>
                   </div>
                   <p className="text-[11px] text-stone-500">
                     Haz clic en el botón oficial "Pagar" dentro del formulario de Stripe arriba.
@@ -1170,7 +1199,7 @@ export const CheckoutPage: React.FC = () => {
               ) : (
                 <button
                   type="submit"
-                  disabled={procesando || items.length === 0 || cargandoEmbedded || !isOnline}
+                  disabled={procesando || items.length === 0 || cargandoEmbedded || !isOnline || !envioListo || (metodoPago === 'qr' && (!qrDisponible || !comprobanteValido))}
                   className={`w-full text-xs uppercase tracking-luxury py-4 px-6 rounded-none text-center shadow-sm transition flex items-center justify-center gap-2 font-medium ${
                     !isOnline
                       ? 'bg-stone-300 text-stone-500 cursor-not-allowed border border-stone-300'
@@ -1191,9 +1220,9 @@ export const CheckoutPage: React.FC = () => {
                     <>
                       <span>
                         {metodoPago === 'tarjeta'
-                          ? `Abrir Pasarela de Pago ($${totalFinal.toFixed(2)})`
+                          ? `Pagar ahora ($${totalFinal.toFixed(2)})`
                           : metodoPago === 'qr'
-                          ? `Confirmar Pago por QR ($${totalFinal.toFixed(2)})`
+                          ? `Registrar mi pedido ($${totalFinal.toFixed(2)})`
                           : `Confirmar Pedido en Efectivo ($${totalFinal.toFixed(2)})`}
                       </span>
                       <Lock className="w-3.5 h-3.5" />
@@ -1205,7 +1234,7 @@ export const CheckoutPage: React.FC = () => {
               <div className="flex items-center justify-center gap-4 text-xs text-gray-500 pt-1">
                 <span className="flex items-center gap-1">
                   <ShieldCheck className="w-3.5 h-3.5 text-gray-400" />
-                  <span>Pasarela 100% Segura</span>
+                  <span>Pago 100% seguro</span>
                 </span>
                 <span className="flex items-center gap-1">
                   <RotateCcw className="w-3.5 h-3.5 text-gray-400" />
@@ -1229,7 +1258,7 @@ export const CheckoutPage: React.FC = () => {
                 </div>
                 <div>
                   <h3 className="font-serif font-bold text-base text-gray-900">Seleccionar Punto en el Mapa</h3>
-                  <p className="text-xs text-gray-500">Haz clic o arrastra el marcador 📍 hasta la puerta de tu casa</p>
+                  <p className="text-xs text-gray-500">Haz clic o arrastra el marcador hasta la puerta de tu casa</p>
                 </div>
               </div>
               <button
@@ -1257,7 +1286,7 @@ export const CheckoutPage: React.FC = () => {
                 ) : (
                   <Navigation className="w-3.5 h-3.5 text-[#9B7B54]" />
                 )}
-                <span>{geolocalizando ? 'Obteniendo GPS...' : 'Usar mi GPS'}</span>
+                <span>{geolocalizando ? 'Buscando tu ubicación...' : 'Usar mi ubicación'}</span>
               </button>
             </div>
 

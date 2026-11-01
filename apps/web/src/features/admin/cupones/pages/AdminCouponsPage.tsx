@@ -3,6 +3,7 @@ import { Ticket, AlertCircle } from 'lucide-react';
 import { cuponesApi } from '../../../cupones/services/cupones.api';
 import { Cupon, CrearCuponPayload } from '../../../cupones/types';
 
+import { toast } from 'sonner';
 export const AdminCouponsPage: React.FC = () => {
   const [cupones, setCupones] = useState<Cupon[]>([]);
   const [cargando, setCargando] = useState(true);
@@ -46,7 +47,7 @@ export const AdminCouponsPage: React.FC = () => {
       const updated = await cuponesApi.cambiarEstado(id, !estadoActual);
       setCupones((prev) => prev.map((c) => (c.id === id ? updated : c)));
     } catch (err: any) {
-      alert(err?.response?.data?.message || 'No se pudo cambiar el estado del cupón.');
+      toast.error(err?.response?.data?.message || 'No se pudo cambiar el estado del cupón.');
     }
   };
 
@@ -56,7 +57,7 @@ export const AdminCouponsPage: React.FC = () => {
       await cuponesApi.eliminarCupon(id);
       setCupones((prev) => prev.filter((c) => c.id !== id));
     } catch (err: any) {
-      alert(err?.response?.data?.message || 'Error al eliminar cupón.');
+      toast.error(err?.response?.data?.message || 'No se pudo eliminar el cupón.');
     }
   };
 
@@ -214,7 +215,7 @@ export const AdminCouponsPage: React.FC = () => {
                               ? 'bg-emerald-50 text-emerald-800 border border-emerald-200 hover:bg-emerald-100'
                               : 'bg-stone-100 text-stone-600 border border-stone-200 hover:bg-stone-200'
                           }`}
-                          title="Clic para cambiar estado activo/inactivo (HU-75)"
+                          title="Clic para cambiar estado activo/inactivo"
                         >
                           {c.activo ? '● Activo' : '○ Inactivo'}
                         </button>

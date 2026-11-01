@@ -5,6 +5,7 @@ import { Direccion } from '../types';
 import { toast } from 'sonner';
 import { Star, Trash2, Camera, UploadCloud } from 'lucide-react';
 
+import { askConfirm } from '../../../components/ui/DialogHost';
 const ASSETS_URL = (import.meta.env.VITE_API_URL || 'http://localhost:3000/api/v1').replace('/api/v1', '');
 
 const getImageUrl = (url?: string) => {
@@ -137,7 +138,8 @@ export const ProfilePage: React.FC = () => {
   // Eliminar foto de perfil (HU-82)
   const handleEliminarFoto = async () => {
     if (!user || !foto) return;
-    if (!confirm('¿Deseas quitar tu foto de perfil?')) return;
+    const ok = await askConfirm({ title: '¿Quitar tu foto de perfil?', confirmLabel: 'Quitar foto', tone: 'danger' });
+    if (!ok) return;
 
     try {
       setSubiendoFoto(true);
@@ -261,7 +263,7 @@ export const ProfilePage: React.FC = () => {
           
           {/* BLOQUE 1: DATOS PERSONALES (HU-09 y HU-10) */}
           <div>
-            <h2 className="text-sm font-medium uppercase tracking-widest mb-6">Datos Personales (HU-09, HU-10)</h2>
+            <h2 className="text-sm font-medium uppercase tracking-widest mb-6">Datos Personales</h2>
             <div className="bg-[#f9f9f9] p-8 border border-gray-100 rounded-xl">
               
               {/* Avatar e Información rápida */}
@@ -360,7 +362,7 @@ export const ProfilePage: React.FC = () => {
 
           {/* BLOQUE 2: CAMBIAR CONTRASEÑA (HU-11) */}
           <div>
-            <h2 className="text-sm font-medium uppercase tracking-widest mb-6">Seguridad y Contraseña (HU-11)</h2>
+            <h2 className="text-sm font-medium uppercase tracking-widest mb-6">Seguridad y Contraseña</h2>
             <div className="bg-[#f9f9f9] p-8 border border-gray-100 rounded-xl">
               <form onSubmit={handleCambiarPassword} className="space-y-4">
                 <div>
@@ -414,7 +416,7 @@ export const ProfilePage: React.FC = () => {
         {/* COLUMNA DERECHA: DIRECCIONES (HU-12, HU-13, HU-14) */}
         <div>
           <div className="flex justify-between items-center mb-6">
-            <h2 className="text-sm font-medium uppercase tracking-widest">Direcciones de Envío (HU-12, 13, 14)</h2>
+            <h2 className="text-sm font-medium uppercase tracking-widest">Direcciones de Envío</h2>
             <button 
               onClick={() => setMostrarFormDireccion(!mostrarFormDireccion)}
               className="text-xs uppercase tracking-widest font-semibold text-black hover:underline"
@@ -488,8 +490,8 @@ export const ProfilePage: React.FC = () => {
             <p className="text-xs text-gray-400 uppercase tracking-widest">Cargando direcciones...</p>
           ) : direcciones.length === 0 ? (
             <div className="p-8 border border-dashed border-gray-200 rounded-xl text-center">
-              <p className="text-xs text-gray-400 uppercase tracking-widest mb-2">No tienes direcciones registradas</p>
-              <p className="text-sm text-gray-500">Agrega una para agilizar tus compras.</p>
+              <p className="text-xs text-gray-400 uppercase tracking-widest mb-2">Aún no guardaste una dirección</p>
+              <p className="text-sm text-gray-500">Agrega una y finaliza tus compras más rápido.</p>
             </div>
           ) : (
             <div className="space-y-4">

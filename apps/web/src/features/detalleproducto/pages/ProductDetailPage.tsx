@@ -18,6 +18,9 @@ import { resenasApi } from '../../resenas/services/resenas.api';
 import { ResumenResenas } from '../../resenas/types';
 import { useCartStore } from '../../../store/cart.store';
 import { VirtualTryOnModal } from '../../carrito/components/VirtualTryOnModal';
+import { ImageSequenceCanvas } from '../../../components/spatial/ImageSequenceCanvas';
+import { SpatialHotspot } from '../../../components/spatial/SpatialHotspot';
+import '../styles/product-detail-spatial.css';
 import { toast } from 'sonner';
 import { useTenantStore } from '../../../hooks/useTenantStore';
 
@@ -32,11 +35,11 @@ export const ProductDetailPage: React.FC = () => {
   
   const [varianteSeleccionada, setVarianteSeleccionada] = useState<VarianteProducto | null>(null);
   const [imagenActiva, setImagenActiva] = useState<string>('');
+  const [anguloVista, setAnguloVista] = useState(180);
   
   // Acordeones de información editorial
   const [seccionAbierta, setSeccionAbierta] = useState<string>('descripcion');
-  const [resumenResenas, setResumenResenas] = useState<ResumenResenas>({ promedio: 5.0, total: 2 });
-  const [acordeonResenasAbierto, setAcordeonResenasAbierto] = useState(true);
+  const [resumenResenas, setResumenResenas] = useState<ResumenResenas>({ promedio: 0, total: 0 });
 
   // Probador Virtual IA
   const [probadorModalAbierto, setProbadorModalAbierto] = useState(false);
@@ -49,7 +52,7 @@ export const ProductDetailPage: React.FC = () => {
         const [data, rels, resumenOpiniones] = await Promise.all([
           obtenerProductoPorId(id),
           obtenerProductosRelacionados(id).catch(() => []),
-          resenasApi.obtenerResumen(id).catch(() => ({ promedio: 5.0, total: 2 })),
+          resenasApi.obtenerResumen(id).catch(() => ({ promedio: 0, total: 0 })),
         ]);
         setProducto(data);
         setRelacionados(rels);
@@ -158,9 +161,16 @@ export const ProductDetailPage: React.FC = () => {
       ? 'bottoms'
       : 'tops') as 'tops' | 'bottoms' | 'dresses',
   };
+  const imagenesProducto = producto.imagenes || [];
+  const imagenSeleccionada = Math.max(0, imagenesProducto.findIndex((image) => image.url === imagenActiva));
+  const centroSecuencia = Math.floor(imagenesProducto.length / 2);
+  const secuenciaImagenes = imagenesProducto.map((_, index) => {
+    const originalIndex = (imagenSeleccionada - centroSecuencia + index + imagenesProducto.length) % imagenesProducto.length;
+    return getImageUrl(imagenesProducto[originalIndex].url);
+  });
 
   return (
-    <div className="max-w-7xl mx-auto space-y-16 pb-16">
+    <div className="spatial-product-detail max-w-7xl mx-auto space-y-16 pb-16">
       {/* Breadcrumb Minimalista */}
       <nav className="flex text-[10px] uppercase tracking-luxury text-stone-400 space-x-2 pt-2 border-b border-[#E7E1D7] pb-4">
         <Link to={getStoreUrl("/")} className="hover:text-stone-900 transition-colors">Inicio</Link>
@@ -175,20 +185,26 @@ export const ProductDetailPage: React.FC = () => {
         
         {/* Lado Izquierdo: Galería Protagónica 3:4 */}
         <div className="lg:col-span-7 space-y-4">
-          <div className="w-full bg-[#F2ECE1] aspect-[3/4] overflow-hidden border border-[#E7E1D7] relative group">
-            <img 
-              src={getImageUrl(imagenActiva)} 
+          <div className="spatial-product-detail__stage">
+            <ImageSequenceCanvas
+              images={secuenciaImagenes}
               alt={producto.nombre}
-              className="w-full h-full object-cover object-top transition-transform duration-700 ease-out group-hover:scale-103"
+              mode="drag-and-hover-orbit"
+              controls
+              onAngleChange={(angle) => setAnguloVista(Math.round(angle))}
+              objectFit="contain"
+              className="spatial-product-detail__sequence"
             />
             {producto.destacado && (
-              <span className="absolute top-4 left-4 bg-stone-900 text-white text-[9px] uppercase tracking-luxury px-2.5 py-1">
+              <span className="spatial-product-detail__badge">
                 Atelier Exclusive
               </span>
             )}
-            <div className="absolute top-4 right-4">
+            <div className="spatial-product-detail__favorite">
               <HeartButton productoId={producto.id} variant="floating" />
             </div>
+            <SpatialHotspot label="Textura" detail="Acércate y explora los detalles de esta pieza." x={31} y={36} angle={anguloVista} className="spatial-product-detail__hotspot" />
+            <SpatialHotspot label="Corte" detail="Consulta la descripción y el selector de talla para más información." x={68} y={67} angle={anguloVista} className="spatial-product-detail__hotspot" />
           </div>
           
           {/* Miniaturas */}
@@ -231,22 +247,24 @@ export const ProductDetailPage: React.FC = () => {
               </span>
             </div>
 
-            {/* Estrellas Rápidas 5★ */}
-            <div className="flex items-center gap-2 pt-1">
-              <div className="flex items-center text-amber-500">
-                {[1, 2, 3, 4, 5].map((s) => (
-                  <Star key={s} className="w-3.5 h-3.5 fill-amber-400 text-amber-400" />
-                ))}
+            {/* Valoración real: solo aparece cuando el producto tiene reseñas */}
+            {resumenResenas.total > 0 && (
+              <div className="flex items-center gap-2 pt-1">
+                <div className="flex items-center">
+                  {[1, 2, 3, 4, 5].map((s) => (
+                    <Star key={s} className={`w-3.5 h-3.5 ${s <= Math.round(resumenResenas.promedio) ? 'fill-amber-400 text-amber-400' : 'text-stone-300'}`} />
+                  ))}
+                </div>
+                <span className="text-xs font-semibold text-stone-800">{Number(resumenResenas.promedio).toFixed(1)}</span>
+                <span className="text-xs text-stone-400">·</span>
+                <a
+                  href="#resenas"
+                  className="text-xs text-stone-500 hover:text-stone-900 underline transition-colors"
+                >
+                  {resumenResenas.total} {resumenResenas.total === 1 ? 'opinión verificada' : 'opiniones verificadas'}
+                </a>
               </div>
-              <span className="text-xs font-semibold text-stone-800">5.0</span>
-              <span className="text-xs text-stone-400">·</span>
-              <a 
-                href="#acordeon-resenas" 
-                className="text-xs text-stone-500 hover:text-stone-900 underline transition-colors"
-              >
-                {resumenResenas.total || 2} opiniones verificadas
-              </a>
-            </div>
+            )}
           </div>
 
           {/* Selector de Color (Swatches Circulares con Anillo) */}
@@ -420,7 +438,7 @@ export const ProductDetailPage: React.FC = () => {
           </div>
 
           {/* PROBADOR VIRTUAL IA — CARD LUMINOSA DE ALTO IMPACTO */}
-          <div className="p-4 bg-gradient-to-br from-[#F2ECE1] via-[#FAF8F5] to-[#EAE2D5] border border-[#D5CCC0] rounded-sm shadow-xs space-y-2.5">
+          <div className="p-4 bg-gradient-to-br from-[#d6ccb9] via-[#e6decf] to-[#d6ccb9] border border-[#D5CCC0] rounded-sm shadow-xs space-y-2.5">
             <div className="flex items-center justify-between">
               <div className="flex items-center gap-2 text-stone-900">
                 <Sparkles className="w-4 h-4 text-[#9B7B54]" />
@@ -458,55 +476,6 @@ export const ProductDetailPage: React.FC = () => {
               {seccionAbierta === 'descripcion' && (
                 <div className="pt-2 pb-4 text-xs text-stone-600 font-light leading-relaxed">
                   {producto.descripcion}
-                </div>
-              )}
-            </div>
-
-            {/* Reseñas 5 Estrellas (Acordeón Compacto) */}
-            <div className="py-3" id="acordeon-resenas">
-              <button 
-                onClick={() => setAcordeonResenasAbierto(!acordeonResenasAbierto)}
-                className="w-full py-2 flex justify-between items-center text-xs uppercase tracking-luxury text-stone-800"
-              >
-                <div className="flex items-center gap-2">
-                  <span>Reseñas de Clientes</span>
-                  <div className="flex text-amber-500">
-                    {[1, 2, 3, 4, 5].map((s) => (
-                      <Star key={s} className="w-3 h-3 fill-amber-400 text-amber-400" />
-                    ))}
-                  </div>
-                  <span className="text-[10px] text-stone-500">({resumenResenas.total || 2})</span>
-                </div>
-                <span className="text-base font-light">{acordeonResenasAbierto ? '−' : '+'}</span>
-              </button>
-              {acordeonResenasAbierto && (
-                <div className="pt-2 pb-4 space-y-3">
-                  <div className="bg-[#F2ECE1]/60 p-3 text-xs space-y-1 border border-[#E7E1D7]">
-                    <div className="flex justify-between items-center">
-                      <span className="font-serif font-medium text-stone-900">Elena V.</span>
-                      <div className="flex text-amber-500">
-                        {[1, 2, 3, 4, 5].map((s) => (
-                          <Star key={s} className="w-2.5 h-2.5 fill-amber-400 text-amber-400" />
-                        ))}
-                      </div>
-                    </div>
-                    <p className="text-stone-600 font-light italic">
-                      "La caída del tejido es sublime. El tacto y los remates reflejan auténtica sastrería de atelier."
-                    </p>
-                  </div>
-                  <div className="bg-[#F2ECE1]/60 p-3 text-xs space-y-1 border border-[#E7E1D7]">
-                    <div className="flex justify-between items-center">
-                      <span className="font-serif font-medium text-stone-900">Camila M.</span>
-                      <div className="flex text-amber-500">
-                        {[1, 2, 3, 4, 5].map((s) => (
-                          <Star key={s} className="w-2.5 h-2.5 fill-amber-400 text-amber-400" />
-                        ))}
-                      </div>
-                    </div>
-                    <p className="text-stone-600 font-light italic">
-                      "El probador virtual me dio la certeza exacta sobre la talla. Superó mis expectativas."
-                    </p>
-                  </div>
                 </div>
               )}
             </div>
@@ -574,7 +543,7 @@ export const ProductDetailPage: React.FC = () => {
 
       {/* Formulario Completo de Reseñas para Clientes */}
       <div className="border-t border-[#E7E1D7] pt-12">
-        <ResenasSection productoId={producto.id} />
+        <div id="resenas"><ResenasSection productoId={producto.id} /></div>
       </div>
 
       {/* Modal de Prueba Virtual */}

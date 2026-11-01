@@ -4,9 +4,10 @@ import {
   ForbiddenException,
   BadRequestException,
   Logger,
+  HttpException,
 } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
-import { Repository, DataSource } from 'typeorm';
+import { Repository, DataSource, EntityManager } from 'typeorm';
 
 import { OrderEntity } from './entities/order.entity';
 import { OrderItemEntity } from './entities/order-item.entity';
@@ -17,6 +18,9 @@ import { PaymentEntity } from '../pagos/entities/payment.entity';
 
 import { TenantContext } from '../../common/tenant/tenant-context';
 
+import { tipoDePago } from '../pagos/payment-kinds';
+import { canonRol } from '../autenticacion/roles-acceso';
+import { ContextoPago, ESTADOS_ORDEN, efectosDeTransicion, motivoTransicionInvalida } from './order-transitions';
 @Injectable()
 export class OrdersService {
   private get tid(): string {
@@ -94,8 +98,7 @@ export class OrdersService {
       throw new NotFoundException(`La orden con ID ${id} no existe.`);
     }
 
-    const isAdmin = userRole?.toUpperCase() === 'ADMIN' || userRole?.toUpperCase() === 'SUPERADMIN';
-    if (!isAdmin && usuarioId && orden.usuarioId !== usuarioId) {
+    if (!this.veTodosLosPedidos(userRole) && usuarioId && orden.usuarioId !== usuarioId) {
       throw new ForbiddenException('No tienes permiso para ver esta orden.');
     }
 
@@ -106,89 +109,118 @@ export class OrdersService {
   // HU-51: CANCELAR PEDIDO SI AÚN NO FUE ENVIADO (CLIENTE)
   // =========================================================================
   async cancelarPedidoCliente(usuarioId: string, id: string, motivo?: string) {
-    const orden = await this.orderRepo.findOne({
-      where: { id, tenantId: this.tid },
-      relations: ['items', 'pago', 'envio'],
-    });
-
-    if (!orden) {
-      throw new NotFoundException(`La orden con ID ${id} no existe.`);
-    }
-
-    if (orden.usuarioId !== usuarioId) {
-      throw new ForbiddenException('No tienes permiso para cancelar esta orden.');
-    }
-
-    if (orden.estado === 'CANCELADO') {
-      throw new BadRequestException('Esta orden ya se encuentra cancelada.');
-    }
-
-    if (orden.estado === 'ENVIADO' || orden.estado === 'ENTREGADO') {
-      throw new BadRequestException('No se puede cancelar el pedido porque ya fue despachado o entregado.');
-    }
-
-    if (orden.envio && ['EN_CAMINO', 'EN_REPARTO', 'ENTREGADO'].includes(orden.envio.estado)) {
-      throw new BadRequestException('El paquete ya está en tránsito con la transportadora y no puede cancelarse.');
-    }
-
-    const estadoAnterior = orden.estado;
-
     const queryRunner = this.dataSource.createQueryRunner();
     await queryRunner.connect();
     await queryRunner.startTransaction();
 
     try {
-      // 1. Cambiar estado de la orden a CANCELADO
-      orden.estado = 'CANCELADO';
-      await queryRunner.manager.save(orden);
+      const orden = await this.cargarOrdenBloqueada(queryRunner.manager, id);
 
-      // 2. Si tenía envío asociado, actualizar a CANCELADO
-      if (orden.envio) {
-        orden.envio.estado = 'CANCELADO';
-        await queryRunner.manager.save(ShippingEntity, orden.envio);
+      if (orden.usuarioId !== usuarioId) {
+        throw new ForbiddenException('No tienes permiso para cancelar esta orden.');
+      }
+      if (orden.estado === 'CANCELADO') {
+        throw new BadRequestException('Esta orden ya se encuentra cancelada.');
+      }
+      // The customer can only cancel what the store has not yet dispatched.
+      if (orden.estado !== 'PENDIENTE' && orden.estado !== 'PAGADO') {
+        throw new BadRequestException('No se puede cancelar el pedido porque ya fue despachado, entregado o cerrado.');
+      }
+      if (orden.envio && ['EN_CAMINO', 'EN_REPARTO', 'ENTREGADO'].includes(orden.envio.estado)) {
+        throw new BadRequestException('El paquete ya está en tránsito con la transportadora y no puede cancelarse.');
       }
 
-      // 3. Si tenía pago aprobado, marcar como REEMBOLSADO
-      if (orden.pago && orden.pago.estado === 'APROBADO') {
-        orden.pago.estado = 'REEMBOLSADO';
-        await queryRunner.manager.save(PaymentEntity, orden.pago);
-      }
-
-      // 4. Restaurar stock de los productos
-      if (orden.items && orden.items.length > 0) {
-        for (const item of orden.items) {
-          if (item.varianteId) {
-            await queryRunner.manager.increment(
-              ProductVariantEntity,
-              { id: item.varianteId },
-              'stock',
-              item.cantidad,
-            );
-          }
-        }
-      }
-
-      // 5. Registrar en historial_venta (HU-55)
-      const historial = queryRunner.manager.create(OrderHistoryEntity, {
-        notaventaId: orden.id,
-        estadoAnterior,
-        estadoNuevo: 'CANCELADO',
+      const estadoAnterior = orden.estado;
+      await this.aplicarCambioDeEstado(queryRunner.manager, orden, 'CANCELADO', {
         comentario: motivo || 'Cancelado por el cliente antes del envío',
         usuarioId,
       });
-      await queryRunner.manager.save(historial);
 
       await queryRunner.commitTransaction();
-
-      this.logger.log(`Pedido ${orden.nro} cancelado exitosamente por cliente ${usuarioId}`);
+      this.logger.log(`Pedido ${orden.nro} cancelado por el cliente ${usuarioId} (estaba ${estadoAnterior})`);
       return this.obtenerDetalle(id, usuarioId);
     } catch (err: any) {
       await queryRunner.rollbackTransaction();
+      if (err instanceof HttpException) throw err;
       this.logger.error(`Error cancelando orden ${id}: ${err.message}`);
-      throw new BadRequestException(`No se pudo cancelar el pedido: ${err.message}`);
+      throw new BadRequestException('No se pudo cancelar el pedido. Inténtalo de nuevo.');
     } finally {
       await queryRunner.release();
     }
+  }
+
+  /**
+   * Reads an order with its payment, items and shipment while holding a write lock on the order row, so two
+   * requests acting on the same order (an admin and the customer, or a double click) run one after the other.
+   */
+  private async cargarOrdenBloqueada(manager: EntityManager, id: string): Promise<OrderEntity> {
+    const fila = await manager.findOne(OrderEntity, { where: { id, tenantId: this.tid }, lock: { mode: 'pessimistic_write' } });
+    if (!fila) throw new NotFoundException(`La orden con ID ${id} no existe.`);
+    // The lock is taken on the bare row: PostgreSQL does not allow FOR UPDATE across the outer joins of the relations.
+    return (await manager.findOne(OrderEntity, {
+      where: { id, tenantId: this.tid },
+      relations: ['pago', 'pago.metodoPago', 'items', 'envio'],
+    })) as OrderEntity;
+  }
+
+  /**
+   * Moves an order to a new state following the transition rules, keeps its payment and shipment in step, gives the
+   * reserved units back to stock once, and writes the audit entry. Throws when the move is not allowed.
+   */
+  private async aplicarCambioDeEstado(
+    manager: EntityManager,
+    orden: OrderEntity,
+    estadoDestino: string,
+    opciones: { comentario: string; usuarioId: string | null },
+  ): Promise<void> {
+    const pago: ContextoPago = orden.pago
+      ? { tipo: tipoDePago(orden.pago.metodoPago?.nombre), estado: orden.pago.estado }
+      : { tipo: 'otro', estado: null };
+    const motivo = motivoTransicionInvalida(orden.estado, estadoDestino, pago);
+    if (motivo) throw new BadRequestException(motivo);
+
+    const estadoAnterior = orden.estado;
+    const efectos = efectosDeTransicion(estadoAnterior, estadoDestino, pago);
+
+    orden.estado = estadoDestino;
+    await manager.save(OrderEntity, orden);
+
+    if (orden.envio) {
+      if (estadoDestino === 'ENVIADO') {
+        orden.envio.estado = 'EN_CAMINO';
+        if (!orden.envio.fechaEnvio) orden.envio.fechaEnvio = new Date();
+        await manager.save(ShippingEntity, orden.envio);
+      } else if (estadoDestino === 'ENTREGADO') {
+        orden.envio.estado = 'ENTREGADO';
+        orden.envio.fechaEntregaReal = new Date();
+        await manager.save(ShippingEntity, orden.envio);
+      } else if (estadoDestino === 'CANCELADO') {
+        orden.envio.estado = 'CANCELADO';
+        await manager.save(ShippingEntity, orden.envio);
+      }
+    }
+
+    if (orden.pago && efectos.pago) {
+      orden.pago.estado = efectos.pago;
+      if (efectos.pago === 'APROBADO') orden.pago.fechaPago = new Date();
+      await manager.save(PaymentEntity, orden.pago);
+    }
+
+    if (efectos.restaurarStock) {
+      for (const item of orden.items ?? []) {
+        if (item.varianteId) await manager.increment(ProductVariantEntity, { id: item.varianteId }, 'stock', item.cantidad);
+      }
+    }
+
+    await manager.save(
+      manager.create(OrderHistoryEntity, {
+        notaventaId: orden.id,
+        estadoAnterior,
+        estadoNuevo: estadoDestino,
+        comentario: opciones.comentario,
+        usuarioId: opciones.usuarioId,
+      }),
+    );
   }
 
   // =========================================================================
@@ -249,32 +281,9 @@ export class OrdersService {
     comentario?: string,
     adminId?: string,
   ) {
-    const orden = await this.orderRepo.findOne({
-      where: { id, tenantId: this.tid },
-      relations: ['pago', 'items', 'envio'],
-    });
-
-    if (!orden) {
-      throw new NotFoundException(`Orden ${id} no encontrada.`);
-    }
-
-    const estadosValidos = [
-      'PENDIENTE',
-      'PAGADO',
-      'COMPLETADO',
-      'ENVIADO',
-      'ENTREGADO',
-      'CANCELADO',
-      'REEMBOLSADO',
-    ];
-    const estadoDestino = nuevoEstado.toUpperCase();
-    if (!estadosValidos.includes(estadoDestino)) {
-      throw new BadRequestException(`Estado no válido. Valores permitidos: ${estadosValidos.join(', ')}`);
-    }
-
-    const estadoAnterior = orden.estado;
-    if (estadoAnterior === estadoDestino) {
-      return this.obtenerDetalle(id);
+    const estadoDestino = String(nuevoEstado ?? '').trim().toUpperCase();
+    if (!(ESTADOS_ORDEN as readonly string[]).includes(estadoDestino)) {
+      throw new BadRequestException(`Estado no válido. Valores permitidos: ${ESTADOS_ORDEN.join(', ')}`);
     }
 
     const queryRunner = this.dataSource.createQueryRunner();
@@ -282,59 +291,24 @@ export class OrdersService {
     await queryRunner.startTransaction();
 
     try {
-      orden.estado = estadoDestino;
-      await queryRunner.manager.save(orden);
-
-      // Si se pasa a ENVIADO, sincronizar envío a EN_CAMINO
-      if (estadoDestino === 'ENVIADO' && orden.envio) {
-        orden.envio.estado = 'EN_CAMINO';
-        if (!orden.envio.fechaEnvio) orden.envio.fechaEnvio = new Date();
-        await queryRunner.manager.save(ShippingEntity, orden.envio);
+      const orden = await this.cargarOrdenBloqueada(queryRunner.manager, id);
+      if (orden.estado === estadoDestino) {
+        await queryRunner.rollbackTransaction();
+        return this.obtenerDetalle(id);
       }
 
-      // Si se pasa a ENTREGADO, sincronizar envío a ENTREGADO
-      if (estadoDestino === 'ENTREGADO' && orden.envio) {
-        orden.envio.estado = 'ENTREGADO';
-        orden.envio.fechaEntregaReal = new Date();
-        await queryRunner.manager.save(ShippingEntity, orden.envio);
-      }
-
-      // Si se cancela/reembolsa por admin, restaurar stock si no estaba cancelado
-      if (
-        (estadoDestino === 'CANCELADO' || estadoDestino === 'REEMBOLSADO') &&
-        estadoAnterior !== 'CANCELADO' &&
-        estadoAnterior !== 'REEMBOLSADO'
-      ) {
-        if (orden.items && orden.items.length > 0) {
-          for (const item of orden.items) {
-            if (item.varianteId) {
-              await queryRunner.manager.increment(
-                ProductVariantEntity,
-                { id: item.varianteId },
-                'stock',
-                item.cantidad,
-              );
-            }
-          }
-        }
-      }
-
-      // Registrar en historial_venta (HU-55)
-      const hist = queryRunner.manager.create(OrderHistoryEntity, {
-        notaventaId: orden.id,
-        estadoAnterior,
-        estadoNuevo: estadoDestino,
-        comentario: comentario || `Cambio de estado por el administrador a ${estadoDestino}`,
+      await this.aplicarCambioDeEstado(queryRunner.manager, orden, estadoDestino, {
+        comentario: (comentario ?? '').trim().slice(0, 500) || `Cambio de estado por el administrador a ${estadoDestino}`,
         usuarioId: adminId || null,
       });
-      await queryRunner.manager.save(hist);
 
       await queryRunner.commitTransaction();
       return this.obtenerDetalle(id);
     } catch (err: any) {
       await queryRunner.rollbackTransaction();
+      if (err instanceof HttpException) throw err;
       this.logger.error(`Error actualizando estado de orden ${id}: ${err.message}`);
-      throw new BadRequestException(`No se pudo actualizar el estado: ${err.message}`);
+      throw new BadRequestException('No se pudo actualizar el estado. Inténtalo de nuevo.');
     } finally {
       await queryRunner.release();
     }
@@ -343,12 +317,28 @@ export class OrdersService {
   // =========================================================================
   // HU-55: CONSULTAR HISTORIAL DE AUDITORÍA DE UN PEDIDO
   // =========================================================================
-  async obtenerHistorial(ordenId: string) {
+  async obtenerHistorial(ordenId: string, usuarioId: string, userRole?: string) {
+    const orden = await this.orderRepo.findOne({
+      where: { id: ordenId, tenantId: this.tid },
+      select: { id: true, usuarioId: true },
+    });
+    if (!orden) {
+      throw new NotFoundException(`La orden con ID ${ordenId} no existe.`);
+    }
+    if (!this.veTodosLosPedidos(userRole) && (!usuarioId || orden.usuarioId !== usuarioId)) {
+      throw new ForbiddenException('No tienes permiso para ver esta orden.');
+    }
+
     return this.orderHistoryRepo.find({
       where: { notaventaId: ordenId, tenantId: this.tid },
       relations: ['usuario'],
       order: { creadoEn: 'ASC' },
     });
+  }
+
+  /** Staff who work the orders panel see every order of the store; a customer only their own. */
+  private veTodosLosPedidos(rol?: string | null): boolean {
+    return ['ADMIN', 'SUPERADMIN', 'VENDEDOR'].includes(canonRol(rol));
   }
 
   // =========================================================================

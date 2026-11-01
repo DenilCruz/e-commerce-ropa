@@ -15,6 +15,7 @@ import {
 import { paymentsApi } from '../services/payments.api';
 import { OrdenRespuesta } from '../types';
 import { useCartStore } from '../../../store/cart.store';
+import { useTenantStore } from '../../../hooks/useTenantStore';
 
 export const CheckoutReturnPage: React.FC = () => {
   const { getStoreUrl } = useTenantStore();
@@ -31,7 +32,7 @@ export const CheckoutReturnPage: React.FC = () => {
 
   useEffect(() => {
     if (!sessionId) {
-      setError('No se proporcionó un ID de sesión válido de Stripe.');
+      setError('No encontramos tu sesión de pago. Vuelve a tu bolsa e inténtalo de nuevo.');
       setCargando(false);
       return;
     }
@@ -50,7 +51,7 @@ export const CheckoutReturnPage: React.FC = () => {
           setError('No se pudo confirmar el pago de la sesión.');
         }
       } catch (err: any) {
-        setError(err.response?.data?.message || err.message || 'Error al validar el pago con Stripe.');
+        setError('No pudimos confirmar tu pago. Si ves un cargo en tu tarjeta, escríbenos y lo resolvemos.');
       } finally {
         setCargando(false);
       }
@@ -72,7 +73,7 @@ export const CheckoutReturnPage: React.FC = () => {
           <div className="w-16 h-16 rounded-2xl bg-[#FAF8F5] text-[#9B7B54] border border-[#E7E1D7] flex items-center justify-center mx-auto">
             <Loader2 className="w-8 h-8 animate-spin" />
           </div>
-          <h2 className="text-xl font-serif font-bold text-stone-900">Verificando Pago con Stripe...</h2>
+          <h2 className="text-xl font-serif font-bold text-stone-900">Confirmando tu pago...</h2>
           <p className="text-sm text-stone-500">
             Estamos confirmando la transacción con la pasarela segura y generando tu orden de compra.
           </p>
@@ -148,7 +149,7 @@ export const CheckoutReturnPage: React.FC = () => {
                 <div>
                   <h3 className="font-serif font-bold text-lg text-white">Rastreo de Envío en Vivo</h3>
                   <p className="text-xs text-stone-400">
-                    Sigue tu paquete en tiempo real sobre el mapa interactivo con OpenStreetMap
+                    Sigue tu paquete en tiempo real sobre el mapa
                   </p>
                 </div>
               </div>

@@ -1,0 +1,186 @@
+/*
+ * Harmony layer: brings every view (store, account, admin, POS) into the landing's language.
+ * One shape system (pills, soft cards), noir actions with a champagne edge, glass edges and warm focus.
+ * Working surfaces stay light and warm for readability (data tables, forms); the chrome around them is noir/champagne.
+ */
+:root {
+  --h-champagne: #c5a880;
+  --h-champagne-soft: rgb(197 168 128 / 28%);
+  --h-noir: #0b0b0c;
+  --h-noir-2: #1b1915;
+  --h-cream: #f4efe6;
+  --h-card: 22px;
+  --h-panel: 16px;
+  --h-pill: 999px;
+  --h-ease: cubic-bezier(.2, .8, .2, 1);
+}
+
+/* ---------- Actions: every button-like control is a soft pill ---------- */
+body :is(button, a[role="button"], a):is([class*="rounded-lg"], [class*="rounded-md"], [class*="rounded-xl"], [class*="rounded-sm"], [class*="rounded-none"], [class*="rounded-2xl"]):is([class*="px-"], [class*="p-2"], [class*="p-1"], [class*="w-8"], [class*="w-9"], [class*="w-10"]):not(:has(img, h3, h4, p, svg + div)) {
+  border-radius: var(--h-pill);
+}
+
+/* Noir actions: gradient with a champagne edge instead of flat black */
+body :is(button, a)[class~="bg-black"]:not([class*="rounded-full"][class*="w-"]),
+body :is(button, a)[class~="bg-stone-900"],
+body :is(button, a)[class~="bg-gray-900"],
+body :is(button, a)[class~="bg-[#161513]"] {
+  background: linear-gradient(135deg, var(--h-noir-2), var(--h-noir)) !important;
+  border: 1px solid var(--h-champagne-soft);
+  color: var(--h-cream);
+  box-shadow: 0 10px 24px -16px rgb(0 0 0 / 70%), inset 0 1px 0 rgb(255 255 255 / 6%);
+  transition: transform .28s var(--h-ease), box-shadow .28s ease, border-color .25s ease;
+}
+body :is(button, a)[class~="bg-black"]:hover:not(:disabled),
+body :is(button, a)[class~="bg-stone-900"]:hover:not(:disabled),
+body :is(button, a)[class~="bg-gray-900"]:hover:not(:disabled) {
+  border-color: rgb(197 168 128 / 60%);
+  box-shadow: 0 14px 30px -14px rgb(197 168 128 / 45%), inset 0 1px 0 rgb(255 255 255 / 8%);
+}
+body :is(button, a)[class~="bg-[#9B7B54]"] {
+  background: linear-gradient(135deg, #c9ac7e, #9b7b54) !important;
+  border: 1px solid rgb(255 255 255 / 18%);
+  color: #1c150c;
+}
+
+/* ---------- Surfaces: soft cards with a warm glass edge ---------- */
+body :is(div, section, article, form, details)[class*="rounded-xl"][class*="border"],
+body :is(div, section, article, form, details)[class*="rounded-2xl"][class*="border"],
+body :is(div, section, article, form)[class*="rounded-lg"][class*="border"][class*="bg-white"],
+body :is(div, section, article)[class~="bg-white"][class*="border"]:not([class*="rounded"]):not(.spatial-glass) {
+  border-radius: var(--h-card);
+  border-color: rgb(125 101 66 / 16%);
+  box-shadow: 0 1px 0 rgb(255 255 255 / 70%) inset, 0 18px 40px -30px rgb(60 44 20 / 28%);
+}
+body :is(div, section)[class*="rounded-3xl"] { border-radius: 28px; }
+
+/* Tables follow the card radius instead of poking out of it */
+body :is(div, section)[class*="border"]:has(> table),
+body :is(div, section)[class*="border"]:has(> div > table),
+body :is(div, section)[class*="border"]:has(> div > div > table) { overflow: hidden; }
+body table thead tr, body table thead th { background: rgb(197 168 128 / 10%); }
+/* Table bodies sit on the warm card, not on pure white */
+body table tbody[class~="bg-white"] { background-color: transparent; }
+body table tbody tr { transition: background-color .2s ease; }
+body table tbody tr:hover { background: rgb(197 168 128 / 7%); }
+
+/* Chips and badges */
+body span[class*="rounded"]:is([class*="px-2"], [class*="px-2.5"], [class*="px-3"]):not([class*="rounded-full"]) { border-radius: var(--h-pill); }
+
+/* Dialogs */
+body [role="dialog"] > div, body [class*="fixed"][class*="inset-0"] > div[class*="bg-white"] { border-radius: 26px; }
+
+/* ---------- Admin chrome: noir sidebar with champagne glass ---------- */
+.admin-shell #menu-admin {
+  background: linear-gradient(180deg, #121110, var(--h-noir));
+  border-right: 1px solid rgb(197 168 128 / 16%);
+}
+.admin-shell #menu-admin nav a { border-radius: var(--h-pill); padding-inline: 1rem; }
+.admin-shell #menu-admin nav a[aria-current='page'] {
+  background: linear-gradient(135deg, rgb(197 168 128 / 30%), rgb(197 168 128 / 8%));
+  border: 1px solid rgb(197 168 128 / 38%);
+  color: #fff6e3;
+  box-shadow: 0 8px 22px -14px rgb(197 168 128 / 60%);
+}
+.admin-shell #menu-admin nav a:not([aria-current='page']):hover { background: rgb(197 168 128 / 8%); }
+.admin-main {
+  background:
+    radial-gradient(ellipse at 88% -4%, rgb(197 168 128 / 16%), transparent 38%),
+    radial-gradient(ellipse at 6% 100%, rgb(197 168 128 / 8%), transparent 40%),
+    var(--admin-paper, #f3efe8);
+}
+.admin-main h1 { font-family: 'Playfair Display', Georgia, serif; }
+
+/* KPI and stat cards read as glass tiles */
+.admin-main :is(div)[class*="rounded-xl"][class*="border"]:has(> :is(p, span, div) + :is(p, h2, h3)) { backdrop-filter: blur(6px); }
+
+/* ---------- Store chrome ---------- */
+body nav[class*="sticky"], body header[class*="sticky"] { backdrop-filter: blur(14px); }
+
+/* Ratings use the champagne accent instead of the default amber */
+body svg[class*="fill-amber-400"] { fill: var(--h-champagne); color: var(--h-champagne); }
+
+/* ---------- Focus and motion ---------- */
+body :is(button, a, input, select, textarea):focus-visible { outline: 2px solid var(--h-champagne); outline-offset: 3px; }
+@media (prefers-reduced-motion: reduce) {
+  body :is(button, a)[class~="bg-black"], body :is(button, a)[class~="bg-stone-900"], body table tbody tr { transition: none; }
+}
+
+/* ---------- Small screens ---------- */
+@media (max-width: 640px) {
+  body header .gap-4, body header .gap-3 { gap: .4rem; }
+  body header .gap-10 { gap: .6rem; }
+  .aura-capsule { gap: .5rem; padding-left: .9rem; }
+  .aura-capsule__brand em { display: none; }
+  .aura-seg [aria-label="Nueva tienda"] span { display: none; }
+  .aura-seg__btn { padding: .55rem .75rem; }
+}
+
+/* ---------- Dialogs and overlays (portaled under <body>) ---------- */
+.aura-overlay, body [class*="fixed"][class*="inset-0"][class*="z-"]:is([class*="bg-black"], [class*="bg-stone-900"], [class*="bg-gray-900"], [class*="bg-noir"]) {
+  background: rgb(11 11 12 / 58%) !important;
+  backdrop-filter: blur(10px);
+  -webkit-backdrop-filter: blur(10px);
+}
+.aura-dialog, body [role="dialog"] {
+  border: 1px solid rgb(197 168 128 / 30%);
+  border-radius: 26px;
+  background: linear-gradient(160deg, #fffdf9, #f6f0e4);
+  box-shadow: 0 40px 90px -30px rgb(0 0 0 / 65%), inset 0 1px 0 #fff;
+  animation: aura-dialog-in .38s var(--h-ease) both;
+}
+.aura-dialog__close { display: grid; place-items: center; width: 2.1rem; height: 2.1rem; border: 1px solid rgb(125 101 66 / 22%); border-radius: 50%; background: transparent; color: #6b6253; font-size: 1.3rem; line-height: 1; cursor: pointer; transition: background-color .2s, color .2s, transform .25s var(--h-ease); }
+.aura-dialog__close:hover { background: rgb(197 168 128 / 16%); color: #1c1a17; transform: rotate(90deg); }
+body [class*="fixed"][class*="inset-0"] > div[class*="bg-white"]:not(.aura-dialog),
+body [class*="fixed"][class*="inset-0"] > div > div[class*="bg-white"][class*="shadow"] {
+  border: 1px solid rgb(197 168 128 / 30%);
+  border-radius: 26px;
+  box-shadow: 0 40px 90px -30px rgb(0 0 0 / 65%);
+  animation: aura-dialog-in .38s var(--h-ease) both;
+}
+@keyframes aura-dialog-in { from { opacity: 0; transform: translateY(14px) scale(.97); } to { opacity: 1; transform: none; } }
+@media (prefers-reduced-motion: reduce) { .aura-dialog, body [role="dialog"] { animation: none; } }
+
+/* Bag drawer: rounded panel sliding over a blurred overlay */
+.aura-drawer { border-radius: 28px 0 0 28px; border-left: 1px solid rgb(197 168 128 / 30%) !important; overflow: hidden; background: linear-gradient(170deg, #fffdf9, #f4eee2) !important; box-shadow: -40px 0 90px -40px rgb(0 0 0 / 60%); }
+
+/* Badges: small uppercase labels are pills, never squares */
+body span:is([class*="uppercase"]):is([class*="bg-"]):is([class*="px-"]):not([class*="rounded"]),
+body div:is([class*="uppercase"]):is([class*="bg-"]):is([class*="px-"]):is([class*="absolute"]):not([class*="rounded"]) { border-radius: var(--h-pill); }
+body span[class*="rounded-none"], body span[class*="rounded-sm"] { border-radius: var(--h-pill); }
+
+/* Toasts (sonner): noir glass with a champagne edge */
+body [data-sonner-toast] {
+  border-radius: 18px !important;
+  background: rgb(14 12 10 / 88%) !important;
+  color: #f4efe6 !important;
+  border: 1px solid rgb(197 168 128 / 34%) !important;
+  box-shadow: 0 24px 60px -24px rgb(0 0 0 / 75%) !important;
+  backdrop-filter: blur(14px);
+}
+body [data-sonner-toast] [data-description], body [data-sonner-toast] [data-title] { color: inherit !important; }
+body [data-sonner-toast][data-type="success"] [data-icon] { color: #d9bf8f !important; }
+body [data-sonner-toast][data-type="error"] [data-icon] { color: #f19b8c !important; }
+
+/* ---------- Store tone: a warm sand ramp instead of near-white, so the step from the dark landing is gentle ---------- */
+.aura-store {
+  --store-canvas: #d9cfbc;
+  --store-surface: #e6decf;
+  --store-surface-hi: #efe7d8;
+  --store-deep: #d6ccb9;
+  --store-line: rgb(92 74 46 / 24%);
+}
+.aura-store [class~="bg-[#FAF8F5]"], .aura-store [class~="bg-[#faf8f5]"], .aura-store [class~="bg-[#F5F0E6]"], .aura-store [class~="bg-[#FCFBF9]"] { background-color: var(--store-surface); }
+.aura-store [class~="bg-[#F2ECE1]"] { background-color: var(--store-deep); }
+.aura-store [class~="bg-white"] { background-color: var(--store-surface-hi); }
+.aura-store [class~="border-[#E7E1D7]"], .aura-store [class~="border-[#e7e1d7]"] { border-color: var(--store-line); }
+.aura-store [class~="divide-[#E7E1D7]"] > * + * { border-color: var(--store-line); }
+.aura-store header[class~="bg-white/80"] { background-color: rgb(217 207 188 / 86%); }
+/* Secondary text keeps 4.5:1 on sand (footer is excluded: it is dark) */
+.aura-store main .text-stone-400 { color: #6a6256; }
+.aura-store main .text-stone-500 { color: #5a5247; }
+.aura-store main .text-stone-600 { color: #4a443b; }
+.aura-store main ::placeholder { color: #7a7266; }
+
+/* Tailwind's space-y-* adds a top margin to every child, which pushed fixed overlays down and left a light strip above them */
+[class*="space-y-"] > .fixed, [class*="space-x-"] > .fixed { margin: 0 !important; }

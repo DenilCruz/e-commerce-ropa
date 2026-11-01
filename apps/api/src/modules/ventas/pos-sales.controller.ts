@@ -7,15 +7,20 @@ import { CurrentUser } from '../autenticacion/decorators/current-user.decorator'
 import { IdempotencyInterceptor } from '../../common/idempotency/idempotency.interceptor';
 import { CrearVentaPosDto } from './dto/crear-venta-pos.dto';
 import { PosSalesService } from './pos-sales.service';
+import { PlanLimitsService } from '../tiendas/plan-limits.service';
+import { TenantContext } from '../../common/tenant/tenant-context';
 
 @ApiTags('Ventas de mostrador')
 @Controller('sales')
 export class PosSalesController {
-  constructor(private readonly posSalesService: PosSalesService) {}
+  constructor(
+    private readonly posSalesService: PosSalesService,
+    private readonly planLimits: PlanLimitsService,
+  ) {}
 
   @Post('pos')
   @UseGuards(JwtAuthGuard, RolesGuard)
-  @Roles('ADMIN', 'SUPERADMIN')
+  @Roles('ADMIN', 'SUPERADMIN', 'VENDEDOR')
   @UseInterceptors(IdempotencyInterceptor)
   @ApiBearerAuth()
   @HttpCode(HttpStatus.CREATED)
@@ -27,7 +32,7 @@ export class PosSalesController {
   @ApiResponse({ status: 201, description: 'Venta registrada.' })
   @ApiResponse({ status: 409, description: 'Stock insuficiente (codigo STOCK_CONFLICT) o clave en proceso.' })
   @ApiResponse({ status: 422, description: 'La Idempotency-Key ya se usó con otra venta.' })
-  registrar(
+  async registrar(
     @CurrentUser('userId') vendedorId: string,
     @Body() dto: CrearVentaPosDto,
     @Headers('idempotency-key') idempotencyKey?: string,
@@ -36,6 +41,7 @@ export class PosSalesController {
     if (!idempotencyKey) {
       throw new BadRequestException('Idempotency-Key es obligatoria para registrar una venta.');
     }
+    await this.planLimits.exigirCapacidad(TenantContext.require(), 'posOffline');
     return this.posSalesService.registrar(vendedorId, dto, idempotencyKey);
   }
 }

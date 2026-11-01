@@ -392,7 +392,7 @@ export const AdminReviewsPage: React.FC = () => {
                 <Trash2 className="w-6 h-6" />
               </div>
               <div>
-                <h3 className="text-base font-bold text-gray-900">Eliminar Reseña (HU-69)</h3>
+                <h3 className="text-base font-bold text-gray-900">Eliminar Reseña</h3>
                 <p className="text-xs text-gray-500">Moderación contra spam y lenguaje ofensivo</p>
               </div>
             </div>
