@@ -297,8 +297,45 @@ function Ribbon({ spec, reduced }: { spec: RibbonSpec; reduced: boolean }) {
 
 type DressState = { status: 'loading' | 'ready' | 'failed'; model?: PhotoGarmentModel };
 
-export default function CoutureScene({ reduced, active, dressUrl }: { reduced: boolean; active: boolean; dressUrl?: string }) {
+/** Gold dust drifting slowly behind the ribbons (deterministic so renders are stable). */
+function Dust({ reduced }: { reduced: boolean }) {
+  const ref = useRef<Group>(null);
+  const geometry = useMemo(() => {
+    const n = 220;
+    const arr = new Float32Array(n * 3);
+    for (let i = 0; i < n; i++) {
+      arr[i * 3] = (Math.sin(i * 12.9898) * 43758.5453 % 1) * 22 - 11;
+      arr[i * 3 + 1] = (Math.sin(i * 78.233) * 43758.5453 % 1) * 11 - 5.5;
+      arr[i * 3 + 2] = (Math.sin(i * 39.346) * 43758.5453 % 1) * 5 - 2.5;
+    }
+    const g = new BufferGeometry();
+    g.setAttribute('position', new Float32BufferAttribute(arr, 3));
+    return g;
+  }, []);
+  useFrame(({ clock }) => { if (ref.current && !reduced) { ref.current.rotation.y = clock.elapsedTime * 0.012; ref.current.position.y = Math.sin(clock.elapsedTime * 0.1) * 0.15; } });
+  return <group ref={ref}><points geometry={geometry}><pointsMaterial color="#F2DDB2" size={0.05} sizeAttenuation transparent opacity={0.7} depthWrite={false} /></points></group>;
+}
+
+/** Ribbons-only stage for the sign-in screens: the landing's satin and gold, calmer and darker behind a form. */
+function AmbientScene({ reduced, active }: { reduced: boolean; active: boolean }) {
   const frozen = reduced || !active;
+  return <Canvas camera={{ position: [0, 0, 9], fov: 42 }} dpr={[1, 1.5]} frameloop={active && !reduced ? 'always' : 'demand'} gl={{ alpha: true, antialias: true, powerPreference: 'low-power' }}>
+    <ambientLight intensity={0.3} />
+    <directionalLight position={[-3, 4, 4]} intensity={1} color="#fff1d6" />
+    <Environment resolution={128}>
+      <Lightformer form="rect" intensity={1.8} position={[-4, 3, 3]} scale={[6, 4, 1]} />
+      <Lightformer form="rect" intensity={1.2} position={[4.5, 1, 2]} scale={[3, 7, 1]} color="#ffe2b0" />
+    </Environment>
+    <group position={[0, 0.2, -1.5]}>
+      {RIBBONS.map((spec, i) => <Ribbon key={spec.phase} spec={{ ...spec, y: [3.5, -2.8, -3.7][i], z: [0, -0.8, 0.5][i], width: spec.width * 0.8 }} reduced={frozen} />)}
+    </group>
+    <Dust reduced={frozen} />
+  </Canvas>;
+}
+
+export default function CoutureScene({ reduced, active, dressUrl, ambient = false }: { reduced: boolean; active: boolean; dressUrl?: string; ambient?: boolean }) {
+  const frozen = reduced || !active;
+  if (ambient) return <AmbientScene reduced={reduced} active={active} />;
   const [dress, setDress] = useState<DressState>({ status: dressUrl ? 'loading' : 'failed' });
   useEffect(() => {
     if (!dressUrl) { setDress({ status: 'failed' }); return; }

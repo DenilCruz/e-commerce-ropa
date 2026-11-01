@@ -16,57 +16,57 @@
 }
 
 /* ---------- Actions: every button-like control is a soft pill ---------- */
-#root :is(button, a[role="button"], a):is([class*="rounded-lg"], [class*="rounded-md"], [class*="rounded-xl"], [class*="rounded-sm"], [class*="rounded-none"], [class*="rounded-2xl"]):is([class*="px-"], [class*="p-2"], [class*="p-1"], [class*="w-8"], [class*="w-9"], [class*="w-10"]):not(:has(img, h3, h4, p, svg + div)) {
+body :is(button, a[role="button"], a):is([class*="rounded-lg"], [class*="rounded-md"], [class*="rounded-xl"], [class*="rounded-sm"], [class*="rounded-none"], [class*="rounded-2xl"]):is([class*="px-"], [class*="p-2"], [class*="p-1"], [class*="w-8"], [class*="w-9"], [class*="w-10"]):not(:has(img, h3, h4, p, svg + div)) {
   border-radius: var(--h-pill);
 }
 
 /* Noir actions: gradient with a champagne edge instead of flat black */
-#root :is(button, a)[class~="bg-black"]:not([class*="rounded-full"][class*="w-"]),
-#root :is(button, a)[class~="bg-stone-900"],
-#root :is(button, a)[class~="bg-gray-900"],
-#root :is(button, a)[class~="bg-[#161513]"] {
+body :is(button, a)[class~="bg-black"]:not([class*="rounded-full"][class*="w-"]),
+body :is(button, a)[class~="bg-stone-900"],
+body :is(button, a)[class~="bg-gray-900"],
+body :is(button, a)[class~="bg-[#161513]"] {
   background: linear-gradient(135deg, var(--h-noir-2), var(--h-noir)) !important;
   border: 1px solid var(--h-champagne-soft);
   color: var(--h-cream);
   box-shadow: 0 10px 24px -16px rgb(0 0 0 / 70%), inset 0 1px 0 rgb(255 255 255 / 6%);
   transition: transform .28s var(--h-ease), box-shadow .28s ease, border-color .25s ease;
 }
-#root :is(button, a)[class~="bg-black"]:hover:not(:disabled),
-#root :is(button, a)[class~="bg-stone-900"]:hover:not(:disabled),
-#root :is(button, a)[class~="bg-gray-900"]:hover:not(:disabled) {
+body :is(button, a)[class~="bg-black"]:hover:not(:disabled),
+body :is(button, a)[class~="bg-stone-900"]:hover:not(:disabled),
+body :is(button, a)[class~="bg-gray-900"]:hover:not(:disabled) {
   border-color: rgb(197 168 128 / 60%);
   box-shadow: 0 14px 30px -14px rgb(197 168 128 / 45%), inset 0 1px 0 rgb(255 255 255 / 8%);
 }
-#root :is(button, a)[class~="bg-[#9B7B54]"] {
+body :is(button, a)[class~="bg-[#9B7B54]"] {
   background: linear-gradient(135deg, #c9ac7e, #9b7b54) !important;
   border: 1px solid rgb(255 255 255 / 18%);
   color: #1c150c;
 }
 
 /* ---------- Surfaces: soft cards with a warm glass edge ---------- */
-#root :is(div, section, article, form, details)[class*="rounded-xl"][class*="border"],
-#root :is(div, section, article, form, details)[class*="rounded-2xl"][class*="border"],
-#root :is(div, section, article, form)[class*="rounded-lg"][class*="border"][class*="bg-white"],
-#root :is(div, section, article)[class~="bg-white"][class*="border"]:not([class*="rounded"]):not(.spatial-glass) {
+body :is(div, section, article, form, details)[class*="rounded-xl"][class*="border"],
+body :is(div, section, article, form, details)[class*="rounded-2xl"][class*="border"],
+body :is(div, section, article, form)[class*="rounded-lg"][class*="border"][class*="bg-white"],
+body :is(div, section, article)[class~="bg-white"][class*="border"]:not([class*="rounded"]):not(.spatial-glass) {
   border-radius: var(--h-card);
   border-color: rgb(125 101 66 / 16%);
   box-shadow: 0 1px 0 rgb(255 255 255 / 70%) inset, 0 18px 40px -30px rgb(60 44 20 / 28%);
 }
-#root :is(div, section)[class*="rounded-3xl"] { border-radius: 28px; }
+body :is(div, section)[class*="rounded-3xl"] { border-radius: 28px; }
 
 /* Tables follow the card radius instead of poking out of it */
-#root :is(div, section)[class*="border"]:has(> table),
-#root :is(div, section)[class*="border"]:has(> div > table),
-#root :is(div, section)[class*="border"]:has(> div > div > table) { overflow: hidden; }
-#root table thead tr, #root table thead th { background: rgb(197 168 128 / 10%); }
-#root table tbody tr { transition: background-color .2s ease; }
-#root table tbody tr:hover { background: rgb(197 168 128 / 7%); }
+body :is(div, section)[class*="border"]:has(> table),
+body :is(div, section)[class*="border"]:has(> div > table),
+body :is(div, section)[class*="border"]:has(> div > div > table) { overflow: hidden; }
+body table thead tr, body table thead th { background: rgb(197 168 128 / 10%); }
+body table tbody tr { transition: background-color .2s ease; }
+body table tbody tr:hover { background: rgb(197 168 128 / 7%); }
 
 /* Chips and badges */
-#root span[class*="rounded"]:is([class*="px-2"], [class*="px-2.5"], [class*="px-3"]):not([class*="rounded-full"]) { border-radius: var(--h-pill); }
+body span[class*="rounded"]:is([class*="px-2"], [class*="px-2.5"], [class*="px-3"]):not([class*="rounded-full"]) { border-radius: var(--h-pill); }
 
 /* Dialogs */
-#root [role="dialog"] > div, #root [class*="fixed"][class*="inset-0"] > div[class*="bg-white"] { border-radius: 26px; }
+body [role="dialog"] > div, body [class*="fixed"][class*="inset-0"] > div[class*="bg-white"] { border-radius: 26px; }
 
 /* ---------- Admin chrome: noir sidebar with champagne glass ---------- */
 .admin-shell #menu-admin {
@@ -93,20 +93,66 @@
 .admin-main :is(div)[class*="rounded-xl"][class*="border"]:has(> :is(p, span, div) + :is(p, h2, h3)) { backdrop-filter: blur(6px); }
 
 /* ---------- Store chrome ---------- */
-#root nav[class*="sticky"], #root header[class*="sticky"] { backdrop-filter: blur(14px); }
+body nav[class*="sticky"], body header[class*="sticky"] { backdrop-filter: blur(14px); }
 
 /* ---------- Focus and motion ---------- */
-#root :is(button, a, input, select, textarea):focus-visible { outline: 2px solid var(--h-champagne); outline-offset: 3px; }
+body :is(button, a, input, select, textarea):focus-visible { outline: 2px solid var(--h-champagne); outline-offset: 3px; }
 @media (prefers-reduced-motion: reduce) {
-  #root :is(button, a)[class~="bg-black"], #root :is(button, a)[class~="bg-stone-900"], #root table tbody tr { transition: none; }
+  body :is(button, a)[class~="bg-black"], body :is(button, a)[class~="bg-stone-900"], body table tbody tr { transition: none; }
 }
 
 /* ---------- Small screens ---------- */
 @media (max-width: 640px) {
-  #root header .gap-4, #root header .gap-3 { gap: .4rem; }
-  #root header .gap-10 { gap: .6rem; }
+  body header .gap-4, body header .gap-3 { gap: .4rem; }
+  body header .gap-10 { gap: .6rem; }
   .aura-capsule { gap: .5rem; padding-left: .9rem; }
   .aura-capsule__brand em { display: none; }
   .aura-seg [aria-label="Nueva tienda"] span { display: none; }
   .aura-seg__btn { padding: .55rem .75rem; }
 }
+
+/* ---------- Dialogs and overlays (portaled under <body>) ---------- */
+.aura-overlay, body [class*="fixed"][class*="inset-0"][class*="z-"]:is([class*="bg-black"], [class*="bg-stone-900"], [class*="bg-gray-900"], [class*="bg-noir"]) {
+  background: rgb(11 11 12 / 58%) !important;
+  backdrop-filter: blur(10px);
+  -webkit-backdrop-filter: blur(10px);
+}
+.aura-dialog, body [role="dialog"] {
+  border: 1px solid rgb(197 168 128 / 30%);
+  border-radius: 26px;
+  background: linear-gradient(160deg, #fffdf9, #f6f0e4);
+  box-shadow: 0 40px 90px -30px rgb(0 0 0 / 65%), inset 0 1px 0 #fff;
+  animation: aura-dialog-in .38s var(--h-ease) both;
+}
+.aura-dialog__close { display: grid; place-items: center; width: 2.1rem; height: 2.1rem; border: 1px solid rgb(125 101 66 / 22%); border-radius: 50%; background: transparent; color: #6b6253; font-size: 1.3rem; line-height: 1; cursor: pointer; transition: background-color .2s, color .2s, transform .25s var(--h-ease); }
+.aura-dialog__close:hover { background: rgb(197 168 128 / 16%); color: #1c1a17; transform: rotate(90deg); }
+body [class*="fixed"][class*="inset-0"] > div[class*="bg-white"]:not(.aura-dialog),
+body [class*="fixed"][class*="inset-0"] > div > div[class*="bg-white"][class*="shadow"] {
+  border: 1px solid rgb(197 168 128 / 30%);
+  border-radius: 26px;
+  box-shadow: 0 40px 90px -30px rgb(0 0 0 / 65%);
+  animation: aura-dialog-in .38s var(--h-ease) both;
+}
+@keyframes aura-dialog-in { from { opacity: 0; transform: translateY(14px) scale(.97); } to { opacity: 1; transform: none; } }
+@media (prefers-reduced-motion: reduce) { .aura-dialog, body [role="dialog"] { animation: none; } }
+
+/* Bag drawer: rounded panel sliding over a blurred overlay */
+.aura-drawer { border-radius: 28px 0 0 28px; border-left: 1px solid rgb(197 168 128 / 30%) !important; overflow: hidden; background: linear-gradient(170deg, #fffdf9, #f4eee2) !important; box-shadow: -40px 0 90px -40px rgb(0 0 0 / 60%); }
+
+/* Badges: small uppercase labels are pills, never squares */
+body span:is([class*="uppercase"]):is([class*="bg-"]):is([class*="px-"]):not([class*="rounded"]),
+body div:is([class*="uppercase"]):is([class*="bg-"]):is([class*="px-"]):is([class*="absolute"]):not([class*="rounded"]) { border-radius: var(--h-pill); }
+body span[class*="rounded-none"], body span[class*="rounded-sm"] { border-radius: var(--h-pill); }
+
+/* Toasts (sonner): noir glass with a champagne edge */
+body [data-sonner-toast] {
+  border-radius: 18px !important;
+  background: rgb(14 12 10 / 88%) !important;
+  color: #f4efe6 !important;
+  border: 1px solid rgb(197 168 128 / 34%) !important;
+  box-shadow: 0 24px 60px -24px rgb(0 0 0 / 75%) !important;
+  backdrop-filter: blur(14px);
+}
+body [data-sonner-toast] [data-description], body [data-sonner-toast] [data-title] { color: inherit !important; }
+body [data-sonner-toast][data-type="success"] [data-icon] { color: #d9bf8f !important; }
+body [data-sonner-toast][data-type="error"] [data-icon] { color: #f19b8c !important; }

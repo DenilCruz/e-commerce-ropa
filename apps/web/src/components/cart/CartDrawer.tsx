@@ -62,7 +62,7 @@ export const CartDrawer: React.FC = () => {
     <div className="fixed inset-0 z-50 overflow-hidden">
       {/* Backdrop con desenfoque atelier */}
       <div 
-        className="fixed inset-0 bg-stone-900/40 backdrop-blur-xs transition-opacity animate-in fade-in duration-300"
+        className="aura-overlay fixed inset-0 transition-opacity animate-in fade-in duration-300"
         onClick={closeDrawer}
         aria-hidden="true"
       />
@@ -70,7 +70,7 @@ export const CartDrawer: React.FC = () => {
       <div className="fixed inset-y-0 right-0 max-w-full flex pl-10">
         <div 
           ref={drawerRef}
-          className="w-screen max-w-md bg-[#FAF8F5] border-l border-[#E7E1D7] shadow-2xl flex flex-col transform transition-transform ease-out duration-300 animate-in slide-in-from-right"
+          className="aura-drawer w-screen max-w-md bg-[#FAF8F5] border-l border-[#E7E1D7] shadow-2xl flex flex-col transform transition-transform ease-out duration-300 animate-in slide-in-from-right"
         >
           {/* Header del Drawer */}
           <div className="px-6 py-5 border-b border-[#E7E1D7] flex items-center justify-between bg-white/70 backdrop-blur-xs">

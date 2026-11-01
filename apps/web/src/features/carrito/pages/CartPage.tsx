@@ -164,7 +164,7 @@ export const CartPage: React.FC = () => {
           <div className="lg:col-span-7 xl:col-span-8 space-y-6">
             
             {/* CALLOUT PROBADOR VIRTUAL IA */}
-            <div className="bg-[#F2ECE1] border border-[#D5CCC0] p-5 flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+            <div className="bg-[#F2ECE1] border border-[#D5CCC0] rounded-[22px] p-5 flex flex-col sm:flex-row sm:items-center justify-between gap-4">
               <div className="flex items-center gap-3.5">
                 <div className="w-10 h-10 rounded-full bg-white flex items-center justify-center shrink-0 border border-[#D5CCC0]">
                   <Sparkles className="w-5 h-5 text-[#9B7B54]" />

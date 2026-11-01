@@ -15,7 +15,7 @@ export const AuthLayout: React.FC = () => {
 
   return (
     <div className="auth-scene min-h-screen flex flex-col justify-between text-stone-900 font-sans p-4 sm:p-6 selection:bg-[#E7E1D7]">
-      <SilkCanvasBackground className="auth-scene__silk" variant="dark" kind="ribbon" />
+      <SilkCanvasBackground className="auth-scene__silk" variant="dark" kind="ambient" />
       {/* Barra superior de retorno */}
       <header className="auth-scene__header max-w-4xl w-full mx-auto flex items-center justify-between py-2">
         <Link to={backUrl} className="flex items-center gap-2 group">

@@ -358,3 +358,10 @@
   overflow: visible;
 }
 .aura-landing .aura-footer { position: relative; background: rgb(14 12 10 / 82%); border-color: rgb(197 168 128 / 14%); }
+
+/* ---- Hover light that follows the cursor behind a fixed label ---- */
+.aura-seg__btn:hover { background-image: radial-gradient(80px circle at var(--mx, 50%) var(--my, 50%), rgb(255 232 188 / 24%), transparent 72%); }
+.aura-seg__btn--primary:hover { background-image: radial-gradient(80px circle at var(--mx, 50%) var(--my, 50%), rgb(255 240 205 / 34%), transparent 72%), linear-gradient(135deg, rgb(197 168 128 / 28%), rgb(197 168 128 / 8%)); }
+.aura-billing__opt:hover:not([aria-checked='true']) { background-image: radial-gradient(70px circle at var(--mx, 50%) var(--my, 50%), rgb(197 168 128 / 22%), transparent 72%); }
+.aura-capsule__link { background-image: none; }
+.aura-store-chip:hover { background-image: radial-gradient(90px circle at var(--mx, 50%) var(--my, 50%), rgb(197 168 128 / 22%), transparent 72%); }
