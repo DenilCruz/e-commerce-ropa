@@ -15,11 +15,11 @@ const TOPICS: Record<string, Topic> = {
     sections: [
       {
         title: 'Envío estándar',
-        body: ['Llega en 2 a 3 días hábiles, en empaque rígido protegido. Es cortesía de la casa para tus compras que califican.'],
+        body: ['Llega en 2 a 3 días hábiles, en empaque rígido protegido. Es gratis en compras desde $200; por debajo de ese monto cuesta $15.00.'],
       },
       {
         title: 'Envío express',
-        body: ['Entrega prioritaria asegurada en 24 horas, con un costo adicional de $20.00 que verás antes de pagar.'],
+        body: ['Entrega prioritaria asegurada en 24 horas, con un costo de $30.00 que verás antes de pagar.'],
       },
       {
         title: 'Sigue tu pedido',

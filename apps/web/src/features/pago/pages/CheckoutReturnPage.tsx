@@ -149,7 +149,7 @@ export const CheckoutReturnPage: React.FC = () => {
                 <div>
                   <h3 className="font-serif font-bold text-lg text-white">Rastreo de Envío en Vivo</h3>
                   <p className="text-xs text-stone-400">
-                    Sigue tu paquete en tiempo real sobre el mapa interactivo con OpenStreetMap
+                    Sigue tu paquete en tiempo real sobre el mapa
                   </p>
                 </div>
               </div>

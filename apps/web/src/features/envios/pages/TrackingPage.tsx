@@ -414,7 +414,7 @@ export const TrackingPage: React.FC = () => {
                   <div>
                     <h3 className="text-lg font-serif font-bold text-stone-900 flex items-center gap-2">
                       <Navigation className="w-5 h-5 text-[#9B7B54]" />
-                      Ruta Satelital y Cobertura (OpenStreetMap)
+                      Recorrido de tu paquete
                     </h3>
                     <p className="text-xs text-stone-500">
                       Trazabilidad georreferenciada sin costo de API externa.
@@ -434,7 +434,7 @@ export const TrackingPage: React.FC = () => {
               {/* Resumen de los artículos del paquete */}
               <div className="p-6 sm:p-8 bg-white border-t border-slate-200">
                 <h4 className="text-sm font-bold uppercase tracking-wider text-slate-500 mb-4">
-                  Contenido del Paquete ({trackingData.orden.items?.length || 0} prendas)
+                  Contenido del Paquete ({trackingData.orden.items?.length || 0} {(trackingData.orden.items?.length || 0) === 1 ? 'prenda' : 'prendas'})
                 </h4>
                 <div className="divide-y divide-slate-100">
                   {trackingData.orden.items?.map((item) => (

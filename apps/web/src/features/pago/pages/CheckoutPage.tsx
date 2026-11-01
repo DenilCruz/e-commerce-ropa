@@ -28,6 +28,14 @@ import { OrdenRespuesta } from '../types';
 import { getImageUrl } from '../../../lib/utils';
 import { useNetworkStatus } from '../../../hooks/useNetworkStatus';
 import { pagosConfigApi, StorePublicPaymentConfig } from '../../tiendas/services/pagos-config.api';
+import { shippingApi, MetodoEnvio } from '../../envios/services/shipping.api';
+
+// Shipping rules the API applies when it charges the order: standard is free from $200 and $15 below it, express is always $30.
+const FREE_SHIPPING_FROM = 200;
+const STANDARD_SHIPPING = 15;
+const EXPRESS_SHIPPING = 30;
+// Ids from the original seed, used only when the API lists no shipping methods.
+const LEGACY_METHOD_IDS = { ESTANDAR: 'e1000000-0000-0000-0000-000000000001', EXPRESS: 'e2000000-0000-0000-0000-000000000002' };
 
 declare global {
   interface Window {
@@ -84,9 +92,11 @@ export const CheckoutPage: React.FC = () => {
   const [errorPago, setErrorPago] = useState<string | null>(null);
   const [ordenCompletada, setOrdenCompletada] = useState<OrdenRespuesta | null>(null);
   const [configPago, setConfigPago] = useState<StorePublicPaymentConfig | null>(null);
+  const [metodosEnvio, setMetodosEnvio] = useState<MetodoEnvio[]>([]);
 
   useEffect(() => {
     cargarCarrito();
+    shippingApi.obtenerMetodos().then(setMetodosEnvio).catch(() => setMetodosEnvio([]));
 
     // Consultar modalidad de pago de la tienda activa (Modelo A vs Modelo B)
     const matchSlug = window.location.pathname.match(/\/t\/([^/]+)/);
@@ -239,11 +249,10 @@ export const CheckoutPage: React.FC = () => {
   const items = cart?.items || [];
   const subtotal = cart?.total || 0;
   const esExpress = tipoEnvio === 'EXPRESS';
-  const costoEnvio = esExpress ? 30 : (subtotal >= 200 || subtotal === 0 ? 0 : 15);
+  const costoEnvio = esExpress ? EXPRESS_SHIPPING : (subtotal >= FREE_SHIPPING_FROM || subtotal === 0 ? 0 : STANDARD_SHIPPING);
   const totalFinal = Number(Math.max(0, (totalConDescuento || subtotal) + costoEnvio).toFixed(2));
-  const metodoEnvioId = esExpress
-    ? 'e2000000-0000-0000-0000-000000000002'
-    : 'e1000000-0000-0000-0000-000000000001';
+  const metodoEnvioId = metodosEnvio.find((m) => (esExpress ? /express/i : /est[aá]ndar/i).test(m.nombre))?.id
+    ?? (esExpress ? LEGACY_METHOD_IDS.EXPRESS : LEGACY_METHOD_IDS.ESTANDAR);
 
   const limpiarMensajeError = (rawMsg: any): string => {
     const msg = typeof rawMsg === 'string' ? rawMsg : (rawMsg?.message || '');
@@ -488,7 +497,7 @@ export const CheckoutPage: React.FC = () => {
                 to={`/tracking/${ordenCompletada.envio?.numeroTracking || ordenCompletada.nroOrden}`}
                 className="text-xs font-bold text-stone-900 hover:text-[#9B7B54] flex items-center gap-1"
               >
-                <span>Ver Mapa Leaflet</span>
+                <span>Ver en el mapa</span>
                 <ArrowRight className="w-3.5 h-3.5 text-[#9B7B54]" />
               </Link>
             </div>
@@ -528,7 +537,7 @@ export const CheckoutPage: React.FC = () => {
                 <span>{ordenCompletada.costoEnvio === 0 ? 'Gratis' : `$${ordenCompletada.costoEnvio.toFixed(2)}`}</span>
               </div>
               <div className="flex justify-between text-base font-black text-gray-900 pt-2 border-t border-gray-300">
-                <span>Total Pagado</span>
+                <span>{ordenCompletada.estadoOrden === 'PENDIENTE' ? 'Total a pagar' : 'Total pagado'}</span>
                 <span>${ordenCompletada.total.toFixed(2)}</span>
               </div>
             </div>
@@ -747,7 +756,7 @@ export const CheckoutPage: React.FC = () => {
                   <Truck className="w-5 h-5 text-gray-900" />
                   <h2 className="font-serif text-xl font-normal text-stone-900">2. Método de Envío</h2>
                 </div>
-                {subtotal >= 200 && (
+                {subtotal >= FREE_SHIPPING_FROM && (
                   <span className="text-xs bg-emerald-100 text-emerald-800 font-bold px-2.5 py-1 rounded-full">
                     ¡Califica a Envío Estándar Gratis!
                   </span>
@@ -768,7 +777,7 @@ export const CheckoutPage: React.FC = () => {
                   <div className="flex items-center justify-between mb-2">
                     <span className="text-sm font-medium text-stone-900">Envío Estándar Atelier</span>
                     <span className="font-semibold text-stone-900 text-xs uppercase tracking-luxury">
-                      {subtotal >= 100 ? 'Cortesía' : '$10.00'}
+                      {subtotal >= FREE_SHIPPING_FROM ? 'Cortesía' : `$${STANDARD_SHIPPING.toFixed(2)}`}
                     </span>
                   </div>
                   <p className="text-xs text-stone-500 font-light">2 a 3 días hábiles en empaque rígido protegido</p>
@@ -792,7 +801,7 @@ export const CheckoutPage: React.FC = () => {
                       </span>
                     </div>
                     <span className="font-semibold text-stone-900 text-xs">
-                      $20.00
+                      ${EXPRESS_SHIPPING.toFixed(2)}
                     </span>
                   </div>
                   <p className="text-xs text-stone-500 font-light">Entrega prioritaria asegurada en 24 horas</p>
@@ -1082,7 +1091,7 @@ export const CheckoutPage: React.FC = () => {
           <div className="lg:col-span-5">
             <div className="bg-white p-6 border border-[#E7E1D7] sticky top-6 space-y-6">
               <h2 className="font-serif text-lg font-normal text-stone-900 pb-3 border-b border-[#E7E1D7]">
-                Resumen del Pedido ({cart?.totalItems || 0} prendas)
+                Resumen del Pedido ({cart?.totalItems || 0} {(cart?.totalItems || 0) === 1 ? 'prenda' : 'prendas'})
               </h2>
 
               {/* LISTADO DE ITEMS */}
