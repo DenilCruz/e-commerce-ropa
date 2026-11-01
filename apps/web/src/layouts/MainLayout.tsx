@@ -531,14 +531,14 @@ export const MainLayout: React.FC = () => {
               </p>
             </div>
 
-            {/* Enlaces de Colección */}
+            {/* Enlaces de Colección: las categorías reales de esta tienda */}
             <div className="space-y-3">
               <h4 className="text-xs uppercase tracking-widest text-stone-400 font-medium">Colecciones</h4>
               <ul className="space-y-2 text-xs text-stone-300 font-light">
-                <li><Link to={`${storePrefix}/catalogo?categoria=Vestidos`} className="hover:text-white transition-colors">Vestidos de Seda</Link></li>
-                <li><Link to={`${storePrefix}/catalogo?categoria=Sastrería`} className="hover:text-white transition-colors">Sastrería & Abrigos</Link></li>
-                <li><Link to={`${storePrefix}/catalogo?categoria=Camisas`} className="hover:text-white transition-colors">Camisería Fina</Link></li>
-                <li><Link to={`${storePrefix}/catalogo?categoria=Pantalones`} className="hover:text-white transition-colors">Pantalones Wide-Leg</Link></li>
+                {categorias.filter(c => c.activa !== false).slice(0, 4).map(cat => (
+                  <li key={cat.id}><Link to={`${storePrefix}/catalogo?categoria=${cat.id}`} className="hover:text-white transition-colors">{cat.nombre}</Link></li>
+                ))}
+                <li><Link to={`${storePrefix}/catalogo`} className="hover:text-white transition-colors">Ver toda la colección</Link></li>
               </ul>
             </div>
 
@@ -546,33 +546,32 @@ export const MainLayout: React.FC = () => {
             <div className="space-y-3">
               <h4 className="text-xs uppercase tracking-widest text-stone-400 font-medium">Experiencia Atelier</h4>
               <ul className="space-y-2 text-xs text-stone-300 font-light">
-                <li><Link to={`${storePrefix}/probador`} className="hover:text-white transition-colors flex items-center gap-1.5 text-[#9B7B54] font-medium"><Sparkles className="w-3 h-3" /> Probador Virtual IA</Link></li>
-                <li><span className="text-stone-400">Guía de Cuidados de Tejidos</span></li>
-                <li><span className="text-stone-400">Sastrería a Medida</span></li>
-                <li><span className="text-stone-400">Servicio de Concierge</span></li>
+                <li><Link to={`${storePrefix}/probador`} className="hover:text-white transition-colors flex items-center gap-1.5 text-[#c5a880] font-medium"><Sparkles className="w-3 h-3" /> Probador Virtual IA</Link></li>
+                <li><Link to={`${storePrefix}/tracking`} className="hover:text-white transition-colors">Seguir mi pedido</Link></li>
+                <li><Link to={`${storePrefix}/favoritos`} className="hover:text-white transition-colors">Mis favoritos</Link></li>
+                <li><Link to={`${storePrefix}/info/cuidados`} className="hover:text-white transition-colors">Guía de cuidados</Link></li>
               </ul>
             </div>
 
-            {/* Servicio al Cliente & Moneda */}
+            {/* Compra con confianza */}
             <div className="space-y-3">
-              <h4 className="text-xs uppercase tracking-widest text-stone-400 font-medium">Atelier & Divisa</h4>
-              <p className="text-xs text-stone-400 leading-relaxed font-light">
-                Precios expresados en Dólares Estadounidenses ($ USD). Envíos y entregas aseguradas en empaque atelier.
+              <h4 className="text-xs uppercase tracking-widest text-stone-400 font-medium">Compra con confianza</h4>
+              <ul className="space-y-2 text-xs text-stone-300 font-light">
+                <li><Link to={`${storePrefix}/info/envios`} className="hover:text-white transition-colors">Envíos y entregas</Link></li>
+                <li><Link to={`${storePrefix}/info/pagos`} className="hover:text-white transition-colors">Formas de pago</Link></li>
+              </ul>
+              <p className="text-xs text-stone-400 leading-relaxed font-light pt-1">
+                Precios en dólares estadounidenses (USD).
               </p>
-              <div className="pt-2">
-                <span className="inline-block px-2.5 py-1 text-[10px] tracking-widest uppercase border border-stone-700 text-stone-300">
-                  USD ($) · Global Checkout
-                </span>
-              </div>
             </div>
           </div>
 
           <div className="pt-8 flex flex-col sm:flex-row items-center justify-between gap-4 text-xs text-stone-400">
             <p>© {new Date().getFullYear()} AURA Atelier. Todos los derechos reservados.</p>
             <div className="flex gap-6 tracking-wide">
-              <span>Términos de Privacidad</span>
+              <Link to={`${storePrefix}/info/privacidad`} className="hover:text-white transition-colors">Privacidad</Link>
               <span>·</span>
-              <span>Políticas de Atelier</span>
+              <Link to={`${storePrefix}/info/politicas`} className="hover:text-white transition-colors">Políticas de Atelier</Link>
             </div>
           </div>
         </div>

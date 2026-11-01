@@ -39,6 +39,7 @@ import { AdminReviewsPage } from '../features/admin/resenas/pages/AdminReviewsPa
 import { AdminShippingPage } from '../features/admin/envios/pages/AdminShippingPage';
 import { AdminPosPage } from '../features/ventas-pos/pages/AdminPosPage';
 import { TrackingPage } from '../features/envios/pages/TrackingPage';
+import { StoreInfoPage } from '../features/info/pages/StoreInfoPage';
 import { LandingSaaSPage } from '../features/landing/LandingSaaSPage';
 import { PlanRetornoPage } from '../features/tiendas/pages/PlanRetornoPage';
 import { AdminPagosConfigPage } from '../features/tiendas/pages/AdminPagosConfigPage';
@@ -91,6 +92,7 @@ export const AppRouter: React.FC = () => {
           <Route path="carrito" element={<CartPage />} />
           <Route path="tracking" element={<TrackingPage />} />
           <Route path="tracking/:codigo" element={<TrackingPage />} />
+          <Route path="info/:tema" element={<StoreInfoPage />} />
 
           {/* Rutas Protegidas Cliente en tienda */}
           <Route element={<ProtectedRoute />}>
