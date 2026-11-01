@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useRef } from 'react';
 import { useFrame } from '@react-three/fiber';
 import { useTexture } from '@react-three/drei';
-import { BackSide, Color, CylinderGeometry, DoubleSide, Group, MathUtils, MeshBasicMaterial, Texture } from 'three';
+import { Color, CylinderGeometry, DoubleSide, Group, MathUtils, MeshBasicMaterial, Texture } from 'three';
 import { coutureState } from './coutureState';
 
 export type OrbitItem = { id: string; nombre: string; precio: string; imagen: string };
@@ -48,11 +48,7 @@ function Panel({ item, angle, y, arc, onSelect }: { item: OrbitItem; angle: numb
     onClick={(e) => { if (e.delta < 6) { e.stopPropagation(); onSelect?.(item.id); } }}
   >
     <mesh geometry={geometry}>
-      <meshBasicMaterial ref={face} map={texture} toneMapped={false} />
-    </mesh>
-    {/* gold back shell: what you see of a panel once it has gone around the rail */}
-    <mesh geometry={geometry} scale={1.004}>
-      <meshBasicMaterial color="#6f5a37" side={BackSide} toneMapped={false} />
+      <meshBasicMaterial ref={face} map={texture} side={DoubleSide} toneMapped={false} />
     </mesh>
     {/* gold hairlines on the top and bottom edges */}
     {[PANEL_H / 2, -PANEL_H / 2].map((h) => (
@@ -76,12 +72,18 @@ export function ProductOrbit({ items, reduced, onSelect }: { items: OrbitItem[];
 
   useFrame(({ pointer }, rawDt) => {
     const dt = Math.min(rawDt, 1 / 30);
-    if (!reduced && !coutureState.dragging) coutureState.spin += dt * 0.16;
-    const target = coutureState.spin + (reduced ? 0 : pointer.x * 0.25) + (reduced ? 0 : window.scrollY * 0.0035);
+    const atTop = window.scrollY < 40 && coutureState.run === 0;
+    if (!reduced && !coutureState.dragging && atTop) coutureState.spin += dt * 0.16; // idle turn while the hero is on screen
+    else if (!coutureState.dragging) coutureState.spin += (Math.round(coutureState.spin / step) * step - coutureState.spin) * Math.min(1, dt * 3); // settle on a panel
+    // Scrolling through the gallery section brings the next panel to the front, with a short dwell on each one.
+    const f = coutureState.run * (items.length - 1);
+    const i0 = Math.floor(f);
+    const dwell = MathUtils.smoothstep(f - i0, 0.22, 0.78);
+    const target = coutureState.spin - (i0 + dwell) * step + (reduced ? 0 : pointer.x * 0.18);
     const g = group.current;
     if (!g) return;
     if (coutureState.snap || reduced) g.rotation.y = target;
-    else g.rotation.y += (target - g.rotation.y) * 0.08;
+    else g.rotation.y += (target - g.rotation.y) * 0.1;
     coutureState.rotation = g.rotation.y;
     const raw = Math.round(-g.rotation.y / step);
     coutureState.setActive(((raw % items.length) + items.length) % items.length);

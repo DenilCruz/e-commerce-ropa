@@ -365,3 +365,30 @@
 .aura-billing__opt:hover:not([aria-checked='true']) { background-image: radial-gradient(70px circle at var(--mx, 50%) var(--my, 50%), rgb(197 168 128 / 22%), transparent 72%); }
 .aura-capsule__link { background-image: none; }
 .aura-store-chip:hover { background-image: radial-gradient(90px circle at var(--mx, 50%) var(--my, 50%), rgb(197 168 128 / 22%), transparent 72%); }
+
+/* ---------- Paper-grid landing: no cloth, no shaft of light; the grid and the gallery carry the page ---------- */
+.aura-landing { background: #121110 !important; }
+.aura-hero::before { display: none; }
+.aura-hero .silk-background__light, .aura-hero .silk-background__fallback { display: none; }
+.aura-navwrap { position: sticky; z-index: 50; }
+
+/* Gallery run: scroll length with a sticky caption on top of the fixed 3D stage */
+.aura-gallery-run { position: relative; z-index: 1; pointer-events: none; }
+.aura-gallery-run__sticky { position: sticky; top: 0; display: flex; height: 100svh; flex-direction: column; align-items: center; justify-content: flex-end; gap: .9rem; padding-bottom: 2.6rem; }
+.aura-gallery-run__count { margin: 0; color: #a99679; font: 400 .72rem 'Plus Jakarta Sans', sans-serif; letter-spacing: .3em; }
+.aura-gallery-run__count b { color: #f4efe6; font: 400 1.5rem 'Playfair Display', Georgia, serif; letter-spacing: .08em; }
+.aura-gallery-run__caption { display: grid; justify-items: center; gap: .25rem; min-width: 280px; padding: .8rem 1.7rem; border: 1px solid rgb(197 168 128 / 28%); border-radius: 22px; background: rgb(12 12 14 / 55%); color: #f4efe6; text-align: center; pointer-events: auto; backdrop-filter: blur(14px); transition: border-color .25s, translate .3s cubic-bezier(.2,.8,.2,1); }
+.aura-gallery-run__caption:hover { border-color: rgb(240 208 128 / 65%); translate: 0 -4px; }
+.aura-gallery-run__caption span { color: #c5a880; font-size: .58rem; letter-spacing: .22em; text-transform: uppercase; }
+.aura-gallery-run__caption strong { font: 500 1.35rem 'Playfair Display', Georgia, serif; animation: aura-caption-in .5s cubic-bezier(.2,.8,.2,1) both; }
+.aura-gallery-run__caption em { display: inline-flex; align-items: center; gap: .35rem; color: #d8c9b2; font-size: .72rem; font-style: normal; }
+.aura-gallery-run__caption svg { width: 12px; height: 12px; }
+@keyframes aura-caption-in { from { opacity: 0; transform: translateY(8px); } to { opacity: 1; transform: none; } }
+@media (prefers-reduced-motion: reduce) { .aura-gallery-run__caption strong { animation: none; } }
+
+/* The plans are plain glass over the same grid */
+.aura-landing .aura-pricing { background: linear-gradient(to bottom, rgb(18 17 16 / 0%) 0, rgb(18 17 16 / 55%) 16rem, rgb(18 17 16 / 70%) 100%); }
+.aura-gallery-run__sticky { opacity: calc(1 - var(--gallery-exit, 0) * 1.8); }
+/* the plans start rising while the gallery is still lifting away, so there is no empty screen between them */
+.aura-landing .aura-pricing { margin-top: -34svh; padding-top: clamp(6rem, 12vw, 11rem); }
+.aura-gallery-run__sticky { padding-bottom: 2rem; }

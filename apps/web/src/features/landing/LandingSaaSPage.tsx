@@ -1,8 +1,8 @@
 import React, { useState } from 'react';
-import { Link } from 'react-router-dom';
 import { NetflixHero } from './NetflixHero';
 import { PricingSection } from './PricingSection';
 import { LandingNav } from './LandingNav';
+import { PaperBackdrop } from '../../components/spatial';
 import { useAuthStore } from '../../store/auth.store';
 import { authApi } from '../autenticacion/services/auth.api';
 import { toast } from 'sonner';
@@ -30,6 +30,7 @@ export const LandingSaaSPage: React.FC = () => {
 
   return (
     <div className="aura-landing min-h-screen bg-[#FAF8F5] text-stone-900 font-sans selection:bg-[#E7E1D7] selection:text-stone-900">
+      <PaperBackdrop />
       <LandingNav
         isAuthenticated={isAuthenticated}
         userName={user?.nombre}

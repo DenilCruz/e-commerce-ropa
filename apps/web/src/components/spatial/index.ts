@@ -7,3 +7,4 @@ export { SmoothScrollProvider } from './SmoothScrollProvider';
 export { useReducedMotion } from './useReducedMotion';
 export { InteractiveSpatialCard } from './InteractiveSpatialCard';
 export { Magnetic } from './Magnetic';
+export { PaperBackdrop } from './PaperBackdrop';

@@ -57,6 +57,7 @@ export const NetflixHero: React.FC = () => {
   };
 
   return (
+    <>
     <section className="aura-hero">
       <SilkCanvasBackground className="aura-hero__silk" variant="dark" kind="couture" items={items} onSelectItem={(id) => navigate(`/t/aura/producto/${id}`)} />
       <div className="aura-hero__inner">
@@ -93,7 +94,7 @@ export const NetflixHero: React.FC = () => {
           onPointerUp={() => { drag.current = null; coutureState.dragging = false; }}
           onPointerCancel={() => { drag.current = null; coutureState.dragging = false; }}
         >
-          <p className="aura-hero__hint">Arrastra para girar la colección · toca una prenda para verla</p>
+          <p className="aura-hero__hint">Desliza para recorrer la colección · toca una prenda para verla</p>
           {piece && (
             <Link to={`/t/aura/producto/${piece.id}`} className="aura-hero__piece" onPointerDown={(e) => e.stopPropagation()}>
               <span>Pieza de la colección</span><strong>{piece.nombre}</strong><em>${Number(piece.precio).toFixed(0)} · Ver en tienda <ArrowRight aria-hidden="true" /></em>
@@ -117,5 +118,20 @@ export const NetflixHero: React.FC = () => {
       </div>
       <ModalCrearTienda isOpen={modalCrear} onClose={() => setModalCrear(false)} nombreInicial={nombreTienda} />
     </section>
+
+    {/* Scrolling through this section turns the gallery: one panel after another, each one large and in focus. */}
+    <section id="aura-gallery-run" className="aura-gallery-run" aria-label="Colección" style={{ height: `${Math.max(items.length, 4) * 58}vh` }}>
+      {piece && (
+        <div className="aura-gallery-run__sticky">
+          <p className="aura-gallery-run__count"><b>{String(active + 1).padStart(2, '0')}</b> / {String(items.length).padStart(2, '0')}</p>
+          <Link to={`/t/aura/producto/${piece.id}`} className="aura-gallery-run__caption">
+            <span>Colección AURA</span>
+            <strong key={piece.id}>{piece.nombre}</strong>
+            <em>${Number(piece.precio).toFixed(0)} · Ver en tienda <ArrowRight aria-hidden="true" /></em>
+          </Link>
+        </div>
+      )}
+    </section>
+    </>
   );
 };

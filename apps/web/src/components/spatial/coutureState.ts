@@ -9,6 +9,10 @@ export const coutureState = {
   dragging: false,
   /** When true the scene jumps straight to `spin` (used for inspection and tests). */
   snap: false,
+  /** Scroll choreography, written once per frame by updateStageProgress(). */
+  hero: 0,
+  run: 0,
+  exit: 0,
   active: -1,
   setActive(index: number) {
     if (index === coutureState.active) return;
