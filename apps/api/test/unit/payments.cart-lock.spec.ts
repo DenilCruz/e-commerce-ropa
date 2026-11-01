@@ -53,3 +53,41 @@ describe('PaymentsService payment answer', () => {
     jest.restoreAllMocks();
   });
 });
+
+describe('PaymentsService coupon redemption', () => {
+  const cupon: any = { id: 'c1', codigo: 'VERANO' };
+  const lleno = { id: 'c1', codigo: 'VERANO', activo: true, fechaInicio: new Date(0), fechaFin: new Date(Date.now() + 1e9), usosMaximos: 1, usosActuales: 1, montoMinimo: 0, usosPorUsuario: 1 };
+  let service: PaymentsService;
+  let manager: any;
+
+  beforeEach(() => {
+    jest.spyOn(TenantContext, 'require').mockReturnValue('tenant-luna');
+    const none = {} as any;
+    manager = {
+      findOne: jest.fn().mockResolvedValue(lleno),
+      count: jest.fn().mockResolvedValue(0),
+      increment: jest.fn(),
+      create: jest.fn((_e: unknown, v: any) => v),
+      save: jest.fn(),
+    };
+    service = new PaymentsService(none, none, none, none, none, none, none, none, none, none, none, none, none, none, none, { get: () => undefined } as any);
+  });
+
+  afterEach(() => jest.restoreAllMocks());
+
+  it('refuses a coupon whose limit is used up when the payment has not been taken yet', async () => {
+    await expect((service as any).registrarUsoCupon(manager, cupon, 'u1', 'o1', 100)).rejects.toThrow(/límite máximo/);
+    expect(manager.increment).not.toHaveBeenCalled();
+  });
+
+  it('only records the use when the customer has already paid, so the order is never refused', async () => {
+    await expect((service as any).registrarUsoCupon(manager, cupon, 'u1', 'o1', 100, false)).resolves.toBeUndefined();
+    expect(manager.increment).toHaveBeenCalledTimes(1);
+    expect(manager.save).toHaveBeenCalledTimes(1);
+  });
+
+  it('does not fail a paid order if the coupon row disappeared', async () => {
+    manager.findOne.mockResolvedValue(null);
+    await expect((service as any).registrarUsoCupon(manager, cupon, 'u1', 'o1', 100, false)).resolves.toBeUndefined();
+  });
+});

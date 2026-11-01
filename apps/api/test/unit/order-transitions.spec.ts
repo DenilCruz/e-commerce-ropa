@@ -37,6 +37,16 @@ describe('order transitions', () => {
       expect(motivoTransicionInvalida('ENVIADO', 'PAGADO', qr('APROBADO'))).toMatch(/No se puede pasar/);
     });
 
+    it('sends a card refund through the refund action instead of a status change', () => {
+      expect(motivoTransicionInvalida('PAGADO', 'REEMBOLSADO', tarjeta())).toMatch(/Reembolsar/);
+      expect(motivoTransicionInvalida('ENTREGADO', 'REEMBOLSADO', tarjeta())).toMatch(/pasarela/);
+    });
+
+    it('still lets the store mark a QR or cash payment as returned', () => {
+      expect(motivoTransicionInvalida('PAGADO', 'REEMBOLSADO', qr('APROBADO'))).toBeNull();
+      expect(motivoTransicionInvalida('ENTREGADO', 'REEMBOLSADO', cod('APROBADO'))).toBeNull();
+    });
+
     it('rejects a state that does not exist', () => {
       expect(motivoTransicionInvalida('PENDIENTE', 'REGALADO', qr())).toMatch(/Estado no válido/);
     });
@@ -61,6 +71,14 @@ describe('order transitions', () => {
 
     it('does not pretend a paid card was refunded just because the order was cancelled', () => {
       expect(efectosDeTransicion('PAGADO', 'CANCELADO', tarjeta())).toEqual({ pago: null, restaurarStock: true });
+    });
+
+    it('does not mark a card payment refunded on its own, whatever the route', () => {
+      expect(efectosDeTransicion('PAGADO', 'REEMBOLSADO', tarjeta()).pago).toBeNull();
+    });
+
+    it('marks a QR payment returned when the order is refunded', () => {
+      expect(efectosDeTransicion('PAGADO', 'REEMBOLSADO', qr('APROBADO')).pago).toBe('REEMBOLSADO');
     });
 
     it('never restores stock twice', () => {

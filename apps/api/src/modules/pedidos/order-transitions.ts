@@ -39,6 +39,10 @@ export const motivoTransicionInvalida = (desde: string, hacia: string, pago: Con
   if (hacia === 'ENVIADO' && desde === 'PENDIENTE' && pago.tipo !== 'contra_entrega') {
     return 'Confirma el pago del pedido antes de despacharlo.';
   }
+  // A card refund has to go through the gateway; marking it here would record a refund that never happened.
+  if (hacia === 'REEMBOLSADO' && pago.tipo === 'tarjeta' && pago.estado === 'APROBADO') {
+    return 'El reembolso de un pago con tarjeta se hace con el botón "Reembolsar", que devuelve el dinero en la pasarela.';
+  }
   return null;
 };
 
@@ -63,7 +67,7 @@ export const efectosDeTransicion = (desde: string, hacia: string, pago: Contexto
       // approved payment is returned by hand by the store, which is what cancelling the order records.
       else if (pago.estado === 'APROBADO' && pago.tipo !== 'tarjeta') nuevoPago = 'REEMBOLSADO';
     }
-    if (hacia === 'REEMBOLSADO' && pago.estado === 'APROBADO') nuevoPago = 'REEMBOLSADO';
+    if (hacia === 'REEMBOLSADO' && pago.estado === 'APROBADO' && pago.tipo !== 'tarjeta') nuevoPago = 'REEMBOLSADO';
   }
 
   const terminal = desde === 'CANCELADO' || desde === 'REEMBOLSADO';

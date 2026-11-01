@@ -11,6 +11,13 @@ const SIGUIENTES: Record<string, string[]> = {
   REEMBOLSADO: [],
 };
 
-/** Moves offered to the admin: only cash on delivery may ship before it is paid. */
+/**
+ * Moves offered to the admin: only cash on delivery may ship before it is paid, and a card refund is made with the
+ * "Reembolsar" action (it returns the money through the gateway), not with a status change.
+ */
 export const estadosPermitidos = (desde: string, tipoPago: TipoPago): string[] =>
-  (SIGUIENTES[desde] ?? []).filter((hacia) => !(desde === 'PENDIENTE' && hacia === 'ENVIADO' && tipoPago !== 'contra_entrega'));
+  (SIGUIENTES[desde] ?? []).filter(
+    (hacia) =>
+      !(desde === 'PENDIENTE' && hacia === 'ENVIADO' && tipoPago !== 'contra_entrega') &&
+      !(hacia === 'REEMBOLSADO' && tipoPago === 'tarjeta'),
+  );

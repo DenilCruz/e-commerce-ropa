@@ -18,8 +18,8 @@ describe('PaymentsService totals: shipping and coupons', () => {
   let usosDelUsuario: number;
   let service: PaymentsService;
 
-  const totals = (opts: { cupon?: string; metodo?: string; tipo?: string } = {}) =>
-    (service as any).calcularTotalesCarrito('user-1', opts.cupon, opts.metodo, opts.tipo);
+  const totals = (opts: { cupon?: string; metodo?: string; tipo?: string; yaCobrado?: boolean } = {}) =>
+    (service as any).calcularTotalesCarrito('user-1', opts.cupon, opts.metodo, opts.tipo, opts.yaCobrado ? { posteriorAlCobro: true } : {});
 
   const item = (precio: number, cantidad = 1) => ({ precioUnitario: precio, cantidad });
   const cuponValido = (extra: any = {}) => ({
@@ -47,8 +47,8 @@ describe('PaymentsService totals: shipping and coupons', () => {
     const cartRepo = { findOne: jest.fn(async () => ({ items: cartItems })) };
     const couponRepo = { findOne: jest.fn(async ({ where }) => cupones.find((c) => c.id === where.id) ?? null) };
     const shippingMethodRepo = {
-      findOne: jest.fn(async ({ where }) => metodos.find((m) => m.id === where.id && m.activo === where.activo) ?? null),
-      find: jest.fn(async ({ where }) => metodos.filter((m) => m.activo === where.activo)),
+      findOne: jest.fn(async ({ where }) => metodos.find((m) => m.id === where.id && (where.activo === undefined || m.activo === where.activo)) ?? null),
+      find: jest.fn(async ({ where }) => metodos.filter((m) => where.activo === undefined || m.activo === where.activo)),
     };
     const dataSource = { getRepository: () => ({ count: jest.fn(async () => usosDelUsuario) }) };
 
@@ -144,6 +144,36 @@ describe('PaymentsService totals: shipping and coupons', () => {
       cupones = [cuponValido()];
       usosDelUsuario = 1;
       await expect(totals({ cupon: cupones[0].id })).rejects.toThrow(/límite permitido por usuario/);
+    });
+  });
+
+  describe('after the gateway has already charged the customer', () => {
+    beforeEach(() => {
+      cartItems = [item(100)];
+    });
+
+    it('still prices the order with a coupon that expired while the customer was paying', async () => {
+      cupones = [cuponValido({ fechaFin: new Date(Date.now() - 1000) })];
+      await expect(totals({ cupon: cupones[0].id, metodo: ESTANDAR.id, yaCobrado: true })).resolves.toMatchObject({
+        descuento: 10,
+        totalFinal: 105,
+      });
+    });
+
+    it('still prices the order when the coupon limit filled up or the user already used it', async () => {
+      cupones = [cuponValido({ usosMaximos: 1, usosActuales: 1 })];
+      usosDelUsuario = 3;
+      await expect(totals({ cupon: cupones[0].id, metodo: ESTANDAR.id, yaCobrado: true })).resolves.toMatchObject({ descuento: 10 });
+    });
+
+    it('keeps a shipping method the store switched off mid-checkout', async () => {
+      const t = await totals({ metodo: INACTIVO.id, yaCobrado: true });
+      expect(t.metodoEnvio.id).toBe(INACTIVO.id);
+    });
+
+    it('is still strict before the money moves', async () => {
+      cupones = [cuponValido({ fechaFin: new Date(Date.now() - 1000) })];
+      await expect(totals({ cupon: cupones[0].id })).rejects.toThrow(/expirado/);
     });
   });
 });

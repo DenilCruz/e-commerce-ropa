@@ -397,7 +397,7 @@ export class PaymentsService {
     const longitud = meta.longitud ? Number(meta.longitud) : null;
 
     const { subtotal, descuento, envio, totalFinal, cart, cupon, metodoEnvio } =
-      await this.calcularTotalesCarrito(usuarioId, cuponId, metodoEnvioId, tipoEnvio);
+      await this.calcularTotalesCarrito(usuarioId, cuponId, metodoEnvioId, tipoEnvio, { posteriorAlCobro: true });
     this.verificarMontoPagado(session.amount_total, totalFinal);
 
     const queryRunner = this.dataSource.createQueryRunner();
@@ -524,7 +524,7 @@ export class PaymentsService {
       await queryRunner.manager.save(entradaHistorial);
 
       if (cupon) {
-        await this.registrarUsoCupon(queryRunner.manager, cupon, usuarioId, ordenGuardada.id, subtotal);
+        await this.registrarUsoCupon(queryRunner.manager, cupon, usuarioId, ordenGuardada.id, subtotal, false);
       }
 
       await queryRunner.manager.delete(CartItemEntity, { carritoId: cart.id });
@@ -651,7 +651,7 @@ export class PaymentsService {
     }
 
     const { subtotal, descuento, envio, totalFinal, cart, cupon, metodoEnvio } =
-      await this.calcularTotalesCarrito(usuarioId, dto.cuponId, dto.metodoEnvioId, dto.tipoEnvio);
+      await this.calcularTotalesCarrito(usuarioId, dto.cuponId, dto.metodoEnvioId, dto.tipoEnvio, { posteriorAlCobro: true });
 
     if (!cart.items || cart.items.length === 0) {
       throw new BadRequestException('El carrito está vacío o la orden ya fue procesada.');
@@ -784,7 +784,7 @@ export class PaymentsService {
       await queryRunner.manager.update(CartEntity, { id: cart.id }, { total: 0 });
 
       if (cupon) {
-        await this.registrarUsoCupon(queryRunner.manager, cupon, usuarioId, ordenGuardada.id, subtotal);
+        await this.registrarUsoCupon(queryRunner.manager, cupon, usuarioId, ordenGuardada.id, subtotal, false);
       }
 
       await queryRunner.commitTransaction();
@@ -1326,16 +1326,21 @@ export class PaymentsService {
   // HELPERS
   // =========================================================================
   /** The shipping method an order uses: the one the client names, or the store's matching or cheapest active one. */
-  private async resolverMetodoEnvio(metodoEnvioId?: string, tipoEnvio?: string): Promise<ShippingMethodEntity> {
+  private async resolverMetodoEnvio(
+    metodoEnvioId?: string,
+    tipoEnvio?: string,
+    opciones: { incluirInactivos?: boolean } = {},
+  ): Promise<ShippingMethodEntity> {
+    const filtroActivo = opciones.incluirInactivos ? {} : { activo: true };
     if (metodoEnvioId) {
       const esUuid = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(metodoEnvioId);
       const metodo = esUuid
-        ? await this.shippingMethodRepo.findOne({ where: { id: metodoEnvioId, activo: true } })
+        ? await this.shippingMethodRepo.findOne({ where: { id: metodoEnvioId, ...filtroActivo } })
         : null;
       if (!metodo) throw new BadRequestException('El método de envío indicado no existe o no está disponible.');
       return metodo;
     }
-    const activos = await this.shippingMethodRepo.find({ where: { activo: true } });
+    const activos = await this.shippingMethodRepo.find({ where: filtroActivo });
     const metodo = elegirMetodoPorTipo(activos, tipoEnvio);
     if (!metodo) {
       throw new BadRequestException('La tienda aún no tiene métodos de envío disponibles. Inténtalo más tarde.');
@@ -1353,18 +1358,25 @@ export class PaymentsService {
     usuarioId: string,
     notaventaId: string,
     subtotal: number,
+    /** false once the customer has already paid: the order must exist, so the redemption is only recorded. */
+    estricto = true,
   ): Promise<void> {
     const bloqueado = await manager.findOne(CouponEntity, {
       where: { id: cupon.id, tenantId: this.tid },
       lock: { mode: 'pessimistic_write' },
     });
-    if (!bloqueado) throw new BadRequestException('El cupón ya no está disponible.');
+    if (!bloqueado) {
+      if (estricto) throw new BadRequestException('El cupón ya no está disponible.');
+      return;
+    }
 
-    const usosDelUsuario = await manager.count(CouponUsageEntity, {
-      where: { tenantId: this.tid, cuponId: cupon.id, usuarioId },
-    });
-    const motivo = motivoCuponNoAplicable(bloqueado, subtotal, usosDelUsuario);
-    if (motivo) throw new ConflictException(`${motivo} Quita el cupón e inténtalo de nuevo.`);
+    if (estricto) {
+      const usosDelUsuario = await manager.count(CouponUsageEntity, {
+        where: { tenantId: this.tid, cuponId: cupon.id, usuarioId },
+      });
+      const motivo = motivoCuponNoAplicable(bloqueado, subtotal, usosDelUsuario);
+      if (motivo) throw new ConflictException(`${motivo} Quita el cupón e inténtalo de nuevo.`);
+    }
 
     await manager.increment(CouponEntity, { id: cupon.id }, 'usosActuales', 1);
     await manager.save(
@@ -1377,9 +1389,17 @@ export class PaymentsService {
     cuponId?: string,
     metodoEnvioId?: string,
     tipoEnvio?: string,
+    /**
+     * posteriorAlCobro: the gateway has already charged the customer, so the order must be created. The coupon and
+     * the shipping method were validated when the payment started and are priced into the amount that was charged.
+     */
+    opciones: { posteriorAlCobro?: boolean } = {},
   ) {
+    const posterior = Boolean(opciones.posteriorAlCobro);
     // A method named by the client must exist even before the cart is read.
-    const metodoElegido = metodoEnvioId ? await this.resolverMetodoEnvio(metodoEnvioId, tipoEnvio) : null;
+    const metodoElegido = metodoEnvioId
+      ? await this.resolverMetodoEnvio(metodoEnvioId, tipoEnvio, { incluirInactivos: posterior })
+      : null;
 
     let cart = await this.cartRepo.findOne({
       where: { usuarioId, tenantId: this.tid },
@@ -1412,20 +1432,24 @@ export class PaymentsService {
     if (cuponId) {
       cupon = await this.couponRepo.findOne({ where: { id: cuponId, tenantId: this.tid } });
       if (!cupon) throw new BadRequestException('El cupón indicado no existe o no es válido.');
-      const usosDelUsuario =
-        cupon.usosPorUsuario > 0
-          ? await this.dataSource
-              .getRepository(CouponUsageEntity)
-              .count({ where: { tenantId: this.tid, cuponId: cupon.id, usuarioId } })
-          : 0;
-      const motivo = motivoCuponNoAplicable(cupon, subtotal, usosDelUsuario);
-      if (motivo) throw new BadRequestException(motivo);
+      if (!posterior) {
+        const usosDelUsuario =
+          cupon.usosPorUsuario > 0
+            ? await this.dataSource
+                .getRepository(CouponUsageEntity)
+                .count({ where: { tenantId: this.tid, cuponId: cupon.id, usuarioId } })
+            : 0;
+        const motivo = motivoCuponNoAplicable(cupon, subtotal, usosDelUsuario);
+        if (motivo) throw new BadRequestException(motivo);
+      }
       descuento = descuentoDeCupon(cupon, subtotal);
     }
 
     // Shipping is priced by the method's own configured cost; an empty cart ships nothing.
     const hayItems = Boolean(cart.items && cart.items.length > 0);
-    const metodoEnvio = metodoElegido ?? (hayItems ? await this.resolverMetodoEnvio(undefined, tipoEnvio) : null);
+    const metodoEnvio =
+      metodoElegido ??
+      (hayItems ? await this.resolverMetodoEnvio(undefined, tipoEnvio, { incluirInactivos: posterior }) : null);
     const envio = metodoEnvio && hayItems ? costoDeEnvio(metodoEnvio, subtotal) : 0;
 
     const totalFinal = Number(Math.max(0, subtotal - descuento + envio).toFixed(2));
