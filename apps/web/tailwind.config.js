@@ -1,3 +1,5 @@
+import colors from 'tailwindcss/colors.js'
+
 /** @type {import('tailwindcss').Config} */
 export default {
   content: [
@@ -7,6 +9,9 @@ export default {
   theme: {
     extend: {
       colors: {
+        // The product's neutrals are warm: Tailwind's cool blue-greys are mapped onto stone everywhere.
+        gray: colors.stone,
+        slate: colors.stone,
         brand: {
           50: '#FAF8F5',
           100: '#F5F0E6',

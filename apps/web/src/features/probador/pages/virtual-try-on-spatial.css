@@ -1,5 +1,5 @@
 .spatial-try-on {
-  --studio-ink: #252b23;
+  --studio-ink: #1b1915;
   --studio-olive: #5a644f;
   --studio-paper: #f5f1e8;
   color: var(--studio-ink);
@@ -24,7 +24,7 @@
 .spatial-try-on__guide-toggle { gap: .45rem; cursor: pointer; }
 .spatial-try-on__guide-toggle input { accent-color: var(--studio-olive); }
 .spatial-try-on__angle { font-variant-numeric: tabular-nums; }
-.spatial-try-on__selection { display: flex; flex-direction: column; justify-content: center; padding: clamp(1.5rem, 4vw, 3rem); color: #f8f5eb; background: linear-gradient(145deg, rgb(41 47 38 / 95%), rgb(31 36 30 / 97%)); backdrop-filter: blur(18px); }
+.spatial-try-on__selection { display: flex; flex-direction: column; justify-content: center; padding: clamp(1.5rem, 4vw, 3rem); color: #f8f5eb; background: linear-gradient(145deg, rgb(33 30 25 / 96%), rgb(17 16 14 / 98%)); backdrop-filter: blur(18px); }
 .spatial-try-on__collection-label { color: #d4d4c6; font-size: .61rem; letter-spacing: .15em; text-transform: uppercase; }
 .spatial-try-on__selection h2 { margin: .75rem 0 .5rem; font: 400 clamp(1.9rem, 3vw, 3rem)/1.05 Georgia, 'Times New Roman', serif; }
 .spatial-try-on__price { color: #f7f4eb; font-size: .92rem; font-variant-numeric: tabular-nums; }

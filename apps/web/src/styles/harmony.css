@@ -95,6 +95,9 @@ body [role="dialog"] > div, body [class*="fixed"][class*="inset-0"] > div[class*
 /* ---------- Store chrome ---------- */
 body nav[class*="sticky"], body header[class*="sticky"] { backdrop-filter: blur(14px); }
 
+/* Ratings use the champagne accent instead of the default amber */
+body svg[class*="fill-amber-400"] { fill: var(--h-champagne); color: var(--h-champagne); }
+
 /* ---------- Focus and motion ---------- */
 body :is(button, a, input, select, textarea):focus-visible { outline: 2px solid var(--h-champagne); outline-offset: 3px; }
 @media (prefers-reduced-motion: reduce) {

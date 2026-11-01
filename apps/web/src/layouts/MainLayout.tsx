@@ -356,7 +356,7 @@ export const MainLayout: React.FC = () => {
                 </Link>
                 <Link
                   to={storePrefix ? `${storePrefix}/registro` : "/registro"}
-                  className="bg-stone-900 text-white hover:bg-stone-800 px-3 py-1.5 transition-colors font-medium hidden sm:inline-block"
+                  className="bg-stone-900 text-white hover:bg-stone-800 rounded-full px-5 py-2 transition-colors font-medium hidden sm:inline-block"
                 >
                   Crear Cuenta
                 </Link>
@@ -447,7 +447,7 @@ export const MainLayout: React.FC = () => {
                   <Link
                     to={storePrefix ? `${storePrefix}/registro` : "/registro"}
                     onClick={() => setMenuMovilAbierto(false)}
-                    className="w-full text-center py-2 bg-stone-900 text-white hover:bg-stone-800 transition-colors font-medium text-xs uppercase tracking-widest"
+                    className="w-full text-center py-2.5 rounded-full bg-stone-900 text-white hover:bg-stone-800 transition-colors font-medium text-xs uppercase tracking-widest"
                   >
                     Crear Cuenta
                   </Link>
