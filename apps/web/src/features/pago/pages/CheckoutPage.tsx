@@ -28,16 +28,10 @@ import { OrdenRespuesta } from '../types';
 import { getImageUrl } from '../../../lib/utils';
 import { useNetworkStatus } from '../../../hooks/useNetworkStatus';
 import { pagosConfigApi, StorePublicPaymentConfig } from '../../tiendas/services/pagos-config.api';
-import { shippingApi, MetodoEnvio } from '../../envios/services/shipping.api';
+import { shippingApi, CotizacionEnvio } from '../../envios/services/shipping.api';
 import { COMPROBANTE_VALIDO, tipoDePago } from '../../../lib/paymentKind';
 
 import { toast } from 'sonner';
-// Shipping rules the API applies when it charges the order: standard is free from $200 and $15 below it, express is always $30.
-const FREE_SHIPPING_FROM = 200;
-const STANDARD_SHIPPING = 15;
-const EXPRESS_SHIPPING = 30;
-// Ids from the original seed, used only when the API lists no shipping methods.
-const LEGACY_METHOD_IDS = { ESTANDAR: 'e1000000-0000-0000-0000-000000000001', EXPRESS: 'e2000000-0000-0000-0000-000000000002' };
 
 declare global {
   interface Window {
@@ -94,11 +88,12 @@ export const CheckoutPage: React.FC = () => {
   const [errorPago, setErrorPago] = useState<string | null>(null);
   const [ordenCompletada, setOrdenCompletada] = useState<OrdenRespuesta | null>(null);
   const [configPago, setConfigPago] = useState<StorePublicPaymentConfig | null>(null);
-  const [metodosEnvio, setMetodosEnvio] = useState<MetodoEnvio[]>([]);
+  // Shipping prices come from the API's quote, the same rules the payment applies when it charges the order.
+  const [cotizacion, setCotizacion] = useState<CotizacionEnvio | null>(null);
+  const [errorCotizacion, setErrorCotizacion] = useState(false);
 
   useEffect(() => {
     cargarCarrito();
-    shippingApi.obtenerMetodos().then(setMetodosEnvio).catch(() => setMetodosEnvio([]));
 
     // Consultar modalidad de pago de la tienda activa (Modelo A vs Modelo B)
     const matchSlug = window.location.pathname.match(/\/t\/([^/]+)/);
@@ -257,10 +252,32 @@ export const CheckoutPage: React.FC = () => {
   useEffect(() => {
     if (!qrDisponible && metodoPago === 'qr') setMetodoPago('tarjeta');
   }, [qrDisponible, metodoPago]);
-  const costoEnvio = esExpress ? EXPRESS_SHIPPING : (subtotal >= FREE_SHIPPING_FROM || subtotal === 0 ? 0 : STANDARD_SHIPPING);
+  useEffect(() => {
+    let vigente = true;
+    setErrorCotizacion(false);
+    shippingApi
+      .cotizarEnvio(subtotal)
+      .then((c) => vigente && setCotizacion(c))
+      .catch(() => {
+        if (vigente) {
+          setCotizacion(null);
+          setErrorCotizacion(true);
+        }
+      });
+    return () => {
+      vigente = false;
+    };
+  }, [subtotal]);
+  const opcionDe = (tipo: 'ESTANDAR' | 'EXPRESS') =>
+    cotizacion?.opciones.find((o) => (tipo === 'EXPRESS' ? o.esExpress : o.esEstandar));
+  const opcionElegida = opcionDe(tipoEnvio) ?? opcionDe('ESTANDAR') ?? cotizacion?.opciones[0];
+  const envioListo = subtotal === 0 || cotizacion !== null;
+  const costoEnvio = subtotal === 0 ? 0 : opcionElegida?.costoFinal ?? 0;
   const totalFinal = Number(Math.max(0, (totalConDescuento || subtotal) + costoEnvio).toFixed(2));
-  const metodoEnvioId = metodosEnvio.find((m) => (esExpress ? /express/i : /est[aá]ndar/i).test(m.nombre))?.id
-    ?? (esExpress ? LEGACY_METHOD_IDS.EXPRESS : LEGACY_METHOD_IDS.ESTANDAR);
+  const metodoEnvioId = opcionElegida?.id;
+  useEffect(() => {
+    if (cotizacion && !opcionDe('EXPRESS') && tipoEnvio === 'EXPRESS') setTipoEnvio('ESTANDAR');
+  }, [cotizacion, tipoEnvio]);
 
   const limpiarMensajeError = (rawMsg: any): string => {
     const msg = typeof rawMsg === 'string' ? rawMsg : (rawMsg?.message || '');
@@ -772,56 +789,45 @@ export const CheckoutPage: React.FC = () => {
                   <Truck className="w-5 h-5 text-gray-900" />
                   <h2 className="font-serif text-xl font-normal text-stone-900">2. Método de Envío</h2>
                 </div>
-                {subtotal >= FREE_SHIPPING_FROM && (
+                {cotizacion?.calificaEnvioGratis && (
                   <span className="text-xs bg-emerald-100 text-emerald-800 font-bold px-2.5 py-1 rounded-full">
                     ¡Califica a Envío Estándar Gratis!
                   </span>
                 )}
               </div>
 
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                {/* Opción Estándar */}
-                <button
-                  type="button"
-                  onClick={() => setTipoEnvio('ESTANDAR')}
-                  className={`p-4 rounded-xl border-2 text-left transition flex flex-col justify-between ${
-                    tipoEnvio === 'ESTANDAR'
-                      ? 'border-stone-900 bg-[#F2ECE1] shadow-xs'
-                      : 'border-[#D5CCC0] hover:border-stone-400 bg-white'
-                  }`}
-                >
-                  <div className="flex items-center justify-between mb-2">
-                    <span className="text-sm font-medium text-stone-900">Envío Estándar Atelier</span>
-                    <span className="font-semibold text-stone-900 text-xs uppercase tracking-luxury">
-                      {subtotal >= FREE_SHIPPING_FROM ? 'Cortesía' : `$${STANDARD_SHIPPING.toFixed(2)}`}
-                    </span>
-                  </div>
-                  <p className="text-xs text-stone-500 font-light">2 a 3 días hábiles en empaque rígido protegido</p>
-                </button>
+              {errorCotizacion && (
+                <p className="text-xs text-rose-700">No pudimos calcular el envío. Recarga la página para intentarlo de nuevo.</p>
+              )}
+              {!cotizacion && !errorCotizacion && subtotal > 0 && <p className="text-xs text-stone-500">Calculando el envío…</p>}
 
-                {/* Opción Express */}
-                <button
-                  type="button"
-                  onClick={() => setTipoEnvio('EXPRESS')}
-                  className={`p-4 rounded-xs border text-left transition flex flex-col justify-between ${
-                    tipoEnvio === 'EXPRESS'
-                      ? 'border-stone-900 bg-[#F2ECE1] shadow-xs'
-                      : 'border-[#D5CCC0] hover:border-stone-400 bg-white'
-                  }`}
-                >
-                  <div className="flex items-center justify-between mb-2">
-                    <div className="flex items-center gap-1.5">
-                      <span className="text-sm font-medium text-stone-900">Envío Express Prioritario</span>
-                      <span className="text-[9px] uppercase tracking-luxury bg-stone-900 text-white px-1.5 py-0.5">
-                        24h
-                      </span>
-                    </div>
-                    <span className="font-semibold text-stone-900 text-xs">
-                      ${EXPRESS_SHIPPING.toFixed(2)}
-                    </span>
-                  </div>
-                  <p className="text-xs text-stone-500 font-light">Entrega prioritaria asegurada en 24 horas</p>
-                </button>
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                {(['ESTANDAR', 'EXPRESS'] as const).map((tipo) => {
+                  const opcion = opcionDe(tipo);
+                  if (!opcion) return null;
+                  const elegido = opcionElegida?.id === opcion.id;
+                  return (
+                    <button
+                      key={tipo}
+                      type="button"
+                      onClick={() => setTipoEnvio(tipo)}
+                      aria-pressed={elegido}
+                      className={`p-4 rounded-xl border-2 text-left transition flex flex-col justify-between ${
+                        elegido ? 'border-stone-900 bg-[#F2ECE1] shadow-xs' : 'border-[#D5CCC0] hover:border-stone-400 bg-white'
+                      }`}
+                    >
+                      <div className="flex items-center justify-between mb-2 gap-2">
+                        <span className="text-sm font-medium text-stone-900">{opcion.nombre}</span>
+                        <span className="font-semibold text-stone-900 text-xs uppercase tracking-luxury shrink-0">
+                          {opcion.costoFinal === 0 ? 'Cortesía' : `$${opcion.costoFinal.toFixed(2)}`}
+                        </span>
+                      </div>
+                      <p className="text-xs text-stone-500 font-light">
+                        {[opcion.tiempoEstimado, opcion.descripcion].filter(Boolean).join(' · ')}
+                      </p>
+                    </button>
+                  );
+                })}
               </div>
             </div>
 
@@ -1182,7 +1188,7 @@ export const CheckoutPage: React.FC = () => {
               ) : (
                 <button
                   type="submit"
-                  disabled={procesando || items.length === 0 || cargandoEmbedded || !isOnline || (metodoPago === 'qr' && (!qrDisponible || !comprobanteValido))}
+                  disabled={procesando || items.length === 0 || cargandoEmbedded || !isOnline || !envioListo || (metodoPago === 'qr' && (!qrDisponible || !comprobanteValido))}
                   className={`w-full text-xs uppercase tracking-luxury py-4 px-6 rounded-none text-center shadow-sm transition flex items-center justify-center gap-2 font-medium ${
                     !isOnline
                       ? 'bg-stone-300 text-stone-500 cursor-not-allowed border border-stone-300'

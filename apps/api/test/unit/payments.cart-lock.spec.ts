@@ -91,3 +91,48 @@ describe('PaymentsService coupon redemption', () => {
     await expect((service as any).registrarUsoCupon(manager, cupon, 'u1', 'o1', 100, false)).resolves.toBeUndefined();
   });
 });
+
+describe('PaymentsService QR availability and method lookup', () => {
+  const build = (extra: { query?: jest.Mock; metodos?: any[] } = {}) => {
+    jest.spyOn(TenantContext, 'require').mockReturnValue('tenant-luna');
+    const none = {} as any;
+    const methodRepo = { find: jest.fn().mockResolvedValue(extra.metodos ?? []) };
+    const dataSource = { query: extra.query ?? jest.fn().mockResolvedValue([]) };
+    return new PaymentsService(none, methodRepo as any, none, none, none, none, none, none, none, none, none, none, none, none, dataSource as any, { get: () => undefined } as any);
+  };
+
+  afterEach(() => {
+    jest.restoreAllMocks();
+    delete process.env.PLATFORM_PAYMENT_QR_URL;
+    delete process.env.PLATFORM_PAYMENT_HOLDER;
+    delete process.env.PLATFORM_PAYMENT_BANK;
+  });
+
+  it('refuses a QR order when neither the store nor the platform has a QR', async () => {
+    const service = build({ query: jest.fn().mockResolvedValue([{ qr_url: '' }]) });
+    await expect(service.pagoQr('user-1', {} as any)).rejects.toThrow(/aún no tiene el pago por QR/);
+  });
+
+  it('accepts the store having its own QR', async () => {
+    const service = build({ query: jest.fn().mockResolvedValue([{ qr_url: '/uploads/pagos/qr.webp' }]) });
+    expect(await (service as any).qrDisponible()).toBe(true);
+  });
+
+  it('accepts the platform account as the QR of a store that has none', async () => {
+    process.env.PLATFORM_PAYMENT_QR_URL = '/uploads/plataforma/qr.webp';
+    process.env.PLATFORM_PAYMENT_HOLDER = 'Plataforma';
+    process.env.PLATFORM_PAYMENT_BANK = 'Banco';
+    const service = build({ query: jest.fn().mockResolvedValue([{ qr_url: null }]) });
+    expect(await (service as any).qrDisponible()).toBe(true);
+  });
+
+  it('finds the card method even when the store named it after a brand', async () => {
+    const service = build({ metodos: [{ id: 'm-cash', nombre: 'Efectivo contra entrega' }, { id: 'm-visa', nombre: 'Visa / Mastercard' }] });
+    expect(await (service as any).resolverMetodoPagoId('tarjeta')).toBe('m-visa');
+  });
+
+  it('never gives the card payment to the QR or cash methods', async () => {
+    const service = build({ metodos: [{ id: 'm-qr', nombre: 'QR Simple / Transferencia' }, { id: 'm-cash', nombre: 'Efectivo contra entrega' }] });
+    await expect((service as any).resolverMetodoPagoId('tarjeta')).rejects.toThrow(/no está disponible/);
+  });
+});

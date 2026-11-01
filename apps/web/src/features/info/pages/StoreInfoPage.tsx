@@ -1,7 +1,8 @@
-import React from 'react';
+import React, { useEffect, useState } from 'react';
 import { Link, Navigate, useParams } from 'react-router-dom';
 import { ChevronRight } from 'lucide-react';
 import { useTenantStore } from '../../../hooks/useTenantStore';
+import { shippingApi, CotizacionEnvio } from '../../envios/services/shipping.api';
 
 type Section = { title: string; body: string[] };
 type Topic = { label: string; headline: string; intro: string; sections: Section[] };
@@ -12,15 +13,8 @@ const TOPICS: Record<string, Topic> = {
     label: 'Envíos y entregas',
     headline: 'Tu pedido, bien cuidado hasta tu puerta',
     intro: 'Cada prenda sale protegida en empaque rígido y puedes seguir su recorrido en todo momento.',
+    // The shipping methods and their prices are the store's own: they are loaded from its quote, not written here.
     sections: [
-      {
-        title: 'Envío estándar',
-        body: ['Llega en 2 a 3 días hábiles, en empaque rígido protegido. Es gratis en compras desde $200; por debajo de ese monto cuesta $15.00.'],
-      },
-      {
-        title: 'Envío express',
-        body: ['Entrega prioritaria asegurada en 24 horas, con un costo de $30.00 que verás antes de pagar.'],
-      },
       {
         title: 'Sigue tu pedido',
         body: [
@@ -129,6 +123,16 @@ export const StoreInfoPage: React.FC = () => {
   const { tema = '' } = useParams<{ tema: string }>();
   const { getStoreUrl } = useTenantStore();
   const topic = TOPICS[tema];
+  const [cotizacion, setCotizacion] = useState<CotizacionEnvio | null>(null);
+
+  useEffect(() => {
+    if (tema !== 'envios') return;
+    let vigente = true;
+    shippingApi.cotizarEnvio(0).then((c) => vigente && setCotizacion(c)).catch(() => vigente && setCotizacion(null));
+    return () => {
+      vigente = false;
+    };
+  }, [tema]);
 
   if (!topic) return <Navigate to={getStoreUrl('/info/envios')} replace />;
 
@@ -163,6 +167,21 @@ export const StoreInfoPage: React.FC = () => {
           <p className="mt-3 text-sm text-stone-600 font-light max-w-xl leading-relaxed">{topic.intro}</p>
 
           <div className="mt-10 space-y-8">
+            {tema === 'envios' &&
+              cotizacion?.opciones.map((o) => (
+                <section key={o.id} className="border-t border-stone-200 pt-6">
+                  <h2 className="font-serif text-xl font-normal text-stone-900">{o.nombre}</h2>
+                  <p className="mt-2 max-w-xl text-sm font-light leading-relaxed text-stone-600">
+                    {[o.tiempoEstimado, o.descripcion]
+                      .filter((t): t is string => Boolean(t))
+                      .map((t) => t.trim().replace(/\.+$/, ''))
+                      .join('. ')}.{' '}
+                    {o.esEstandar
+                      ? `Gratis en compras desde $${cotizacion.umbralEnvioGratis.toFixed(2)}; por debajo de ese monto cuesta $${o.costoOriginal.toFixed(2)}.`
+                      : `Cuesta $${o.costoOriginal.toFixed(2)}.`}
+                  </p>
+                </section>
+              ))}
             {topic.sections.map((s) => (
               <section key={s.title} className="border-t border-stone-200 pt-6">
                 <h2 className="font-serif text-xl font-normal text-stone-900">{s.title}</h2>

@@ -27,6 +27,7 @@ import { CouponUsageEntity } from '../cupones/entities/coupon-usage.entity';
 import { descuentoDeCupon, motivoCuponNoAplicable } from '../cupones/coupon-rules';
 import { costoDeEnvio, diasDeEntrega, elegirMetodoPorTipo } from '../envios/shipping-rules';
 import { tipoDePago } from './payment-kinds';
+import { cuentaDeLaPlataforma } from '../tiendas/platform-account';
 import { UserEntity } from '../usuarios/entities/user.entity';
 import { ShippingEntity } from '../envios/entities/shipping.entity';
 import { ShippingMethodEntity } from '../envios/entities/shipping-method.entity';
@@ -236,7 +237,9 @@ export class PaymentsService {
   /** The payment method row of a kind (card, cash on delivery, QR), found by what the store named it. */
   private async resolverMetodoPagoId(tipo: 'tarjeta' | 'contra_entrega' | 'qr'): Promise<string> {
     const activos = await this.paymentMethodRepo.find({ where: { activo: true } });
-    const metodo = activos.find((m) => tipoDePago(m.nombre) === tipo);
+    let metodo = activos.find((m) => tipoDePago(m.nombre) === tipo);
+    // An online card method can carry any brand name ("Visa", "Pago en línea"): it is the active one that is neither QR nor cash.
+    if (!metodo && tipo === 'tarjeta') metodo = activos.find((m) => tipoDePago(m.nombre) === 'otro');
     if (!metodo) {
       throw new BadRequestException('Este método de pago no está disponible en la tienda. Elige otro o contáctala.');
     }
@@ -992,7 +995,17 @@ export class PaymentsService {
   // =========================================================================
   // PAGO CON QR SIMPLE (TRANSFERENCIA BANCARIA INMEDIATA)
   // =========================================================================
+  /** Whether this store, or the platform on its behalf, has a QR account to be paid into. */
+  private async qrDisponible(): Promise<boolean> {
+    const filas = await this.dataSource.query('SELECT qr_url FROM tienda WHERE id = $1', [this.tid]);
+    return Boolean(filas[0]?.qr_url && String(filas[0].qr_url).trim() !== '') || cuentaDeLaPlataforma() !== null;
+  }
+
   async pagoQr(usuarioId: string, dto: PagoQrDto) {
+    // The screen hides the option, but the API is what decides: no QR account, no QR order.
+    if (!(await this.qrDisponible())) {
+      throw new BadRequestException('Esta tienda aún no tiene el pago por QR disponible. Elige otro método de pago.');
+    }
     const { subtotal, descuento, envio, totalFinal, cart, cupon, metodoEnvio } =
       await this.calcularTotalesCarrito(usuarioId, dto.cuponId, dto.metodoEnvioId, dto.tipoEnvio);
 
