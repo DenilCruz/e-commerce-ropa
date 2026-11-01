@@ -55,7 +55,7 @@ export const GarmentARLiveViewer: React.FC<GarmentARLiveViewerProps> = ({
   const [enviandoPrompt, setEnviandoPrompt] = useState(false);
   const [mostrarPipLocal, setMostrarPipLocal] = useState(true);
   const [estadoConexion, setEstadoConexion] = useState<string>(
-    'Sincronizando cámara con Decart AI a 30 FPS...',
+    'Preparando tu cámara...',
   );
 
   // Referencias del cliente Decart y stream
@@ -108,7 +108,7 @@ export const GarmentARLiveViewer: React.FC<GarmentARLiveViewerProps> = ({
   // Iniciar Lucy 2.5 Realtime
   const startLucy = async () => {
     setError(null);
-    setEstadoConexion('Solicitando token seguro de sesión WebRTC al backend...');
+    setEstadoConexion('Iniciando una sesión segura...');
 
     // 1. Obtener token seguro de sesión WebRTC emitido por el backend
     let sessionToken = '';
@@ -116,7 +116,7 @@ export const GarmentARLiveViewer: React.FC<GarmentARLiveViewerProps> = ({
       const res = await probadorApi.obtenerTokenDecart();
       if (!res.configured || !res.apiKey) {
         setError(
-          'El servicio Lucy 2.5 no está disponible: la clave DECART_API_KEY debe configurarse en las variables de entorno del servidor (backend).',
+          'El probador en vivo no está disponible en este momento. Inténtalo de nuevo en unos minutos.',
         );
         return;
       }
@@ -153,7 +153,7 @@ export const GarmentARLiveViewer: React.FC<GarmentARLiveViewerProps> = ({
         await localVideoRef.current.play().catch(() => {});
       }
 
-      setEstadoConexion('Negociando enlace WebRTC y sincronizando con Lucy 2.5...');
+      setEstadoConexion('Conectando con tu probador...');
 
       // 3. Crear cliente de Decart usando el token efímero del backend
       const client = createDecartClient({
@@ -176,18 +176,18 @@ export const GarmentARLiveViewer: React.FC<GarmentARLiveViewerProps> = ({
         onConnectionChange: (state: any) => {
           console.log('[Decart] Connection state:', state);
           if (state === 'connecting') {
-            setEstadoConexion('Estableciendo conexión WebRTC con Lucy 2.5...');
+            setEstadoConexion('Casi listo, estableciendo la conexión...');
           } else if (state === 'connected') {
             setEstadoConexion('Canal conectado. Recibiendo primeros fotogramas generados...');
           }
         },
         onQueuePosition: (pos: any) => {
           console.log('[Decart] Queue position:', pos);
-          setEstadoConexion(`En cola en servidores Decart AI (Turno: ${pos?.position ?? 1})...`);
+          setEstadoConexion(`Hay mucha gente probándose prendas. Tu turno: ${pos?.position ?? 1}...`);
         },
         onCapacityWait: (wait: any) => {
           console.log('[Decart] Capacity wait:', wait);
-          setEstadoConexion('Servidores Decart con alta demanda, esperando disponibilidad...');
+          setEstadoConexion('Alta demanda en este momento, esperando tu turno...');
         },
         onRemoteStream: (editedStream: MediaStream) => {
           if (remoteVideoRef.current) {
@@ -204,11 +204,7 @@ export const GarmentARLiveViewer: React.FC<GarmentARLiveViewerProps> = ({
       realtimeClientRef.current = realtimeClient;
     } catch (err: any) {
       console.error('Error al iniciar Lucy 2.5:', err);
-      const msg =
-        err?.message?.includes('401') || err?.message?.includes('Unauthorized')
-          ? 'Error de autenticación con el servicio Decart AI. Verifica las credenciales en el servidor.'
-          : err?.message || 'Error al conectar con el servicio Lucy 2.5 de Decart AI.';
-      setError(msg);
+      setError('No pudimos iniciar el probador en vivo. Inténtalo de nuevo en unos minutos.');
       stopAll();
     }
   };
@@ -262,24 +258,24 @@ export const GarmentARLiveViewer: React.FC<GarmentARLiveViewerProps> = ({
               <Sparkles className="w-10 h-10 text-[#C5B59E] animate-pulse" />
             </div>
             <span className="absolute -top-2 -right-3 px-2.5 py-0.5 bg-[#9B7B54] text-white text-[9px] font-serif uppercase tracking-[0.2em] font-medium rounded-xs shadow-md">
-              Lucy 2.5
+              Nuevo
             </span>
           </div>
 
           <div className="space-y-2 max-w-lg">
             <h3 className="text-2xl sm:text-3xl font-serif tracking-wider text-white">
-              <span>Probador en Vivo </span>
-              <span className="italic font-normal text-[#C5B59E]">Lucy 2.5</span>
+              <span>Probador en vivo, </span>
+              <span className="italic font-normal text-[#C5B59E]">al instante</span>
             </h3>
             <p className="text-xs sm:text-sm text-[#C5B59E]/80 font-light leading-relaxed">
               Pruébate <strong className="text-white font-medium">{garmentName}</strong> en video en tiempo real
-              frente a tu cámara con la IA generativa de Decart AI.
+              frente a tu cámara, con inteligencia artificial.
             </p>
           </div>
 
           {/* Badges de capacidades técnicas AURA */}
           <div className="flex flex-wrap items-center justify-center gap-2 text-[10px] font-serif tracking-wider uppercase text-[#E8DDCB]">
-            <span className="px-3.5 py-1.5 bg-[#24221F] border border-[#3A3632] rounded-xs">⚡ 30 FPS en Vivo</span>
+            <span className="px-3.5 py-1.5 bg-[#24221F] border border-[#3A3632] rounded-xs">En vivo</span>
             <span className="px-3.5 py-1.5 bg-[#24221F] border border-[#3A3632] rounded-xs">👗 Drapeado de Atelier</span>
             <span className="px-3.5 py-1.5 bg-[#24221F] border border-[#3A3632] rounded-xs">HD 1280×720</span>
           </div>
@@ -302,7 +298,7 @@ export const GarmentARLiveViewer: React.FC<GarmentARLiveViewerProps> = ({
               {connecting ? (
                 <>
                   <RefreshCw className="w-4 h-4 animate-spin text-white" />
-                  <span>Conectando a Lucy 2.5...</span>
+                  <span>Conectando...</span>
                 </>
               ) : (
                 <>
@@ -347,7 +343,7 @@ export const GarmentARLiveViewer: React.FC<GarmentARLiveViewerProps> = ({
           <div className="absolute inset-0 bg-[#0D0C0B]/90 backdrop-blur-md flex flex-col items-center justify-center p-6 text-center text-white space-y-4">
             <RefreshCw className="w-10 h-10 text-[#C5B59E] animate-spin" />
             <div className="space-y-1">
-              <h4 className="text-lg font-serif tracking-wide text-white">Iniciando canal de video con Lucy 2.5</h4>
+              <h4 className="text-lg font-serif tracking-wide text-white">Preparando tu probador en vivo</h4>
               <p className="text-xs text-[#C5B59E]/70 font-light">
                 {estadoConexion}
               </p>
@@ -376,9 +372,9 @@ export const GarmentARLiveViewer: React.FC<GarmentARLiveViewerProps> = ({
         <div className="absolute top-4 left-4 z-30 flex items-center gap-2">
           <div className="flex items-center gap-2 px-3 py-1.5 bg-[#161513]/80 backdrop-blur-md border border-[#3A3632] rounded-xl text-xs text-white">
             <div className="w-2.5 h-2.5 rounded-full bg-[#9B7B54] animate-pulse" />
-            <span className="font-serif tracking-wider">Lucy 2.5 Live</span>
+            <span className="font-serif tracking-wider">Probador en vivo</span>
             <span className="text-[9px] text-[#D5C4AC] font-serif uppercase bg-[#9B7B54]/20 px-2 py-0.5 rounded-xs border border-[#9B7B54]/30">
-              Decart AI
+              IA
             </span>
           </div>
 

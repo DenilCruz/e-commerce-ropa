@@ -141,10 +141,10 @@ export const CartPage: React.FC = () => {
           </div>
           <div className="space-y-2">
             <h2 className="font-serif text-2xl text-stone-900 font-normal">
-              Tu bolsa de compras está vacía
+              Tu bolsa te está esperando
             </h2>
             <p className="text-xs text-stone-500 font-light max-w-md mx-auto leading-relaxed">
-              Descubre nuestra colección permanente de alta costura, donde cada silueta está diseñada para perdurar.
+              Cada pieza de AURA está pensada para durar. Elige la que te enamore y llévala a casa.
             </p>
           </div>
           <div>

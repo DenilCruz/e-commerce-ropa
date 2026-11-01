@@ -351,9 +351,9 @@ export const ResenasSection: React.FC<ResenasSectionProps> = ({ productoId }) =>
           {resenas.length === 0 ? (
             <div className="py-12 text-center bg-gray-50 rounded-2xl border border-dashed border-gray-200 p-8 space-y-2">
               <Star className="w-8 h-8 text-gray-300 mx-auto" />
-              <p className="text-sm font-semibold text-gray-700">Aún no hay opiniones</p>
+              <p className="text-sm font-semibold text-gray-700">Sé la primera opinión</p>
               <p className="text-xs text-gray-400 max-w-sm mx-auto">
-                Sé el primero en calificar este producto tras comprarlo.
+                Si ya tienes esta prenda, cuéntanos cómo te queda.
               </p>
             </div>
           ) : (

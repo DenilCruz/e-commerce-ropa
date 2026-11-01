@@ -110,7 +110,7 @@ export const FavoritosPage: React.FC = () => {
         <div>
           <div className="flex items-center gap-2 mb-1">
             <Heart className="w-5 h-5 text-rose-500 fill-rose-500" />
-            <h1 className="text-2xl font-light tracking-tight text-gray-900 uppercase">
+            <h1 className="font-serif text-3xl sm:text-4xl font-normal text-stone-900">
               Mis Favoritos
             </h1>
           </div>
@@ -166,18 +166,18 @@ export const FavoritosPage: React.FC = () => {
           <div className="w-16 h-16 bg-gray-100 rounded-full flex items-center justify-center mx-auto mb-5 text-gray-400">
             <HeartOff className="w-8 h-8" />
           </div>
-          <h2 className="text-lg font-light uppercase tracking-tight text-gray-900 mb-2">
-            Tu lista de deseos está vacía
+          <h2 className="font-serif text-2xl font-normal text-stone-900 mb-2">
+            Guarda lo que te enamora
           </h2>
           <p className="text-xs text-gray-500 font-light max-w-sm mx-auto mb-8 leading-relaxed">
-            Explora nuestra colección y guarda tus prendas preferidas haciendo clic en el corazón para comprarlas después.
+            Toca el corazón en cualquier prenda y la encontrarás aquí cuando estés listo para llevártela.
           </p>
           <Link
             to={getStoreUrl("/catalogo")}
             className="inline-flex items-center gap-2 bg-black text-white text-xs uppercase tracking-widest px-6 py-3.5 rounded-lg hover:bg-gray-800 transition-colors shadow-sm"
           >
             <ShoppingBag className="w-4 h-4" />
-            <span>Explorar Catálogo</span>
+            <span>Descubrir la colección</span>
           </Link>
         </div>
       ) : (

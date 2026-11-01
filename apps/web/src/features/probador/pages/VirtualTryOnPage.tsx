@@ -84,7 +84,7 @@ export const VirtualTryOnPage: React.FC = () => {
           Probador Virtual de Alta Costura
         </h1>
         <p className="text-xs sm:text-sm text-stone-600 font-light leading-relaxed">
-          Explora las imágenes de cada prenda y abre el flujo de prueba virtual para continuar con las opciones disponibles.
+          Mira cómo te queda cada prenda antes de decidir: gírala, compárala y pruébatela con tu propia foto.
         </p>
       </div>
 
@@ -135,14 +135,14 @@ export const VirtualTryOnPage: React.FC = () => {
             <span className="spatial-try-on__collection-label">{productoSeleccionado.categoria?.nombre || 'Colección'}</span>
             <h2>{productoSeleccionado.nombre}</h2>
             <p className="spatial-try-on__price">${Number(productoSeleccionado.precio).toFixed(2)}</p>
-            <p className="spatial-try-on__selection-note">Gira la imagen para explorar las fotografías disponibles. La guía visual es orientativa.</p>
+            <p className="spatial-try-on__selection-note">Gira la prenda para ver cada ángulo. Cuando quieras, pruébatela con tu foto.</p>
             <button
               onClick={() => { if (isOnline) setModalAbierto(true); }}
               disabled={!isOnline}
               className="spatial-try-on__launch"
             >
               <Sparkles className="w-4 h-4" />
-              <span>{isOnline ? 'Continuar con la prueba virtual' : 'Conexión requerida para IA'}</span>
+              <span>{isOnline ? 'Probármela ahora' : 'Conéctate para probártela'}</span>
             </button>
           </SpatialGlassCard>
         </div>

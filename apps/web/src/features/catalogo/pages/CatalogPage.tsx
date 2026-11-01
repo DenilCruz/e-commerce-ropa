@@ -286,7 +286,7 @@ export const CatalogPage: React.FC = () => {
       <div className="spatial-catalog space-y-8 pb-16">
       
       {/* Título Principal AURA */}
-      <div className="border-b border-[#E7E1D7] pb-6">
+      <div className="pb-6">
         <p className="text-[11px] uppercase tracking-luxury text-[#9B7B54] font-semibold mb-1">
           Colección Permanente
         </p>

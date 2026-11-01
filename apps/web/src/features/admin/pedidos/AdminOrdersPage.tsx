@@ -83,7 +83,7 @@ export const AdminOrdersPage: React.FC = () => {
     try {
       const comentario =
         window.prompt(
-          `Ingrese un comentario u observación para registrar en el historial de auditoría (HU-55) al cambiar a "${nuevoEstado}":`,
+          `Ingrese un comentario u observación para registrar en el historial de auditoría al cambiar a "${nuevoEstado}":`,
           `Actualizado por administrador a ${nuevoEstado}`,
         ) || undefined;
 
@@ -375,7 +375,7 @@ export const AdminOrdersPage: React.FC = () => {
                 <RotateCcw className="w-6 h-6" />
               </div>
               <div>
-                <h3 className="font-serif text-lg font-bold text-stone-900">Reembolsar Pago (HU-59)</h3>
+                <h3 className="font-serif text-lg font-bold text-stone-900">Reembolsar Pago</h3>
                 <p className="text-xs text-stone-500">Orden: {reembolsandoPedido.nro}</p>
               </div>
             </div>
@@ -549,7 +549,7 @@ export const AdminOrdersPage: React.FC = () => {
               {pedidoSeleccionado.historial && pedidoSeleccionado.historial.length > 0 && (
                 <div className="space-y-2 pt-2">
                   <span className="font-bold text-stone-900 uppercase text-[10px] tracking-wider block">
-                    Historial de Auditoría y Cambios de Estado (HU-55):
+                    Historial de Auditoría y Cambios de Estado:
                   </span>
                   <div className="bg-[#FAF8F5] p-3.5 rounded-2xl border border-[#E7E1D7] space-y-2.5">
                     {pedidoSeleccionado.historial.map((h: HistorialAuditoria, idx: number) => (

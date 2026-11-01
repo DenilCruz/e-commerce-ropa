@@ -39,7 +39,7 @@ export const ProductDetailPage: React.FC = () => {
   
   // Acordeones de información editorial
   const [seccionAbierta, setSeccionAbierta] = useState<string>('descripcion');
-  const [resumenResenas, setResumenResenas] = useState<ResumenResenas>({ promedio: 5.0, total: 2 });
+  const [resumenResenas, setResumenResenas] = useState<ResumenResenas>({ promedio: 0, total: 0 });
   const [acordeonResenasAbierto, setAcordeonResenasAbierto] = useState(true);
 
   // Probador Virtual IA
@@ -193,7 +193,7 @@ export const ProductDetailPage: React.FC = () => {
               mode="drag-and-hover-orbit"
               controls
               onAngleChange={(angle) => setAnguloVista(Math.round(angle))}
-              objectFit="cover"
+              objectFit="contain"
               className="spatial-product-detail__sequence"
             />
             {producto.destacado && (
@@ -248,22 +248,24 @@ export const ProductDetailPage: React.FC = () => {
               </span>
             </div>
 
-            {/* Estrellas Rápidas 5★ */}
-            <div className="flex items-center gap-2 pt-1">
-              <div className="flex items-center text-amber-500">
-                {[1, 2, 3, 4, 5].map((s) => (
-                  <Star key={s} className="w-3.5 h-3.5 fill-amber-400 text-amber-400" />
-                ))}
+            {/* Valoración real: solo aparece cuando el producto tiene reseñas */}
+            {resumenResenas.total > 0 && (
+              <div className="flex items-center gap-2 pt-1">
+                <div className="flex items-center">
+                  {[1, 2, 3, 4, 5].map((s) => (
+                    <Star key={s} className={`w-3.5 h-3.5 ${s <= Math.round(resumenResenas.promedio) ? 'fill-amber-400 text-amber-400' : 'text-stone-300'}`} />
+                  ))}
+                </div>
+                <span className="text-xs font-semibold text-stone-800">{Number(resumenResenas.promedio).toFixed(1)}</span>
+                <span className="text-xs text-stone-400">·</span>
+                <a
+                  href="#acordeon-resenas"
+                  className="text-xs text-stone-500 hover:text-stone-900 underline transition-colors"
+                >
+                  {resumenResenas.total} {resumenResenas.total === 1 ? 'opinión verificada' : 'opiniones verificadas'}
+                </a>
               </div>
-              <span className="text-xs font-semibold text-stone-800">5.0</span>
-              <span className="text-xs text-stone-400">·</span>
-              <a 
-                href="#acordeon-resenas" 
-                className="text-xs text-stone-500 hover:text-stone-900 underline transition-colors"
-              >
-                {resumenResenas.total || 2} opiniones verificadas
-              </a>
-            </div>
+            )}
           </div>
 
           {/* Selector de Color (Swatches Circulares con Anillo) */}
@@ -487,12 +489,16 @@ export const ProductDetailPage: React.FC = () => {
               >
                 <div className="flex items-center gap-2">
                   <span>Reseñas de Clientes</span>
-                  <div className="flex text-amber-500">
-                    {[1, 2, 3, 4, 5].map((s) => (
-                      <Star key={s} className="w-3 h-3 fill-amber-400 text-amber-400" />
-                    ))}
-                  </div>
-                  <span className="text-[10px] text-stone-500">({resumenResenas.total || 2})</span>
+                  {resumenResenas.total > 0 && (
+                    <>
+                      <div className="flex">
+                        {[1, 2, 3, 4, 5].map((s) => (
+                          <Star key={s} className={`w-3 h-3 ${s <= Math.round(resumenResenas.promedio) ? 'fill-amber-400 text-amber-400' : 'text-stone-300'}`} />
+                        ))}
+                      </div>
+                      <span className="text-[10px] text-stone-500">({resumenResenas.total})</span>
+                    </>
+                  )}
                 </div>
                 <span className="text-base font-light">{acordeonResenasAbierto ? '−' : '+'}</span>
               </button>

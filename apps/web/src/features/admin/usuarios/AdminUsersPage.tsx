@@ -302,8 +302,8 @@ export const AdminUsersPage: React.FC = () => {
               <tr>
                 <th className="px-6 py-3.5 text-left text-[10px] font-bold text-stone-600 uppercase tracking-wider">Usuario</th>
                 <th className="px-6 py-3.5 text-left text-[10px] font-bold text-stone-600 uppercase tracking-wider">Teléfono</th>
-                <th className="px-6 py-3.5 text-left text-[10px] font-bold text-stone-600 uppercase tracking-wider">Rol (HU-17)</th>
-                <th className="px-6 py-3.5 text-left text-[10px] font-bold text-stone-600 uppercase tracking-wider">Estado (HU-16)</th>
+                <th className="px-6 py-3.5 text-left text-[10px] font-bold text-stone-600 uppercase tracking-wider">Rol</th>
+                <th className="px-6 py-3.5 text-left text-[10px] font-bold text-stone-600 uppercase tracking-wider">Estado</th>
                 <th className="px-6 py-3.5 text-left text-[10px] font-bold text-stone-600 uppercase tracking-wider">Registrado</th>
                 <th className="px-6 py-3.5 text-right text-[10px] font-bold text-stone-600 uppercase tracking-wider">Acciones</th>
               </tr>

@@ -230,7 +230,7 @@ export const CheckoutPage: React.FC = () => {
       },
       (err) => {
         setGeolocalizando(false);
-        alert('No se pudo acceder a tu ubicación GPS: ' + err.message);
+        alert('No pudimos acceder a tu ubicación. Revisa los permisos del navegador e inténtalo de nuevo.');
       },
       { enableHighAccuracy: true, timeout: 10000 }
     );
@@ -294,7 +294,7 @@ export const CheckoutPage: React.FC = () => {
 
       const stripe = window.Stripe ? window.Stripe(STRIPE_PUBLIC_KEY) : null;
       if (!stripe) {
-        throw new Error('El SDK de Stripe no está disponible en la página.');
+        throw new Error('No pudimos cargar el formulario de pago. Recarga la página e inténtalo de nuevo.');
       }
 
       const checkout = await stripe.initEmbeddedCheckout({
@@ -436,7 +436,7 @@ export const CheckoutPage: React.FC = () => {
           <h1 className="text-3xl font-black text-gray-900 mb-2">¡Gracias por tu compra!</h1>
           <p className="text-gray-600 max-w-md mx-auto mb-8 text-sm leading-relaxed">
             {esAprobado
-              ? 'Hemos procesado tu pago de forma segura mediante Stripe. Tu pedido ya está en preparación.'
+              ? 'Recibimos tu pago de forma segura. Tu pedido ya está en preparación.'
               : 'Tu pedido ha sido registrado con éxito. Podrás pagar en efectivo al momento de recibir tus prendas.'}
           </p>
 
@@ -573,9 +573,9 @@ export const CheckoutPage: React.FC = () => {
         <div className="flex items-center gap-2 text-xs font-semibold text-gray-500 uppercase tracking-wider mb-2">
           <Link to="/carrito" className="hover:text-black">Carrito</Link>
           <ChevronRight className="w-3.5 h-3.5" />
-          <span className="text-black">Checkout y Pasarela de Pago</span>
+          <span className="text-black">Pago seguro</span>
         </div>
-        <h1 className="text-3xl font-black text-gray-900 tracking-tight">Finalizar Compra</h1>
+        <h1 className="font-serif text-3xl sm:text-4xl font-normal text-stone-900">Finalizar Compra</h1>
       </div>
 
       {items.length === 0 ? (
@@ -622,7 +622,7 @@ export const CheckoutPage: React.FC = () => {
               <div className="flex flex-col sm:flex-row sm:items-center justify-between pb-3 border-b border-gray-100 gap-3">
                 <div className="flex items-center gap-2">
                   <MapPin className="w-5 h-5 text-gray-900" />
-                  <h2 className="text-lg font-bold text-gray-900">1. Dirección de Entrega</h2>
+                  <h2 className="font-serif text-xl font-normal text-stone-900">1. Dirección de Entrega</h2>
                 </div>
 
                 {/* BOTONES MAPA Y GPS */}
@@ -646,7 +646,7 @@ export const CheckoutPage: React.FC = () => {
                     ) : (
                       <Navigation className="w-3.5 h-3.5 text-[#9B7B54]" />
                     )}
-                    <span>{geolocalizando ? 'Detectando GPS...' : 'Mi GPS'}</span>
+                    <span>{geolocalizando ? 'Buscando tu ubicación...' : 'Mi ubicación'}</span>
                   </button>
                 </div>
               </div>
@@ -745,7 +745,7 @@ export const CheckoutPage: React.FC = () => {
               <div className="flex items-center justify-between pb-3 border-b border-gray-100">
                 <div className="flex items-center gap-2">
                   <Truck className="w-5 h-5 text-gray-900" />
-                  <h2 className="text-lg font-bold text-gray-900">2. Método de Envío</h2>
+                  <h2 className="font-serif text-xl font-normal text-stone-900">2. Método de Envío</h2>
                 </div>
                 {subtotal >= 200 && (
                   <span className="text-xs bg-emerald-100 text-emerald-800 font-bold px-2.5 py-1 rounded-full">
@@ -805,7 +805,7 @@ export const CheckoutPage: React.FC = () => {
               <div className="flex items-center justify-between pb-3 border-b border-gray-100">
                 <div className="flex items-center gap-2">
                   <Lock className="w-5 h-5 text-gray-900" />
-                  <h2 className="text-lg font-bold text-gray-900">3. Método de Pago Seguro</h2>
+                  <h2 className="font-serif text-xl font-normal text-stone-900">3. Método de Pago Seguro</h2>
                 </div>
                 <span className="text-xs bg-emerald-100 text-emerald-800 font-bold px-2.5 py-1 rounded-full flex items-center gap-1">
                   <ShieldCheck className="w-3.5 h-3.5" />
@@ -827,7 +827,7 @@ export const CheckoutPage: React.FC = () => {
                   <div className="flex items-center justify-between mb-2">
                     <CreditCard className={`w-5 h-5 ${metodoPago === 'tarjeta' ? 'text-black' : 'text-gray-400'}`} />
                     <span className="text-[10px] font-bold uppercase tracking-wider bg-[#FAF8F5] text-stone-900 border border-[#E7E1D7] px-2 py-0.5 rounded">
-                      Stripe
+                      Seguro
                     </span>
                   </div>
                   <div>
@@ -888,8 +888,8 @@ export const CheckoutPage: React.FC = () => {
                         <Lock className="w-5 h-5" />
                       </div>
                       <div>
-                        <h4 className="font-serif font-bold text-sm text-stone-900">Stripe Embedded Checkout Oficial</h4>
-                        <p className="text-xs text-stone-500">Formulario seguro incrustado con cifrado bancario de Stripe</p>
+                        <h4 className="font-serif font-bold text-sm text-stone-900">Pago con tarjeta</h4>
+                        <p className="text-xs text-stone-500">Formulario de pago seguro, con cifrado bancario</p>
                       </div>
                     </div>
                     <span className="text-[10px] font-bold uppercase tracking-wider bg-stone-900 text-[#FAF8F5] px-2.5 py-1 rounded-full">
@@ -904,7 +904,7 @@ export const CheckoutPage: React.FC = () => {
                         <CreditCard className="w-7 h-7" />
                       </div>
                       <div>
-                        <h4 className="font-serif font-bold text-base text-stone-900">Pasarela de Tarjetas Lista</h4>
+                        <h4 className="font-serif font-bold text-base text-stone-900">Pago con tarjeta disponible</h4>
                         <p className="text-xs text-stone-500 max-w-sm mx-auto mt-1">
                           Acepta tarjetas de débito/crédito (Visa, Mastercard, Amex) y métodos digitales de forma directa.
                         </p>
@@ -919,7 +919,7 @@ export const CheckoutPage: React.FC = () => {
                         {cargandoEmbedded ? (
                           <>
                             <Loader2 className="w-4 h-4 animate-spin text-[#9B7B54]" />
-                            <span>Iniciando Pasarela Stripe...</span>
+                            <span>Preparando tu pago seguro...</span>
                           </>
                         ) : (
                           <>
@@ -934,7 +934,7 @@ export const CheckoutPage: React.FC = () => {
                       <div className="flex items-center justify-between text-xs text-gray-500 px-1">
                         <span className="flex items-center gap-1.5 font-semibold text-emerald-700">
                           <CheckCircle2 className="w-3.5 h-3.5" />
-                          Formulario Seguro de Stripe Activo
+                          Formulario de pago seguro activo
                         </span>
                         <button
                           type="button"
@@ -1163,7 +1163,7 @@ export const CheckoutPage: React.FC = () => {
                 <div className="p-4 bg-[#F2ECE1] border border-[#D5CCC0] rounded-xs text-center space-y-1 text-xs text-stone-800">
                   <div className="font-medium flex items-center justify-center gap-1.5">
                     <Lock className="w-3.5 h-3.5 text-[#9B7B54]" />
-                    <span>Completa el pago en el formulario seguro de Stripe</span>
+                    <span>Completa el pago en el formulario seguro</span>
                   </div>
                   <p className="text-[11px] text-stone-500">
                     Haz clic en el botón oficial "Pagar" dentro del formulario de Stripe arriba.
@@ -1193,7 +1193,7 @@ export const CheckoutPage: React.FC = () => {
                     <>
                       <span>
                         {metodoPago === 'tarjeta'
-                          ? `Abrir Pasarela de Pago ($${totalFinal.toFixed(2)})`
+                          ? `Pagar ahora ($${totalFinal.toFixed(2)})`
                           : metodoPago === 'qr'
                           ? `Confirmar Pago por QR ($${totalFinal.toFixed(2)})`
                           : `Confirmar Pedido en Efectivo ($${totalFinal.toFixed(2)})`}
@@ -1207,7 +1207,7 @@ export const CheckoutPage: React.FC = () => {
               <div className="flex items-center justify-center gap-4 text-xs text-gray-500 pt-1">
                 <span className="flex items-center gap-1">
                   <ShieldCheck className="w-3.5 h-3.5 text-gray-400" />
-                  <span>Pasarela 100% Segura</span>
+                  <span>Pago 100% seguro</span>
                 </span>
                 <span className="flex items-center gap-1">
                   <RotateCcw className="w-3.5 h-3.5 text-gray-400" />
@@ -1259,7 +1259,7 @@ export const CheckoutPage: React.FC = () => {
                 ) : (
                   <Navigation className="w-3.5 h-3.5 text-[#9B7B54]" />
                 )}
-                <span>{geolocalizando ? 'Obteniendo GPS...' : 'Usar mi GPS'}</span>
+                <span>{geolocalizando ? 'Buscando tu ubicación...' : 'Usar mi ubicación'}</span>
               </button>
             </div>
 

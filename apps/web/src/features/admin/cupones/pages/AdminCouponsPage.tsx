@@ -214,7 +214,7 @@ export const AdminCouponsPage: React.FC = () => {
                               ? 'bg-emerald-50 text-emerald-800 border border-emerald-200 hover:bg-emerald-100'
                               : 'bg-stone-100 text-stone-600 border border-stone-200 hover:bg-stone-200'
                           }`}
-                          title="Clic para cambiar estado activo/inactivo (HU-75)"
+                          title="Clic para cambiar estado activo/inactivo"
                         >
                           {c.activo ? '● Activo' : '○ Inactivo'}
                         </button>

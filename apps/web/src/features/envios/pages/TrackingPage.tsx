@@ -234,7 +234,7 @@ export const TrackingPage: React.FC = () => {
           <div className="inline-flex items-center justify-center w-14 h-14 rounded-2xl bg-stone-900 text-[#9B7B54] shadow-xs mb-4">
             <Truck className="w-7 h-7" />
           </div>
-          <h1 className="text-3xl font-serif font-bold text-stone-900 tracking-tight">
+          <h1 className="font-serif text-3xl sm:text-4xl font-normal text-stone-900">
             Rastreo de Envíos en Tiempo Real
           </h1>
           <p className="mt-2 text-stone-600 max-w-xl mx-auto">

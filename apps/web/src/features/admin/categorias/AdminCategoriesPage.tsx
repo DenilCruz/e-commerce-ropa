@@ -378,7 +378,7 @@ export const AdminCategoriesPage: React.FC = () => {
                   : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
               }`}
             >
-              {tipo === 'vacias' ? 'Vacías (HU-32)' : tipo}
+              {tipo === 'vacias' ? 'Vacías' : tipo}
             </button>
           ))}
         </div>

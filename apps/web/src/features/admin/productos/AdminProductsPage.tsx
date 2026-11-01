@@ -265,7 +265,7 @@ export const AdminProductsPage: React.FC = () => {
               <th className="px-6 py-3.5 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">Nombre</th>
               <th className="px-6 py-3.5 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">Categoría</th>
               <th className="px-6 py-3.5 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">Precio</th>
-              <th className="px-6 py-3.5 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">Variantes y Stock (HU-20)</th>
+              <th className="px-6 py-3.5 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">Variantes y Stock</th>
               <th className="px-6 py-3.5 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">Estado</th>
               <th className="px-6 py-3.5 text-right text-xs font-semibold text-gray-500 uppercase tracking-wider">Acciones</th>
             </tr>
@@ -446,7 +446,7 @@ export const AdminProductsPage: React.FC = () => {
                 <div className="bg-gray-50 p-4 rounded-lg border border-gray-200 space-y-4">
                   <div className="flex justify-between items-center">
                     <h3 className="font-bold text-gray-800 uppercase text-xs tracking-wider">
-                      2. Galería de Imágenes (HU-21) {editingProduct && <span className="text-gray-400 font-normal normal-case">(Opcional para actualizar fotos)</span>}
+                      2. Galería de Imágenes {editingProduct && <span className="text-gray-400 font-normal normal-case">(Opcional para actualizar fotos)</span>}
                     </h3>
                     <span className="text-[11px] font-semibold bg-[#FAF8F5] text-[#9B7B54] border border-[#E7E1D7] px-2 py-0.5 rounded">Múltiples fotos (JPG, PNG, WebP)</span>
                   </div>
@@ -460,7 +460,7 @@ export const AdminProductsPage: React.FC = () => {
                     className="w-full border border-dashed border-gray-300 hover:border-black rounded-md p-4 bg-white cursor-pointer transition"
                   />
                   <p className="text-xs text-gray-500">
-                    💡 <strong>Consejo HU-21:</strong> Puedes seleccionar varias fotos a la vez manteniendo presionado <code>Ctrl</code> o <code>Shift</code> al hacer clic en tus archivos. La primera imagen seleccionada será la <strong>portada principal</strong> de catálogo.
+                    💡 <strong>Consejo:</strong> Puedes seleccionar varias fotos a la vez manteniendo presionado <code>Ctrl</code> o <code>Shift</code> al hacer clic en tus archivos. La primera imagen seleccionada será la <strong>portada principal</strong> de catálogo.
                   </p>
 
                   {/* Previsualización en tiempo real de nuevas fotos seleccionadas */}
@@ -514,7 +514,7 @@ export const AdminProductsPage: React.FC = () => {
                   <div className="flex justify-between items-center">
                     <div>
                       <h3 className="font-bold text-gray-800 uppercase text-xs tracking-wider">
-                        3. Variantes con Stock Independiente (HU-20)
+                        3. Variantes con Stock Independiente
                       </h3>
                       <p className="text-[11px] text-gray-500 mt-0.5">
                         Define combinaciones de talla y color, cada una con su stock propio e independiente.

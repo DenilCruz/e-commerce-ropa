@@ -298,7 +298,7 @@ export const VirtualTryOnModal: React.FC<VirtualTryOnModalProps> = ({
   // Ejecutar generación virtual con IDM-VTON + Groq
   const handleProbarPrenda = async () => {
     if (!isOnline) {
-      setError('El Probador Virtual con Inteligencia Artificial requiere conexión a internet para procesar la imagen y renderizar las prendas.');
+      setError('El probador virtual necesita conexión a internet. Conéctate y vuelve a intentarlo.');
       return;
     }
 
@@ -334,7 +334,7 @@ export const VirtualTryOnModal: React.FC<VirtualTryOnModalProps> = ({
     setResultado(null);
 
     // Mensajes dinámicos de progreso para Hugging Face IDM-VTON
-    setProgresoTexto('Conectando con servidores de IA en Hugging Face (IDM-VTON)...');
+    setProgresoTexto('Preparando tu prueba de prenda...');
     const t1 = setTimeout(() => setProgresoTexto('Analizando postura corporal y cargando textura de la prenda...'), 3500);
     const t2 = setTimeout(() => setProgresoTexto('Ejecutando difusión neuronal para adaptar la prenda a tu cuerpo...'), 10000);
     const t3 = setTimeout(() => setProgresoTexto('Generando textura fotorrealista y caída de tela...'), 22000);
@@ -424,13 +424,13 @@ export const VirtualTryOnModal: React.FC<VirtualTryOnModalProps> = ({
                 </h2>
                 <span className="bg-[#9B7B54]/20 text-[#D5C4AC] text-[9px] uppercase tracking-luxury px-2 py-0.5 rounded-full border border-[#9B7B54]/30 font-medium">
                   {modoPrincipal === 'espejo_ar'
-                    ? '✨ Lucy 2.5 Live IA'
+                    ? 'En vivo con IA'
                     : '📸 Estudio Fotográfico'}
                 </span>
               </div>
               <p className="text-xs text-[#C5B59E]/70 font-light">
                 {modoPrincipal === 'espejo_ar'
-                  ? 'Generación y drapeado en video en tiempo real a 30 FPS con Decart AI'
+                  ? 'Pruébatela en video y en tiempo real, con la caída real de la tela'
                   : 'Ajuste anatómico de atelier con IA sobre fotografía o modelos de estudio'}
               </p>
             </div>
@@ -456,7 +456,7 @@ export const VirtualTryOnModal: React.FC<VirtualTryOnModalProps> = ({
                     modoPrincipal === 'espejo_ar' ? 'bg-white animate-ping' : 'bg-[#9B7B54]'
                   }`}
                 />
-                <span>Lucy 2.5 Live</span>
+                <span>En vivo</span>
               </button>
 
               <button

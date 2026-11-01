@@ -186,7 +186,7 @@ export const AdminShippingPage: React.FC = () => {
             Gestión y Control de Envíos
           </h1>
           <p className="text-sm text-stone-500">
-            Administra los despachos de paquetes (HU-65) y configura tarifas y zonas de cobertura (HU-61).
+            Administra los despachos de paquetes y configura tarifas y zonas de cobertura.
           </p>
         </div>
 
@@ -200,7 +200,7 @@ export const AdminShippingPage: React.FC = () => {
                 : 'text-stone-600 hover:text-stone-900'
             }`}
           >
-            Despachos y Guías (HU-65)
+            Despachos y Guías
           </button>
           <button
             onClick={() => setActiveTab('metodos')}
@@ -210,7 +210,7 @@ export const AdminShippingPage: React.FC = () => {
                 : 'text-stone-600 hover:text-stone-900'
             }`}
           >
-            Zonas y Costos de Envío (HU-61)
+            Zonas y Costos de Envío
           </button>
         </div>
       </div>
@@ -349,7 +349,7 @@ export const AdminShippingPage: React.FC = () => {
             <div>
               <h2 className="font-serif text-xl font-bold text-stone-900 flex items-center gap-2">
                 <MapPin className="w-5 h-5 text-[#9B7B54]" />
-                Zonas y Tarifas de Entrega (HU-61)
+                Zonas y Tarifas de Entrega
               </h2>
               <p className="text-xs text-stone-500 mt-1">
                 Define las zonas geográficas, modalidades de despacho y costos de envío que se aplicarán automáticamente a los pedidos de los clientes.
@@ -541,7 +541,7 @@ export const AdminShippingPage: React.FC = () => {
               {metodoEditando ? 'Modificar Zona y Tarifa de Envío' : 'Nueva Zona y Tarifa de Envío'}
             </h3>
             <p className="text-xs text-stone-500 mb-4">
-              HU-61: Define la zona o modalidad y la tarifa que abonará el cliente durante el pedido.
+              Define la zona o modalidad y la tarifa que abonará el cliente durante el pedido.
             </p>
 
             <form onSubmit={guardarMetodo} className="space-y-4">
