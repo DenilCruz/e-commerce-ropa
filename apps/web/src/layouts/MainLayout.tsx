@@ -15,6 +15,7 @@ import {
   Layers
 } from 'lucide-react';
 import { useAuthStore } from '../store/auth.store';
+import { esPersonal } from '../lib/roles';
 import { useFavoritosStore } from '../features/favoritos/store/favoritos.store';
 import { useCartStore } from '../store/cart.store';
 import { authApi } from '../features/autenticacion/services/auth.api';
@@ -326,8 +327,15 @@ export const MainLayout: React.FC = () => {
                 >
                   <Package className="w-4 h-4" />
                 </Link>
+                <Link
+                  to={`${storePrefix}/actividad`}
+                  className="text-xs text-stone-600 hover:text-stone-900 hidden md:inline"
+                  title="Tu actividad"
+                >
+                  Actividad
+                </Link>
 
-                {user?.rol === 'ADMIN' && (
+                {esPersonal(user?.rol) && (
                   <Link 
                     to="/admin" 
                     className="text-xs uppercase tracking-widest text-[#9B7B54] font-semibold hover:text-stone-900 flex items-center gap-1"
@@ -421,6 +429,10 @@ export const MainLayout: React.FC = () => {
                     <Package className="w-4 h-4" />
                     Mis Pedidos
                   </Link>
+                  <Link to={`${storePrefix}/actividad`} className="p-2 hover:bg-[#F2ECE1] flex items-center gap-2">
+                    <Package className="w-4 h-4" />
+                    Tu actividad
+                  </Link>
                   <Link to={`${storePrefix}/perfil`} className="p-2 hover:bg-[#F2ECE1] flex items-center gap-2">
                     <User className="w-4 h-4" />
                     Mi Perfil
@@ -428,7 +440,7 @@ export const MainLayout: React.FC = () => {
                 </>
               )}
 
-              {user?.rol === 'ADMIN' && (
+              {esPersonal(user?.rol) && (
                 <Link to="/admin" className="p-2 bg-[#F2ECE1] text-[#9B7B54] font-semibold flex items-center gap-2">
                   <ShieldCheck className="w-4 h-4" />
                   Panel de Administración

@@ -10,6 +10,7 @@ import { CrearDireccionDto } from './dto/crear-direccion.dto';
 import { CambiarContrasenaDto } from './dto/cambiar-contrasena.dto';
 import { UserStoreEntity } from '../tiendas/entities/user-store.entity';
 import { TenantContext } from '../../common/tenant/tenant-context';
+import { PlanLimitsService } from '../tiendas/plan-limits.service';
 
 @Injectable()
 export class UsuariosService {
@@ -23,6 +24,7 @@ export class UsuariosService {
     @InjectRepository(UserStoreEntity)
     private readonly repositorioMembresia: Repository<UserStoreEntity>,
     private readonly dataSource: DataSource,
+    private readonly planLimits: PlanLimitsService,
   ) {}
 
   private get tid(): string {
@@ -256,6 +258,7 @@ export class UsuariosService {
   async cambiarRol(usuarioId: string, nuevoRol: string): Promise<UserEntity> {
     const membresia = await this.repositorioMembresia.findOne({
       where: { usuarioId, tiendaId: this.tid },
+      relations: ['rol'],
     });
     if (!membresia) {
       throw new NotFoundException(`Usuario con ID ${usuarioId} no encontrado en esta tienda.`);
@@ -270,9 +273,20 @@ export class UsuariosService {
       throw new BadRequestException(`El rol '${nuevoRol}' no existe en el sistema.`);
     }
 
+    // The platform operator role is never granted from inside a store
+    if (rol.nombre === 'SUPERADMIN') {
+      throw new BadRequestException('El rol SUPERADMIN no se puede asignar desde una tienda.');
+    }
+
+    // A shopper becoming staff takes a seat of the plan's user quota
+    const seraPersonal = rol.nombre !== 'CLIENTE';
+    const eraCliente = membresia.rol?.nombre === 'CLIENTE';
+    if (seraPersonal && eraCliente && membresia.activo) {
+      await this.planLimits.validarLimiteUsuarios(this.tid);
+    }
+
     // El rol se asigna dentro de esta tienda, no globalmente
-    membresia.rolId = rol.id;
-    await this.repositorioMembresia.save(membresia);
+    await this.repositorioMembresia.update({ usuarioId, tiendaId: this.tid }, { rolId: rol.id });
 
     return this.obtenerPerfil(usuarioId);
   }

@@ -56,6 +56,7 @@ describe('StoresService', () => {
     tenantsSeenByRunner = [];
     manager = {
       create: jest.fn((_entity: any, data: any) => ({ ...data })),
+      query: jest.fn().mockResolvedValue([]),
       save: jest.fn(async (entity: any) => {
         saved.push(entity);
         return entity;

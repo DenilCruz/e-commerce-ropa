@@ -72,6 +72,26 @@ export class StoresService {
       }));
   }
 
+  /** Every active store. Used by the platform operator, who is not a member of each one. */
+  async listarTodasActivas() {
+    const tiendas = await this.storeRepo.find({ where: { estado: 'ACTIVA' }, order: { creadoEn: 'ASC' } });
+    const activa = TenantContext.get();
+    return tiendas.map((tienda) => ({
+      id: tienda.id,
+      nombre: tienda.nombre,
+      slug: tienda.slug,
+      plan: tienda.plan,
+      rol: 'SUPERADMIN',
+      esActiva: tienda.id === activa,
+    }));
+  }
+
+  async obtenerActiva(tiendaId: string): Promise<StoreEntity> {
+    const tienda = await this.storeRepo.findOne({ where: { id: tiendaId, estado: 'ACTIVA' } });
+    if (!tienda) throw new NotFoundException('Esa tienda no está disponible.');
+    return tienda;
+  }
+
   /** Membership check used before switching the active store. */
   async obtenerMembresia(usuarioId: string, tiendaId: string): Promise<UserStoreEntity> {
     const membresia = await this.membershipRepo.findOne({
@@ -135,7 +155,12 @@ export class StoresService {
             slug,
             plan,
             propietarioId: usuarioId,
+            pruebaVenceEn: new Date(Date.now() + 14 * 24 * 60 * 60 * 1000),
           }),
+        );
+        await queryRunner.manager.query(
+          `INSERT INTO sucursal (tenant_id, nombre, activa) VALUES ($1, 'Casa matriz', true)`,
+          [tienda.id],
         );
         await queryRunner.manager.save(
           queryRunner.manager.create(UserStoreEntity, {

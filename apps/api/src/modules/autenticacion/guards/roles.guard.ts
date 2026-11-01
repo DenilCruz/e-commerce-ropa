@@ -1,6 +1,7 @@
 import { Injectable, CanActivate, ExecutionContext, ForbiddenException } from '@nestjs/common';
 import { Reflector } from '@nestjs/core';
 import { ROLES_KEY } from '../decorators/roles.decorator';
+import { rolAutorizado } from '../roles-acceso';
 
 @Injectable()
 export class RolesGuard implements CanActivate {
@@ -21,7 +22,7 @@ export class RolesGuard implements CanActivate {
       throw new ForbiddenException('No tiene permisos suficientes para realizar esta acción.');
     }
 
-    const hasRole = requiredRoles.some((role) => user.role?.toUpperCase() === role.toUpperCase());
+    const hasRole = rolAutorizado(user.role, requiredRoles);
     if (!hasRole) {
       throw new ForbiddenException(`Se requiere uno de los siguientes roles: ${requiredRoles.join(', ')}`);
     }

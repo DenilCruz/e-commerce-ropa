@@ -41,4 +41,8 @@ export class StoreEntity {
 
   @CreateDateColumn({ name: 'creado_en', type: 'timestamp' })
   creadoEn: Date;
+
+  /** End of the 14-day trial. Null on a store that was never on FREE_TRIAL. */
+  @Column({ type: 'timestamp', name: 'prueba_vence_en', nullable: true })
+  pruebaVenceEn: Date | null;
 }

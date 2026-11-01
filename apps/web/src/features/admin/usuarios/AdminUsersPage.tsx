@@ -359,9 +359,11 @@ export const AdminUsersPage: React.FC = () => {
                               : 'bg-white text-stone-700 border-[#E7E1D7]'
                           }`}
                         >
-                          {roles.map(r => (
+                          {roles
+                            .filter((r) => ['ADMIN', 'VENDEDOR', 'CLIENTE'].includes(r.nombre) || r.id === u.rolId)
+                            .map((r) => (
                             <option key={r.id} value={r.id}>
-                              {r.nombre}
+                              {r.nombre === 'EMPLEADO' ? 'EMPLEADO (vendedor histórico)' : r.nombre}
                             </option>
                           ))}
                         </select>

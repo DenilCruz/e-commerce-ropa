@@ -19,6 +19,8 @@ import {
   GenerarReporteDinamicoDto,
   EjecutarSqlDinamicoDto,
 } from './dynamic-reports/dto/dynamic-reports.dto';
+import { PlanLimitsService } from '../tiendas/plan-limits.service';
+import { TenantContext } from '../../common/tenant/tenant-context';
 
 @ApiTags('Admin Dashboard & Reportes')
 @ApiBearerAuth()
@@ -29,6 +31,7 @@ export class AdminController {
   constructor(
     private readonly adminService: AdminService,
     private readonly dynamicReportsService: DynamicReportsService,
+    private readonly planLimits: PlanLimitsService,
   ) {}
 
   // =========================================================================
@@ -56,6 +59,7 @@ export class AdminController {
   // HU-91: PRODUCTOS CON STOCK BAJO / ALERTAS
   // =========================================================================
   @Get('dashboard/stock-bajo')
+  @Roles('ADMIN', 'VENDEDOR')
   @ApiOperation({ summary: 'Obtener prendas y variantes con stock crítico o agotadas' })
   obtenerAlertasStockBajo() {
     return this.adminService.obtenerAlertasStockBajo();
@@ -88,14 +92,16 @@ export class AdminController {
   @Post('reportes-dinamicos/generar')
   @ApiOperation({ summary: 'Generar y ejecutar reporte dinámico a partir de voz o lenguaje natural con IA' })
   @ApiBody({ type: GenerarReporteDinamicoDto })
-  generarReporteDinamico(@Body() dto: GenerarReporteDinamicoDto) {
+  async generarReporteDinamico(@Body() dto: GenerarReporteDinamicoDto) {
+    await this.planLimits.exigirCapacidad(TenantContext.require(), 'reportesVozNlp');
     return this.dynamicReportsService.generarYEjecutarReporte(dto);
   }
 
   @Post('reportes-dinamicos/ejecutar-sql')
   @ApiOperation({ summary: 'Ejecutar consulta SQL validada (únicamente lectura SELECT)' })
   @ApiBody({ type: EjecutarSqlDinamicoDto })
-  ejecutarSqlDinamico(@Body() dto: EjecutarSqlDinamicoDto) {
+  async ejecutarSqlDinamico(@Body() dto: EjecutarSqlDinamicoDto) {
+    await this.planLimits.exigirCapacidad(TenantContext.require(), 'reportesVozNlp');
     return this.dynamicReportsService.ejecutarSqlDirecto(dto.sql);
   }
 
@@ -104,19 +110,22 @@ export class AdminController {
   // =========================================================================
   @Get('predictivo/ventas')
   @ApiOperation({ summary: 'Obtener análisis predictivo y proyección de ventas futuras con regresión lineal' })
-  obtenerAnalisisPredictivoVentas() {
+  async obtenerAnalisisPredictivoVentas() {
+    await this.planLimits.exigirCapacidad(TenantContext.require(), 'modelosPredictivosMl');
     return this.adminService.analisisPredictivoVentas();
   }
 
   @Get('predictivo/churn')
   @ApiOperation({ summary: 'Obtener predicción de abandono de clientes (Churn Risk) basada en RFM' })
-  obtenerPrediccionAbandonoClientes() {
+  async obtenerPrediccionAbandonoClientes() {
+    await this.planLimits.exigirCapacidad(TenantContext.require(), 'modelosPredictivosMl');
     return this.adminService.prediccionAbandonoClientes();
   }
 
   @Get('predictivo/afinidad')
   @ApiOperation({ summary: 'Obtener recomendaciones de productos por afinidad y canasta de compra (Market Basket)' })
-  obtenerRecomendacionesAfinidad() {
+  async obtenerRecomendacionesAfinidad() {
+    await this.planLimits.exigirCapacidad(TenantContext.require(), 'modelosPredictivosMl');
     return this.adminService.recomendacionesAfinidadProductos();
   }
 
@@ -125,7 +134,8 @@ export class AdminController {
     summary: 'Entrenar y evaluar modelos ML (Random Forest + K-Means) con partición 80/20',
     description: 'Entrena modelo supervisado (Random Forest) y no supervisado (K-Means) sobre compras reales.',
   })
-  obtenerModelosMachineLearning() {
+  async obtenerModelosMachineLearning() {
+    await this.planLimits.exigirCapacidad(TenantContext.require(), 'modelosPredictivosMl');
     return this.adminService.modelosMachineLearning();
   }
 

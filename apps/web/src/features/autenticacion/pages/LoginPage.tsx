@@ -10,6 +10,7 @@ import { useCartStore } from '../../../store/cart.store';
 import { destinoTrasCrearTienda } from '../../tiendas/utils/planes';
 
 import { storeDisplayName } from '../../../lib/storeName';
+import { esPersonal } from '../../../lib/roles';
 export const LoginPage: React.FC = () => {
   const navigate = useNavigate();
   const location = useLocation();
@@ -97,7 +98,7 @@ export const LoginPage: React.FC = () => {
 
       if (from) {
         navigate(from, { replace: true });
-      } else if (data.usuario.rol === 'ADMIN') {
+      } else if (esPersonal(data.usuario.rol)) {
         navigate('/admin', { replace: true });
       } else if (targetSlug) {
         navigate(`/t/${targetSlug}`, { replace: true });

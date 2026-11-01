@@ -12,7 +12,14 @@ import { Client } from 'pg';
 const adminUrl = process.env.TEST_DB_ADMIN_URL;
 const suite = adminUrl ? describe : describe.skip;
 
-const MIGRATIONS = ['01_init_schema.sql', '03_multi_tenant.sql', '04_tienda_slug.sql', '05_rls.sql', '06_tienda_plan.sql'];
+const MIGRATIONS = [
+  '01_init_schema.sql',
+  '03_multi_tenant.sql',
+  '04_tienda_slug.sql',
+  '05_rls.sql',
+  '06_tienda_plan.sql',
+  '13_plan_roles.sql',
+];
 const APP_ROLE_PASSWORD = 'aura_app_dev';
 
 suite('tenant isolation (row-level security)', () => {

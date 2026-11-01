@@ -5,11 +5,11 @@ import { useAuthStore } from '../../store/auth.store';
 import { ModalCrearTienda } from '../tiendas/components/ModalCrearTienda';
 import { InteractiveSpatialCard, SilkCanvasBackground } from '../../components/spatial';
 import { coutureState } from '../../components/spatial/coutureState';
-import { isCutoutUrl } from '../../lib/cutout';
+import { elegirPrendasCarrusel, type PrendaHero } from './heroPrendas';
 
 const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:3000/api/v1';
 const ASSETS_URL = API_URL.replace('/api/v1', '');
-type HeroItem = { id: string; nombre: string; precio: string; imagen: string };
+type HeroItem = PrendaHero;
 
 export const NetflixHero: React.FC = () => {
   const navigate = useNavigate();
@@ -18,30 +18,16 @@ export const NetflixHero: React.FC = () => {
   const [nombreTienda, setNombreTienda] = useState('');
   const [modalCrear, setModalCrear] = useState(false);
   const drag = useRef<number | null>(null);
-  const [items, setItems] = useState<HeroItem[]>([]);
+  const [items, setItems] = useState<HeroItem[]>(() => elegirPrendasCarrusel([], ASSETS_URL));
   const [active, setActive] = useState(0);
 
-  // The store's real catalogue becomes the showpiece: one photo per product, up to twelve pieces.
+  // A subscribed store with cut-outs replaces the example. With no subscription, the example stays.
   useEffect(() => {
     let off = false;
     fetch(`${API_URL}/productos`, { headers: { 'X-Tenant-Slug': 'aura' } })
       .then((r) => (r.ok ? r.json() : []))
-      .then((list: any[]) => {
-        if (off || !Array.isArray(list)) return;
-        // The carousel shows garments alone, so only products with a transparent cut-out qualify; those live in /uploads/<category>/.
-        const isCutout = (p: any) => isCutoutUrl((p.imagenes.find((i: any) => i.principal) || p.imagenes[0]).url);
-        const withPhoto = list.filter((p) => p.activo !== false && p.imagenes?.length && isCutout(p));
-        // Featured first, then spread across categories so the carousel is varied rather than a wall of dresses.
-        const seen = new Set<string>();
-        const ordered = [...withPhoto.filter((p) => p.destacado), ...withPhoto.filter((p) => !p.destacado)];
-        const picked = ordered.filter((p) => { const k = p.categoria?.id || p.categoriaId; if (seen.has(k) && seen.size < 6) return false; seen.add(k); return true; }).slice(0, 12);
-        setItems(picked.map((p) => {
-          const img = p.imagenes.find((i: any) => i.principal) || p.imagenes[0];
-          const path: string = img.url;
-          return { id: p.id, nombre: p.nombre, precio: p.precio, imagen: path.startsWith('http') ? path : `${ASSETS_URL}${path.startsWith('/uploads') ? path : `/uploads/${path.replace(/^\//, '')}`}` };
-        }));
-      })
-      .catch(() => {});
+      .then((list: unknown) => { if (!off) setItems(elegirPrendasCarrusel(list, ASSETS_URL)); })
+      .catch(() => { if (!off) setItems(elegirPrendasCarrusel([], ASSETS_URL)); });
     return () => { off = true; };
   }, []);
   useEffect(() => coutureState.onActive(setActive), []);
@@ -62,7 +48,7 @@ export const NetflixHero: React.FC = () => {
   return (
     <>
     <section className="aura-hero">
-      <SilkCanvasBackground className="aura-hero__silk" variant="dark" kind="couture" items={items} onSelectItem={(id) => navigate(`/t/aura/producto/${id}`)} />
+      <SilkCanvasBackground className="aura-hero__silk" variant="dark" kind="couture" items={items} onSelectItem={(id) => navigate(id.startsWith('ejemplo-') ? '/t/aura' : `/t/aura/producto/${id}`)} />
       <div className="aura-hero__inner">
         <div className="aura-hero__title">
           <h1>Crea tu tienda de moda. <em>Escala sin límites con IA.</em></h1>
@@ -122,10 +108,10 @@ export const NetflixHero: React.FC = () => {
       {piece && (
         <div className="aura-gallery-run__sticky">
           <p className="aura-gallery-run__count"><b>{String(active + 1).padStart(2, '0')}</b> / {String(items.length).padStart(2, '0')}</p>
-          <Link to={`/t/aura/producto/${piece.id}`} className="aura-gallery-run__caption">
-            <span>Colección AURA</span>
+          <Link to={piece.ejemplo ? '/t/aura' : `/t/aura/producto/${piece.id}`} className="aura-gallery-run__caption">
+            <span>{piece.ejemplo ? 'Ejemplo' : 'Colección AURA'}</span>
             <strong key={piece.id}>{piece.nombre}</strong>
-            <em>${Number(piece.precio).toFixed(0)} · Ver en tienda <ArrowRight aria-hidden="true" /></em>
+            <em>{piece.ejemplo ? 'Ver tienda de ejemplo' : `$${Number(piece.precio).toFixed(0)} · Ver en tienda`} <ArrowRight aria-hidden="true" /></em>
           </Link>
         </div>
       )}

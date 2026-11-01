@@ -66,6 +66,21 @@ export const AdminPlanBadge: React.FC = () => {
           </div>
         </div>
 
+        <div>
+          <div className="flex items-center justify-between text-gray-400 font-mono text-[10px]">
+            <span>Sucursales</span>
+            <span className={consumo.sucursales.superado ? 'text-rose-400 font-bold' : 'text-gray-300'}>
+              {consumo.sucursales.actual}/{consumo.sucursales.limite}
+            </span>
+          </div>
+          <div className="w-full bg-gray-800 h-1.5 rounded-full overflow-hidden mt-0.5">
+            <div
+              className={`h-full ${consumo.sucursales.superado ? 'bg-rose-500' : 'bg-stone-400'}`}
+              style={{ width: `${Math.min(100, consumo.sucursales.porcentaje)}%` }}
+            />
+          </div>
+        </div>
+
         {/* Personal / Usuarios */}
         <div>
           <div className="flex items-center justify-between text-gray-400 font-mono text-[10px]">
@@ -124,7 +139,13 @@ export const AdminPlanBadge: React.FC = () => {
       {esFreeTrial && (
         <div className="pt-1 border-t border-gray-800/80 flex items-center gap-1.5 text-[10px] text-amber-300">
           <AlertTriangle className="w-3 h-3 shrink-0" />
-          <span>Prueba gratis activa</span>
+          <span>
+            {metricas.pruebaVencida
+              ? 'La prueba terminó. Elige un plan para seguir cargando la tienda.'
+              : metricas.pruebaVenceEn
+                ? `Prueba hasta ${new Date(metricas.pruebaVenceEn).toLocaleDateString('es-BO')}`
+                : 'Prueba gratis activa'}
+          </span>
         </div>
       )}
     </div>

@@ -5,7 +5,9 @@ import { AuthLayout } from '../layouts/AuthLayout';
 import { AdminLayout } from '../layouts/AdminLayout';
 
 import { ProtectedRoute } from './ProtectedRoute';
-import { AdminRoute } from './AdminRoute';
+import { AdminRoute, RequiereCapacidad, RequiereDueno } from './AdminRoute';
+import { esDueno } from '../lib/roles';
+import { useAuthStore } from '../store/auth.store';
 
 import { LoginPage } from '../features/autenticacion/pages/LoginPage';
 import { RegisterPage } from '../features/autenticacion/pages/RegisterPage';
@@ -21,6 +23,7 @@ import { CartPage } from '../features/carrito/pages/CartPage';
 import { CheckoutPage } from '../features/pago/pages/CheckoutPage';
 import { CheckoutReturnPage } from '../features/pago/pages/CheckoutReturnPage';
 import { OrdersPage } from '../features/pedidos/pages/OrdersPage';
+import { ActividadPage } from '../features/pedidos/pages/ActividadPage';
 import { ProfilePage } from '../features/perfil/pages/ProfilePage';
 import { FavoritosPage } from '../features/favoritos/pages/FavoritosPage';
 
@@ -36,6 +39,8 @@ import { AdminUsersPage } from '../features/admin/usuarios/AdminUsersPage';
 import { AdminCategoriesPage } from '../features/admin/categorias/AdminCategoriesPage';
 import { AdminFilesPage } from '../features/admin/archivos/pages/AdminFilesPage';
 import { AdminReviewsPage } from '../features/admin/resenas/pages/AdminReviewsPage';
+import { AdminPuestoPage } from '../features/admin/puesto/AdminPuestoPage';
+import { AdminSucursalesPage } from '../features/admin/sucursales/AdminSucursalesPage';
 import { AdminShippingPage } from '../features/admin/envios/pages/AdminShippingPage';
 import { AdminPosPage } from '../features/ventas-pos/pages/AdminPosPage';
 import { TrackingPage } from '../features/envios/pages/TrackingPage';
@@ -45,6 +50,12 @@ import { PlanRetornoPage } from '../features/tiendas/pages/PlanRetornoPage';
 import { AdminPagosConfigPage } from '../features/tiendas/pages/AdminPagosConfigPage';
 
 import { TenantStoreResolver } from '../features/tiendas/components/TenantStoreResolver';
+
+const EntradaAdmin: React.FC = () => {
+  const { user } = useAuthStore();
+  if (!esDueno(user?.rol)) return <Navigate to="/admin/puesto" replace />;
+  return <AdminDashboardPage />;
+};
 
 /** Redirecciona rutas genéricas directas a la tienda activa (/catalogo -> /t/:slug/catalogo) */
 const DirectStoreRedirect: React.FC<{ target?: string }> = ({ target = '' }) => {
@@ -100,6 +111,7 @@ export const AppRouter: React.FC = () => {
             <Route path="checkout/return" element={<CheckoutReturnPage />} />
             <Route path="pago" element={<Navigate to="checkout" replace />} />
             <Route path="pedidos" element={<OrdersPage />} />
+            <Route path="actividad" element={<ActividadPage />} />
             <Route path="perfil" element={<ProfilePage />} />
             <Route path="favoritos" element={<FavoritosPage />} />
           </Route>
@@ -119,6 +131,7 @@ export const AppRouter: React.FC = () => {
       <Route path="/checkout/return" element={<DirectStoreRedirect target="checkout/return" />} />
       <Route path="/pago" element={<DirectStoreRedirect target="checkout" />} />
       <Route path="/pedidos" element={<DirectStoreRedirect target="pedidos" />} />
+      <Route path="/actividad" element={<DirectStoreRedirect target="actividad" />} />
       <Route path="/perfil" element={<DirectStoreRedirect target="perfil" />} />
       <Route path="/favoritos" element={<DirectStoreRedirect target="favoritos" />} />
 
@@ -134,22 +147,32 @@ export const AppRouter: React.FC = () => {
       {/* Panel Administrador */}
       <Route path="/admin" element={<AdminRoute />}>
         <Route element={<AdminLayout />}>
-          <Route index element={<AdminDashboardPage />} />
-          <Route path="dashboard" element={<AdminDashboardPage />} />
-          <Route path="dashboard-predictivo" element={<AdminPredictiveDashboardPage />} />
-          <Route path="reportes" element={<AdminReportsPage />} />
-          <Route path="reportes-dinamicos" element={<AdminDynamicReportsPage />} />
-          <Route path="productos" element={<AdminProductsPage />} />
-          <Route path="categorias" element={<AdminCategoriesPage />} />
+          <Route index element={<EntradaAdmin />} />
+          <Route path="puesto" element={<AdminPuestoPage />} />
           <Route path="inventario" element={<AdminInventoryPage />} />
-          <Route path="cupones" element={<AdminCouponsPage />} />
-          <Route path="ventas" element={<AdminPosPage />} />
           <Route path="pedidos" element={<AdminOrdersPage />} />
-          <Route path="envios" element={<AdminShippingPage />} />
-          <Route path="usuarios" element={<AdminUsersPage />} />
-          <Route path="pagos-config" element={<AdminPagosConfigPage />} />
-          <Route path="archivos" element={<AdminFilesPage />} />
-          <Route path="resenas" element={<AdminReviewsPage />} />
+          <Route element={<RequiereCapacidad capacidad="posOffline" />}>
+            <Route path="ventas" element={<AdminPosPage />} />
+          </Route>
+          <Route element={<RequiereDueno />}>
+            <Route path="dashboard" element={<AdminDashboardPage />} />
+            <Route path="reportes" element={<AdminReportsPage />} />
+            <Route path="productos" element={<AdminProductsPage />} />
+            <Route path="categorias" element={<AdminCategoriesPage />} />
+            <Route path="cupones" element={<AdminCouponsPage />} />
+            <Route path="envios" element={<AdminShippingPage />} />
+            <Route path="usuarios" element={<AdminUsersPage />} />
+            <Route path="sucursales" element={<AdminSucursalesPage />} />
+            <Route path="pagos-config" element={<AdminPagosConfigPage />} />
+            <Route path="archivos" element={<AdminFilesPage />} />
+            <Route path="resenas" element={<AdminReviewsPage />} />
+            <Route element={<RequiereCapacidad capacidad="reportesVozNlp" />}>
+              <Route path="reportes-dinamicos" element={<AdminDynamicReportsPage />} />
+            </Route>
+            <Route element={<RequiereCapacidad capacidad="modelosPredictivosMl" />}>
+              <Route path="dashboard-predictivo" element={<AdminPredictiveDashboardPage />} />
+            </Route>
+          </Route>
         </Route>
       </Route>
     </Routes>

@@ -40,7 +40,8 @@ DECLARE
         'carrito', 'detalle_carrito', 'cupon', 'cupon_uso',
         'nota_venta', 'detalle_nota_venta', 'pago', 'historial_venta', 'envio',
         'nota_compra', 'detalle_nota_compra', 'promocion', 'detalle_promocion',
-        'devolucion', 'detalle_devolucion', 'resena', 'favorito', 'bitacora', 'archivo'
+        'devolucion', 'detalle_devolucion', 'resena', 'favorito', 'bitacora', 'archivo',
+        'sucursal'
     ];
     activo CONSTANT TEXT := 'NULLIF(current_setting(''app.tenant_id'', true), '''')::uuid';
 BEGIN

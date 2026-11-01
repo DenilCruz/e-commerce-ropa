@@ -67,7 +67,7 @@ export class OrdersController {
   // =========================================================================
   @Get('admin/all')
   @UseGuards(JwtAuthGuard, RolesGuard)
-  @Roles('ADMIN', 'SUPERADMIN')
+  @Roles('ADMIN', 'SUPERADMIN', 'VENDEDOR')
   @ApiBearerAuth()
   @ApiOperation({ summary: 'HU-53: Listar todos los pedidos con filtros para el panel admin' })
   @ApiQuery({ name: 'estado', required: false, description: 'Filtrar por estado' })
@@ -93,7 +93,7 @@ export class OrdersController {
   // =========================================================================
   @Put('admin/:id/status')
   @UseGuards(JwtAuthGuard, RolesGuard)
-  @Roles('ADMIN', 'SUPERADMIN')
+  @Roles('ADMIN', 'SUPERADMIN', 'VENDEDOR')
   @ApiBearerAuth()
   @ApiOperation({ summary: 'HU-54: Actualizar estado de una orden y registrar auditoría (Admin)' })
   actualizarEstadoAdmin(

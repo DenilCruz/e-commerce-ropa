@@ -8,6 +8,7 @@ import {
   PLANES_CONFIG,
   calcularMontoPlan,
   resolverPlanEfectivo,
+  pruebaEstaVencida,
 } from '../../src/modules/tiendas/plan-limits.service';
 
 describe('PlanLimitsService (Pilar 1: Multi-Tenant SaaS)', () => {
@@ -79,6 +80,73 @@ describe('PlanLimitsService (Pilar 1: Multi-Tenant SaaS)', () => {
     membershipRepo.count.mockResolvedValue(PLANES_CONFIG.FREE_TRIAL.maxUsuarios);
 
     await expect(service.validarLimiteUsuarios(STORE_ID)).rejects.toThrow(ForbiddenException);
+  });
+
+  it('counts only staff against the user quota, so shoppers never fill it', async () => {
+    membershipRepo.count.mockResolvedValue(PLANES_CONFIG.FREE_TRIAL.maxUsuarios - 1);
+
+    await expect(service.validarLimiteUsuarios(STORE_ID)).resolves.toBeUndefined();
+
+    const where = membershipRepo.count.mock.calls[0][0].where;
+    expect(where.tiendaId).toBe(STORE_ID);
+    expect(where.rol.nombre).toEqual(expect.objectContaining({ _type: 'not', _value: 'CLIENTE' }));
+  });
+
+  it('counts real branches and blocks a new one past the plan maximum', async () => {
+    storeRepo.manager.query.mockResolvedValue([{ total: 1 }]);
+
+    const res = await service.obtenerMetricasYLimites(STORE_ID);
+
+    expect(res.consumo.sucursales.actual).toBe(1);
+    expect(res.consumo.sucursales.superado).toBe(true);
+    await expect(service.validarLimiteSucursales(STORE_ID)).rejects.toThrow(ForbiddenException);
+  });
+
+  it('keeps an unexpired FREE_TRIAL on the trial and does not start the clock for a paid plan', () => {
+    const futuro = new Date(Date.now() + 86_400_000);
+    const pasado = new Date(Date.now() - 86_400_000);
+    expect(pruebaEstaVencida('FREE_TRIAL', futuro)).toBe(false);
+    expect(pruebaEstaVencida('ESTANDAR', pasado)).toBe(false);
+    expect(pruebaEstaVencida('FREE_TRIAL', null)).toBe(false);
+  });
+
+  it('blocks creation when the stored FREE_TRIAL is past 14 days and reports the upgrade', async () => {
+    storeRepo.findOne.mockResolvedValue({
+      id: STORE_ID,
+      nombre: 'Tienda Test',
+      slug: 'tienda-test',
+      plan: 'FREE_TRIAL',
+      propietarioId: USER_ID,
+      pruebaVenceEn: new Date(Date.now() - 86_400_000),
+    });
+    productRepo.count.mockResolvedValue(0);
+
+    const res = await service.obtenerMetricasYLimites(STORE_ID);
+
+    expect(res.tienda.plan).toBe('FREE_TRIAL');
+    expect(res.pruebaVencida).toBe(true);
+    expect(res.capacidades.posOffline).toBe(false);
+    await expect(service.validarLimiteProductos(STORE_ID)).rejects.toThrow(/prueba de 14 días/);
+    await expect(service.exigirCapacidad(STORE_ID, 'posOffline')).rejects.toThrow(ForbiddenException);
+  });
+
+  it('refuses POS, voice reports and ML on a live trial, and allows them on CORPORATIVO', async () => {
+    await expect(service.exigirCapacidad(STORE_ID, 'posOffline')).rejects.toThrow(ForbiddenException);
+    await expect(service.exigirCapacidad(STORE_ID, 'reportesVozNlp')).rejects.toThrow(ForbiddenException);
+    await expect(service.exigirCapacidad(STORE_ID, 'modelosPredictivosMl')).rejects.toThrow(ForbiddenException);
+
+    storeRepo.findOne.mockResolvedValue({ id: STORE_ID, plan: 'CORPORATIVO', propietarioId: USER_ID });
+
+    await expect(service.exigirCapacidad(STORE_ID, 'posOffline')).resolves.toBeUndefined();
+    await expect(service.exigirCapacidad(STORE_ID, 'modelosPredictivosMl')).resolves.toBeUndefined();
+  });
+
+  it('allows POS and voice on ESTANDAR and refuses ML', async () => {
+    storeRepo.findOne.mockResolvedValue({ id: STORE_ID, plan: 'ESTANDAR', propietarioId: USER_ID });
+
+    await expect(service.exigirCapacidad(STORE_ID, 'posOffline')).resolves.toBeUndefined();
+    await expect(service.exigirCapacidad(STORE_ID, 'reportesVozNlp')).resolves.toBeUndefined();
+    await expect(service.exigirCapacidad(STORE_ID, 'modelosPredictivosMl')).rejects.toThrow(ForbiddenException);
   });
 
   it('reports the effective plan: a paid plan whose subscription expired falls back to the trial', async () => {

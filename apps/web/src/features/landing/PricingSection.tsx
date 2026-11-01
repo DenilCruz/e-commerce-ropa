@@ -18,6 +18,7 @@ import {
 import { useAuthStore } from '../../store/auth.store';
 import { usePlanLimites } from '../tiendas/hooks/usePlanLimites';
 import { tiendasApi } from '../tiendas/services/tiendas.api';
+import { esDueno } from '../../lib/roles';
 import { planesApi } from '../tiendas/services/planes.api';
 import { PLAN_NOMBRES_FALLBACK, esBajaDePlan, esPlanDePago } from '../tiendas/utils/planes';
 import { MiTienda } from '../tiendas/types';
@@ -46,7 +47,7 @@ export const PricingSection: React.FC = () => {
   });
 
   // Identificar la tienda que administra el usuario
-  const tiendasAdmin = misTiendas.filter((t) => t.rol === 'ADMIN');
+  const tiendasAdmin = misTiendas.filter((t) => esDueno(t.rol));
   const tiendaDestino = tiendasAdmin.find((t) => t.esActiva) || tiendasAdmin[0] || (metricas?.tienda ? {
     id: metricas.tienda.id,
     nombre: metricas.tienda.nombre,
