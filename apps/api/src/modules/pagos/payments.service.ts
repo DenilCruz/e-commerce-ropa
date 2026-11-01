@@ -1216,50 +1216,48 @@ export class PaymentsService {
   // HU-59: REEMBOLSAR PAGO (ADMIN)
   // =========================================================================
   async reembolsarPago(adminId: string, ordenId: string, dto: ReembolsarPagoDto) {
-    const orden = await this.orderRepo.findOne({
-      where: { id: ordenId, tenantId: this.tid },
-      relations: ['pago', 'pago.metodoPago', 'items', 'envio'],
-    });
-
-    if (!orden) {
-      throw new NotFoundException(`Orden ${ordenId} no encontrada.`);
-    }
-
-    const pago = orden.pago;
-    if (!pago) {
-      throw new BadRequestException('Esta orden no tiene un registro de pago asociado.');
-    }
-
-    if (pago.estado === 'REEMBOLSADO') {
-      throw new BadRequestException('Este pago ya ha sido reembolsado anteriormente.');
-    }
-
-    let refundStripeResult: any = null;
-
-    if (pago.idTransaccion && pago.idTransaccion.startsWith('pi_')) {
-      try {
-        refundStripeResult = await this.stripe.refunds.create({
-          payment_intent: pago.idTransaccion,
-          reason: 'requested_by_customer',
-          metadata: {
-            adminId,
-            ordenId: orden.id,
-            nroOrden: orden.nro,
-            motivo: dto.motivo || 'Reclamo de cliente',
-          },
-        });
-        this.logger.log(`Reembolso Stripe exitoso: ${refundStripeResult.id} para PaymentIntent ${pago.idTransaccion}`);
-      } catch (err: any) {
-        this.logger.error(`Error al ejecutar reembolso en Stripe: ${err.message}`);
-        throw new BadRequestException(`Fallo en pasarela Stripe al reembolsar: ${err.message}`);
-      }
-    }
-
     const queryRunner = this.dataSource.createQueryRunner();
     await queryRunner.connect();
     await queryRunner.startTransaction();
 
     try {
+      // Hold the order so two refund requests, or a refund and a cancellation, run one after the other.
+      const fila = await queryRunner.manager.findOne(OrderEntity, {
+        where: { id: ordenId, tenantId: this.tid },
+        lock: { mode: 'pessimistic_write' },
+      });
+      if (!fila) throw new NotFoundException(`Orden ${ordenId} no encontrada.`);
+      const orden = (await queryRunner.manager.findOne(OrderEntity, {
+        where: { id: ordenId, tenantId: this.tid },
+        relations: ['pago', 'pago.metodoPago', 'items', 'envio'],
+      })) as OrderEntity;
+
+      const pago = orden.pago;
+      if (!pago) throw new BadRequestException('Esta orden no tiene un registro de pago asociado.');
+      if (pago.estado === 'REEMBOLSADO') throw new BadRequestException('Este pago ya ha sido reembolsado anteriormente.');
+      if (pago.estado !== 'APROBADO') {
+        throw new BadRequestException('Solo se puede reembolsar un pago que ya fue aprobado.');
+      }
+
+      let refundStripeResult: any = null;
+      if (pago.idTransaccion && pago.idTransaccion.startsWith('pi_')) {
+        try {
+          // The key makes a retry return the same refund instead of creating a second one.
+          refundStripeResult = await this.stripe.refunds.create(
+            {
+              payment_intent: pago.idTransaccion,
+              reason: 'requested_by_customer',
+              metadata: { adminId, ordenId: orden.id, nroOrden: orden.nro, motivo: dto.motivo || 'Reclamo de cliente' },
+            },
+            { idempotencyKey: `reembolso-${pago.id}` },
+          );
+          this.logger.log(`Reembolso Stripe exitoso: ${refundStripeResult.id} para PaymentIntent ${pago.idTransaccion}`);
+        } catch (err: any) {
+          this.logger.error(`Error al ejecutar reembolso en Stripe: ${err.message}`);
+          throw new BadRequestException(`Fallo en pasarela Stripe al reembolsar: ${err.message}`);
+        }
+      }
+
       pago.estado = 'REEMBOLSADO';
       pago.respuestaPasarela = {
         ...(pago.respuestaPasarela || {}),
@@ -1282,29 +1280,24 @@ export class PaymentsService {
         await queryRunner.manager.save(ShippingEntity, orden.envio);
       }
 
-      // Restaurar stock
-      if (orden.items && orden.items.length > 0) {
-        for (const item of orden.items) {
+      // A cancelled order already gave its units back; do not add them a second time.
+      if (estadoAnterior !== 'CANCELADO' && estadoAnterior !== 'REEMBOLSADO') {
+        for (const item of orden.items ?? []) {
           if (item.varianteId) {
-            await queryRunner.manager.increment(
-              ProductVariantEntity,
-              { id: item.varianteId },
-              'stock',
-              item.cantidad,
-            );
+            await queryRunner.manager.increment(ProductVariantEntity, { id: item.varianteId }, 'stock', item.cantidad);
           }
         }
       }
 
-      // Auditoría en historial_venta
-      const hist = queryRunner.manager.create(OrderHistoryEntity, {
-        notaventaId: orden.id,
-        estadoAnterior,
-        estadoNuevo: 'REEMBOLSADO',
-        comentario: dto.motivo || 'Reembolso autorizado por el administrador.',
-        usuarioId: adminId,
-      });
-      await queryRunner.manager.save(hist);
+      await queryRunner.manager.save(
+        queryRunner.manager.create(OrderHistoryEntity, {
+          notaventaId: orden.id,
+          estadoAnterior,
+          estadoNuevo: 'REEMBOLSADO',
+          comentario: dto.motivo || 'Reembolso autorizado por el administrador.',
+          usuarioId: adminId,
+        }),
+      );
 
       await queryRunner.commitTransaction();
 
@@ -1321,8 +1314,9 @@ export class PaymentsService {
       };
     } catch (err: any) {
       await queryRunner.rollbackTransaction();
+      if (err instanceof HttpException) throw err;
       this.logger.error(`Error guardando reembolso en BD: ${err.message}`);
-      throw new BadRequestException(`Error al registrar el reembolso: ${err.message}`);
+      throw new BadRequestException('No se pudo registrar el reembolso. Inténtalo de nuevo.');
     } finally {
       await queryRunner.release();
     }

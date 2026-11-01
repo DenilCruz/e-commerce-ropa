@@ -57,7 +57,12 @@ export const efectosDeTransicion = (desde: string, hacia: string, pago: Contexto
     if (hacia === 'PAGADO' && pago.estado === 'PENDIENTE') nuevoPago = 'APROBADO';
     // Cash is collected when the parcel is handed over.
     if (hacia === 'ENTREGADO' && pago.tipo === 'contra_entrega' && pago.estado === 'PENDIENTE') nuevoPago = 'APROBADO';
-    if (hacia === 'CANCELADO') nuevoPago = pago.estado === 'PENDIENTE' ? 'RECHAZADO' : pago.estado === 'APROBADO' ? 'REEMBOLSADO' : null;
+    if (hacia === 'CANCELADO') {
+      if (pago.estado === 'PENDIENTE') nuevoPago = 'RECHAZADO';
+      // A card payment is only marked refunded by the refund itself (it moves money through the gateway); any other
+      // approved payment is returned by hand by the store, which is what cancelling the order records.
+      else if (pago.estado === 'APROBADO' && pago.tipo !== 'tarjeta') nuevoPago = 'REEMBOLSADO';
+    }
     if (hacia === 'REEMBOLSADO' && pago.estado === 'APROBADO') nuevoPago = 'REEMBOLSADO';
   }
 

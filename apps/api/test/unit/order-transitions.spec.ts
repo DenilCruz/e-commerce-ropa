@@ -55,8 +55,12 @@ describe('order transitions', () => {
       expect(efectosDeTransicion('PENDIENTE', 'CANCELADO', qr())).toEqual({ pago: 'RECHAZADO', restaurarStock: true });
     });
 
-    it('marks an approved payment as refunded when the order is cancelled', () => {
-      expect(efectosDeTransicion('PAGADO', 'CANCELADO', tarjeta())).toEqual({ pago: 'REEMBOLSADO', restaurarStock: true });
+    it('marks an approved QR payment as returned when the order is cancelled', () => {
+      expect(efectosDeTransicion('PAGADO', 'CANCELADO', qr('APROBADO'))).toEqual({ pago: 'REEMBOLSADO', restaurarStock: true });
+    });
+
+    it('does not pretend a paid card was refunded just because the order was cancelled', () => {
+      expect(efectosDeTransicion('PAGADO', 'CANCELADO', tarjeta())).toEqual({ pago: null, restaurarStock: true });
     });
 
     it('never restores stock twice', () => {
