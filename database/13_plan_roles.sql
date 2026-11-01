@@ -40,9 +40,11 @@ INSERT INTO rol (nombre, descripcion)
 SELECT 'VENDEDOR', 'Ventas de mostrador, inventario y pedidos'
 WHERE NOT EXISTS (SELECT 1 FROM rol WHERE nombre = 'VENDEDOR');
 
+-- The platform operator is identified by a fixed e-mail, never by a store slug:
+-- a slug comes from a name any tenant can register.
 UPDATE usuario
 SET rol_id = (SELECT id FROM rol WHERE nombre = 'SUPERADMIN')
-WHERE id = (SELECT propietario_id FROM tienda WHERE slug = 'aura')
+WHERE correo = 'admin@aura-atelier.com'
   AND EXISTS (SELECT 1 FROM rol WHERE nombre = 'SUPERADMIN');
 
 COMMIT;
