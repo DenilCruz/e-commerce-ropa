@@ -8,6 +8,8 @@ import { CambiarRolDto } from './dto/cambiar-rol.dto';
 import { JwtAuthGuard } from '../autenticacion/guards/jwt-auth.guard';
 import { RolesGuard } from '../autenticacion/guards/roles.guard';
 import { Roles } from '../autenticacion/decorators/roles.decorator';
+import { CurrentUser } from '../autenticacion/decorators/current-user.decorator';
+import { exigirMismoUsuario } from '../../common/auth/solo-propio-usuario';
 
 @ApiTags('Usuarios y Perfiles')
 @Controller('usuarios')
@@ -75,8 +77,8 @@ export class UsuariosController {
   @ApiBearerAuth()
   @ApiOperation({ summary: 'Obtener el perfil de un usuario con sus direcciones (HU-09)' })
   @ApiParam({ name: 'id', description: 'ID del usuario' })
-  obtenerPerfil(@Param('id', ParseUUIDPipe) id: string) {
-    return this.servicioUsuarios.obtenerPerfil(id);
+  obtenerPerfil(@Param('id', ParseUUIDPipe) id: string, @CurrentUser('userId') usuarioToken: string) {
+    return this.servicioUsuarios.obtenerPerfil(exigirMismoUsuario(id, usuarioToken));
   }
 
   @Put(':id/perfil')
@@ -87,8 +89,9 @@ export class UsuariosController {
   actualizarPerfil(
     @Param('id', ParseUUIDPipe) id: string,
     @Body() datos: ActualizarUsuarioDto,
+    @CurrentUser('userId') usuarioToken: string,
   ) {
-    return this.servicioUsuarios.actualizarPerfil(id, datos);
+    return this.servicioUsuarios.actualizarPerfil(exigirMismoUsuario(id, usuarioToken), datos);
   }
 
   @Put(':id/cambiar-password')
@@ -99,8 +102,9 @@ export class UsuariosController {
   cambiarContrasena(
     @Param('id', ParseUUIDPipe) id: string,
     @Body() datos: CambiarContrasenaDto,
+    @CurrentUser('userId') usuarioToken: string,
   ) {
-    return this.servicioUsuarios.cambiarContrasena(id, datos);
+    return this.servicioUsuarios.cambiarContrasena(exigirMismoUsuario(id, usuarioToken), datos);
   }
 
   // ==========================
@@ -112,8 +116,8 @@ export class UsuariosController {
   @ApiBearerAuth()
   @ApiOperation({ summary: 'Listar todas las direcciones de entrega de un usuario' })
   @ApiParam({ name: 'id', description: 'ID del usuario' })
-  obtenerDirecciones(@Param('id', ParseUUIDPipe) id: string) {
-    return this.servicioUsuarios.obtenerDirecciones(id);
+  obtenerDirecciones(@Param('id', ParseUUIDPipe) id: string, @CurrentUser('userId') usuarioToken: string) {
+    return this.servicioUsuarios.obtenerDirecciones(exigirMismoUsuario(id, usuarioToken));
   }
 
   @Post(':id/direcciones')
@@ -125,8 +129,9 @@ export class UsuariosController {
   agregarDireccion(
     @Param('id', ParseUUIDPipe) id: string,
     @Body() datos: CrearDireccionDto,
+    @CurrentUser('userId') usuarioToken: string,
   ) {
-    return this.servicioUsuarios.agregarDireccion(id, datos);
+    return this.servicioUsuarios.agregarDireccion(exigirMismoUsuario(id, usuarioToken), datos);
   }
 
   @Put(':idUsuario/direcciones/:idDireccion/predeterminada')
@@ -138,8 +143,9 @@ export class UsuariosController {
   marcarPredeterminada(
     @Param('idUsuario', ParseUUIDPipe) idUsuario: string,
     @Param('idDireccion', ParseUUIDPipe) idDireccion: string,
+    @CurrentUser('userId') usuarioToken: string,
   ) {
-    return this.servicioUsuarios.marcarPredeterminada(idUsuario, idDireccion);
+    return this.servicioUsuarios.marcarPredeterminada(exigirMismoUsuario(idUsuario, usuarioToken), idDireccion);
   }
 
   @Delete(':idUsuario/direcciones/:idDireccion')
@@ -152,7 +158,8 @@ export class UsuariosController {
   eliminarDireccion(
     @Param('idUsuario', ParseUUIDPipe) idUsuario: string,
     @Param('idDireccion', ParseUUIDPipe) idDireccion: string,
+    @CurrentUser('userId') usuarioToken: string,
   ) {
-    return this.servicioUsuarios.eliminarDireccion(idUsuario, idDireccion);
+    return this.servicioUsuarios.eliminarDireccion(exigirMismoUsuario(idUsuario, usuarioToken), idDireccion);
   }
 }
