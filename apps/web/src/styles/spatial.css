@@ -56,8 +56,8 @@ html.lenis, html.lenis body { height: auto; }
 .spatial-hotspot__detail { display: block; margin-top: 6px; font-size: 10px; color: #eee1cc; }
 .spatial-hotspot.is-open .spatial-hotspot__label { border-radius: 12px; }
 
-.aura-store { background: #f4efe6; }
-.aura-store > header { background: rgba(248,245,239,.82); border-color: var(--aura-line); backdrop-filter: blur(24px); }
+.aura-store { background: #d9cfbc; }
+.aura-store > header { background: rgba(217,207,188,.86); border-color: var(--aura-line); backdrop-filter: blur(24px); }
 .aura-store > header > div { max-width: 1600px; }
 .aura-store .store-content { max-width: 1600px; padding: 28px clamp(20px, 4vw, 72px) 60px; }
 .aura-store .store-content:has(.spatial-store-home) { max-width: none; padding: 0; }

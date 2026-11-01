@@ -161,3 +161,23 @@ body [data-sonner-toast] {
 body [data-sonner-toast] [data-description], body [data-sonner-toast] [data-title] { color: inherit !important; }
 body [data-sonner-toast][data-type="success"] [data-icon] { color: #d9bf8f !important; }
 body [data-sonner-toast][data-type="error"] [data-icon] { color: #f19b8c !important; }
+
+/* ---------- Store tone: a warm sand ramp instead of near-white, so the step from the dark landing is gentle ---------- */
+.aura-store {
+  --store-canvas: #d9cfbc;
+  --store-surface: #e6decf;
+  --store-surface-hi: #efe7d8;
+  --store-deep: #d6ccb9;
+  --store-line: rgb(92 74 46 / 24%);
+}
+.aura-store [class~="bg-[#FAF8F5]"], .aura-store [class~="bg-[#faf8f5]"], .aura-store [class~="bg-[#F5F0E6]"], .aura-store [class~="bg-[#FCFBF9]"] { background-color: var(--store-surface); }
+.aura-store [class~="bg-[#F2ECE1]"] { background-color: var(--store-deep); }
+.aura-store [class~="bg-white"] { background-color: var(--store-surface-hi); }
+.aura-store [class~="border-[#E7E1D7]"], .aura-store [class~="border-[#e7e1d7]"] { border-color: var(--store-line); }
+.aura-store [class~="divide-[#E7E1D7]"] > * + * { border-color: var(--store-line); }
+.aura-store header[class~="bg-white/80"] { background-color: rgb(217 207 188 / 86%); }
+/* Secondary text keeps 4.5:1 on sand (footer is excluded: it is dark) */
+.aura-store main .text-stone-400 { color: #6a6256; }
+.aura-store main .text-stone-500 { color: #5a5247; }
+.aura-store main .text-stone-600 { color: #4a443b; }
+.aura-store main ::placeholder { color: #7a7266; }

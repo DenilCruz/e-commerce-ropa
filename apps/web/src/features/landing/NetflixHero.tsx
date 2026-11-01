@@ -5,6 +5,7 @@ import { useAuthStore } from '../../store/auth.store';
 import { ModalCrearTienda } from '../tiendas/components/ModalCrearTienda';
 import { InteractiveSpatialCard, SilkCanvasBackground } from '../../components/spatial';
 import { coutureState } from '../../components/spatial/coutureState';
+import { isCutoutUrl } from '../../lib/cutout';
 
 const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:3000/api/v1';
 const ASSETS_URL = API_URL.replace('/api/v1', '');
@@ -28,7 +29,7 @@ export const NetflixHero: React.FC = () => {
       .then((list: any[]) => {
         if (off || !Array.isArray(list)) return;
         // The carousel shows garments alone, so only products with a transparent cut-out qualify; those live in /uploads/<category>/.
-        const isCutout = (p: any) => /^\/?uploads\/[^/]+\/[^/]+\.webp$/.test(((p.imagenes.find((i: any) => i.principal) || p.imagenes[0]).url as string).replace(/^https?:\/\/[^/]+/, ''));
+        const isCutout = (p: any) => isCutoutUrl((p.imagenes.find((i: any) => i.principal) || p.imagenes[0]).url);
         const withPhoto = list.filter((p) => p.activo !== false && p.imagenes?.length && isCutout(p));
         // Featured first, then spread across categories so the carousel is varied rather than a wall of dresses.
         const seen = new Set<string>();

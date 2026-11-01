@@ -439,7 +439,7 @@ export const ProductDetailPage: React.FC = () => {
           </div>
 
           {/* PROBADOR VIRTUAL IA — CARD LUMINOSA DE ALTO IMPACTO */}
-          <div className="p-4 bg-gradient-to-br from-[#F2ECE1] via-[#FAF8F5] to-[#EAE2D5] border border-[#D5CCC0] rounded-sm shadow-xs space-y-2.5">
+          <div className="p-4 bg-gradient-to-br from-[#d6ccb9] via-[#e6decf] to-[#d6ccb9] border border-[#D5CCC0] rounded-sm shadow-xs space-y-2.5">
             <div className="flex items-center justify-between">
               <div className="flex items-center gap-2 text-stone-900">
                 <Sparkles className="w-4 h-4 text-[#9B7B54]" />
