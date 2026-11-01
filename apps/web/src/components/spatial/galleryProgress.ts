@@ -12,6 +12,7 @@ export const ease = (t: number) => t * t * (3 - 2 * t);
 export function updateStageProgress() {
   const vh = window.innerHeight;
   coutureState.hero = MathUtils.clamp(window.scrollY / (vh * 0.75), 0, 1);
+  document.documentElement.style.setProperty('--hero-progress', coutureState.hero.toFixed(3));
   const run = document.getElementById('aura-gallery-run');
   if (!run) { coutureState.run = 0; coutureState.exit = 0; return; }
   const r = run.getBoundingClientRect();

@@ -5,9 +5,9 @@ import { OrbitItem, ProductOrbit } from './ProductOrbit';
 import { coutureState } from './coutureState';
 import { ease, updateStageProgress } from './galleryProgress';
 
-const Y_HERO = -1.78; // resting height of the gallery under the hero copy
+const Y_HERO = -0.95; // resting height of the first piece, between the feature cards under the hero copy
 const Y_RUN = 0.4; // centred while the visitor scrolls through the collection
-const SCALE_HERO = 0.8;
+const SCALE_HERO = 1.0;
 
 /**
  * Moves the gallery through the page: small and low under the headline, then centred and large while the

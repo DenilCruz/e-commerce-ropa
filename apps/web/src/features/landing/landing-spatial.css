@@ -89,31 +89,6 @@
   min-height: 300px;
   margin-top: .5rem;
 }
-.aura-hero__stage::before {
-  position: absolute;
-  top: 12%;
-  left: 50%;
-  width: min(760px, 72vw);
-  height: 68%;
-  border: 1px solid rgb(232 210 174 / 19%);
-  border-radius: 50%;
-  content: '';
-  pointer-events: none;
-  transform: translateX(-50%) rotate(-9deg);
-}
-.aura-hero__stage::after {
-  position: absolute;
-  top: 20%;
-  left: calc(50% + min(330px, 30vw));
-  width: 7px;
-  height: 7px;
-  border: 1px solid rgb(247 229 198 / 90%);
-  border-radius: 50%;
-  background: #d9bd8f;
-  box-shadow: 0 0 0 5px rgb(217 189 143 / 11%), 0 0 18px rgb(237 213 173 / 55%);
-  content: '';
-  pointer-events: none;
-}
 .aura-hero__features { display: contents; }
 .aura-feature {
   position: absolute;
@@ -132,7 +107,7 @@
   backdrop-filter: blur(18px);
   transition: translate .35s cubic-bezier(.2,.8,.2,1), border-color .35s, box-shadow .35s;
 }
-.aura-feature:hover { translate: 0 -5px; border-color: rgb(245 233 211 / 45%); box-shadow: 0 22px 40px rgb(0 0 0 / 28%); }
+.aura-feature:hover { translate: calc(var(--hero-progress, 0) * var(--dir, 1) * 120px) -5px; border-color: rgb(245 233 211 / 45%); box-shadow: 0 22px 40px rgb(0 0 0 / 28%); }
 .aura-feature svg { width: 19px; height: 19px; flex: 0 0 auto; color: #e4c99e; stroke-width: 1.5; }
 .aura-feature div { display: grid; gap: .25rem; }
 .aura-feature strong { color: #fffaf2; font-size: .74rem; font-weight: 600; letter-spacing: .09em; text-transform: uppercase; }
@@ -141,6 +116,13 @@
 .aura-feature--two { top: 28%; right: 1%; }
 .aura-feature--three { bottom: 14%; left: 4%; }
 .aura-feature--four { right: 4%; bottom: 7%; }
+/* Scrolling away from the top sends the cards out to the sides while the collection takes the stage. */
+@media (min-width: 801px) {
+  .aura-feature, .aura-hero__hint { opacity: clamp(0, calc(1.5 - var(--hero-progress, 0) * 2.6), 1); pointer-events: auto; }
+  .aura-feature { translate: calc(var(--hero-progress, 0) * var(--dir, 1) * 120px) 0; }
+  .aura-feature--one, .aura-feature--three, .aura-hero__hint { --dir: -1; }
+  .aura-feature--two, .aura-feature--four { --dir: 1; }
+}
 
 .aura-hero__action { position: relative; z-index: 2; margin: 1.2rem auto 0; text-align: center; }
 .aura-hero__form { display: flex; max-width: 410px; margin: 0 auto; padding: 4px; border: 1px solid rgb(244 236 223 / 38%); border-radius: 999px; background: rgb(16 15 14 / 66%); backdrop-filter: blur(14px); }
@@ -232,8 +214,6 @@
   .aura-feature--two,
   .aura-feature--three,
   .aura-feature--four { position: relative; inset: auto; width: auto; grid-column: auto; grid-row: auto; align-self: auto; min-height: 74px; padding: .8rem; transform: none; }
-  .aura-hero__stage::before { top: -12%; width: 100%; height: 55%; }
-  .aura-hero__stage::after { display: none; }
   .aura-feature strong { font-size: .62rem; }
   .aura-feature span { font-size: .62rem; }
   .aura-hero__action { width: 100%; padding: 0; }
@@ -341,13 +321,6 @@
 .aura-hero .aura-feature { background: linear-gradient(135deg, rgb(14 12 10 / 62%), rgb(14 12 10 / 38%)); }
 .aura-hero__hint { left: 1rem; transform: none; }
 
-.aura-hero__piece { position: absolute; z-index: 3; bottom: -1.7rem; left: 50%; display: grid; gap: .1rem; min-width: 250px; padding: .55rem 1.2rem; border: 1px solid rgb(197 168 128 / 30%); border-radius: 18px; background: rgb(12 12 14 / 55%); color: #f4efe6; text-align: center; transform: translateX(-50%); backdrop-filter: blur(14px); transition: border-color .25s, background-color .25s, translate .3s cubic-bezier(.2,.8,.2,1); }
-.aura-hero__piece:hover { border-color: rgb(240 208 128 / 65%); background: rgb(12 12 14 / 72%); translate: 0 -4px; }
-.aura-hero__piece span { color: #c5a880; font-size: .55rem; letter-spacing: .18em; text-transform: uppercase; }
-.aura-hero__piece strong { font: 500 .92rem 'Playfair Display', Georgia, serif; }
-.aura-hero__piece em { display: inline-flex; align-items: center; justify-content: center; gap: .35rem; color: #d8c9b2; font-size: .68rem; font-style: normal; }
-.aura-hero__piece svg { width: 12px; height: 12px; }
-@media (max-width: 800px) { .aura-hero__piece { position: relative; bottom: auto; left: auto; order: 0; width: 100%; transform: none; } }
 
 /* ---- One continuous stage: the hero scene stays fixed behind the plans ---- */
 .aura-hero { background: transparent; }

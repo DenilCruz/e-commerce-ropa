@@ -27,7 +27,9 @@ export const NetflixHero: React.FC = () => {
       .then((r) => (r.ok ? r.json() : []))
       .then((list: any[]) => {
         if (off || !Array.isArray(list)) return;
-        const withPhoto = list.filter((p) => p.activo !== false && p.imagenes?.length);
+        // The carousel shows garments alone, so only products with a transparent cut-out qualify; those live in /uploads/<category>/.
+        const isCutout = (p: any) => /^\/?uploads\/[^/]+\/[^/]+\.webp$/.test(((p.imagenes.find((i: any) => i.principal) || p.imagenes[0]).url as string).replace(/^https?:\/\/[^/]+/, ''));
+        const withPhoto = list.filter((p) => p.activo !== false && p.imagenes?.length && isCutout(p));
         // Featured first, then spread across categories so the carousel is varied rather than a wall of dresses.
         const seen = new Set<string>();
         const ordered = [...withPhoto.filter((p) => p.destacado), ...withPhoto.filter((p) => !p.destacado)];
@@ -90,16 +92,11 @@ export const NetflixHero: React.FC = () => {
           role="group"
           aria-label="Capacidades de AURA"
           onPointerDown={(e) => { drag.current = e.clientX; coutureState.dragging = true; e.currentTarget.setPointerCapture(e.pointerId); }}
-          onPointerMove={(e) => { if (drag.current !== null) { coutureState.spin += (e.clientX - drag.current) * 0.01; drag.current = e.clientX; } }}
+          onPointerMove={(e) => { if (drag.current !== null && coutureState.hero > 0.3) { coutureState.spin += (e.clientX - drag.current) * 0.01; drag.current = e.clientX; } }}
           onPointerUp={() => { drag.current = null; coutureState.dragging = false; }}
           onPointerCancel={() => { drag.current = null; coutureState.dragging = false; }}
         >
-          <p className="aura-hero__hint">Desliza para recorrer la colección · toca una prenda para verla</p>
-          {piece && (
-            <Link to={`/t/aura/producto/${piece.id}`} className="aura-hero__piece" onPointerDown={(e) => e.stopPropagation()}>
-              <span>Pieza de la colección</span><strong>{piece.nombre}</strong><em>${Number(piece.precio).toFixed(0)} · Ver en tienda <ArrowRight aria-hidden="true" /></em>
-            </Link>
-          )}
+          <p className="aura-hero__hint">Desliza para ver la colección</p>
           <div className="aura-hero__features">
             <InteractiveSpatialCard dark className="aura-feature aura-feature--one">
               <Layers aria-hidden="true" /><div><strong>Todas tus marcas</strong><span>Maneja varias tiendas con un solo correo.</span></div>
