@@ -29,6 +29,7 @@ import { getImageUrl } from '../../../lib/utils';
 import { useNetworkStatus } from '../../../hooks/useNetworkStatus';
 import { pagosConfigApi, StorePublicPaymentConfig } from '../../tiendas/services/pagos-config.api';
 import { shippingApi, MetodoEnvio } from '../../envios/services/shipping.api';
+import { COMPROBANTE_VALIDO, tipoDePago } from '../../../lib/paymentKind';
 
 import { toast } from 'sonner';
 // Shipping rules the API applies when it charges the order: standard is free from $200 and $15 below it, express is always $30.
@@ -250,6 +251,12 @@ export const CheckoutPage: React.FC = () => {
   const items = cart?.items || [];
   const subtotal = cart?.total || 0;
   const esExpress = tipoEnvio === 'EXPRESS';
+  // Until the store's payment configuration arrives the QR option is assumed available, to avoid a flicker.
+  const qrDisponible = configPago ? configPago.disponible !== false : true;
+  const comprobanteValido = COMPROBANTE_VALIDO.test(nroComprobanteQr.trim());
+  useEffect(() => {
+    if (!qrDisponible && metodoPago === 'qr') setMetodoPago('tarjeta');
+  }, [qrDisponible, metodoPago]);
   const costoEnvio = esExpress ? EXPRESS_SHIPPING : (subtotal >= FREE_SHIPPING_FROM || subtotal === 0 ? 0 : STANDARD_SHIPPING);
   const totalFinal = Number(Math.max(0, (totalConDescuento || subtotal) + costoEnvio).toFixed(2));
   const metodoEnvioId = metodosEnvio.find((m) => (esExpress ? /express/i : /est[aá]ndar/i).test(m.nombre))?.id
@@ -372,6 +379,11 @@ export const CheckoutPage: React.FC = () => {
       return;
     }
 
+    if (!COMPROBANTE_VALIDO.test(nroComprobanteQr.trim())) {
+      setErrorPago('Ingresa el número de comprobante de tu transferencia: entre 4 y 40 caracteres, con letras, números, puntos o guiones.');
+      return;
+    }
+
     setProcesando(true);
     setErrorPago(null);
 
@@ -380,7 +392,7 @@ export const CheckoutPage: React.FC = () => {
         direccionEnvio: `${direccion}, ${ciudad}`,
         telefono,
         notas,
-        nroComprobante: nroComprobanteQr || undefined,
+        nroComprobante: nroComprobanteQr.trim(),
         cuponId: cupon?.id,
         metodoEnvioId,
         tipoEnvio,
@@ -420,6 +432,7 @@ export const CheckoutPage: React.FC = () => {
   // =========================================================================
   if (ordenCompletada) {
     const esAprobado = ordenCompletada.pago?.estado === 'APROBADO';
+    const enVerificacion = !esAprobado && tipoDePago(ordenCompletada.pago?.metodoPago) === 'qr';
 
     return (
       <div className="py-10 max-w-3xl mx-auto px-4">
@@ -440,13 +453,15 @@ export const CheckoutPage: React.FC = () => {
                 : 'bg-amber-100 text-amber-800'
             }`}
           >
-            {esAprobado ? 'Pago Aprobado con Éxito' : 'Pago Pendiente (Contra Entrega)'}
+            {esAprobado ? 'Pago aprobado' : enVerificacion ? 'Pago en verificación' : 'Pago pendiente (contra entrega)'}
           </span>
 
           <h1 className="text-3xl font-black text-gray-900 mb-2">¡Gracias por tu compra!</h1>
           <p className="text-gray-600 max-w-md mx-auto mb-8 text-sm leading-relaxed">
             {esAprobado
               ? 'Recibimos tu pago de forma segura. Tu pedido ya está en preparación.'
+              : enVerificacion
+              ? 'Recibimos tu pedido y la tienda está verificando tu transferencia. Apenas la confirme, pasa a preparación. Puedes seguir su estado en Mis pedidos.'
               : 'Tu pedido ha sido registrado con éxito. Podrás pagar en efectivo al momento de recibir tus prendas.'}
           </p>
 
@@ -848,6 +863,8 @@ export const CheckoutPage: React.FC = () => {
 
                 <button
                   type="button"
+                  disabled={!qrDisponible}
+                  title={qrDisponible ? undefined : 'Esta tienda aún no tiene el pago por QR disponible'}
                   onClick={() => setMetodoPago('qr')}
                   className={`p-4 rounded-xl border-2 text-left transition flex flex-col justify-between ${
                     metodoPago === 'qr'
@@ -863,7 +880,7 @@ export const CheckoutPage: React.FC = () => {
                   </div>
                   <div>
                     <p className="font-bold text-sm text-gray-900">Transferencia QR</p>
-                    <p className="text-xs text-gray-500">Banca móvil nacional</p>
+                    <p className="text-xs text-gray-500">{qrDisponible ? 'Desde la app de tu banco' : 'No disponible en esta tienda'}</p>
                   </div>
                 </button>
 
@@ -963,111 +980,94 @@ export const CheckoutPage: React.FC = () => {
                   )}
                 </div>
               ) : metodoPago === 'qr' ? (
-                /* OPCIÓN: PAGO CON QR SIMPLE (MODELO A CUSTODIA O MODELO B DIRECTO) */
+                /* Transferencia por QR: los datos de cobro salen de la configuración de la tienda, nunca del código */
                 <div className="space-y-4 pt-2">
-                  <div
-                    className="border border-[#E7E1D7] bg-[#FAF8F5] rounded-2xl p-4 flex items-center justify-between gap-3"
-                  >
-                    <div className="flex items-center gap-3">
-                      <div className="w-10 h-10 rounded-xl text-[#9B7B54] bg-stone-900 flex items-center justify-center font-bold text-sm shadow-xs">
-                        <QrCode className="w-5 h-5" />
-                      </div>
-                      <div>
-                        <h4 className="font-serif font-bold text-sm text-stone-900">
-                          {configPago?.modalidad === 'MODELO_B_DIRECTO'
-                            ? `Cobro Directo · ${configPago.nombre}`
-                            : 'AURA Pagos (Transferencia QR Central)'}
-                        </h4>
-                        <p className="text-xs text-stone-500">
-                          {configPago?.modalidad === 'MODELO_B_DIRECTO'
-                            ? `Transfiere directamente a la cuenta verificada de la tienda ${configPago.nombre}`
-                            : `Pago centralizado en custodia para la tienda ${configPago?.nombre || 'activa'}`}
-                        </p>
-                      </div>
+                  {!qrDisponible ? (
+                    <div className="rounded-2xl border border-[#E7E1D7] bg-[#FAF8F5] p-5 text-sm text-stone-600">
+                      Esta tienda aún no tiene el pago por QR disponible. Elige tarjeta o pago contra entrega.
                     </div>
-                    <span
-                      className="text-[10px] font-bold uppercase tracking-wider px-2.5 py-1 rounded-full bg-[#FAF8F5] text-stone-900 border border-[#E7E1D7]"
-                    >
-                      {configPago?.modalidad === 'MODELO_B_DIRECTO' ? 'Modelo B · Cobro Directo' : 'Modelo A · En Custodia'}
-                    </span>
-                  </div>
-
-                  <div
-                    className="bg-white border-2 border-dashed border-[#E7E1D7] rounded-2xl p-6 flex flex-col items-center text-center space-y-4"
-                  >
-                    <div className="p-3 bg-white rounded-2xl shadow-xs border border-[#E7E1D7] inline-block">
-                      <img
-                        src={configPago?.qrUrl || '/qr_pago_aura.png'}
-                        alt={`Código QR de Pago - ${configPago?.nombre || 'AURA'}`}
-                        className="w-56 h-56 object-contain rounded-xl"
-                      />
-                    </div>
-
-                    {/* Ficha Informativa de la Cuenta */}
-                    <div className="w-full max-w-sm bg-[#FAF8F5] border border-[#E7E1D7] rounded-xl p-3.5 text-xs text-left space-y-1.5">
-                      <div className="flex justify-between items-center">
-                        <span className="text-stone-500 font-medium">Titular de Cuenta:</span>
-                        <span className="font-bold text-stone-900">{configPago?.titularCuenta || 'AURA S.R.L.'}</span>
-                      </div>
-                      <div className="flex justify-between items-center">
-                        <span className="text-stone-500 font-medium">Banco:</span>
-                        <span className="font-semibold text-stone-800">{configPago?.banco || 'Banco Nacional de Bolivia'}</span>
-                      </div>
-                      {configPago?.numeroCuenta && (
-                        <div className="flex justify-between items-center">
-                          <span className="text-stone-500 font-medium">Nro. de Cuenta:</span>
-                          <span className="font-mono font-semibold text-stone-800">{configPago.numeroCuenta}</span>
+                  ) : (
+                    <>
+                      <div className="border border-[#E7E1D7] bg-[#FAF8F5] rounded-2xl p-4 flex items-center gap-3">
+                        <div className="w-10 h-10 rounded-xl bg-stone-900 text-[#c5a880] flex items-center justify-center shrink-0">
+                          <QrCode className="w-5 h-5" />
                         </div>
-                      )}
-                      <p className="pt-1.5 border-t border-[#E7E1D7] text-[11px] text-stone-500 leading-relaxed">
-                        {configPago?.descripcion}
-                      </p>
-                    </div>
+                        <div>
+                          <h4 className="font-serif text-base font-normal text-stone-900">Transferencia con QR</h4>
+                          <p className="text-xs text-stone-500">{configPago?.descripcion}</p>
+                        </div>
+                      </div>
 
-                    <div className="space-y-1 max-w-sm">
-                      <p className="text-xs text-stone-500 uppercase tracking-wider font-semibold">Monto a transferir:</p>
-                      <p className="text-2xl font-serif font-bold text-stone-900 font-mono">
-                        ${totalFinal.toFixed(2)} USD <span className="text-xs font-normal text-stone-500">(o equivalente en Bs)</span>
-                      </p>
-                      <p className="text-xs text-stone-500 mt-2 leading-relaxed">
-                        1. Abre tu aplicación bancaria móvil (Banco Unión, BNB, BCP, Mercantil Santa Cruz, etc.).<br />
-                        2. Escanea el código QR de arriba y confirma la transacción.<br />
-                        3. Ingresa tu número de comprobante o referencia y confirma tu pedido.
-                      </p>
-                    </div>
+                      <div className="bg-white border-2 border-dashed border-[#E7E1D7] rounded-2xl p-6 flex flex-col items-center text-center space-y-4">
+                        <div className="p-3 bg-white rounded-2xl shadow-xs border border-[#E7E1D7] inline-block">
+                          <img
+                            src={getImageUrl(configPago?.qrUrl)}
+                            alt={`Código QR para pagar a ${configPago?.nombre ?? 'la tienda'}`}
+                            className="w-56 h-56 object-contain rounded-xl"
+                          />
+                        </div>
 
-                    <div className="w-full max-w-sm text-left pt-2 border-t border-[#E7E1D7]">
-                      <label className="block text-xs font-bold text-stone-700 uppercase mb-1">
-                        Nro. de Comprobante / Referencia Bancaria (Opcional)
-                      </label>
-                      <input
-                        type="text"
-                        placeholder="Ej. TRX-984321 o número de operación"
-                        value={nroComprobanteQr}
-                        onChange={(e) => setNroComprobanteQr(e.target.value)}
-                        className="w-full px-3.5 py-2.5 bg-[#FAF8F5] border border-[#E7E1D7] rounded-xl text-sm focus:bg-white focus:ring-1 focus:ring-[#9B7B54] focus:border-[#9B7B54] focus:outline-none transition"
-                      />
-                    </div>
+                        <dl className="w-full max-w-sm bg-[#FAF8F5] border border-[#E7E1D7] rounded-xl p-3.5 text-xs text-left space-y-1.5">
+                          {configPago?.titularCuenta && (
+                            <div className="flex justify-between gap-3">
+                              <dt className="text-stone-500 font-medium">Titular</dt>
+                              <dd className="font-semibold text-stone-900 text-right">{configPago.titularCuenta}</dd>
+                            </div>
+                          )}
+                          {configPago?.banco && (
+                            <div className="flex justify-between gap-3">
+                              <dt className="text-stone-500 font-medium">Banco</dt>
+                              <dd className="font-semibold text-stone-800 text-right">{configPago.banco}</dd>
+                            </div>
+                          )}
+                          {configPago?.numeroCuenta && (
+                            <div className="flex justify-between gap-3">
+                              <dt className="text-stone-500 font-medium">Cuenta</dt>
+                              <dd className="font-mono font-semibold text-stone-800 text-right">{configPago.numeroCuenta}</dd>
+                            </div>
+                          )}
+                        </dl>
 
-                    <button
-                      type="button"
-                      onClick={procesarPagoQr}
-                      disabled={procesando}
-                      className="w-full max-w-sm py-4 text-white text-sm font-bold bg-stone-900 hover:bg-stone-800 rounded-xl transition shadow-xs flex items-center justify-center gap-2 cursor-pointer"
-                    >
-                      {procesando ? (
-                        <>
-                          <Loader2 className="w-4 h-4 animate-spin" />
-                          <span>Confirmando Pago QR...</span>
-                        </>
-                      ) : (
-                        <>
-                          <CheckCircle2 className="w-4 h-4" />
-                          <span>Ya transferí · Confirmar Pedido</span>
-                        </>
-                      )}
-                    </button>
-                  </div>
+                        <div className="space-y-1 max-w-sm">
+                          <p className="text-xs text-stone-500 uppercase tracking-wider font-semibold">Monto a transferir</p>
+                          <p className="text-2xl font-serif font-normal text-stone-900">${totalFinal.toFixed(2)} USD</p>
+                          <ol className="text-xs text-stone-500 mt-2 leading-relaxed text-left list-decimal pl-4 space-y-0.5">
+                            <li>Abre la aplicación de tu banco y escanea el código QR.</li>
+                            <li>Transfiere exactamente el monto indicado.</li>
+                            <li>Copia el número de comprobante o de operación y pégalo abajo.</li>
+                            <li>Registra tu pedido: la tienda verifica tu transferencia antes de prepararlo.</li>
+                          </ol>
+                        </div>
+
+                        <div className="w-full max-w-sm text-left pt-2 border-t border-[#E7E1D7]">
+                          <label htmlFor="comprobante-qr" className="block text-xs font-bold text-stone-700 uppercase mb-1">
+                            Número de comprobante
+                          </label>
+                          <input
+                            id="comprobante-qr"
+                            type="text"
+                            inputMode="text"
+                            autoComplete="off"
+                            maxLength={40}
+                            placeholder="Ej. 984321 o número de operación"
+                            value={nroComprobanteQr}
+                            onChange={(e) => setNroComprobanteQr(e.target.value)}
+                            aria-invalid={nroComprobanteQr !== '' && !comprobanteValido}
+                            aria-describedby="comprobante-ayuda"
+                            className="w-full px-3.5 py-2.5 bg-[#FAF8F5] border border-[#E7E1D7] rounded-xl text-sm focus:bg-white focus:ring-1 focus:ring-stone-900 outline-none"
+                          />
+                          <p
+                            id="comprobante-ayuda"
+                            className={`mt-1 text-[11px] ${nroComprobanteQr !== '' && !comprobanteValido ? 'text-rose-700' : 'text-stone-500'}`}
+                          >
+                            {nroComprobanteQr !== '' && !comprobanteValido
+                              ? 'Entre 4 y 40 caracteres: letras, números, puntos o guiones.'
+                              : 'Cada comprobante respalda un solo pedido.'}
+                          </p>
+                        </div>
+                      </div>
+                    </>
+                  )}
                 </div>
               ) : (
                 /* OPCION: PAGO CONTRA ENTREGA */
@@ -1182,7 +1182,7 @@ export const CheckoutPage: React.FC = () => {
               ) : (
                 <button
                   type="submit"
-                  disabled={procesando || items.length === 0 || cargandoEmbedded || !isOnline}
+                  disabled={procesando || items.length === 0 || cargandoEmbedded || !isOnline || (metodoPago === 'qr' && (!qrDisponible || !comprobanteValido))}
                   className={`w-full text-xs uppercase tracking-luxury py-4 px-6 rounded-none text-center shadow-sm transition flex items-center justify-center gap-2 font-medium ${
                     !isOnline
                       ? 'bg-stone-300 text-stone-500 cursor-not-allowed border border-stone-300'
@@ -1205,7 +1205,7 @@ export const CheckoutPage: React.FC = () => {
                         {metodoPago === 'tarjeta'
                           ? `Pagar ahora ($${totalFinal.toFixed(2)})`
                           : metodoPago === 'qr'
-                          ? `Confirmar Pago por QR ($${totalFinal.toFixed(2)})`
+                          ? `Registrar mi pedido ($${totalFinal.toFixed(2)})`
                           : `Confirmar Pedido en Efectivo ($${totalFinal.toFixed(2)})`}
                       </span>
                       <Lock className="w-3.5 h-3.5" />

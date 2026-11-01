@@ -4,7 +4,9 @@ export interface StorePublicPaymentConfig {
   tiendaId: string;
   nombre: string;
   slug: string;
-  modalidad: 'MODELO_A_CUSTODIA' | 'MODELO_B_DIRECTO';
+  /** False when neither the store nor the platform has a QR to pay to. */
+  disponible: boolean;
+  modalidad: 'MODELO_A_CUSTODIA' | 'MODELO_B_DIRECTO' | 'NO_DISPONIBLE';
   tituloModalidad: string;
   qrUrl: string;
   titularCuenta: string;

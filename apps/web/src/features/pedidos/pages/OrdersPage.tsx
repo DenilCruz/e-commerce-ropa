@@ -22,6 +22,7 @@ import { ordersApi } from '../services/orders.api';
 import { Pedido, PedidoItem, HistorialAuditoria } from '../types';
 import { useTenantStore } from '../../../hooks/useTenantStore';
 
+import { tipoDePago } from '../../../lib/paymentKind';
 export const OrdersPage: React.FC = () => {
   const { getStoreUrl } = useTenantStore();
   const [pedidos, setPedidos] = useState<Pedido[]>([]);
@@ -94,7 +95,7 @@ export const OrdersPage: React.FC = () => {
     return true;
   });
 
-  const getStatusBadge = (estado: string, estadoPago?: string) => {
+  const getStatusBadge = (estado: string, estadoPago?: string, metodoPago?: string) => {
     if (estado === 'REEMBOLSADO' || estadoPago === 'REEMBOLSADO') {
       return (
         <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-bold bg-[#FAF8F5] text-stone-700 border border-[#E7E1D7]">
@@ -131,7 +132,7 @@ export const OrdersPage: React.FC = () => {
       return (
         <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-bold bg-amber-100 text-amber-800">
           <Clock className="w-3.5 h-3.5" />
-          Pago Pendiente
+          {tipoDePago(metodoPago) === 'qr' ? 'Pago en verificación' : 'Pago Pendiente'}
         </span>
       );
     }
@@ -249,7 +250,7 @@ export const OrdersPage: React.FC = () => {
                 </div>
 
                 <div className="flex items-center gap-3 self-start sm:self-auto">
-                  {getStatusBadge(pedido.estado, pedido.pago?.estado)}
+                  {getStatusBadge(pedido.estado, pedido.pago?.estado, pedido.pago?.metodoPago)}
                 </div>
               </div>
 
@@ -419,7 +420,7 @@ export const OrdersPage: React.FC = () => {
                   <span className="text-xs text-gray-500 block">Estado Actual</span>
                   <p className="text-sm font-bold text-gray-900">{pedidoSeleccionado.estado}</p>
                 </div>
-                {getStatusBadge(pedidoSeleccionado.estado, pedidoSeleccionado.pago?.estado)}
+                {getStatusBadge(pedidoSeleccionado.estado, pedidoSeleccionado.pago?.estado, pedidoSeleccionado.pago?.metodoPago)}
               </div>
 
               {/* GUÍA DE ENVÍO */}

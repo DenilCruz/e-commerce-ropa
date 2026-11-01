@@ -38,7 +38,7 @@ describe('PaymentsService: a paid Checkout session creates its order exactly onc
   const build = () => {
     const none = {} as any;
     return new PaymentsService(
-      paymentRepo, none, { count: jest.fn().mockResolvedValue(0) } as any, none, none, none, none, none, none, none, none, none, none, none, dataSource,
+      paymentRepo, { findOne: jest.fn().mockResolvedValue({ id: 'metodo-tarjeta', nombre: 'Tarjeta de Débito/Crédito' }) } as any, { count: jest.fn().mockResolvedValue(0) } as any, none, none, none, none, none, none, none, none, none, none, none, dataSource,
       { get: (key: string) => (key === 'STRIPE_SECRET_KEY' ? 'sk_test_123' : undefined) } as any,
     );
   };

@@ -38,3 +38,18 @@ describe('PaymentsService cart lock', () => {
     await expect((service as any).bloquearCarrito(manager, 'user-1', 'cart-1')).rejects.toThrow(/ya se procesó/);
   });
 });
+
+describe('PaymentsService payment answer', () => {
+  it('names the real payment method of a freshly saved payment instead of guessing it from the receipt', async () => {
+    jest.spyOn(TenantContext, 'require').mockReturnValue('tenant-luna');
+    const none = {} as any;
+    const metodoRepo = { findOne: jest.fn().mockResolvedValue({ id: 'm-qr', nombre: 'QR Simple / Transferencia' }) };
+    const service = new PaymentsService(none, metodoRepo as any, none, none, none, none, none, none, none, none, none, none, none, none, none, { get: () => undefined } as any);
+
+    const pago = await (service as any).conMetodoPago({ id: 'p1', metodoPagoId: 'm-qr', idTransaccion: 'QR-ABC123' });
+
+    expect(pago.metodoPago.nombre).toBe('QR Simple / Transferencia');
+    expect((service as any).formatearRespuestaPago({ items: [] }, pago).pago.metodoPago).toBe('QR Simple / Transferencia');
+    jest.restoreAllMocks();
+  });
+});

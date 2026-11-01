@@ -16,6 +16,7 @@ import { CrearTiendaDto } from './dto/crear-tienda.dto';
 import { ActualizarConfigPagoDto } from './dto/actualizar-config-pago.dto';
 import { TenantContext } from '../../common/tenant/tenant-context';
 
+import { cuentaDeLaPlataforma } from './platform-account';
 export const PLAN_INICIAL = 'FREE_TRIAL';
 const MAX_INTENTOS_SLUG = 3;
 
@@ -195,41 +196,52 @@ export class StoresService {
     }
 
     if (!tienda) {
-      tienda = await this.storeRepo.findOne({ where: { slug: 'aura' } });
-    }
-
-    if (!tienda) {
       throw new NotFoundException('Tienda no encontrada.');
     }
 
     const tieneQrPropio = Boolean(tienda.qrUrl && tienda.qrUrl.trim() !== '');
+    const base = { tiendaId: tienda.id, nombre: tienda.nombre, slug: tienda.slug };
 
     if (tieneQrPropio) {
       return {
-        tiendaId: tienda.id,
-        nombre: tienda.nombre,
-        slug: tienda.slug,
+        ...base,
+        disponible: true,
         modalidad: 'MODELO_B_DIRECTO',
         tituloModalidad: `Cobro Directo · ${tienda.nombre}`,
         qrUrl: tienda.qrUrl,
         titularCuenta: tienda.titularCuenta || tienda.nombre,
-        banco: tienda.banco || 'Banca Móvil QR Simple',
+        banco: tienda.banco || '',
         numeroCuenta: tienda.numeroCuenta || '',
-        descripcion: `Cobro directo acreditado directamente a la cuenta bancaria de ${tienda.nombre}.`,
+        descripcion: `Tu transferencia llega directamente a la cuenta de ${tienda.nombre}.`,
       };
     }
 
+    const cuenta = cuentaDeLaPlataforma();
+    if (cuenta) {
+      return {
+        ...base,
+        disponible: true,
+        modalidad: 'MODELO_A_CUSTODIA',
+        tituloModalidad: 'AURA Pagos · Cuenta oficial en custodia',
+        qrUrl: cuenta.qrUrl,
+        titularCuenta: cuenta.titular,
+        banco: cuenta.banco,
+        numeroCuenta: cuenta.numeroCuenta,
+        descripcion: `AURA recibe tu transferencia y la acredita a ${tienda.nombre}.`,
+      };
+    }
+
+    // Neither the store nor the platform has a QR: the option must not be offered, and nothing is invented.
     return {
-      tiendaId: tienda.id,
-      nombre: tienda.nombre,
-      slug: tienda.slug,
-      modalidad: 'MODELO_A_CUSTODIA',
-      tituloModalidad: 'AURA Pagos · Sistema Central en Custodia',
-      qrUrl: '/qr_pago_aura.png',
-      titularCuenta: 'AURA S.R.L. (Plataforma Oficial)',
-      banco: 'Banco Nacional de Bolivia (BNB)',
-      numeroCuenta: '1000004928371',
-      descripcion: `Pago en custodia procesado por la plataforma central AURA. El saldo neto se acreditará al balance contable de ${tienda.nombre}.`,
+      ...base,
+      disponible: false,
+      modalidad: 'NO_DISPONIBLE',
+      tituloModalidad: 'Pago por QR no disponible',
+      qrUrl: '',
+      titularCuenta: '',
+      banco: '',
+      numeroCuenta: '',
+      descripcion: `${tienda.nombre} aún no tiene el pago por QR disponible.`,
     };
   }
 

@@ -548,7 +548,7 @@ export class PaymentsService {
       return {
         status: session.status,
         paymentStatus: session.payment_status,
-        orden: this.formatearRespuestaPago(ordenGuardada, pagoGuardado),
+        orden: this.formatearRespuestaPago(ordenGuardada, await this.conMetodoPago(pagoGuardado)),
       };
     } catch (err: any) {
       await queryRunner.rollbackTransaction();
@@ -647,7 +647,7 @@ export class PaymentsService {
       relations: ['notaventa', 'notaventa.items', 'metodoPago', 'notaventa.envio'],
     });
     if (pagoExistente) {
-      return this.formatearRespuestaPago(pagoExistente.notaventa, pagoExistente);
+      return this.formatearRespuestaPago(pagoExistente.notaventa, await this.conMetodoPago(pagoExistente));
     }
 
     const { subtotal, descuento, envio, totalFinal, cart, cupon, metodoEnvio } =
@@ -804,7 +804,7 @@ export class PaymentsService {
         'Tarjeta de Débito/Crédito',
       );
 
-      return this.formatearRespuestaPago(ordenGuardada, pagoGuardado);
+      return this.formatearRespuestaPago(ordenGuardada, await this.conMetodoPago(pagoGuardado));
     } catch (err: any) {
       await queryRunner.rollbackTransaction();
       this.logger.error(`Error procesando confirmación de pago: ${err.message}`);
@@ -978,7 +978,7 @@ export class PaymentsService {
         'Efectivo contra entrega',
       );
 
-      return this.formatearRespuestaPago(ordenGuardada, pagoGuardado);
+      return this.formatearRespuestaPago(ordenGuardada, await this.conMetodoPago(pagoGuardado));
     } catch (err: any) {
       await queryRunner.rollbackTransaction();
       this.logger.error(`Error en pago contra entrega: ${err.message}`);
@@ -1165,7 +1165,7 @@ export class PaymentsService {
         'QR Simple / Transferencia',
       );
 
-      return this.formatearRespuestaPago(ordenGuardada, pagoGuardado);
+      return this.formatearRespuestaPago(ordenGuardada, await this.conMetodoPago(pagoGuardado));
     } catch (err: any) {
       await queryRunner.rollbackTransaction();
       this.logger.error(`Error procesando pedido con QR: ${err.message}`);
@@ -1209,7 +1209,7 @@ export class PaymentsService {
       throw new ForbiddenException('No tienes permiso para ver esta orden.');
     }
 
-    return this.formatearRespuestaPago(orden, orden.pago);
+    return this.formatearRespuestaPago(orden, await this.conMetodoPago(orden.pago));
   }
 
   // =========================================================================
@@ -1480,6 +1480,15 @@ export class PaymentsService {
     }
   }
 
+  /** A freshly saved payment has no method loaded; the answer must name the real one, not guess it from the receipt. */
+  private async conMetodoPago<T extends PaymentEntity | undefined>(pago: T): Promise<T> {
+    if (pago && !pago.metodoPago && pago.metodoPagoId) {
+      const metodo = await this.paymentMethodRepo.findOne({ where: { id: pago.metodoPagoId } });
+      if (metodo) pago.metodoPago = metodo;
+    }
+    return pago;
+  }
+
   private formatearRespuestaPago(orden: OrderEntity, pago?: PaymentEntity) {
     return {
       ordenId: orden.id,
@@ -1504,11 +1513,7 @@ export class PaymentsService {
             monto: Number(pago.monto),
             estado: pago.estado,
             idTransaccion: pago.idTransaccion,
-            metodoPago:
-              pago.metodoPago?.nombre ||
-              (pago.idTransaccion?.startsWith('COD')
-                ? 'Efectivo contra entrega'
-                : 'Tarjeta de Débito/Crédito'),
+            metodoPago: pago.metodoPago?.nombre ?? null,
             fechaPago: pago.fechaPago || pago.creadoEn,
             respuestaPasarela: pago.respuestaPasarela,
           }
