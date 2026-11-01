@@ -264,14 +264,15 @@ const RIBBONS: RibbonSpec[] = [
 const scrollProgress = () => (typeof window === 'undefined' ? 0 : MathUtils.clamp(window.scrollY / (window.innerHeight * 0.85), 0, 1));
 
 /** Lifts the showpiece away as the page scrolls toward the plans, while the ribbons keep flowing behind them. */
-function Rig({ children, lift, scaleTo }: { children: React.ReactNode; lift: number; scaleTo: number }) {
+function Rig({ children, lift, scaleTo, compactDy = 0, compactScale = 1 }: { children: React.ReactNode; lift: number; scaleTo: number; compactDy?: number; compactScale?: number }) {
   const ref = useRef<Group>(null);
   useFrame(() => {
     if (!ref.current) return;
     const p = scrollProgress();
     const e = p * p * (3 - 2 * p);
-    ref.current.position.y = e * lift;
-    ref.current.scale.setScalar(MathUtils.lerp(1, scaleTo, e));
+    const compact = window.innerWidth < 800;
+    ref.current.position.y = e * lift + (compact ? compactDy : 0);
+    ref.current.scale.setScalar(MathUtils.lerp(1, scaleTo, e) * (compact ? compactScale : 1));
   });
   return <group ref={ref}>{children}</group>;
 }
@@ -286,7 +287,7 @@ function Ribbon({ spec, reduced }: { spec: RibbonSpec; reduced: boolean }) {
     if (!material.current) return;
     if (!reduced) material.current.uniforms.uTime.value = clock.elapsedTime + window.scrollY * 0.0035;
     const p = scrollProgress();
-    material.current.uniforms.uFade.value = 1 - 0.68 * p * p * (3 - 2 * p); // calmer behind the plans
+    material.current.uniforms.uFade.value = (1 - 0.68 * p * p * (3 - 2 * p)) * (window.innerWidth < 800 ? 0.55 : 1); // calmer behind the plans and on small screens
   });
   return <mesh position={[0, spec.y, spec.z]} frustumCulled={false}>
     <planeGeometry args={[1, 1, 520, 24]} />
@@ -331,7 +332,7 @@ export default function CoutureScene({ reduced, active, dressUrl }: { reduced: b
         {RIBBONS.map((spec) => <Ribbon key={spec.phase} spec={spec} reduced={frozen} />)}
       </group>
     </Rig>
-    <Rig lift={5.2} scaleTo={0.78}>
+    <Rig lift={5.2} scaleTo={0.78} compactDy={-0.5} compactScale={0.72}>
       <group position={[0, Y, 0]} scale={SCALE}>
         <Pedestal />
         {dress.status === 'ready' && dress.model && <PhotoGarment model={dress.model} reduced={frozen} />}

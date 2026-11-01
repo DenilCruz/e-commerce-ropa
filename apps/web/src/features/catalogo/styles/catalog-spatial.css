@@ -69,3 +69,7 @@
 .spatial-catalog > div:first-child { border-radius: 28px; }
 .spatial-catalog > div:has(input[type='range']) { border-radius: 22px; }
 .spatial-catalog > div:nth-of-type(2) > div:first-child { flex: 1 1 300px; min-width: 260px; }
+
+/* The category pills scroll inside their own row instead of widening the page. */
+.spatial-catalog { min-width: 0; }
+.spatial-catalog > div[class*="overflow-x-auto"], .spatial-catalog [class*="overflow-x-auto"] { min-width: 0; max-width: 100%; }

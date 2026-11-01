@@ -20,6 +20,7 @@ import {
 } from 'lucide-react';
 import { ordersApi } from '../services/orders.api';
 import { Pedido, PedidoItem, HistorialAuditoria } from '../types';
+import { useTenantStore } from '../../../hooks/useTenantStore';
 
 export const OrdersPage: React.FC = () => {
   const { getStoreUrl } = useTenantStore();

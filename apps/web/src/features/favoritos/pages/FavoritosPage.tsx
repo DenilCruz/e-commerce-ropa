@@ -14,6 +14,7 @@ import {
 import { useFavoritosStore } from '../store/favoritos.store';
 import { useAuthStore } from '../../../store/auth.store';
 import { Favorito } from '../types';
+import { useTenantStore } from '../../../hooks/useTenantStore';
 
 const ASSETS_URL = (import.meta.env.VITE_API_URL || 'http://localhost:3000/api/v1').replace('/api/v1', '');
 
