@@ -14,6 +14,15 @@ import { toast } from 'sonner';
 import { shippingApi, MetodoEnvio, ActualizarEstadoEnvioDto } from '../../../envios/services/shipping.api';
 import { Link } from 'react-router-dom';
 
+const ETIQUETA_ESTADO: Record<string, string> = {
+  TODOS: 'Todos',
+  PREPARANDO: 'Preparando',
+  EN_CAMINO: 'En camino',
+  EN_REPARTO: 'En reparto',
+  ENTREGADO: 'Entregado',
+  FALLIDO: 'Fallido',
+};
+
 export const AdminShippingPage: React.FC = () => {
   const [activeTab, setActiveTab] = useState<'envios' | 'metodos'>('envios');
 
@@ -231,7 +240,7 @@ export const AdminShippingPage: React.FC = () => {
                       : 'bg-[#FAF8F5] text-stone-600 border border-[#E7E1D7] hover:bg-[#F2ECE1]'
                   }`}
                 >
-                  {st}
+                  {ETIQUETA_ESTADO[st] ?? st}
                 </button>
               ))}
             </div>
@@ -310,7 +319,7 @@ export const AdminShippingPage: React.FC = () => {
                               : 'bg-stone-100 text-stone-700 border border-stone-200'
                           }`}
                         >
-                          {e.estado}
+                          {ETIQUETA_ESTADO[e.estado] ?? e.estado}
                         </span>
                       </td>
                       <td className="px-6 py-4 text-xs text-stone-500">
@@ -458,11 +467,11 @@ export const AdminShippingPage: React.FC = () => {
                   onChange={(e: any) => setNuevoEstado(e.target.value)}
                   className="w-full px-3 py-2 border border-[#E7E1D7] rounded-xl text-sm focus:ring-2 focus:ring-stone-900 focus:outline-none bg-white text-stone-900"
                 >
-                  <option value="PREPARANDO">PREPARANDO (En almacén)</option>
-                  <option value="EN_CAMINO">EN_CAMINO (Despachado en tránsito)</option>
-                  <option value="EN_REPARTO">EN_REPARTO (En moto/camión de reparto local)</option>
-                  <option value="ENTREGADO">ENTREGADO (Paquete recibido por cliente)</option>
-                  <option value="FALLIDO">FALLIDO (No se pudo entregar)</option>
+                  <option value="PREPARANDO">Preparando (en almacén)</option>
+                  <option value="EN_CAMINO">En camino (despachado, en tránsito)</option>
+                  <option value="EN_REPARTO">En reparto (con el repartidor local)</option>
+                  <option value="ENTREGADO">Entregado (recibido por el cliente)</option>
+                  <option value="FALLIDO">Fallido (no se pudo entregar)</option>
                 </select>
               </div>
 

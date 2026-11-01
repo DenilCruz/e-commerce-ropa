@@ -181,3 +181,6 @@ body [data-sonner-toast][data-type="error"] [data-icon] { color: #f19b8c !import
 .aura-store main .text-stone-500 { color: #5a5247; }
 .aura-store main .text-stone-600 { color: #4a443b; }
 .aura-store main ::placeholder { color: #7a7266; }
+
+/* Tailwind's space-y-* adds a top margin to every child, which pushed fixed overlays down and left a light strip above them */
+[class*="space-y-"] > .fixed, [class*="space-x-"] > .fixed { margin: 0 !important; }

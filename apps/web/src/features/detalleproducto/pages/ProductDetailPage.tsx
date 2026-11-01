@@ -40,7 +40,6 @@ export const ProductDetailPage: React.FC = () => {
   // Acordeones de información editorial
   const [seccionAbierta, setSeccionAbierta] = useState<string>('descripcion');
   const [resumenResenas, setResumenResenas] = useState<ResumenResenas>({ promedio: 0, total: 0 });
-  const [acordeonResenasAbierto, setAcordeonResenasAbierto] = useState(true);
 
   // Probador Virtual IA
   const [probadorModalAbierto, setProbadorModalAbierto] = useState(false);
@@ -53,7 +52,7 @@ export const ProductDetailPage: React.FC = () => {
         const [data, rels, resumenOpiniones] = await Promise.all([
           obtenerProductoPorId(id),
           obtenerProductosRelacionados(id).catch(() => []),
-          resenasApi.obtenerResumen(id).catch(() => ({ promedio: 5.0, total: 2 })),
+          resenasApi.obtenerResumen(id).catch(() => ({ promedio: 0, total: 0 })),
         ]);
         setProducto(data);
         setRelacionados(rels);
@@ -259,7 +258,7 @@ export const ProductDetailPage: React.FC = () => {
                 <span className="text-xs font-semibold text-stone-800">{Number(resumenResenas.promedio).toFixed(1)}</span>
                 <span className="text-xs text-stone-400">·</span>
                 <a
-                  href="#acordeon-resenas"
+                  href="#resenas"
                   className="text-xs text-stone-500 hover:text-stone-900 underline transition-colors"
                 >
                   {resumenResenas.total} {resumenResenas.total === 1 ? 'opinión verificada' : 'opiniones verificadas'}
@@ -481,59 +480,6 @@ export const ProductDetailPage: React.FC = () => {
               )}
             </div>
 
-            {/* Reseñas 5 Estrellas (Acordeón Compacto) */}
-            <div className="py-3" id="acordeon-resenas">
-              <button 
-                onClick={() => setAcordeonResenasAbierto(!acordeonResenasAbierto)}
-                className="w-full py-2 flex justify-between items-center text-xs uppercase tracking-luxury text-stone-800"
-              >
-                <div className="flex items-center gap-2">
-                  <span>Reseñas de Clientes</span>
-                  {resumenResenas.total > 0 && (
-                    <>
-                      <div className="flex">
-                        {[1, 2, 3, 4, 5].map((s) => (
-                          <Star key={s} className={`w-3 h-3 ${s <= Math.round(resumenResenas.promedio) ? 'fill-amber-400 text-amber-400' : 'text-stone-300'}`} />
-                        ))}
-                      </div>
-                      <span className="text-[10px] text-stone-500">({resumenResenas.total})</span>
-                    </>
-                  )}
-                </div>
-                <span className="text-base font-light">{acordeonResenasAbierto ? '−' : '+'}</span>
-              </button>
-              {acordeonResenasAbierto && (
-                <div className="pt-2 pb-4 space-y-3">
-                  <div className="bg-[#F2ECE1]/60 p-3 text-xs space-y-1 border border-[#E7E1D7]">
-                    <div className="flex justify-between items-center">
-                      <span className="font-serif font-medium text-stone-900">Elena V.</span>
-                      <div className="flex text-amber-500">
-                        {[1, 2, 3, 4, 5].map((s) => (
-                          <Star key={s} className="w-2.5 h-2.5 fill-amber-400 text-amber-400" />
-                        ))}
-                      </div>
-                    </div>
-                    <p className="text-stone-600 font-light italic">
-                      "La caída del tejido es sublime. El tacto y los remates reflejan auténtica sastrería de atelier."
-                    </p>
-                  </div>
-                  <div className="bg-[#F2ECE1]/60 p-3 text-xs space-y-1 border border-[#E7E1D7]">
-                    <div className="flex justify-between items-center">
-                      <span className="font-serif font-medium text-stone-900">Camila M.</span>
-                      <div className="flex text-amber-500">
-                        {[1, 2, 3, 4, 5].map((s) => (
-                          <Star key={s} className="w-2.5 h-2.5 fill-amber-400 text-amber-400" />
-                        ))}
-                      </div>
-                    </div>
-                    <p className="text-stone-600 font-light italic">
-                      "El probador virtual me dio la certeza exacta sobre la talla. Superó mis expectativas."
-                    </p>
-                  </div>
-                </div>
-              )}
-            </div>
-
             {/* Composición y Cuidado */}
             <div className="py-3">
               <button 
@@ -597,7 +543,7 @@ export const ProductDetailPage: React.FC = () => {
 
       {/* Formulario Completo de Reseñas para Clientes */}
       <div className="border-t border-[#E7E1D7] pt-12">
-        <ResenasSection productoId={producto.id} />
+        <div id="resenas"><ResenasSection productoId={producto.id} /></div>
       </div>
 
       {/* Modal de Prueba Virtual */}
