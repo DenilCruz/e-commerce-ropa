@@ -1,10 +1,15 @@
-import { Controller, Get, Put, Post, Body, Param, Query, ParseUUIDPipe } from '@nestjs/common';
+import { Controller, Get, Put, Post, Body, Param, Query, ParseUUIDPipe, UseGuards } from '@nestjs/common';
 import { ApiTags, ApiOperation, ApiResponse, ApiParam, ApiQuery } from '@nestjs/swagger';
+import { JwtAuthGuard } from '../autenticacion/guards/jwt-auth.guard';
+import { RolesGuard } from '../autenticacion/guards/roles.guard';
+import { Roles } from '../autenticacion/decorators/roles.decorator';
 import { InventarioService } from './inventory.service';
 import { AjustarStockDto } from './dto/ajustar-stock.dto';
 import { ProcesarStockPedidoDto } from './dto/item-stock.dto';
 
 @ApiTags('Inventario y Almacén')
+@UseGuards(JwtAuthGuard, RolesGuard)
+@Roles('ADMIN', 'VENDEDOR')
 @Controller('inventario')
 export class InventarioController {
   constructor(private readonly servicioInventario: InventarioService) {}

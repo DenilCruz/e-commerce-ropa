@@ -322,7 +322,8 @@ export class AuthController {
   }
 
   @Get('tiendas/mi-config-pago')
-  @UseGuards(JwtAuthGuard)
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles('ADMIN')
   @ApiBearerAuth()
   @ApiOperation({
     summary: 'Consultar configuración de cobro y saldo en custodia de la tienda activa (Admin)',
@@ -334,7 +335,8 @@ export class AuthController {
   }
 
   @Patch('tiendas/mi-config-pago')
-  @UseGuards(JwtAuthGuard)
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles('ADMIN')
   @ApiBearerAuth()
   @HttpCode(HttpStatus.OK)
   @ApiOperation({
