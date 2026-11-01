@@ -141,7 +141,7 @@ export const StoreInfoPage: React.FC = () => {
       </div>
 
       <div className="grid grid-cols-1 md:grid-cols-[220px_1fr] gap-10">
-        <nav aria-label="Ayuda" className="flex md:flex-col gap-2 overflow-x-auto md:overflow-visible pb-2 md:pb-0">
+        <nav aria-label="Ayuda" className="flex md:flex-col gap-2 overflow-x-auto md:overflow-visible pb-2 md:pb-0 no-scrollbar">
           {INFO_TOPICS.map((t) => (
             <Link
               key={t.id}

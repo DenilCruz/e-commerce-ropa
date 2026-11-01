@@ -1231,7 +1231,7 @@ export const CheckoutPage: React.FC = () => {
                 </div>
                 <div>
                   <h3 className="font-serif font-bold text-base text-gray-900">Seleccionar Punto en el Mapa</h3>
-                  <p className="text-xs text-gray-500">Haz clic o arrastra el marcador 📍 hasta la puerta de tu casa</p>
+                  <p className="text-xs text-gray-500">Haz clic o arrastra el marcador hasta la puerta de tu casa</p>
                 </div>
               </div>
               <button

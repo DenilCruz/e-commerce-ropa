@@ -567,7 +567,7 @@ export const AdminDynamicReportsPage: React.FC = () => {
                 Total registros: <strong className="text-stone-900">{resultado.totalFilas}</strong>
               </span>
               <span className="text-xs text-stone-600 font-mono bg-[#FAF8F5] px-2.5 py-1 rounded border border-[#E7E1D7]">
-                ⚡ {resultado.tiempoEjecucionMs} ms
+                {resultado.tiempoEjecucionMs} ms
               </span>
             </div>
 

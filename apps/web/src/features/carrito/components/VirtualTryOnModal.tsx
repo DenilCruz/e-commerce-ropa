@@ -425,7 +425,7 @@ export const VirtualTryOnModal: React.FC<VirtualTryOnModalProps> = ({
                 <span className="bg-[#9B7B54]/20 text-[#D5C4AC] text-[9px] uppercase tracking-luxury px-2 py-0.5 rounded-full border border-[#9B7B54]/30 font-medium">
                   {modoPrincipal === 'espejo_ar'
                     ? 'En vivo con IA'
-                    : '📸 Estudio Fotográfico'}
+                    : 'Estudio Fotográfico'}
                 </span>
               </div>
               <p className="text-xs text-[#C5B59E]/70 font-light">
@@ -705,7 +705,7 @@ export const VirtualTryOnModal: React.FC<VirtualTryOnModalProps> = ({
                           <div className="w-24 h-24 rounded-full border-4 border-[#9B7B54]/40 animate-ping absolute" />
                           <div className="w-20 h-20 rounded-full bg-stone-900 border-2 border-[#9B7B54] flex items-center justify-center shadow-2xl">
                             <span className="text-3xl font-black text-[#9B7B54] font-mono animate-pulse">
-                              {cuentaRegresiva === 0 ? '📸' : `${cuentaRegresiva}s`}
+                              {cuentaRegresiva === 0 ? '¡Ya!' : `${cuentaRegresiva}s`}
                             </span>
                           </div>
                         </div>
@@ -808,7 +808,7 @@ export const VirtualTryOnModal: React.FC<VirtualTryOnModalProps> = ({
               ) : (
                 <>
                   <Sparkles className="w-4 h-4 text-amber-300" />
-                  <span>✨ Probar Prenda con IA</span>
+                  <span>Probar prenda con IA</span>
                 </>
               )}
             </button>
@@ -945,7 +945,7 @@ export const VirtualTryOnModal: React.FC<VirtualTryOnModalProps> = ({
                           Original
                         </div>
                         <div className="absolute bottom-3 right-3 bg-stone-900/90 backdrop-blur-sm text-[#FAF8F5] border border-[#9B7B54]/40 px-2.5 py-1 rounded-lg text-[10px] font-bold z-10">
-                          ✨ Probador IA
+                          Probador IA
                         </div>
                       </div>
                     )}

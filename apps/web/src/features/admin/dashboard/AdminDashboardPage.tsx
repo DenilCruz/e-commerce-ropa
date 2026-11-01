@@ -132,7 +132,7 @@ export const AdminDashboardPage: React.FC = () => {
       {/* TABS DE CONMUTACIÓN DE DASHBOARD (DESCRIPTIVO VS PREDICTIVO VS VOZ) */}
       <div className="flex flex-wrap items-center gap-2 border-b border-[#E7E1D7] pb-2">
         <span className="px-4 py-2 text-xs font-bold uppercase tracking-wider bg-stone-900 text-white rounded-lg shadow-xs">
-          📊 Dashboard Descriptivo (Lo ocurrido)
+          Dashboard Descriptivo (Lo ocurrido)
         </span>
         <Link
           to="/admin/dashboard-predictivo"
@@ -145,7 +145,7 @@ export const AdminDashboardPage: React.FC = () => {
           to="/admin/reportes-dinamicos"
           className="flex items-center gap-2 px-4 py-2 text-xs font-bold uppercase tracking-wider bg-white text-stone-700 hover:bg-[#FAF8F5] rounded-lg transition-colors border border-[#E7E1D7]"
         >
-          <span>🎙️ Consultas por Voz</span>
+          <span>Consultas por Voz</span>
         </Link>
       </div>
 

@@ -276,7 +276,7 @@ export const GarmentARLiveViewer: React.FC<GarmentARLiveViewerProps> = ({
           {/* Badges de capacidades técnicas AURA */}
           <div className="flex flex-wrap items-center justify-center gap-2 text-[10px] font-serif tracking-wider uppercase text-[#E8DDCB]">
             <span className="px-3.5 py-1.5 bg-[#24221F] border border-[#3A3632] rounded-xs">En vivo</span>
-            <span className="px-3.5 py-1.5 bg-[#24221F] border border-[#3A3632] rounded-xs">👗 Drapeado de Atelier</span>
+            <span className="px-3.5 py-1.5 bg-[#24221F] border border-[#3A3632] rounded-xs">Drapeado de Atelier</span>
             <span className="px-3.5 py-1.5 bg-[#24221F] border border-[#3A3632] rounded-xs">HD 1280×720</span>
           </div>
 

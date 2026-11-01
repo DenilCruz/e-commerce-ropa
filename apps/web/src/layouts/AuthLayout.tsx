@@ -4,6 +4,7 @@ import { ArrowLeft } from 'lucide-react';
 import { PaperBackdrop, SpatialGlassCard } from '../components/spatial';
 import '../features/autenticacion/pages/auth.css';
 
+import { storeDisplayName } from '../lib/storeName';
 export const AuthLayout: React.FC = () => {
   const location = useLocation();
   const { slug } = useParams<{ slug?: string }>();
@@ -11,7 +12,7 @@ export const AuthLayout: React.FC = () => {
   const targetSlug = slug || (matchTenant ? matchTenant[1] : null);
 
   const backUrl = targetSlug ? `/t/${targetSlug}` : '/';
-  const backLabel = targetSlug ? `Volver a ${targetSlug}` : 'Regresar al Menú Principal';
+  const backLabel = targetSlug ? `Volver a ${storeDisplayName(targetSlug)}` : 'Regresar al Menú Principal';
 
   return (
     <div className="auth-scene min-h-screen flex flex-col justify-between text-stone-900 font-sans p-4 sm:p-6 selection:bg-[#E7E1D7]">

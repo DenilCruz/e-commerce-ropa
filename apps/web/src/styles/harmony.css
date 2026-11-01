@@ -59,6 +59,8 @@ body :is(div, section)[class*="border"]:has(> table),
 body :is(div, section)[class*="border"]:has(> div > table),
 body :is(div, section)[class*="border"]:has(> div > div > table) { overflow: hidden; }
 body table thead tr, body table thead th { background: rgb(197 168 128 / 10%); }
+/* Table bodies sit on the warm card, not on pure white */
+body table tbody[class~="bg-white"] { background-color: transparent; }
 body table tbody tr { transition: background-color .2s ease; }
 body table tbody tr:hover { background: rgb(197 168 128 / 7%); }
 

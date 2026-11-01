@@ -9,6 +9,7 @@ import { useAuthStore } from '../../../store/auth.store';
 import { useCartStore } from '../../../store/cart.store';
 import { destinoTrasCrearTienda } from '../../tiendas/utils/planes';
 
+import { storeDisplayName } from '../../../lib/storeName';
 export const LoginPage: React.FC = () => {
   const navigate = useNavigate();
   const location = useLocation();
@@ -117,7 +118,7 @@ export const LoginPage: React.FC = () => {
   };
 
   const backUrl = targetSlug ? `/t/${targetSlug}` : '/';
-  const backLabel = targetSlug ? `Volver a la tienda (${targetSlug})` : 'Regresar al menú principal';
+  const backLabel = targetSlug ? `Volver a la tienda (${storeDisplayName(targetSlug)})` : 'Regresar al menú principal';
 
   return (
     <div>
@@ -134,7 +135,7 @@ export const LoginPage: React.FC = () => {
 
       <div className="text-center mb-6">
         <h2 className="text-2xl font-bold text-gray-900 tracking-tight font-serif">
-          {targetSlug ? `Iniciar Sesión en ${targetSlug}` : '¡Bienvenido de nuevo!'}
+          {targetSlug ? `Iniciar sesión en ${storeDisplayName(targetSlug)}` : '¡Bienvenido de nuevo!'}
         </h2>
         <p className="text-sm text-gray-500 mt-1">
           {targetSlug

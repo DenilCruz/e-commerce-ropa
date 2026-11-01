@@ -460,7 +460,7 @@ export const AdminProductsPage: React.FC = () => {
                     className="w-full border border-dashed border-gray-300 hover:border-black rounded-md p-4 bg-white cursor-pointer transition"
                   />
                   <p className="text-xs text-gray-500">
-                    💡 <strong>Consejo:</strong> Puedes seleccionar varias fotos a la vez manteniendo presionado <code>Ctrl</code> o <code>Shift</code> al hacer clic en tus archivos. La primera imagen seleccionada será la <strong>portada principal</strong> de catálogo.
+                    <strong>Consejo:</strong> Puedes seleccionar varias fotos a la vez manteniendo presionado <code>Ctrl</code> o <code>Shift</code> al hacer clic en tus archivos. La primera imagen seleccionada será la <strong>portada principal</strong> de catálogo.
                   </p>
 
                   {/* Previsualización en tiempo real de nuevas fotos seleccionadas */}
