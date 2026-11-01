@@ -1,0 +1,90 @@
+:root {
+  --aura-ink: #191918;
+  --aura-cream: #f4efe6;
+  --aura-champagne: #c5a880;
+  --aura-line: rgba(124, 105, 77, 0.23);
+  --aura-glass: rgba(255, 255, 255, 0.56);
+  --aura-shadow: 0 18px 48px -26px rgba(39, 30, 17, 0.3);
+}
+
+html { scroll-padding-top: 88px; }
+body { background: var(--aura-cream); }
+::selection { background: #c5a880; color: #151413; }
+:focus-visible { outline: 2px solid #92703f; outline-offset: 4px; }
+input, textarea { caret-color: #92703f; }
+button, a, input, select, textarea { -webkit-tap-highlight-color: transparent; }
+button:disabled { cursor: not-allowed; }
+input[type="range"] { accent-color: #aa8a5c; cursor: pointer; }
+table { font-variant-numeric: tabular-nums; }
+html.lenis, html.lenis body { height: auto; }
+.lenis.lenis-smooth { scroll-behavior: auto !important; }
+.lenis.lenis-stopped { overflow: hidden; }
+
+:where(.spatial-glass) {
+  background: radial-gradient(ellipse at var(--light-x, 30%) var(--light-y, 0%), rgba(255,255,255,.72), transparent 70%), var(--aura-glass);
+  border: 1px solid var(--aura-line);
+  border-radius: 14px;
+  backdrop-filter: blur(20px);
+  -webkit-backdrop-filter: blur(20px);
+  transform: perspective(1100px) rotateX(var(--tilt-x, 0deg)) rotateY(var(--tilt-y, 0deg));
+  transition: transform 360ms cubic-bezier(.2,.8,.2,1), border-color 220ms ease, background-color 220ms ease;
+}
+.spatial-glass--dark {
+  color: #f4efe6;
+  background: radial-gradient(ellipse at var(--light-x, 30%) var(--light-y, 0%), rgba(240,229,204,.17), transparent 70%), rgba(255,255,255,.055);
+  border-color: rgba(229,215,188,.3);
+}
+.spatial-glass:hover { border-color: rgba(173,143,97,.5); }
+.silk-background { position: absolute; inset: 0; overflow: hidden; pointer-events: none; isolation: isolate; }
+.silk-background canvas { position: relative; z-index: 1; transform: translateZ(0); will-change: transform; }
+.silk-background__light { position: absolute; inset: 0; background: radial-gradient(ellipse at 12% 0%, #c4b48a70 0%, transparent 48%), radial-gradient(ellipse at 86% 80%, #6d635425, transparent 45%); }
+.silk-background--light .silk-background__light { background: radial-gradient(ellipse at 40% 25%, #d6c5a677, transparent 65%); }
+.silk-background__fallback { position: absolute; width: 26%; height: 65%; left: 37%; top: 20%; background: linear-gradient(110deg, #6f624c20, #d9c8a255 35%, #9b896230 50%, #d9c8a240 70%, #74654a20); filter: blur(28px); border-radius: 45%; transform: rotate(-12deg); }
+.silk-background--webgl .silk-background__fallback { display: none; }
+.image-sequence { position: relative; height: 100%; min-height: 150px; width: 100%; touch-action: pan-y; cursor: grab; isolation: isolate; }
+.image-sequence:active { cursor: grabbing; }
+.image-sequence canvas { display: block; position: absolute; inset: 0; width: 100%; height: 100%; opacity: 0; transition: opacity 400ms ease; }
+.image-sequence canvas.is-ready { opacity: 1; }
+.image-sequence__placeholder { position: absolute; inset: 0; width: 100%; height: 100%; }
+.image-sequence__empty { height: 100%; display: grid; place-items: center; color: #736754; font-size: 12px; }
+.image-sequence__controls { position: absolute; bottom: 0; left: 0; width: 100%; z-index: 3; padding: 12px 16px; color: inherit; cursor: default; }
+.image-sequence__controls label { display: flex; flex-wrap: wrap; justify-content: space-between; gap: 8px; font-size: 10px; letter-spacing: .04em; }
+.image-sequence__controls input { width: 100%; height: 4px; margin: 6px 0; }
+.spatial-hotspot { position: absolute; display: flex; align-items: center; gap: 11px; z-index: 8; color: #f8f5ee; text-align: left; }
+.spatial-hotspot__point { flex-shrink: 0; width: 22px; height: 22px; border: 1px solid #fff9; border-radius: 50%; outline: 1px solid #fff5; outline-offset: 5px; background: #fff2; }
+.spatial-hotspot__label { padding: 9px 14px; border-radius: 100px; border: 1px solid #e5dec970; background: #26231ac4; backdrop-filter: blur(16px); font-size: 10px; line-height: 1.4; max-width: 180px; }
+.spatial-hotspot__detail { display: block; margin-top: 6px; font-size: 10px; color: #eee1cc; }
+.spatial-hotspot.is-open .spatial-hotspot__label { border-radius: 12px; }
+
+.aura-store { background: #f4efe6; }
+.aura-store > header { background: rgba(248,245,239,.82); border-color: var(--aura-line); backdrop-filter: blur(24px); }
+.aura-store > header > div { max-width: 1600px; }
+.aura-store .store-content { max-width: 1600px; padding: 28px clamp(20px, 4vw, 72px) 60px; }
+.aura-store .store-content:has(.spatial-store-home) { max-width: none; padding: 0; }
+.aura-store .store-content :is(input:not([type="checkbox"]):not([type="radio"]):not([type="range"]), select, textarea) { border-color: var(--aura-line); border-radius: 8px; background-color: rgba(255,255,255,.65); }
+.aura-store .store-content :is(input, select, textarea):focus { border-color: #a88c63; box-shadow: 0 0 0 3px #c5a88022; }
+.aura-store .store-content .bg-white { background-color: rgba(255,255,255,.62); }
+.aura-store .store-content :is(.rounded-lg,.rounded-xl,.rounded-2xl) { border-radius: 14px; }
+.aura-store .store-content h1 { letter-spacing: -.035em; }
+.aura-store .store-content h2 { letter-spacing: -.025em; }
+.aura-store footer { background: #151614; border-color: #39382f; }
+.aura-store footer h3 { color: #efe5d1; }
+.aura-store .aura-button { border-radius: 8px; min-height: 42px; }
+.aura-button { transition: background-color 180ms, box-shadow 180ms, transform 180ms; }
+.aura-button:not(:disabled):active { transform: translateY(1px); }
+.aura-button:focus-visible { outline: 2px solid #aa8a5c; outline-offset: 3px; }
+.aura-input { background: rgba(255,255,255,.66); border-color: var(--aura-line); }
+
+@media (max-width: 767px) {
+  .aura-store .store-content { padding: 20px 16px 40px; }
+  .spatial-glass { transform: none; backdrop-filter: blur(12px); }
+  .spatial-hotspot__label { max-width: 128px; font-size: 9px; padding: 7px 10px; }
+  .spatial-hotspot__point { width: 15px; height: 15px; }
+  .spatial-hotspot { gap: 8px; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after { scroll-behavior: auto !important; animation-duration: .01ms !important; animation-iteration-count: 1 !important; transition-duration: .01ms !important; }
+  .spatial-glass { transform: none !important; }
+  .image-sequence canvas { transform: none !important; }
+}

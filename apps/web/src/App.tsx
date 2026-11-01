@@ -4,6 +4,7 @@ import { AppRouter } from './router';
 import { Toaster } from 'sonner';
 import { OfflineBanner } from './components/OfflineBanner';
 import { useCartStore } from './store/cart.store';
+import { SmoothScrollProvider } from './components/spatial/SmoothScrollProvider';
 
 export const App: React.FC = () => {
   useEffect(() => {
@@ -12,9 +13,11 @@ export const App: React.FC = () => {
 
   return (
     <BrowserRouter>
+      <SmoothScrollProvider>
       <OfflineBanner />
       <AppRouter />
       <Toaster position="top-right" richColors />
+      </SmoothScrollProvider>
     </BrowserRouter>
   );
 };
