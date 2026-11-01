@@ -18,6 +18,7 @@ const ASSETS_URL = (import.meta.env.VITE_API_URL || 'http://localhost:3000/api/v
 
 export const CartPage: React.FC = () => {
   const navigate = useNavigate();
+  const { getStoreUrl } = useTenantStore();
   const {
     cart,
     cargando,

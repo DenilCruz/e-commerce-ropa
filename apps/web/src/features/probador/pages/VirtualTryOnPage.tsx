@@ -21,6 +21,7 @@ export const VirtualTryOnPage: React.FC = () => {
   const [searchParams] = useSearchParams();
   const productoIdParam = searchParams.get('producto');
   const { isOnline } = useNetworkStatus();
+  const { getStoreUrl } = useTenantStore();
 
   const [productos, setProductos] = useState<Producto[]>([]);
   const [productoSeleccionado, setProductoSeleccionado] = useState<Producto | null>(null);
