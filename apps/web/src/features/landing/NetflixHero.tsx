@@ -8,7 +8,7 @@ import { coutureState } from '../../components/spatial/coutureState';
 
 const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:3000/api/v1';
 const ASSETS_URL = API_URL.replace('/api/v1', '');
-type HeroDress = { id: string; nombre: string; precio: string; imagen: string };
+type HeroItem = { id: string; nombre: string; precio: string; imagen: string };
 
 export const NetflixHero: React.FC = () => {
   const navigate = useNavigate();
@@ -17,25 +17,32 @@ export const NetflixHero: React.FC = () => {
   const [nombreTienda, setNombreTienda] = useState('');
   const [modalCrear, setModalCrear] = useState(false);
   const drag = useRef<number | null>(null);
-  const [dress, setDress] = useState<HeroDress | null>(null);
+  const [items, setItems] = useState<HeroItem[]>([]);
+  const [active, setActive] = useState(0);
 
-  // A real, featured dress from the demo store is rebuilt in 3D from its product photo.
+  // The store's real catalogue becomes the showpiece: one photo per product, up to twelve pieces.
   useEffect(() => {
     let off = false;
     fetch(`${API_URL}/productos`, { headers: { 'X-Tenant-Slug': 'aura' } })
       .then((r) => (r.ok ? r.json() : []))
       .then((list: any[]) => {
         if (off || !Array.isArray(list)) return;
-        const dresses = list.filter((p) => p.activo !== false && /vestido/i.test(p.nombre) && p.imagenes?.length);
-        const pick = dresses.find((p) => p.destacado && /gala/i.test(p.nombre)) || dresses.find((p) => p.destacado) || dresses[0];
-        if (!pick) return;
-        const img = pick.imagenes.find((i: any) => i.principal) || pick.imagenes[0];
-        const path: string = img.url;
-        setDress({ id: pick.id, nombre: pick.nombre, precio: pick.precio, imagen: path.startsWith('http') ? path : `${ASSETS_URL}${path.startsWith('/uploads') ? path : `/uploads/${path.replace(/^\//, '')}`}` });
+        const withPhoto = list.filter((p) => p.activo !== false && p.imagenes?.length);
+        // Featured first, then spread across categories so the carousel is varied rather than a wall of dresses.
+        const seen = new Set<string>();
+        const ordered = [...withPhoto.filter((p) => p.destacado), ...withPhoto.filter((p) => !p.destacado)];
+        const picked = ordered.filter((p) => { const k = p.categoria?.id || p.categoriaId; if (seen.has(k) && seen.size < 6) return false; seen.add(k); return true; }).slice(0, 12);
+        setItems(picked.map((p) => {
+          const img = p.imagenes.find((i: any) => i.principal) || p.imagenes[0];
+          const path: string = img.url;
+          return { id: p.id, nombre: p.nombre, precio: p.precio, imagen: path.startsWith('http') ? path : `${ASSETS_URL}${path.startsWith('/uploads') ? path : `/uploads/${path.replace(/^\//, '')}`}` };
+        }));
       })
       .catch(() => {});
     return () => { off = true; };
   }, []);
+  useEffect(() => coutureState.onActive(setActive), []);
+  const piece = items[active] ?? items[0];
 
   const handleEmpezar = (e: React.FormEvent) => {
     e.preventDefault();
@@ -51,7 +58,7 @@ export const NetflixHero: React.FC = () => {
 
   return (
     <section className="aura-hero">
-      <SilkCanvasBackground className="aura-hero__silk" variant="dark" kind="couture" dressUrl={dress?.imagen} />
+      <SilkCanvasBackground className="aura-hero__silk" variant="dark" kind="couture" items={items} onSelectItem={(id) => navigate(`/t/aura/producto/${id}`)} />
       <div className="aura-hero__inner">
         <div className="aura-hero__title">
           <h1>Crea tu tienda de moda. <em>Escala sin límites con IA.</em></h1>
@@ -86,10 +93,10 @@ export const NetflixHero: React.FC = () => {
           onPointerUp={() => { drag.current = null; coutureState.dragging = false; }}
           onPointerCancel={() => { drag.current = null; coutureState.dragging = false; }}
         >
-          <p className="aura-hero__hint">Arrastra para girar la pieza · 360°</p>
-          {dress && (
-            <Link to={`/t/aura/producto/${dress.id}`} className="aura-hero__piece" onPointerDown={(e) => e.stopPropagation()}>
-              <span>Pieza de la colección</span><strong>{dress.nombre}</strong><em>${Number(dress.precio).toFixed(0)} · Ver en tienda <ArrowRight aria-hidden="true" /></em>
+          <p className="aura-hero__hint">Arrastra para girar la colección · toca una prenda para verla</p>
+          {piece && (
+            <Link to={`/t/aura/producto/${piece.id}`} className="aura-hero__piece" onPointerDown={(e) => e.stopPropagation()}>
+              <span>Pieza de la colección</span><strong>{piece.nombre}</strong><em>${Number(piece.precio).toFixed(0)} · Ver en tienda <ArrowRight aria-hidden="true" /></em>
             </Link>
           )}
           <div className="aura-hero__features">

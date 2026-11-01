@@ -1,5 +1,6 @@
 import { Component, lazy, PropsWithChildren, Suspense, useEffect, useRef, useState } from 'react';
 import { useReducedMotion } from './useReducedMotion';
+import type { OrbitItem } from './ProductOrbit';
 
 const SilkScene = lazy(() => import('./SilkScene'));
 const CoutureScene = lazy(() => import('./CoutureScene'));
@@ -10,7 +11,7 @@ class SceneBoundary extends Component<PropsWithChildren, { failed: boolean }> {
   render() { return this.state.failed ? null : this.props.children; }
 }
 
-export function SilkCanvasBackground({ className = '', variant = 'dark', kind = 'cloth', dressUrl }: { dressUrl?: string; className?: string; variant?: 'dark' | 'light'; kind?: 'cloth' | 'ribbon' | 'couture' | 'ambient' }) {
+export function SilkCanvasBackground({ className = '', variant = 'dark', kind = 'cloth', items, onSelectItem }: { items?: OrbitItem[]; onSelectItem?: (id: string) => void; className?: string; variant?: 'dark' | 'light'; kind?: 'cloth' | 'ribbon' | 'couture' | 'ambient' }) {
   const ref = useRef<HTMLDivElement>(null);
   const reduced = useReducedMotion();
   // Start active so the first frame always paints; the observer pauses it when off-screen.
@@ -28,6 +29,6 @@ export function SilkCanvasBackground({ className = '', variant = 'dark', kind = 
   return <div ref={ref} className={`silk-background silk-background--${variant} ${supported ? 'silk-background--webgl' : ''} ${className}`} aria-hidden="true">
     <div className="silk-background__light" />
     <div className="silk-background__fallback" />
-    {supported && <SceneBoundary><Suspense fallback={null}>{kind === 'couture' || kind === 'ambient' ? <CoutureScene reduced={reduced} active={active} dressUrl={dressUrl} ambient={kind === 'ambient'} /> : <SilkScene reduced={reduced} active={active} kind={kind} />}</Suspense></SceneBoundary>}
+    {supported && <SceneBoundary><Suspense fallback={null}>{kind === 'couture' || kind === 'ambient' ? <CoutureScene reduced={reduced} active={active} items={items} onSelect={onSelectItem} ambient={kind === 'ambient'} /> : <SilkScene reduced={reduced} active={active} kind={kind} />}</Suspense></SceneBoundary>}
   </div>;
 }

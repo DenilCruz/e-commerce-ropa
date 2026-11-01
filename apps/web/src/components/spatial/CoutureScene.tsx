@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef, useState } from 'react';
+import { useEffect, useMemo, useRef } from 'react';
 import { Canvas, useFrame } from '@react-three/fiber';
 import { ContactShadows, Environment, Lightformer } from '@react-three/drei';
 import {
@@ -7,15 +7,14 @@ import {
 } from 'three';
 import { makeProfile } from './profile';
 import { coutureState } from './coutureState';
-import { buildGarmentFromPhoto, PhotoGarmentModel } from './garmentFromPhoto';
-import { PhotoGarment } from './PhotoGarment';
+import { OrbitItem, ProductOrbit } from './ProductOrbit';
 
 const AROUND = 128;
 const UP = 96;
 const HEIGHT = 3;
 const START = -Math.PI / 2; // seam sits at the back centre
-const Y = -0.98; // centre of the sculpture inside the hero canvas
-const SCALE = 0.9;
+const Y = -1.55; // centre of the sculpture inside the hero canvas
+const SCALE = 0.8;
 
 // Couture silhouette: fitted bodice, cinched waist, gown opening into a wide hem.
 const radius = makeProfile([[0, 1.28], [0.1, 1.0], [0.28, 0.62], [0.46, 0.39], [0.6, 0.265], [0.72, 0.295], [0.86, 0.245], [1, 0.17]]);
@@ -295,8 +294,6 @@ function Ribbon({ spec, reduced }: { spec: RibbonSpec; reduced: boolean }) {
   </mesh>;
 }
 
-type DressState = { status: 'loading' | 'ready' | 'failed'; model?: PhotoGarmentModel };
-
 /** Gold dust drifting slowly behind the ribbons (deterministic so renders are stable). */
 function Dust({ reduced }: { reduced: boolean }) {
   const ref = useRef<Group>(null);
@@ -333,18 +330,9 @@ function AmbientScene({ reduced, active }: { reduced: boolean; active: boolean }
   </Canvas>;
 }
 
-export default function CoutureScene({ reduced, active, dressUrl, ambient = false }: { reduced: boolean; active: boolean; dressUrl?: string; ambient?: boolean }) {
+export default function CoutureScene({ reduced, active, items = [], onSelect, ambient = false }: { reduced: boolean; active: boolean; items?: OrbitItem[]; onSelect?: (id: string) => void; ambient?: boolean }) {
   const frozen = reduced || !active;
   if (ambient) return <AmbientScene reduced={reduced} active={active} />;
-  const [dress, setDress] = useState<DressState>({ status: dressUrl ? 'loading' : 'failed' });
-  useEffect(() => {
-    if (!dressUrl) { setDress({ status: 'failed' }); return; }
-    let cancelled = false;
-    buildGarmentFromPhoto(dressUrl, HEIGHT)
-      .then((model) => { if (!cancelled) setDress(model ? { status: 'ready', model } : { status: 'failed' }); })
-      .catch(() => { if (!cancelled) setDress({ status: 'failed' }); });
-    return () => { cancelled = true; };
-  }, [dressUrl]);
 
   return <Canvas
     camera={{ position: [0, 0, 9], fov: 42 }}
@@ -372,8 +360,7 @@ export default function CoutureScene({ reduced, active, dressUrl, ambient = fals
     <Rig lift={5.2} scaleTo={0.78} compactDy={-0.5} compactScale={0.72}>
       <group position={[0, Y, 0]} scale={SCALE}>
         <Pedestal />
-        {dress.status === 'ready' && dress.model && <PhotoGarment model={dress.model} reduced={frozen} />}
-        {dress.status === 'failed' && <Sculpture reduced={frozen} />}
+        {items.length >= 3 ? <ProductOrbit items={items} reduced={frozen} onSelect={onSelect} /> : <Sculpture reduced={frozen} />}
         <Orbits reduced={frozen} />
         <ContactShadows position={[0, -HEIGHT / 2 - 0.02, 0]} opacity={0.5} scale={6} blur={2.4} far={1.6} />
       </group>
