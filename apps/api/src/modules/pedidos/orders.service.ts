@@ -19,6 +19,7 @@ import { PaymentEntity } from '../pagos/entities/payment.entity';
 import { TenantContext } from '../../common/tenant/tenant-context';
 
 import { tipoDePago } from '../pagos/payment-kinds';
+import { canonRol } from '../autenticacion/roles-acceso';
 import { ContextoPago, ESTADOS_ORDEN, efectosDeTransicion, motivoTransicionInvalida } from './order-transitions';
 @Injectable()
 export class OrdersService {
@@ -97,8 +98,7 @@ export class OrdersService {
       throw new NotFoundException(`La orden con ID ${id} no existe.`);
     }
 
-    const isAdmin = userRole?.toUpperCase() === 'ADMIN' || userRole?.toUpperCase() === 'SUPERADMIN';
-    if (!isAdmin && usuarioId && orden.usuarioId !== usuarioId) {
+    if (!this.veTodosLosPedidos(userRole) && usuarioId && orden.usuarioId !== usuarioId) {
       throw new ForbiddenException('No tienes permiso para ver esta orden.');
     }
 
@@ -317,12 +317,28 @@ export class OrdersService {
   // =========================================================================
   // HU-55: CONSULTAR HISTORIAL DE AUDITORÍA DE UN PEDIDO
   // =========================================================================
-  async obtenerHistorial(ordenId: string) {
+  async obtenerHistorial(ordenId: string, usuarioId: string, userRole?: string) {
+    const orden = await this.orderRepo.findOne({
+      where: { id: ordenId, tenantId: this.tid },
+      select: { id: true, usuarioId: true },
+    });
+    if (!orden) {
+      throw new NotFoundException(`La orden con ID ${ordenId} no existe.`);
+    }
+    if (!this.veTodosLosPedidos(userRole) && (!usuarioId || orden.usuarioId !== usuarioId)) {
+      throw new ForbiddenException('No tienes permiso para ver esta orden.');
+    }
+
     return this.orderHistoryRepo.find({
       where: { notaventaId: ordenId, tenantId: this.tid },
       relations: ['usuario'],
       order: { creadoEn: 'ASC' },
     });
+  }
+
+  /** Staff who work the orders panel see every order of the store; a customer only their own. */
+  private veTodosLosPedidos(rol?: string | null): boolean {
+    return ['ADMIN', 'SUPERADMIN', 'VENDEDOR'].includes(canonRol(rol));
   }
 
   // =========================================================================

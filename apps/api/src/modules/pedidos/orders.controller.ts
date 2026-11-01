@@ -113,8 +113,12 @@ export class OrdersController {
   @ApiBearerAuth()
   @ApiOperation({ summary: 'HU-55: Obtener historial de auditoría de un pedido' })
   @ApiParam({ name: 'id', description: 'ID de la orden' })
-  obtenerHistorial(@Param('id', new ParseUUIDPipe()) id: string) {
-    return this.ordersService.obtenerHistorial(id);
+  obtenerHistorial(
+    @Param('id', new ParseUUIDPipe()) id: string,
+    @CurrentUser('userId') usuarioId: string,
+    @CurrentUser('role') role: string,
+  ) {
+    return this.ordersService.obtenerHistorial(id, usuarioId, role);
   }
 
   // =========================================================================
