@@ -53,3 +53,8 @@ apps/api/uploads/
 # Editor and browser-automation scratch
 .vscode/
 .playwright-mcp/
+
+# Working notes and design briefs (local only, not needed to deploy)
+odd/
+apps/web/.impeccable/
+apps/web/PRODUCT.md
