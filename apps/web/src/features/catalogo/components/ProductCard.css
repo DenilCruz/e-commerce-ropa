@@ -32,13 +32,14 @@
 .product-card__image {
   width: 100%;
   height: 100%;
-  object-fit: cover;
-  object-position: top;
+  object-fit: contain;
+  /* White photo backdrops blend into the card instead of showing as a white block. */
+  mix-blend-mode: multiply;
   transition: transform .8s cubic-bezier(.2,.8,.2,1), filter .8s ease;
 }
 
 .product-card:hover .product-card__image, .product-card:focus-within .product-card__image {
-  transform: scale(1.045) rotateY(-1.2deg);
+  transform: scale(1.03);
   filter: saturate(.92);
 }
 

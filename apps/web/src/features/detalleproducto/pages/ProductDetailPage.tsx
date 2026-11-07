@@ -18,8 +18,6 @@ import { resenasApi } from '../../resenas/services/resenas.api';
 import { ResumenResenas } from '../../resenas/types';
 import { useCartStore } from '../../../store/cart.store';
 import { VirtualTryOnModal } from '../../carrito/components/VirtualTryOnModal';
-import { ImageSequenceCanvas } from '../../../components/spatial/ImageSequenceCanvas';
-import { SpatialHotspot } from '../../../components/spatial/SpatialHotspot';
 import '../styles/product-detail-spatial.css';
 import { toast } from 'sonner';
 import { useTenantStore } from '../../../hooks/useTenantStore';
@@ -35,7 +33,6 @@ export const ProductDetailPage: React.FC = () => {
   
   const [varianteSeleccionada, setVarianteSeleccionada] = useState<VarianteProducto | null>(null);
   const [imagenActiva, setImagenActiva] = useState<string>('');
-  const [anguloVista, setAnguloVista] = useState(180);
   
   // Acordeones de información editorial
   const [seccionAbierta, setSeccionAbierta] = useState<string>('descripcion');
@@ -161,13 +158,7 @@ export const ProductDetailPage: React.FC = () => {
       ? 'bottoms'
       : 'tops') as 'tops' | 'bottoms' | 'dresses',
   };
-  const imagenesProducto = producto.imagenes || [];
-  const imagenSeleccionada = Math.max(0, imagenesProducto.findIndex((image) => image.url === imagenActiva));
-  const centroSecuencia = Math.floor(imagenesProducto.length / 2);
-  const secuenciaImagenes = imagenesProducto.map((_, index) => {
-    const originalIndex = (imagenSeleccionada - centroSecuencia + index + imagenesProducto.length) % imagenesProducto.length;
-    return getImageUrl(imagenesProducto[originalIndex].url);
-  });
+  const imagenPrincipal = imagenActiva || producto.imagenes?.[0]?.url || '';
 
   return (
     <div className="spatial-product-detail max-w-7xl mx-auto space-y-16 pb-16">
@@ -186,15 +177,15 @@ export const ProductDetailPage: React.FC = () => {
         {/* Lado Izquierdo: Galería Protagónica 3:4 */}
         <div className="lg:col-span-7 space-y-4">
           <div className="spatial-product-detail__stage">
-            <ImageSequenceCanvas
-              images={secuenciaImagenes}
-              alt={producto.nombre}
-              mode="drag-and-hover-orbit"
-              controls
-              onAngleChange={(angle) => setAnguloVista(Math.round(angle))}
-              objectFit="contain"
-              className="spatial-product-detail__sequence"
-            />
+            {imagenPrincipal ? (
+              <img
+                src={getImageUrl(imagenPrincipal)}
+                alt={producto.nombre}
+                className="spatial-product-detail__image"
+              />
+            ) : (
+              <div className="spatial-product-detail__empty">Imagen no disponible</div>
+            )}
             {producto.destacado && (
               <span className="spatial-product-detail__badge">
                 Atelier Exclusive
@@ -203,8 +194,6 @@ export const ProductDetailPage: React.FC = () => {
             <div className="spatial-product-detail__favorite">
               <HeartButton productoId={producto.id} variant="floating" />
             </div>
-            <SpatialHotspot label="Textura" detail="Acércate y explora los detalles de esta pieza." x={31} y={36} angle={anguloVista} className="spatial-product-detail__hotspot" />
-            <SpatialHotspot label="Corte" detail="Consulta la descripción y el selector de talla para más información." x={68} y={67} angle={anguloVista} className="spatial-product-detail__hotspot" />
           </div>
           
           {/* Miniaturas */}
