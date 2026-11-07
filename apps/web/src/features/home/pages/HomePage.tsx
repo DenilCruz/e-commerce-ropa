@@ -52,6 +52,22 @@ export const HomePage: React.FC = () => {
   const productosDestacados = productos.filter((p) => p.destacado).slice(0, 4);
   const productosMuestra = productosDestacados.length > 0 ? productosDestacados : productos.slice(0, 4);
 
+  // A category only gets a tile when there is a garment to show; empty ones would render a blank card.
+  const mainUrl = (product: Producto) => (product.imagenes?.find((item) => item.esPrincipal || item.principal) || product.imagenes?.[0])?.url;
+  const categoriasConImagen = categorias.flatMap((cat) => {
+    const categoryIds = new Set([cat.id, ...(cat.subcategorias || []).map((subcategory) => subcategory.id)]);
+    const inCategory = productos.filter((product) => categoryIds.has(product.categoria?.id || product.categoriaId || '') || product.categoria?.nombre === cat.nombre);
+    const representative = inCategory.find((product) => isCutoutUrl(mainUrl(product))) ?? inCategory[0];
+    const packshot = CATEGORY_PACKSHOTS[cat.nombre.trim().toLocaleLowerCase()];
+    const productImage = representative ? mainUrl(representative) : undefined;
+    const image = cat.imagen
+      ? getImageUrl(cat.imagen)
+      : productImage
+        ? getImageUrl(productImage)
+        : packshot ? `${ASSETS_URL}/uploads/${packshot}` : '';
+    return image ? [{ cat, image }] : [];
+  });
+
   return (
     <div className="spatial-store-home">
       <section className="spatial-store-home__categories" aria-labelledby="store-categories-title">
@@ -60,29 +76,16 @@ export const HomePage: React.FC = () => {
           <Link to={getStoreUrl('/catalogo')}>Ver toda la colección <ArrowRight size={15} /></Link>
         </div>
         <div className="spatial-store-home__category-row">
-          {categorias.map((cat) => {
-            const categoryIds = new Set([cat.id, ...(cat.subcategorias || []).map((subcategory) => subcategory.id)]);
-            const mainUrl = (product: Producto) => (product.imagenes?.find((item) => item.esPrincipal || item.principal) || product.imagenes?.[0])?.url;
-            const inCategory = productos.filter((product) => categoryIds.has(product.categoria?.id || product.categoriaId || '') || product.categoria?.nombre === cat.nombre);
-            const representative = inCategory.find((product) => isCutoutUrl(mainUrl(product))) ?? inCategory[0];
-            const packshot = CATEGORY_PACKSHOTS[cat.nombre.trim().toLocaleLowerCase()];
-            const productImage = representative ? mainUrl(representative) : undefined;
-            const image = cat.imagen
-              ? getImageUrl(cat.imagen)
-              : productImage
-                ? getImageUrl(productImage)
-                : packshot ? `${ASSETS_URL}/uploads/${packshot}` : '';
-            return (
-              <Link key={cat.id} to={getStoreUrl(`/catalogo?categoria=${cat.id}`)} className="spatial-store-home__category">
-                <div className="spatial-store-home__pedestal">
-                  {image ? <img src={image} alt={cat.nombre} loading="lazy" className={!cat.imagen && isCutoutUrl(productImage) ? 'is-cutout' : undefined} /> : <div className="spatial-store-home__pedestal-empty" aria-hidden="true" />}
-                </div>
-                <h3>{cat.nombre}</h3>
-                <span className="spatial-store-home__category-link">Explorar <ArrowRight size={13} /></span>
-              </Link>
-            );
-          })}
-          {categorias.length === 0 && <p className="spatial-store-home__category-empty">Próximamente, nuevas formas para explorar.</p>}
+          {categoriasConImagen.map(({ cat, image }) => (
+            <Link key={cat.id} to={getStoreUrl(`/catalogo?categoria=${cat.id}`)} className="spatial-store-home__category">
+              <div className="spatial-store-home__pedestal">
+                <img src={image} alt={cat.nombre} loading="lazy" />
+              </div>
+              <h3>{cat.nombre}</h3>
+              <span className="spatial-store-home__category-link">Explorar <ArrowRight size={13} /></span>
+            </Link>
+          ))}
+          {categoriasConImagen.length === 0 && <p className="spatial-store-home__category-empty">Próximamente, nuevas formas para explorar.</p>}
         </div>
       </section>
 
