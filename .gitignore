@@ -58,3 +58,6 @@ apps/api/uploads/
 odd/
 apps/web/.impeccable/
 apps/web/PRODUCT.md
+
+# Claude Code personal settings
+.claude/settings.local.json
