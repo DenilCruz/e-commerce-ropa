@@ -40,6 +40,11 @@ export class ArchivosController {
           description: 'Carpeta o categoría de la imagen (ej: productos, perfiles, poleras, vestidos)',
           example: 'productos',
         },
+        quitarFondo: {
+          type: 'string',
+          description: "Enviar 'true' para quitar el fondo uniforme de estudio de una foto de prenda (opcional; debe ir antes del archivo)",
+          example: 'true',
+        },
         imagen: {
           type: 'string',
           format: 'binary',

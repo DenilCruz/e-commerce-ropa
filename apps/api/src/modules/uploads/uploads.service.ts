@@ -16,6 +16,7 @@ import { UserEntity } from '../usuarios/entities/user.entity';
 import { ArchivoRespuestaDto, EstadoCloudinaryDto } from './dto/archivo-respuesta.dto';
 
 import { TenantContext } from '../../common/tenant/tenant-context';
+import { quitarFondoUniforme } from './quitar-fondo';
 
 const UUID_REGEX = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 
@@ -104,8 +105,10 @@ export class ArchivosService {
   async optimizarImagen(
     fileBuffer: Buffer,
     categoria: string = 'general',
+    quitarFondo: boolean = false,
   ): Promise<{
     buffer: Buffer;
+    fondoQuitado: boolean;
     pesoOriginal: number;
     pesoOptimizado: number;
     porcentajeAhorro: number;
@@ -132,10 +135,25 @@ export class ArchivosService {
       });
     }
 
+    // Opcional: quitar el fondo uniforme de estudio (solo si hay confianza; si no, la foto queda intacta)
+    let fondoQuitado = false;
+    if (quitarFondo && !esPerfil) {
+      const base = await pipeline.toBuffer();
+      try {
+        const recortada = await quitarFondoUniforme(base);
+        fondoQuitado = recortada !== null;
+        pipeline = sharp(recortada ?? base);
+      } catch (error: any) {
+        this.logger.warn(`No se pudo quitar el fondo, se conserva la foto original: ${error?.message}`);
+        pipeline = sharp(base);
+      }
+    }
+
     // Conversión a WebP optimizado con descarte de metadatos EXIF innecesarios
     const buffer = await pipeline
       .webp({
         quality: 82,
+        alphaQuality: 100,
         effort: 4,
         lossless: false,
       })
@@ -147,6 +165,7 @@ export class ArchivosService {
 
     return {
       buffer,
+      fondoQuitado,
       pesoOriginal,
       pesoOptimizado,
       porcentajeAhorro,
@@ -177,7 +196,8 @@ export class ArchivosService {
     const slugCategoria = categoria.toLowerCase().replace(/\s+/g, '-');
 
     // 1. HU-83: Optimización y compresión a WebP
-    const optimizada = await this.optimizarImagen(file.buffer, slugCategoria);
+    const quitarFondo = ['true', '1'].includes(String(req.body?.quitarFondo ?? '').toLowerCase());
+    const optimizada = await this.optimizarImagen(file.buffer, slugCategoria, quitarFondo);
 
     // Generación de nombre limpio para el archivo
     const nombreOriginalLimpio = file.originalname.split('.')[0].replace(/[^a-zA-Z0-9_-]/g, '_');

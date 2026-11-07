@@ -72,6 +72,34 @@ describe('ArchivosService (Unit Tests)', () => {
     );
   });
 
+  describe('optimizarImagen: quitar fondo', () => {
+    const fotoBlanca = () => sharp({ create: { width: 300, height: 300, channels: 3, background: { r: 255, g: 255, b: 255 } } })
+      .composite([{ input: { create: { width: 100, height: 160, channels: 3, background: { r: 120, g: 20, b: 30 } } }, left: 100, top: 70 }])
+      .png()
+      .toBuffer();
+
+    it('con quitarFondo devuelve un WebP con el fondo transparente', async () => {
+      const resultado = await service.optimizarImagen(await fotoBlanca(), 'camisas', true);
+      expect(resultado.fondoQuitado).toBe(true);
+      const { data, info } = await sharp(resultado.buffer).ensureAlpha().raw().toBuffer({ resolveWithObject: true });
+      expect((await sharp(resultado.buffer).metadata()).format).toBe('webp');
+      expect(data[3]).toBe(0); // esquina superior izquierda
+      expect(data[(150 * info.width + 150) * 4 + 3]).toBe(255); // centro de la prenda
+    });
+
+    it('sin quitarFondo la foto conserva su fondo, como antes', async () => {
+      const resultado = await service.optimizarImagen(await fotoBlanca(), 'camisas');
+      expect(resultado.fondoQuitado).toBe(false);
+      const { data } = await sharp(resultado.buffer).ensureAlpha().raw().toBuffer({ resolveWithObject: true });
+      expect(data[3]).toBe(255);
+    });
+
+    it('nunca quita el fondo de las fotos de perfil', async () => {
+      const resultado = await service.optimizarImagen(await fotoBlanca(), 'perfiles', true);
+      expect(resultado.fondoQuitado).toBe(false);
+    });
+  });
+
   describe('HU-83: optimizarImagen (Rol Sistema)', () => {
     it('debe convertir cualquier buffer de imagen a formato WebP optimizado y calcular ahorro', async () => {
       // Generar imagen sintética de prueba con sharp

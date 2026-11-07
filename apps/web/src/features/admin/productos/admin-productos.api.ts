@@ -41,6 +41,7 @@ export const adminProductosApi = {
   subirImagen: async (file: File, categoriaSlug: string): Promise<{ url: string }> => {
     const formData = new FormData();
     formData.append('categoria', categoriaSlug); // MUY IMPORTANTE EL ORDEN
+    formData.append('quitarFondo', 'true'); // the server removes a plain studio backdrop; must precede the file
     formData.append('imagen', file);
 
     const response = await api.post('/archivos/subir', formData, {
