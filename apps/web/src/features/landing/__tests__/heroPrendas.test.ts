@@ -12,7 +12,7 @@ describe('prendas del carrusel de la landing', () => {
     const prendas = elegirPrendasCarrusel([], 'http://localhost:3000');
     expect(prendas.length).toBeGreaterThanOrEqual(3);
     expect(prendas[0]).toMatchObject({ id: 'ejemplo-abrigo', ejemplo: true });
-    expect(prendas[0].imagen).toBe('http://localhost:3000/uploads/abrigos/abrigos_9df062fd.webp');
+    expect(prendas[0].imagen).toBe('/landing/abrigo.webp');
     expect(elegirPrendasCarrusel(null, '').every((p) => p.ejemplo)).toBe(true);
   });
 

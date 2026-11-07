@@ -2,19 +2,19 @@ import { isCutoutUrl } from '../../lib/cutout';
 
 export type PrendaHero = { id: string; nombre: string; precio: string; imagen: string; ejemplo?: boolean };
 
-/** Transparent cut-outs shipped with the app. The landing shows these when no store has subscribed yet. */
+/** Transparent cut-outs shipped with the web build (public/landing). The landing shows these when no store has subscribed yet. */
 const EJEMPLO: { id: string; nombre: string; archivo: string }[] = [
-  { id: 'ejemplo-abrigo', nombre: 'Abrigo cruzado', archivo: '/uploads/abrigos/abrigos_9df062fd.webp' },
-  { id: 'ejemplo-vestido', nombre: 'Vestido de lino', archivo: '/uploads/vestidos/vestidos_e1c72ecf.webp' },
-  { id: 'ejemplo-camisa', nombre: 'Camisa de vestir', archivo: '/uploads/camisas/camisas_c728c5ce.webp' },
-  { id: 'ejemplo-falda', nombre: 'Falda plisada', archivo: '/uploads/faldas/faldas_756f03c7.webp' },
-  { id: 'ejemplo-polera', nombre: 'Polera de algodón', archivo: '/uploads/poleras/poleras_afe122ee.webp' },
-  { id: 'ejemplo-shorts', nombre: 'Shorts de sastrería', archivo: '/uploads/shorts/shorts_c6c7124c.webp' },
-  { id: 'ejemplo-pantalon', nombre: 'Pantalón de lino', archivo: '/uploads/pantalones/pantalones_7cedb81b.webp' },
+  { id: 'ejemplo-abrigo', nombre: 'Abrigo cruzado', archivo: '/landing/abrigo.webp' },
+  { id: 'ejemplo-vestido', nombre: 'Vestido de lino', archivo: '/landing/vestido.webp' },
+  { id: 'ejemplo-camisa', nombre: 'Camisa de vestir', archivo: '/landing/camisa.webp' },
+  { id: 'ejemplo-falda', nombre: 'Falda plisada', archivo: '/landing/falda.webp' },
+  { id: 'ejemplo-polera', nombre: 'Polera de algodón', archivo: '/landing/polera.webp' },
+  { id: 'ejemplo-shorts', nombre: 'Shorts de sastrería', archivo: '/landing/shorts.webp' },
+  { id: 'ejemplo-pantalon', nombre: 'Pantalón de lino', archivo: '/landing/pantalon.webp' },
 ];
 
-export function prendasEjemplo(assetBase: string): PrendaHero[] {
-  return EJEMPLO.map((p) => ({ id: p.id, nombre: p.nombre, precio: '', imagen: `${assetBase}${p.archivo}`, ejemplo: true }));
+export function prendasEjemplo(): PrendaHero[] {
+  return EJEMPLO.map((p) => ({ id: p.id, nombre: p.nombre, precio: '', imagen: p.archivo, ejemplo: true }));
 }
 
 type Producto = {
@@ -33,7 +33,7 @@ type Producto = {
  * Otherwise the static example, so a visitor with no subscription still sees one garment and the scroll turn.
  */
 export function elegirPrendasCarrusel(list: unknown, assetBase: string): PrendaHero[] {
-  const ejemplo = prendasEjemplo(assetBase);
+  const ejemplo = prendasEjemplo();
   if (!Array.isArray(list)) return ejemplo;
   const withPhoto = (list as Producto[]).filter((p) => {
     const img = p?.imagenes?.find((i) => i.principal) || p?.imagenes?.[0];
