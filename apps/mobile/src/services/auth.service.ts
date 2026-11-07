@@ -21,8 +21,10 @@ export const authService = {
     return res.data;
   },
 
-  login: async (data: { correo: string; contrasena: string }): Promise<AuthResponse> => {
-    const res = await api.post<AuthResponse>('/auth/login', data);
+  login: async (data: { correo: string; contrasena: string }, slug: string): Promise<AuthResponse> => {
+    const res = await api.post<AuthResponse>('/auth/login', data, {
+      headers: { 'X-Tenant-Slug': slug, Authorization: false },
+    });
     return res.data;
   },
 

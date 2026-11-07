@@ -15,11 +15,12 @@ import { Image } from 'expo-image';
 import { useNavigation } from '@react-navigation/native';
 import { Ionicons } from '@expo/vector-icons';
 import { useAuthStore } from '../../store/auth.store';
-import { StoreSwitcher } from '../../components/StoreSwitcher';
 import { authService } from '../../services/auth.service';
+import { limpiarDatosLocalesDeTienda } from '../../store/datos-tienda';
 import { perfilApi, DireccionEnvio } from '../../services/perfil.api';
 import { catalogoApi, Producto } from '../../services/catalogo.api';
 import { api, getBaseUrl, getWebBaseUrl } from '../../services/api';
+import { colors } from '../../theme/colors';
 
 export const ProfileScreen: React.FC = () => {
   const navigation = useNavigation<any>();
@@ -243,6 +244,7 @@ export const ProfileScreen: React.FC = () => {
             // Ignorar error de red y proceder
           } finally {
             logout();
+            limpiarDatosLocalesDeTienda();
           }
         },
       },
@@ -368,9 +370,6 @@ export const ProfileScreen: React.FC = () => {
         </View>
       </View>
 
-      {/* TIENDA ACTIVA Y CAMBIO DE TIENDA (multi-tienda) */}
-      <StoreSwitcher />
-
       {/* SECCIÓN ADMINISTRADOR (Si el usuario tiene rol ADMIN) */}
       {user.rol?.toUpperCase() === 'ADMIN' && (
         <View style={styles.section}>
@@ -378,7 +377,7 @@ export const ProfileScreen: React.FC = () => {
           <View style={styles.adminCard}>
             <View style={styles.adminHeader}>
               <View style={styles.adminIconWrap}>
-                <Ionicons name="shield-checkmark" size={20} color="#f59e0b" />
+                <Ionicons name="shield-checkmark" size={20} color={colors.accent} />
               </View>
               <View style={{ flex: 1 }}>
                 <Text style={styles.adminTitle}>Panel de Control Admin</Text>
@@ -390,36 +389,36 @@ export const ProfileScreen: React.FC = () => {
               style={styles.adminPrimaryBtn}
               onPress={() => Linking.openURL(`${getWebBaseUrl()}/admin`)}
             >
-              <Ionicons name="desktop-outline" size={16} color="#fff" style={{ marginRight: 8 }} />
+              <Ionicons name="desktop-outline" size={16} color={colors.accent} style={{ marginRight: 8 }} />
               <Text style={styles.adminPrimaryBtnText}>Abrir Dashboard Admin (Web)</Text>
-              <Ionicons name="open-outline" size={16} color="#94a3b8" style={{ marginLeft: 'auto' }} />
+              <Ionicons name="open-outline" size={16} color={colors.accent} style={{ marginLeft: 'auto' }} />
             </TouchableOpacity>
 
             <TouchableOpacity
-              style={[styles.adminPrimaryBtn, { backgroundColor: '#dc2626', borderColor: '#b91c1c' }]}
+              style={styles.adminPrimaryBtn}
               onPress={handleAbrirGestionProductos}
             >
-              <Ionicons name="trash-bin-outline" size={16} color="#fff" style={{ marginRight: 8 }} />
-              <Text style={styles.adminPrimaryBtnText}>Eliminar / Gestionar Prendas</Text>
-              <Ionicons name="chevron-forward" size={16} color="#fca5a5" style={{ marginLeft: 'auto' }} />
+              <Ionicons name="shirt-outline" size={16} color={colors.accent} style={{ marginRight: 8 }} />
+              <Text style={styles.adminPrimaryBtnText}>Gestionar prendas</Text>
+              <Ionicons name="chevron-forward" size={16} color={colors.accent} style={{ marginLeft: 'auto' }} />
             </TouchableOpacity>
 
             <TouchableOpacity
-              style={[styles.adminPrimaryBtn, { backgroundColor: '#4f46e5', borderColor: '#4338ca' }]}
+              style={styles.adminPrimaryBtn}
               onPress={() => navigation.navigate('ConsultasIA')}
             >
-              <Ionicons name="sparkles" size={16} color="#fff" style={{ marginRight: 8 }} />
+              <Ionicons name="sparkles" size={16} color={colors.accent} style={{ marginRight: 8 }} />
               <Text style={styles.adminPrimaryBtnText}>Reportes Dinámicos por Voz / IA</Text>
-              <Ionicons name="chevron-forward" size={16} color="#c7d2fe" style={{ marginLeft: 'auto' }} />
+              <Ionicons name="chevron-forward" size={16} color={colors.accent} style={{ marginLeft: 'auto' }} />
             </TouchableOpacity>
 
             <TouchableOpacity
-              style={[styles.adminPrimaryBtn, { backgroundColor: '#047857', borderColor: '#065f46' }]}
+              style={styles.adminPrimaryBtn}
               onPress={() => navigation.navigate('PuntoDeVenta')}
             >
-              <Ionicons name="cash-outline" size={16} color="#fff" style={{ marginRight: 8 }} />
+              <Ionicons name="cash-outline" size={16} color={colors.accent} style={{ marginRight: 8 }} />
               <Text style={styles.adminPrimaryBtnText}>Punto de venta (funciona sin internet)</Text>
-              <Ionicons name="chevron-forward" size={16} color="#a7f3d0" style={{ marginLeft: 'auto' }} />
+              <Ionicons name="chevron-forward" size={16} color={colors.accent} style={{ marginLeft: 'auto' }} />
             </TouchableOpacity>
 
             <View style={styles.adminShortcutsRow}>
@@ -427,7 +426,7 @@ export const ProfileScreen: React.FC = () => {
                 style={styles.adminShortcut}
                 onPress={() => Linking.openURL(`${getWebBaseUrl()}/admin/usuarios`)}
               >
-                <Ionicons name="people-outline" size={18} color="#111827" />
+                <Ionicons name="people-outline" size={18} color={colors.primary} />
                 <Text style={styles.adminShortcutText}>Usuarios</Text>
               </TouchableOpacity>
 
@@ -435,7 +434,7 @@ export const ProfileScreen: React.FC = () => {
                 style={styles.adminShortcut}
                 onPress={() => Linking.openURL(`${getWebBaseUrl()}/admin/inventario`)}
               >
-                <Ionicons name="cube-outline" size={18} color="#111827" />
+                <Ionicons name="cube-outline" size={18} color={colors.primary} />
                 <Text style={styles.adminShortcutText}>Inventario</Text>
               </TouchableOpacity>
 
@@ -443,7 +442,7 @@ export const ProfileScreen: React.FC = () => {
                 style={styles.adminShortcut}
                 onPress={() => Linking.openURL(`${getWebBaseUrl()}/admin/categorias`)}
               >
-                <Ionicons name="grid-outline" size={18} color="#111827" />
+                <Ionicons name="grid-outline" size={18} color={colors.primary} />
                 <Text style={styles.adminShortcutText}>Categorías</Text>
               </TouchableOpacity>
 
@@ -451,7 +450,7 @@ export const ProfileScreen: React.FC = () => {
                 style={styles.adminShortcut}
                 onPress={() => Linking.openURL(`${getWebBaseUrl()}/admin/reportes`)}
               >
-                <Ionicons name="stats-chart-outline" size={18} color="#111827" />
+                <Ionicons name="stats-chart-outline" size={18} color={colors.primary} />
                 <Text style={styles.adminShortcutText}>Reportes</Text>
               </TouchableOpacity>
             </View>
@@ -1073,7 +1072,9 @@ const styles = StyleSheet.create({
   modalSaveBtn: { backgroundColor: '#111827', paddingVertical: 10, paddingHorizontal: 20, borderRadius: 8 },
   modalSaveText: { fontSize: 13, color: '#fff', fontWeight: '700' },
   adminCard: {
-    backgroundColor: '#0f172a',
+    backgroundColor: colors.background,
+    borderWidth: 1,
+    borderColor: colors.border,
     borderRadius: 16,
     padding: 16,
     gap: 12,
@@ -1087,32 +1088,32 @@ const styles = StyleSheet.create({
     width: 38,
     height: 38,
     borderRadius: 10,
-    backgroundColor: 'rgba(245, 158, 11, 0.15)',
+    backgroundColor: colors.surfaceWarm,
     justifyContent: 'center',
     alignItems: 'center',
   },
   adminTitle: {
     fontSize: 15,
     fontWeight: '800',
-    color: '#ffffff',
+    color: colors.text,
   },
   adminSubtitle: {
     fontSize: 11,
-    color: '#94a3b8',
+    color: colors.secondary,
     marginTop: 1,
   },
   adminPrimaryBtn: {
-    backgroundColor: '#1e293b',
+    backgroundColor: colors.surfaceWarm,
     flexDirection: 'row',
     alignItems: 'center',
     paddingVertical: 12,
     paddingHorizontal: 14,
     borderRadius: 10,
     borderWidth: 1,
-    borderColor: '#334155',
+    borderColor: colors.border,
   },
   adminPrimaryBtnText: {
-    color: '#ffffff',
+    color: colors.text,
     fontSize: 13,
     fontWeight: '700',
   },
@@ -1122,7 +1123,9 @@ const styles = StyleSheet.create({
   },
   adminShortcut: {
     flex: 1,
-    backgroundColor: '#ffffff',
+    backgroundColor: colors.surface,
+    borderWidth: 1,
+    borderColor: colors.border,
     paddingVertical: 10,
     borderRadius: 10,
     alignItems: 'center',
@@ -1132,6 +1135,6 @@ const styles = StyleSheet.create({
   adminShortcutText: {
     fontSize: 10,
     fontWeight: '700',
-    color: '#0f172a',
+    color: colors.text,
   },
 });

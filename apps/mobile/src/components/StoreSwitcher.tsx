@@ -1,10 +1,14 @@
 import React, { useCallback, useEffect, useState } from 'react';
-import { ActivityIndicator, Alert, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
+import { ActivityIndicator, Alert, Modal, ScrollView, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { useAuthStore } from '../store/auth.store';
 import { useCartStore } from '../store/cart.store';
 import { useFavoritosStore } from '../store/favoritos.store';
 import { MiTienda, tiendasApi } from '../services/tiendas.api';
+import { useNetworkStore } from '../store/network.store';
+import { leerSesion } from '../services/pos/sesion';
+import { tiendasParaCambiar } from '../services/tienda-sesion';
+import { limpiarDatosLocalesDeTienda } from '../store/datos-tienda';
 
 const PLAN_LABELS: Record<string, string> = {
   FREE_TRIAL: 'Prueba gratuita',
@@ -14,52 +18,62 @@ const PLAN_LABELS: Record<string, string> = {
 
 /** Tienda activa del usuario y cambio entre las tiendas a las que pertenece (mismo correo, varias tiendas). */
 export const StoreSwitcher: React.FC = () => {
-  const { isAuthenticated, user, setAuth } = useAuthStore();
+  const { isAuthenticated, token, user, tiendaActiva, setAuth, setTiendaActiva } = useAuthStore();
+  const conectado = useNetworkStore((state) => state.isConnected);
+  const tenantId = leerSesion(token)?.tenantId;
+  const tiendaVisible = tiendaActiva?.id === tenantId ? tiendaActiva : null;
+  const tiendaIdentificada = Boolean(tiendaVisible?.slug);
+  const [abierto, setAbierto] = useState(false);
   const [tiendas, setTiendas] = useState<MiTienda[]>([]);
+  const tiendasDisponibles = tiendasParaCambiar(tiendas, user?.rol);
   const [cargando, setCargando] = useState(false);
   const [cambiandoId, setCambiandoId] = useState<string | null>(null);
 
   const cargar = useCallback(async () => {
-    if (!isAuthenticated) return;
+    if (!isAuthenticated || !conectado) return;
     setCargando(true);
     try {
-      setTiendas(await tiendasApi.listarMias());
+      const datos = await tiendasApi.listarMias();
+      if (useAuthStore.getState().token !== token) return;
+      setTiendas(datos);
+      const activa = datos.find((tienda) => tienda.id === tenantId);
+      if (activa) setTiendaActiva({ id: activa.id, nombre: activa.nombre, slug: activa.slug });
     } catch {
       // Sin conexión o sesión antigua: el perfil sigue funcionando sin esta sección
       setTiendas([]);
     } finally {
       setCargando(false);
     }
-  }, [isAuthenticated, user?.id]);
+  }, [isAuthenticated, conectado, tenantId, token, setTiendaActiva]);
 
   useEffect(() => {
-    void cargar();
-  }, [cargar]);
+    if (!tiendaIdentificada || abierto) void cargar();
+  }, [abierto, cargar, tiendaIdentificada]);
 
   const cambiar = async (tienda: MiTienda) => {
+    if (!tiendasDisponibles.some(({ id }) => id === tienda.id)) return;
     setCambiandoId(tienda.id);
     try {
+      if (useCartStore.getState().guestItems.length) {
+        await useCartStore.getState().sincronizarTrasLogin();
+        if (useCartStore.getState().guestItems.length) {
+          Alert.alert('Carrito pendiente', 'Sincroniza el carrito de esta tienda antes de cambiar.');
+          return;
+        }
+      }
       const sesion = await tiendasApi.seleccionar(tienda.id);
-      setAuth(sesion.usuario, sesion.accessToken, sesion.refreshToken);
+      if (useAuthStore.getState().token !== token) return;
 
       // Carrito y favoritos son de cada tienda: se vacía lo local (sin llamar al servidor, que ya
       // responde con la tienda nueva) y se vuelve a cargar lo de la tienda elegida.
-      useCartStore.setState({
-        guestItems: [],
-        cart: { items: [], totalItems: 0, total: 0 },
-        cupon: null,
-        descuento: 0,
-        totalConDescuento: 0,
-        mensajeCupon: null,
-        error: null,
-      });
-      useFavoritosStore.setState({ items: [], favoritosIds: [] });
+      limpiarDatosLocalesDeTienda();
+      setAbierto(false);
+      setAuth(sesion.usuario, sesion.accessToken, sesion.refreshToken, { id: tienda.id, nombre: tienda.nombre, slug: tienda.slug });
       await Promise.allSettled([
-        useCartStore.getState().sincronizarTrasLogin(),
+        useCartStore.getState().cargarCarrito(),
         useFavoritosStore.getState().cargarFavoritos(sesion.usuario.id),
       ]);
 
-      await cargar();
     } catch (err: any) {
       Alert.alert('No se pudo cambiar de tienda', err?.response?.data?.message || 'Inténtalo de nuevo.');
     } finally {
@@ -78,20 +92,36 @@ export const StoreSwitcher: React.FC = () => {
     );
   };
 
-  if (!isAuthenticated || (tiendas.length === 0 && !cargando)) return null;
+  if (!isAuthenticated) return null;
 
   return (
-    <View style={styles.section}>
-      <Text style={styles.sectionTitle}>Mi tienda</Text>
-      <View style={styles.card}>
-        {cargando && tiendas.length === 0 ? (
+    <>
+      <TouchableOpacity style={styles.trigger} onPress={() => setAbierto(true)}
+        accessibilityRole="button" accessibilityLabel={`Tienda activa: ${tiendaVisible?.nombre ?? 'sin identificar'}. Ver tiendas`}>
+        <Ionicons name="storefront-outline" size={17} color="#111827" />
+        <Text numberOfLines={1} style={styles.triggerText}>{tiendaVisible?.nombre ?? 'Mi tienda'}</Text>
+        <Ionicons name="chevron-down" size={14} color="#111827" />
+      </TouchableOpacity>
+      <Modal visible={abierto} transparent animationType="fade" onRequestClose={() => setAbierto(false)}>
+        <View style={styles.overlay}>
+          <View style={styles.panel}>
+            <View style={styles.panelHeader}>
+              <Text style={styles.sectionTitle}>Mis tiendas</Text>
+              <TouchableOpacity onPress={() => setAbierto(false)} accessibilityRole="button" accessibilityLabel="Cerrar selector de tiendas">
+                <Ionicons name="close" size={24} color="#111827" />
+              </TouchableOpacity>
+            </View>
+            {!conectado && <Text style={styles.meta}>Conéctate a internet para cambiar de tienda.</Text>}
+            {conectado && !cargando && tiendasDisponibles.length === 0 && <Text style={styles.meta}>No se pudieron cargar las tiendas. Vuelve a abrir el selector para reintentar.</Text>}
+            <ScrollView style={styles.card}>
+        {cargando && tiendasDisponibles.length === 0 ? (
           <ActivityIndicator color="#111827" />
         ) : (
-          tiendas.map((tienda, index) => (
+          tiendasDisponibles.map((tienda, index) => (
             <TouchableOpacity
               key={tienda.id}
               style={[styles.row, index > 0 && styles.rowDivider]}
-              disabled={tienda.esActiva || cambiandoId !== null}
+              disabled={!conectado || tienda.esActiva || cambiandoId !== null}
               onPress={() => confirmarCambio(tienda)}
               accessibilityRole="button"
               accessibilityLabel={
@@ -119,14 +149,21 @@ export const StoreSwitcher: React.FC = () => {
             </TouchableOpacity>
           ))
         )}
-      </View>
-    </View>
+            </ScrollView>
+          </View>
+        </View>
+      </Modal>
+    </>
   );
 };
 
 const styles = StyleSheet.create({
-  section: { marginTop: 24 },
-  sectionTitle: { fontSize: 13, fontWeight: '700', color: '#6b7280', marginBottom: 10, letterSpacing: 0.5 },
+  trigger: { flexDirection: 'row', alignItems: 'center', gap: 6, maxWidth: 160, padding: 10, marginRight: 6 },
+  triggerText: { flexShrink: 1, color: '#111827', fontWeight: '700' },
+  overlay: { flex: 1, justifyContent: 'center', padding: 20, backgroundColor: '#0008' },
+  panel: { backgroundColor: '#fff', borderRadius: 18, maxHeight: '75%', padding: 16 },
+  panelHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 10 },
+  sectionTitle: { fontSize: 17, fontWeight: '700', color: '#111827' },
   card: {
     backgroundColor: '#ffffff',
     borderRadius: 14,

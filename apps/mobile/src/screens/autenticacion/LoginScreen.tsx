@@ -15,6 +15,9 @@ import { Input } from '../../components/Input';
 import { Button } from '../../components/Button';
 import { authService } from '../../services/auth.service';
 import { useAuthStore } from '../../store/auth.store';
+import { tiendasApi } from '../../services/tiendas.api';
+import { slugDeTienda } from '../../services/tienda-sesion';
+import { limpiarDatosLocalesDeTienda } from '../../store/datos-tienda';
 
 type NavProp = NativeStackNavigationProp<AuthStackParamList, 'Login'>;
 
@@ -24,6 +27,7 @@ export const LoginScreen: React.FC = () => {
 
   const [correo, setCorreo] = useState('');
   const [contrasena, setContrasena] = useState('');
+  const [tienda, setTienda] = useState('aura');
   const [loading, setLoading] = useState(false);
 
   const handleLogin = async () => {
@@ -32,14 +36,24 @@ export const LoginScreen: React.FC = () => {
       return;
     }
 
+    const slug = slugDeTienda(tienda);
+    if (!slug) {
+      Alert.alert('Indica una tienda', 'Escribe su código, por ejemplo luna, o pega el enlace de la tienda.');
+      return;
+    }
+
     setLoading(true);
     try {
+      const tiendaElegida = await tiendasApi.obtenerPublica(slug);
       const data = await authService.login({
         correo: correo.trim(),
         contrasena,
-      });
+      }, slug);
 
-      setAuth(data.usuario, data.accessToken, data.refreshToken);
+      if (slug !== 'aura' || useAuthStore.getState().isAuthenticated) limpiarDatosLocalesDeTienda();
+      setAuth(data.usuario, data.accessToken, data.refreshToken, {
+        id: tiendaElegida.tiendaId, nombre: tiendaElegida.nombre, slug: tiendaElegida.slug,
+      });
       Alert.alert('¡Bienvenido!', `Hola, ${data.usuario.nombre}`);
       // Volver o navegar a la app principal
       navigation.getParent()?.navigate('Main' as never);
@@ -60,6 +74,14 @@ export const LoginScreen: React.FC = () => {
       </View>
 
       <View style={styles.form}>
+        <Text style={styles.label}>Tienda para iniciar sesión</Text>
+        <Input
+          placeholder="Código o enlace de la tienda"
+          autoCapitalize="none"
+          autoCorrect={false}
+          value={tienda}
+          onChangeText={setTienda}
+        />
         <Text style={styles.label}>Correo Electrónico</Text>
         <Input
           placeholder="ejemplo@correo.com"

@@ -1,5 +1,7 @@
 import { api } from './api';
-import { offlineCatalogService } from './offlineCatalog.service';
+import { catalogoOfflineDeTienda } from './offlineCatalog.service';
+import { useAuthStore } from '../store/auth.store';
+import { leerSesion } from './pos/sesion';
 import { useNetworkStore } from '../store/network.store';
 
 export interface Categoria {
@@ -61,8 +63,12 @@ export interface FiltrosProductos {
   ordenarPor?: 'precio_asc' | 'precio_desc' | 'novedad' | 'popularidad';
 }
 
+const cacheDeTiendaActiva = () =>
+  catalogoOfflineDeTienda(leerSesion(useAuthStore.getState().token)?.tenantId ?? 'publica');
+
 export const catalogoApi = {
   obtenerCategorias: async (): Promise<Categoria[]> => {
+    const offlineCatalogService = cacheDeTiendaActiva();
     const isConnected = useNetworkStore.getState().isConnected;
     if (!isConnected) {
       return offlineCatalogService.getCachedCategories();
@@ -82,6 +88,7 @@ export const catalogoApi = {
   },
 
   obtenerProductos: async (filtros?: FiltrosProductos | string): Promise<Producto[]> => {
+    const offlineCatalogService = cacheDeTiendaActiva();
     const isConnected = useNetworkStore.getState().isConnected;
     if (!isConnected) {
       return offlineCatalogService.filterCachedProducts(filtros);
@@ -108,11 +115,8 @@ export const catalogoApi = {
         data = response.data;
       }
 
-      if (Array.isArray(data)) {
-        // Si no hay filtros complejos de búsqueda, almacenar en la base de datos local
-        if (!filtros || typeof filtros === 'string') {
-          offlineCatalogService.saveProducts(data).catch(() => {});
-        }
+      if (Array.isArray(data) && !filtros) {
+        offlineCatalogService.saveProducts(data).catch(() => {});
       }
 
       return data;
@@ -123,6 +127,7 @@ export const catalogoApi = {
   },
 
   obtenerProductoPorId: async (id: string): Promise<Producto> => {
+    const offlineCatalogService = cacheDeTiendaActiva();
     const isConnected = useNetworkStore.getState().isConnected;
     if (!isConnected) {
       const cached = await offlineCatalogService.getCachedProductDetail(id);
@@ -145,6 +150,7 @@ export const catalogoApi = {
   },
 
   obtenerProductosRelacionados: async (id: string): Promise<Producto[]> => {
+    const offlineCatalogService = cacheDeTiendaActiva();
     const isConnected = useNetworkStore.getState().isConnected;
     if (!isConnected) {
       return offlineCatalogService.getCachedRelatedProducts(id);

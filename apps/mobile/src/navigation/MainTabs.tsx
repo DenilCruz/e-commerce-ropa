@@ -7,6 +7,7 @@ import { CatalogScreen } from '../screens/catalogo/CatalogScreen';
 import { CartScreen } from '../screens/carrito/CartScreen';
 import { OrdersScreen } from '../screens/pedidos/OrdersScreen';
 import { ProfileScreen } from '../screens/perfil/ProfileScreen';
+import { StoreSwitcher } from '../components/StoreSwitcher';
 
 import { useCartStore } from '../store/cart.store';
 
@@ -18,6 +19,7 @@ export const MainTabs: React.FC = () => {
   return (
     <Tab.Navigator
       screenOptions={({ route }) => ({
+        headerRight: () => <StoreSwitcher />,
         tabBarActiveTintColor: '#111827',
         tabBarInactiveTintColor: '#9ca3af',
         tabBarStyle: {

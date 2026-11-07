@@ -2,11 +2,12 @@
   "expo": {
     "name": "Aura Moda",
     "slug": "ecommerce-ropa-mobile",
-    "version": "1.0.0",
+    "version": "1.0.2",
     "orientation": "portrait",
     "userInterfaceStyle": "light",
     "android": {
       "package": "com.aura.ecommerce",
+      "versionCode": 3,
       "permissions": [
         "INTERNET"
       ]

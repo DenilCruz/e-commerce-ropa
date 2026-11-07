@@ -3,6 +3,7 @@ import { persist, createJSONStorage } from 'zustand/middleware';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { Favorito, favoritosApi } from '../services/favoritos.api';
 import { useCartStore } from './cart.store';
+import { claveSesionActiva } from './auth.store';
 
 interface FavoritosState {
   items: Favorito[];
@@ -29,14 +30,16 @@ export const useFavoritosStore = create<FavoritosState>()(
       cargando: false,
 
       cargarFavoritos: async (usuarioId: string) => {
+        const sesion = claveSesionActiva();
         set({ cargando: true });
         try {
           const items = await favoritosApi.obtenerPorUsuario(usuarioId);
+          if (sesion !== claveSesionActiva()) return;
           set({ items, favoritosIds: items.map((i) => i.productoId) });
         } catch (error) {
           console.warn('[Favoritos] Error de red al cargar favoritos; usando favoritos locales.');
         } finally {
-          set({ cargando: false });
+          if (sesion === claveSesionActiva()) set({ cargando: false });
         }
       },
 

@@ -25,6 +25,7 @@ export const CheckoutScreen: React.FC = () => {
   const isConnected = useNetworkStore((s) => s.isConnected);
   const { cart, cupon, descuento, totalConDescuento, clearCart } = useCartStore();
   const user = useAuthStore((s) => s.user);
+  const tiendaActiva = useAuthStore((s) => s.tiendaActiva);
 
   // Formulario de Envío
   const [direccion, setDireccion] = useState('');
@@ -401,7 +402,10 @@ export const CheckoutScreen: React.FC = () => {
         <TouchableOpacity onPress={() => navigation.goBack()} style={styles.backBtn}>
           <Ionicons name="arrow-back" size={24} color="#0f172a" />
         </TouchableOpacity>
-        <Text style={styles.headerTitle}>Checkout y Pago Seguro</Text>
+        <View style={{ flex: 1, alignItems: 'center' }}>
+          <Text style={styles.headerTitle}>Checkout y Pago Seguro</Text>
+          {tiendaActiva && <Text numberOfLines={1}>{tiendaActiva.nombre}</Text>}
+        </View>
         <View style={{ width: 40 }} />
       </View>
 

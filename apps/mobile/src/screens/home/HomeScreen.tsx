@@ -5,23 +5,22 @@ import {
   StyleSheet,
   ScrollView,
   TouchableOpacity,
-  Dimensions,
   ActivityIndicator,
 } from 'react-native';
 import { Image } from 'expo-image';
-import { SafeAreaView } from 'react-native-safe-area-context';
 import { useNavigation } from '@react-navigation/native';
 import { Ionicons } from '@expo/vector-icons';
 import { catalogoApi, Producto, Categoria } from '../../services/catalogo.api';
 import { useFavoritosStore } from '../../store/favoritos.store';
 import { HeartButton } from '../../components/HeartButton';
-import { api, getImageUrl } from '../../services/api';
-
-const { width } = Dimensions.get('window');
+import { getImageUrl } from '../../services/api';
+import { useAuthStore } from '../../store/auth.store';
 
 export const HomeScreen: React.FC = () => {
   const navigation = useNavigation<any>();
   const { favoritosIds } = useFavoritosStore();
+  const { isAuthenticated, tiendaActiva } = useAuthStore();
+  const esDemo = !isAuthenticated || tiendaActiva?.slug === 'aura';
 
   const [categorias, setCategorias] = useState<Categoria[]>([]);
   const [destacados, setDestacados] = useState<Producto[]>([]);
@@ -50,12 +49,12 @@ export const HomeScreen: React.FC = () => {
 
 
   return (
-    <SafeAreaView style={styles.container} edges={['top']}>
+    <View style={styles.container}>
       {/* NAVBAR SUPERIOR */}
       <View style={styles.navbar}>
-        <View>
-          <Text style={styles.brandTitle}>AURA</Text>
-          <Text style={styles.brandSubtitle}>ALTA COSTURA · ATELIER</Text>
+        <View style={{ flex: 1 }}>
+          <Text numberOfLines={1} style={styles.brandTitle}>{tiendaActiva?.nombre ?? (esDemo ? 'AURA' : 'Mi tienda')}</Text>
+          {esDemo && <Text style={styles.brandSubtitle}>ALTA COSTURA · ATELIER</Text>}
         </View>
 
         <TouchableOpacity
@@ -78,7 +77,7 @@ export const HomeScreen: React.FC = () => {
       ) : (
         <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={styles.scrollContent}>
           {/* HERO BANNER EDITORIAL */}
-          <View style={styles.heroCard}>
+          {esDemo && <View style={styles.heroCard}>
             <Image
               source={{
                 uri: getImageUrl('/uploads/vestido_seda_oliva_1790036699102.jpg'),
@@ -102,7 +101,7 @@ export const HomeScreen: React.FC = () => {
                 <Ionicons name="arrow-forward" size={14} color="#161513" style={{ marginLeft: 6 }} />
               </TouchableOpacity>
             </View>
-          </View>
+          </View>}
 
           {/* HU-33: CATEGORÍAS EN HORIZONTAL */}
           {categorias.length > 0 && (
@@ -142,6 +141,7 @@ export const HomeScreen: React.FC = () => {
               </TouchableOpacity>
             </View>
 
+            {destacados.length === 0 && <Text style={styles.emptyCatalog}>Esta tienda aún no tiene prendas publicadas.</Text>}
             <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.featuredRow}>
               {destacados.map((item) => {
                 const imgPrincipal =
@@ -179,7 +179,7 @@ export const HomeScreen: React.FC = () => {
           </View>
         </ScrollView>
       )}
-    </SafeAreaView>
+    </View>
   );
 };
 
@@ -191,7 +191,7 @@ const styles = StyleSheet.create({
     justifyContent: 'space-between',
     alignItems: 'center',
     paddingHorizontal: 20,
-    paddingVertical: 14,
+    paddingVertical: 10,
     borderBottomWidth: 1,
     borderBottomColor: '#E7E1D7',
     backgroundColor: '#FAF8F5',
@@ -247,7 +247,8 @@ const styles = StyleSheet.create({
     borderRadius: 0,
   },
   heroBtnText: { color: '#161513', fontSize: 10, fontWeight: '600', textTransform: 'uppercase', letterSpacing: 1.5 },
-  section: { marginTop: 28 },
+  section: { marginTop: 18 },
+  emptyCatalog: { paddingHorizontal: 20, color: '#78716c', fontSize: 13 },
   sectionHeader: {
     flexDirection: 'row',
     justifyContent: 'space-between',

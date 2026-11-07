@@ -3,7 +3,7 @@ import { persist, createJSONStorage } from 'zustand/middleware';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { cartApi, Cart, CartItem } from '../services/cart.api';
 import { cuponesApi, CuponAplicado } from '../services/cupones.api';
-import { useAuthStore } from './auth.store';
+import { claveSesionActiva, useAuthStore } from './auth.store';
 import { useNetworkStore } from './network.store';
 
 export interface GuestCartItem {
@@ -64,6 +64,7 @@ export const useCartStore = create<CartStoreState>()(
       mensajeCupon: null,
 
       cargarCarrito: async () => {
+        const sesion = claveSesionActiva();
         set({ cargando: true, error: null });
         const isAuthenticated = useAuthStore.getState().isAuthenticated;
         const isConnected = useNetworkStore.getState().isConnected;
@@ -78,6 +79,7 @@ export const useCartStore = create<CartStoreState>()(
         try {
           if (isAuthenticated) {
             const remoteCart = await cartApi.obtenerCarrito();
+            if (sesion !== claveSesionActiva()) return;
             const subtotal = remoteCart.total;
             const cupon = get().cupon;
             let descuento = 0;
@@ -111,6 +113,7 @@ export const useCartStore = create<CartStoreState>()(
 
             try {
               const calculatedCart = await cartApi.calcularCarritoTemporal(guestItems);
+              if (sesion !== claveSesionActiva()) return;
               const subtotal = calculatedCart.total;
               const cupon = get().cupon;
               let descuento = 0;
@@ -130,6 +133,7 @@ export const useCartStore = create<CartStoreState>()(
                 cargando: false,
               });
             } catch (errCalc) {
+              if (sesion !== claveSesionActiva()) return;
               // Si falla cálculo remoto, construir carrito estimado en local
               const existingCart = get().cart;
               if (existingCart) {
@@ -177,6 +181,7 @@ export const useCartStore = create<CartStoreState>()(
             }
           }
         } catch (err: any) {
+          if (sesion !== claveSesionActiva()) return;
           console.warn('[Cart] Error de red al cargar carrito. Se conserva la versión en caché local.');
           set({
             cargando: false,

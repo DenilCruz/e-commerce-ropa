@@ -11,13 +11,16 @@ import { TrackingScreen } from '../screens/envios/TrackingScreen';
 import { ProbadorScreen } from '../screens/probador/ProbadorScreen';
 import { ConsultasIAScreen } from '../screens/admin/ConsultasIAScreen';
 import { PuntoDeVentaScreen } from '../screens/ventas/PuntoDeVentaScreen';
+import { useAuthStore } from '../store/auth.store';
+import { leerSesion } from '../services/pos/sesion';
 
 const Stack = createNativeStackNavigator<RootStackParamList>();
 
 export const RootNavigator: React.FC = () => {
+  const sesion = leerSesion(useAuthStore((state) => state.token));
   return (
     <NavigationContainer>
-      <Stack.Navigator screenOptions={{ headerShown: false }}>
+      <Stack.Navigator key={sesion ? `${sesion.usuarioId}:${sesion.tenantId}` : 'invitado'} screenOptions={{ headerShown: false }}>
         <Stack.Screen name="Main" component={MainTabs} />
         <Stack.Screen name="Auth" component={AuthStack} />
         <Stack.Screen name="ProductDetail" component={ProductDetailScreen} />

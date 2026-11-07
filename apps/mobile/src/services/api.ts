@@ -79,7 +79,7 @@ export const getWebBaseUrl = (): string => {
 
 api.interceptors.request.use((config) => {
   const token = useAuthStore.getState().token;
-  if (token && config.headers) {
+  if (token && config.headers && config.headers.get('Authorization') !== false) {
     config.headers.Authorization = `Bearer ${token}`;
   }
   return config;

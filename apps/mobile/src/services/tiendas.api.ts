@@ -11,6 +11,13 @@ export interface MiTienda {
 }
 
 export const tiendasApi = {
+  obtenerPublica: async (slug: string): Promise<{ tiendaId: string; nombre: string; slug: string }> => {
+    const res = await api.get('/auth/tiendas/config-pago-publica', {
+      headers: { 'X-Tenant-Slug': slug, Authorization: false },
+    });
+    return res.data;
+  },
+
   listarMias: async (): Promise<MiTienda[]> => {
     const res = await api.get<MiTienda[]>('/auth/tiendas');
     return res.data;
