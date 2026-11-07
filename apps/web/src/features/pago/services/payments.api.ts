@@ -76,6 +76,18 @@ export const paymentsApi = {
   },
 
   // HU-57: Consultar estado de pago y comprobante
+  simularPagoQr: async (datos: {
+    solicitudId: string;
+    direccionEnvio: string;
+    telefono: string;
+    cuponId?: string;
+    metodoEnvioId?: string;
+    tipoEnvio: string;
+  }): Promise<{ referencia: string; monto: number }> => {
+    const res = await api.post('/payments/qr/simular', datos);
+    return res.data;
+  },
+
   consultarEstado: async (orderId: string): Promise<OrdenRespuesta> => {
     const res = await api.get<OrdenRespuesta>(`/payments/status/${orderId}`);
     return res.data;

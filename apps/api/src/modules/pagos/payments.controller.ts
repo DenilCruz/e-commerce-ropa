@@ -22,7 +22,7 @@ import { PaymentsService } from './payments.service';
 import { CrearIntentoPagoDto } from './dto/crear-intento-pago.dto';
 import { ConfirmarPagoTarjetaDto } from './dto/confirmar-pago-tarjeta.dto';
 import { PagoContraEntregaDto } from './dto/pago-contra-entrega.dto';
-import { PagoQrDto } from './dto/pago-qr.dto';
+import { PagoQrDto, PagoQrSimuladoDto } from './dto/pago-qr.dto';
 import { ReembolsarPagoDto } from './dto/reembolsar-pago.dto';
 
 import { JwtAuthGuard } from '../autenticacion/guards/jwt-auth.guard';
@@ -159,6 +159,16 @@ export class PaymentsController {
     @Body() dto: PagoQrDto,
   ) {
     return this.paymentsService.pagoQr(usuarioId, dto);
+  }
+
+  @Post('qr/simular')
+  @UseGuards(JwtAuthGuard)
+  @ApiBearerAuth()
+  simularPagoQr(
+    @CurrentUser('userId') usuarioId: string,
+    @Body() dto: PagoQrSimuladoDto,
+  ) {
+    return this.paymentsService.simularPagoQr(usuarioId, dto);
   }
 
   // =========================================================================

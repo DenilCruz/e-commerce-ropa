@@ -27,9 +27,8 @@ import { paymentsApi } from '../services/payments.api';
 import { OrdenRespuesta } from '../types';
 import { getImageUrl } from '../../../lib/utils';
 import { useNetworkStatus } from '../../../hooks/useNetworkStatus';
-import { pagosConfigApi, StorePublicPaymentConfig } from '../../tiendas/services/pagos-config.api';
 import { shippingApi, CotizacionEnvio } from '../../envios/services/shipping.api';
-import { COMPROBANTE_VALIDO, tipoDePago } from '../../../lib/paymentKind';
+import { tipoDePago } from '../../../lib/paymentKind';
 
 import { toast } from 'sonner';
 
@@ -44,10 +43,21 @@ const STRIPE_PUBLIC_KEY =
   (import.meta as any).env?.VITE_STRIPE_PUBLIC_KEY ||
   'pk_test_51UHsanC3rRVxMYcMuVMARIsjpwRZHWjLoKv57X7WIu9Lk9Ic101Cz5uPrZo16gYrMOA9NrCkmJ0RBPXEiuAADGTt003eAaVPVh';
 
+interface BorradorStripe {
+  direccion: string;
+  ciudad: string;
+  telefono: string;
+  notas: string;
+  tipoEnvio: 'ESTANDAR' | 'EXPRESS';
+  coordenadas: { lat: number; lng: number } | null;
+  firmaCarrito: string;
+  total: number | null;
+}
+
 export const CheckoutPage: React.FC = () => {
-  const { cart, cupon, descuento, totalConDescuento, cargarCarrito, clearCart } = useCartStore();
+  const { cart, cupon, descuento, totalConDescuento, cargarCarrito, clearCart, cargando, error: errorCarrito } = useCartStore();
   const { user } = useAuthStore();
-  const { getStoreUrl } = useTenantStore();
+  const { slug, getStoreUrl } = useTenantStore();
   const { isOnline } = useNetworkStatus();
 
   // Estados del formulario de envío
@@ -73,10 +83,13 @@ export const CheckoutPage: React.FC = () => {
 
   // Método de envío: 'ESTANDAR' | 'EXPRESS' (HU-62 & HU-63)
   const [tipoEnvio, setTipoEnvio] = useState<'ESTANDAR' | 'EXPRESS'>('ESTANDAR');
+  const claveBorrador = user ? `checkout-stripe:${user.id}:${slug}` : null;
+  const [borrador, setBorrador] = useState<BorradorStripe | null>(null);
 
   // Método de pago: 'tarjeta' | 'contra_entrega' | 'qr'
   const [metodoPago, setMetodoPago] = useState<'tarjeta' | 'contra_entrega' | 'qr'>('tarjeta');
-  const [nroComprobanteQr, setNroComprobanteQr] = useState('');
+  const solicitudQr = useRef<string>();
+  const [pagoSimulado, setPagoSimulado] = useState<{ referencia: string; monto: number } | null>(null);
 
   // Estado de Stripe Embedded Checkout
   const [embeddedSessionId, setEmbeddedSessionId] = useState<string | null>(null);
@@ -87,21 +100,37 @@ export const CheckoutPage: React.FC = () => {
   const [procesando, setProcesando] = useState(false);
   const [errorPago, setErrorPago] = useState<string | null>(null);
   const [ordenCompletada, setOrdenCompletada] = useState<OrdenRespuesta | null>(null);
-  const [configPago, setConfigPago] = useState<StorePublicPaymentConfig | null>(null);
   // Shipping prices come from the API's quote, the same rules the payment applies when it charges the order.
   const [cotizacion, setCotizacion] = useState<CotizacionEnvio | null>(null);
   const [errorCotizacion, setErrorCotizacion] = useState(false);
 
   useEffect(() => {
-    cargarCarrito();
+    setBorrador(null);
+    setDireccion('');
+    setCiudad('Santa Cruz');
+    setTelefono(user?.celular || '');
+    setNotas('');
+    setTipoEnvio('ESTANDAR');
+    setCoordenadas(null);
+    if (!claveBorrador) return;
+    try {
+      const guardado = localStorage.getItem(claveBorrador);
+      if (!guardado) return;
+      const datos: BorradorStripe = JSON.parse(guardado);
+      setDireccion(datos.direccion);
+      setCiudad(datos.ciudad);
+      setTelefono(datos.telefono);
+      setNotas(datos.notas);
+      setTipoEnvio(datos.tipoEnvio);
+      setCoordenadas(datos.coordenadas);
+      setMetodoPago('tarjeta');
+      setBorrador(datos);
+    } catch {
+      setErrorPago('No se pudo recuperar la compra pendiente.');
+    }
+  }, [claveBorrador]);
 
-    // Consultar modalidad de pago de la tienda activa (Modelo A vs Modelo B)
-    const matchSlug = window.location.pathname.match(/\/t\/([^/]+)/);
-    const slugActual = matchSlug ? matchSlug[1] : (localStorage.getItem('tenant_slug') || 'aura');
-    pagosConfigApi.obtenerPublica(slugActual)
-      .then((data) => setConfigPago(data))
-      .catch((err) => console.warn('Aviso: Pasarela operando con configuración por defecto:', err));
-
+  useEffect(() => {
     return () => {
       if (checkoutInstanceRef.current) {
         checkoutInstanceRef.current.destroy();
@@ -109,6 +138,10 @@ export const CheckoutPage: React.FC = () => {
       }
     };
   }, []);
+
+  useEffect(() => {
+    void cargarCarrito();
+  }, [cargarCarrito, slug]);
 
   // Inicializar o actualizar mapa interactivo del modal
   useEffect(() => {
@@ -246,17 +279,12 @@ export const CheckoutPage: React.FC = () => {
   const items = cart?.items || [];
   const subtotal = cart?.total || 0;
   const esExpress = tipoEnvio === 'EXPRESS';
-  // Until the store's payment configuration arrives the QR option is assumed available, to avoid a flicker.
-  const qrDisponible = configPago ? configPago.disponible !== false : true;
-  const comprobanteValido = COMPROBANTE_VALIDO.test(nroComprobanteQr.trim());
-  useEffect(() => {
-    if (!qrDisponible && metodoPago === 'qr') setMetodoPago('tarjeta');
-  }, [qrDisponible, metodoPago]);
   const [intentoCotizacion, setIntentoCotizacion] = useState(0);
   useEffect(() => {
     let vigente = true;
     setErrorCotizacion(false);
     setCotizacion(null);
+    if (!isOnline) return;
     shippingApi
       .cotizarEnvio(subtotal)
       .then((c) => vigente && setCotizacion(c))
@@ -269,7 +297,7 @@ export const CheckoutPage: React.FC = () => {
     return () => {
       vigente = false;
     };
-  }, [subtotal, intentoCotizacion]);
+  }, [subtotal, intentoCotizacion, isOnline, slug]);
   const opcionDe = (tipo: 'ESTANDAR' | 'EXPRESS') =>
     cotizacion?.opciones.find((o) => (tipo === 'EXPRESS' ? o.esExpress : o.esEstandar));
   const opcionElegida = opcionDe(tipoEnvio) ?? opcionDe('ESTANDAR') ?? cotizacion?.opciones[0];
@@ -278,6 +306,43 @@ export const CheckoutPage: React.FC = () => {
   const costoEnvio = subtotal === 0 ? 0 : opcionElegida?.costoFinal ?? 0;
   const totalFinal = Number(Math.max(0, (totalConDescuento || subtotal) + costoEnvio).toFixed(2));
   const metodoEnvioId = opcionElegida?.id;
+  const firmaCarrito = JSON.stringify({
+    items: items.map((item) => `${item.varianteId}:${item.cantidad}`).sort(),
+    cupon: cupon?.id ?? null,
+  });
+  const puedePrepararStripe = isOnline && !cargando && !errorCarrito && envioListo && items.length > 0;
+  const ultimaCotizacion = useRef<{ clave: string; total: number }>();
+  const claveCotizacion = JSON.stringify([claveBorrador, firmaCarrito, tipoEnvio]);
+  useEffect(() => {
+    if (isOnline && cotizacion && envioListo) {
+      ultimaCotizacion.current = { clave: claveCotizacion, total: totalFinal };
+    }
+  }, [isOnline, cotizacion, envioListo, claveCotizacion, totalFinal]);
+
+  const guardarBorradorStripe = () => {
+    if (!claveBorrador || !items.length || !direccion.trim() || !telefono.trim()) {
+      setErrorPago('Para guardar la compra, inicia sesión y completa la dirección y el teléfono.');
+      return;
+    }
+    const datos = { direccion, ciudad, telefono, notas, tipoEnvio, coordenadas, firmaCarrito,
+      total: ultimaCotizacion.current?.clave === claveCotizacion ? ultimaCotizacion.current.total : null };
+    try {
+      localStorage.setItem(claveBorrador, JSON.stringify(datos));
+      setBorrador(datos);
+      setErrorPago(null);
+    } catch {
+      setErrorPago('Este navegador no pudo guardar la compra pendiente.');
+    }
+  };
+
+  const descartarBorradorStripe = () => {
+    try {
+      if (claveBorrador) localStorage.removeItem(claveBorrador);
+      setBorrador(null);
+    } catch {
+      setErrorPago('Este navegador no pudo eliminar la compra pendiente.');
+    }
+  };
   useEffect(() => {
     if (cotizacion && !opcionDe('EXPRESS') && tipoEnvio === 'EXPRESS') setTipoEnvio('ESTANDAR');
   }, [cotizacion, tipoEnvio]);
@@ -298,6 +363,7 @@ export const CheckoutPage: React.FC = () => {
 
   // HU-56: Inicializar Stripe Embedded Checkout
   const inicializarEmbeddedCheckout = async () => {
+    if (!puedePrepararStripe) return;
     if (!direccion.trim()) {
       setErrorPago('Por favor ingresa primero la dirección de entrega antes de iniciar el pago.');
       return;
@@ -327,8 +393,6 @@ export const CheckoutPage: React.FC = () => {
         longitud: coordenadas?.lng,
       });
 
-      setEmbeddedSessionId(res.sessionId);
-
       const stripe = window.Stripe ? window.Stripe(STRIPE_PUBLIC_KEY) : null;
       if (!stripe) {
         throw new Error('No pudimos cargar el formulario de pago. Recarga la página e inténtalo de nuevo.');
@@ -339,11 +403,13 @@ export const CheckoutPage: React.FC = () => {
       });
 
       checkoutInstanceRef.current = checkout;
+      setEmbeddedSessionId(res.sessionId);
 
       setTimeout(() => {
         const container = document.getElementById('stripe-embedded-checkout');
         if (container) {
           checkout.mount('#stripe-embedded-checkout');
+          if (borrador) descartarBorradorStripe();
         }
       }, 50);
     } catch (err: any) {
@@ -388,7 +454,7 @@ export const CheckoutPage: React.FC = () => {
     }
   };
 
-  // Pago con QR Simple / Transferencia Bancaria
+  // Pago con QR de prueba / Transferencia Bancaria
   const procesarPagoQr = async () => {
     if (!direccion.trim()) {
       setErrorPago('Por favor ingresa la dirección de entrega.');
@@ -399,29 +465,20 @@ export const CheckoutPage: React.FC = () => {
       return;
     }
 
-    if (!COMPROBANTE_VALIDO.test(nroComprobanteQr.trim())) {
-      setErrorPago('Ingresa el número de comprobante de tu transferencia: entre 4 y 40 caracteres, con letras, números, puntos o guiones.');
-      return;
-    }
-
     setProcesando(true);
     setErrorPago(null);
 
     try {
-      const orden = await paymentsApi.pagoQr({
+      solicitudQr.current ??= crypto.randomUUID();
+      const resultado = await paymentsApi.simularPagoQr({
+        solicitudId: solicitudQr.current,
         direccionEnvio: `${direccion}, ${ciudad}`,
         telefono,
-        notas,
-        nroComprobante: nroComprobanteQr.trim(),
         cuponId: cupon?.id,
         metodoEnvioId,
         tipoEnvio,
-        latitud: coordenadas?.lat,
-        longitud: coordenadas?.lng,
       });
-
-      clearCart();
-      setOrdenCompletada(orden);
+      setPagoSimulado(resultado);
     } catch (err: any) {
       setErrorPago(limpiarMensajeError(err.response?.data?.message || err.message));
     } finally {
@@ -432,6 +489,10 @@ export const CheckoutPage: React.FC = () => {
   const handleProcesarCompra = (e: React.FormEvent) => {
     e.preventDefault();
     if (!isOnline) {
+      if (metodoPago === 'tarjeta') {
+        guardarBorradorStripe();
+        return;
+      }
       setErrorPago('Necesitas conexión a internet para procesar el pago de forma segura.');
       return;
     }
@@ -446,6 +507,18 @@ export const CheckoutPage: React.FC = () => {
       procesarPagoContraEntrega();
     }
   };
+
+  if (pagoSimulado) {
+    return (
+      <section className="mx-auto max-w-lg space-y-4 px-6 py-16 text-center">
+        <h1 className="font-serif text-3xl">Pago simulado registrado</h1>
+        <p>Se acreditaron Bs {pagoSimulado.monto.toFixed(2)} de prueba a la tienda.</p>
+        <p>No se movió dinero ni se generó un envío.</p>
+        <p className="break-all text-sm">Comprobante de prueba: {pagoSimulado.referencia}</p>
+        <Link className="underline" to={getStoreUrl('/catalogo')}>Volver al catálogo</Link>
+      </section>
+    );
+  }
 
   // =========================================================================
   // VISTA: PANTALLA DE COMPROBANTE Y ESTADO DEL PAGO (HU-57)
@@ -623,6 +696,17 @@ export const CheckoutPage: React.FC = () => {
         <h1 className="font-serif text-3xl sm:text-4xl font-normal text-stone-900">Finalizar Compra</h1>
       </div>
 
+      {borrador && (
+        <div role="status" className="mb-4 rounded-xl border border-amber-200 bg-amber-50 p-4 text-sm text-amber-950">
+          <p className="font-semibold">Compra pendiente guardada en este dispositivo</p>
+          <p>{!isOnline ? 'Podrás continuar cuando vuelva internet.' : 'Revisa tu carrito y continúa con Stripe cuando estés listo.'}</p>
+          {isOnline && !cargando && !errorCarrito && (
+            borrador.firmaCarrito !== firmaCarrito ||
+            (borrador.total !== null && envioListo && borrador.total !== totalFinal)
+          ) && <p className="font-semibold">Tu carrito o total cambió. Revisa los datos actualizados antes de pagar.</p>}
+          <button type="button" className="mt-2 underline" onClick={descartarBorradorStripe}>Descartar borrador</button>
+        </div>
+      )}
       {items.length === 0 ? (
         <div className="bg-white rounded-2xl p-12 border border-gray-200 text-center">
           <ShoppingBag className="w-16 h-16 text-gray-300 mx-auto mb-4" />
@@ -648,7 +732,7 @@ export const CheckoutPage: React.FC = () => {
                     Modo sin conexión detectado
                   </p>
                   <p className="text-amber-800 mt-1 font-light">
-                    Necesitas conexión a internet para procesar el pago de forma segura. Tu carrito e información de compra permanecerán guardados hasta que recuperes la conexión.
+                    Puedes guardar una compra con tarjeta y retomarla cuando vuelva la conexión.
                   </p>
                 </div>
               </div>
@@ -792,11 +876,6 @@ export const CheckoutPage: React.FC = () => {
                   <Truck className="w-5 h-5 text-gray-900" />
                   <h2 className="font-serif text-xl font-normal text-stone-900">2. Método de Envío</h2>
                 </div>
-                {cotizacion?.calificaEnvioGratis && (
-                  <span className="text-xs bg-emerald-100 text-emerald-800 font-bold px-2.5 py-1 rounded-full">
-                    ¡Califica a Envío Estándar Gratis!
-                  </span>
-                )}
               </div>
 
               {errorCotizacion && (
@@ -849,10 +928,6 @@ export const CheckoutPage: React.FC = () => {
                   <Lock className="w-5 h-5 text-gray-900" />
                   <h2 className="font-serif text-xl font-normal text-stone-900">3. Método de Pago Seguro</h2>
                 </div>
-                <span className="text-xs bg-emerald-100 text-emerald-800 font-bold px-2.5 py-1 rounded-full flex items-center gap-1">
-                  <ShieldCheck className="w-3.5 h-3.5" />
-                  Encriptado SSL 256-bit
-                </span>
               </div>
 
               {/* SELECTOR DE PESTAÑAS DE PAGO */}
@@ -880,8 +955,6 @@ export const CheckoutPage: React.FC = () => {
 
                 <button
                   type="button"
-                  disabled={!qrDisponible}
-                  title={qrDisponible ? undefined : 'Esta tienda aún no tiene el pago por QR disponible'}
                   onClick={() => setMetodoPago('qr')}
                   className={`p-4 rounded-xl border-2 text-left transition flex flex-col justify-between ${
                     metodoPago === 'qr'
@@ -892,12 +965,12 @@ export const CheckoutPage: React.FC = () => {
                   <div className="flex items-center justify-between mb-2">
                     <QrCode className={`w-5 h-5 ${metodoPago === 'qr' ? 'text-[#9B7B54]' : 'text-gray-400'}`} />
                     <span className="text-[10px] font-bold uppercase tracking-wider bg-[#FAF8F5] text-[#9B7B54] border border-[#E7E1D7] px-2 py-0.5 rounded">
-                      QR Simple
+                      QR de prueba
                     </span>
                   </div>
                   <div>
-                    <p className="font-bold text-sm text-gray-900">Transferencia QR</p>
-                    <p className="text-xs text-gray-500">{qrDisponible ? 'Desde la app de tu banco' : 'No disponible en esta tienda'}</p>
+                    <p className="font-bold text-sm text-gray-900">QR de la empresa</p>
+                    <p className="text-xs text-gray-500">Pago simulado</p>
                   </div>
                 </button>
 
@@ -936,9 +1009,6 @@ export const CheckoutPage: React.FC = () => {
                         <p className="text-xs text-stone-500">Formulario de pago seguro, con cifrado bancario</p>
                       </div>
                     </div>
-                    <span className="text-[10px] font-bold uppercase tracking-wider bg-stone-900 text-[#FAF8F5] px-2.5 py-1 rounded-full">
-                      PCI-DSS Verificado
-                    </span>
                   </div>
 
                   {/* CONTENEDOR DE STRIPE EMBEDDED CHECKOUT */}
@@ -956,8 +1026,8 @@ export const CheckoutPage: React.FC = () => {
 
                       <button
                         type="button"
-                        onClick={inicializarEmbeddedCheckout}
-                        disabled={cargandoEmbedded}
+                        onClick={isOnline ? inicializarEmbeddedCheckout : guardarBorradorStripe}
+                        disabled={cargandoEmbedded || (isOnline ? !puedePrepararStripe : !claveBorrador)}
                         className="px-6 py-3.5 bg-stone-900 text-white text-sm font-bold rounded-xl hover:bg-stone-800 transition shadow-xs inline-flex items-center gap-2 cursor-pointer"
                       >
                         {cargandoEmbedded ? (
@@ -967,8 +1037,8 @@ export const CheckoutPage: React.FC = () => {
                           </>
                         ) : (
                           <>
-                            <Lock className="w-4 h-4 text-[#9B7B54]" />
-                            <span>Abrir Formulario Seguro de Tarjeta</span>
+                            {isOnline ? <Lock className="w-4 h-4 text-[#9B7B54]" /> : <WifiOff className="w-4 h-4" />}
+                            <span>{!isOnline ? 'Guardar compra pendiente' : borrador ? 'Continuar compra con Stripe' : 'Abrir Formulario Seguro de Tarjeta'}</span>
                           </>
                         )}
                       </button>
@@ -982,11 +1052,12 @@ export const CheckoutPage: React.FC = () => {
                         </span>
                         <button
                           type="button"
-                          onClick={inicializarEmbeddedCheckout}
+                          onClick={isOnline ? inicializarEmbeddedCheckout : guardarBorradorStripe}
+                          disabled={cargandoEmbedded || (isOnline ? !puedePrepararStripe : !claveBorrador)}
                           className="text-stone-700 hover:text-[#9B7B54] font-bold flex items-center gap-1 hover:underline cursor-pointer"
                         >
                           <RotateCcw className="w-3.5 h-3.5" />
-                          <span>Reiniciar formulario</span>
+                          <span>{isOnline ? 'Reiniciar formulario' : 'Guardar compra pendiente'}</span>
                         </button>
                       </div>
                       <div
@@ -997,94 +1068,11 @@ export const CheckoutPage: React.FC = () => {
                   )}
                 </div>
               ) : metodoPago === 'qr' ? (
-                /* Transferencia por QR: los datos de cobro salen de la configuración de la tienda, nunca del código */
-                <div className="space-y-4 pt-2">
-                  {!qrDisponible ? (
-                    <div className="rounded-2xl border border-[#E7E1D7] bg-[#FAF8F5] p-5 text-sm text-stone-600">
-                      Esta tienda aún no tiene el pago por QR disponible. Elige tarjeta o pago contra entrega.
-                    </div>
-                  ) : (
-                    <>
-                      <div className="border border-[#E7E1D7] bg-[#FAF8F5] rounded-2xl p-4 flex items-center gap-3">
-                        <div className="w-10 h-10 rounded-xl bg-stone-900 text-[#c5a880] flex items-center justify-center shrink-0">
-                          <QrCode className="w-5 h-5" />
-                        </div>
-                        <div>
-                          <h4 className="font-serif text-base font-normal text-stone-900">Transferencia con QR</h4>
-                          <p className="text-xs text-stone-500">{configPago?.descripcion}</p>
-                        </div>
-                      </div>
-
-                      <div className="bg-white border-2 border-dashed border-[#E7E1D7] rounded-2xl p-6 flex flex-col items-center text-center space-y-4">
-                        <div className="p-3 bg-white rounded-2xl shadow-xs border border-[#E7E1D7] inline-block">
-                          <img
-                            src={getImageUrl(configPago?.qrUrl)}
-                            alt={`Código QR para pagar a ${configPago?.nombre ?? 'la tienda'}`}
-                            className="w-56 h-56 object-contain rounded-xl"
-                          />
-                        </div>
-
-                        <dl className="w-full max-w-sm bg-[#FAF8F5] border border-[#E7E1D7] rounded-xl p-3.5 text-xs text-left space-y-1.5">
-                          {configPago?.titularCuenta && (
-                            <div className="flex justify-between gap-3">
-                              <dt className="text-stone-500 font-medium">Titular</dt>
-                              <dd className="font-semibold text-stone-900 text-right">{configPago.titularCuenta}</dd>
-                            </div>
-                          )}
-                          {configPago?.banco && (
-                            <div className="flex justify-between gap-3">
-                              <dt className="text-stone-500 font-medium">Banco</dt>
-                              <dd className="font-semibold text-stone-800 text-right">{configPago.banco}</dd>
-                            </div>
-                          )}
-                          {configPago?.numeroCuenta && (
-                            <div className="flex justify-between gap-3">
-                              <dt className="text-stone-500 font-medium">Cuenta</dt>
-                              <dd className="font-mono font-semibold text-stone-800 text-right">{configPago.numeroCuenta}</dd>
-                            </div>
-                          )}
-                        </dl>
-
-                        <div className="space-y-1 max-w-sm">
-                          <p className="text-xs text-stone-500 uppercase tracking-wider font-semibold">Monto a transferir</p>
-                          <p className="text-2xl font-serif font-normal text-stone-900">${totalFinal.toFixed(2)} USD</p>
-                          <ol className="text-xs text-stone-500 mt-2 leading-relaxed text-left list-decimal pl-4 space-y-0.5">
-                            <li>Abre la aplicación de tu banco y escanea el código QR.</li>
-                            <li>Transfiere exactamente el monto indicado.</li>
-                            <li>Copia el número de comprobante o de operación y pégalo abajo.</li>
-                            <li>Registra tu pedido: la tienda verifica tu transferencia antes de prepararlo.</li>
-                          </ol>
-                        </div>
-
-                        <div className="w-full max-w-sm text-left pt-2 border-t border-[#E7E1D7]">
-                          <label htmlFor="comprobante-qr" className="block text-xs font-bold text-stone-700 uppercase mb-1">
-                            Número de comprobante
-                          </label>
-                          <input
-                            id="comprobante-qr"
-                            type="text"
-                            inputMode="text"
-                            autoComplete="off"
-                            maxLength={40}
-                            placeholder="Ej. 984321 o número de operación"
-                            value={nroComprobanteQr}
-                            onChange={(e) => setNroComprobanteQr(e.target.value)}
-                            aria-invalid={nroComprobanteQr !== '' && !comprobanteValido}
-                            aria-describedby="comprobante-ayuda"
-                            className="w-full px-3.5 py-2.5 bg-[#FAF8F5] border border-[#E7E1D7] rounded-xl text-sm focus:bg-white focus:ring-1 focus:ring-stone-900 outline-none"
-                          />
-                          <p
-                            id="comprobante-ayuda"
-                            className={`mt-1 text-[11px] ${nroComprobanteQr !== '' && !comprobanteValido ? 'text-rose-700' : 'text-stone-500'}`}
-                          >
-                            {nroComprobanteQr !== '' && !comprobanteValido
-                              ? 'Entre 4 y 40 caracteres: letras, números, puntos o guiones.'
-                              : 'Cada comprobante respalda un solo pedido.'}
-                          </p>
-                        </div>
-                      </div>
-                    </>
-                  )}
+                <div className="rounded-2xl border border-[#E7E1D7] bg-[#FAF8F5] p-6 text-center space-y-3">
+                  <h4 className="font-serif text-lg">QR de AURA · Pago simulado</h4>
+                  <img src="/aura-qr-demo.svg" alt="QR de demostración de AURA" className="mx-auto h-40 w-40" />
+                  <p className="text-sm">Este código es de demostración. No escanees desde tu app bancaria.</p>
+                  <p className="text-sm">Al simular el pago, AURA generará el comprobante de prueba.</p>
                 </div>
               ) : (
                 /* OPCION: PAGO CONTRA ENTREGA */
@@ -1186,7 +1174,7 @@ export const CheckoutPage: React.FC = () => {
               </div>
 
               {/* BOTÓN SUBMIT DE PAGO */}
-              {metodoPago === 'tarjeta' && embeddedSessionId ? (
+              {metodoPago === 'tarjeta' && embeddedSessionId && isOnline ? (
                 <div className="p-4 bg-[#F2ECE1] border border-[#D5CCC0] rounded-xs text-center space-y-1 text-xs text-stone-800">
                   <div className="font-medium flex items-center justify-center gap-1.5">
                     <Lock className="w-3.5 h-3.5 text-[#9B7B54]" />
@@ -1199,9 +1187,10 @@ export const CheckoutPage: React.FC = () => {
               ) : (
                 <button
                   type="submit"
-                  disabled={procesando || items.length === 0 || cargandoEmbedded || !isOnline || !envioListo || (metodoPago === 'qr' && (!qrDisponible || !comprobanteValido))}
+                  disabled={procesando || items.length === 0 || cargandoEmbedded ||
+                    (isOnline ? !envioListo || (metodoPago === 'tarjeta' && !puedePrepararStripe) : metodoPago !== 'tarjeta' || !claveBorrador)}
                   className={`w-full text-xs uppercase tracking-luxury py-4 px-6 rounded-none text-center shadow-sm transition flex items-center justify-center gap-2 font-medium ${
-                    !isOnline
+                    !isOnline && metodoPago !== 'tarjeta'
                       ? 'bg-stone-300 text-stone-500 cursor-not-allowed border border-stone-300'
                       : 'bg-stone-900 text-white hover:bg-stone-800 disabled:opacity-50 cursor-pointer'
                   }`}
@@ -1214,7 +1203,7 @@ export const CheckoutPage: React.FC = () => {
                   ) : !isOnline ? (
                     <>
                       <WifiOff className="w-3.5 h-3.5" />
-                      <span>Conexión requerida para procesar el pago</span>
+                      <span>{metodoPago === 'tarjeta' ? 'Guardar compra pendiente' : 'Conexión requerida para procesar el pago'}</span>
                     </>
                   ) : (
                     <>
@@ -1222,7 +1211,7 @@ export const CheckoutPage: React.FC = () => {
                         {metodoPago === 'tarjeta'
                           ? `Pagar ahora ($${totalFinal.toFixed(2)})`
                           : metodoPago === 'qr'
-                          ? `Registrar mi pedido ($${totalFinal.toFixed(2)})`
+                          ? `Simular pago (Bs ${totalFinal.toFixed(2)})`
                           : `Confirmar Pedido en Efectivo ($${totalFinal.toFixed(2)})`}
                       </span>
                       <Lock className="w-3.5 h-3.5" />

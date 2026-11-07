@@ -326,12 +326,22 @@ export class AuthController {
   @Roles('ADMIN')
   @ApiBearerAuth()
   @ApiOperation({
-    summary: 'Consultar configuración de cobro y saldo en custodia de la tienda activa (Admin)',
-    description: 'Muestra datos bancarios propios configurados y el saldo acumulado en custodia por ventas.',
+    summary: 'Consultar datos de liquidación y saldo simulado de la tienda activa',
   })
   @ApiResponse({ status: 200, description: 'Configuración y estado de billetera de la tienda.' })
   async miConfigPago(@CurrentUser() usuario: any) {
     return this.storesService.obtenerConfigPagoAdmin(usuario.tenantId);
+  }
+
+  @Post('tiendas/retiro-simulado')
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles('ADMIN')
+  @ApiBearerAuth()
+  simularRetiro(
+    @CurrentUser() usuario: any,
+    @Body('solicitudId', new ParseUUIDPipe({ version: '4' })) solicitudId: string,
+  ) {
+    return this.storesService.simularRetiro(usuario.tenantId, usuario.userId, solicitudId);
   }
 
   @Patch('tiendas/mi-config-pago')
@@ -340,8 +350,7 @@ export class AuthController {
   @ApiBearerAuth()
   @HttpCode(HttpStatus.OK)
   @ApiOperation({
-    summary: 'Actualizar configuración de cobro de la tienda activa (Subir QR propio)',
-    description: 'Permite al dueño configurar su QR bancario, titular y banco para activar Modelo B (Cobro Directo).',
+    summary: 'Actualizar datos de liquidación de la tienda activa',
   })
   @ApiResponse({ status: 200, description: 'Configuración actualizada exitosamente.' })
   async actualizarMiConfigPago(

@@ -28,7 +28,8 @@ const getImageUrl = (url?: string | null) => {
 };
 
 export const HomePage: React.FC = () => {
-  const { getStoreUrl } = useTenantStore();
+  const { slug, getStoreUrl } = useTenantStore();
+  const isDemoStore = slug === 'aura';
   const [productos, setProductos] = useState<Producto[]>([]);
   const [categorias, setCategorias] = useState<Categoria[]>([]);
   const [cargando, setCargando] = useState(true);
@@ -105,15 +106,17 @@ export const HomePage: React.FC = () => {
         )}
       </section>
 
-      <section className="spatial-store-home__fitting">
-        <div className="spatial-store-home__fitting-image" role="img" aria-label="Detalle de una prenda de la colección" />
-        <div className="spatial-store-home__fitting-copy">
-          <p>Descubre la pieza desde otro ángulo</p>
-          <h2>El siguiente paso es imaginarla contigo.</h2>
-          <span>Elige una prenda y explora las opciones disponibles en el probador virtual.</span>
-          <Link to={getStoreUrl('/probador')}>Entrar al probador <ArrowRight size={15} /></Link>
-        </div>
-      </section>
+      {isDemoStore && (
+        <section className="spatial-store-home__fitting">
+          <div className="spatial-store-home__fitting-image" role="img" aria-label="Detalle de una prenda de la colección" />
+          <div className="spatial-store-home__fitting-copy">
+            <p>Descubre la pieza desde otro ángulo</p>
+            <h2>El siguiente paso es imaginarla contigo.</h2>
+            <span>Elige una prenda y explora las opciones disponibles en el probador virtual.</span>
+            <Link to={getStoreUrl('/probador')}>Entrar al probador <ArrowRight size={15} /></Link>
+          </div>
+        </section>
+      )}
 
       <section className="spatial-store-home__values" aria-label="El atelier AURA">
         <div><Feather /><h3>Fibras escogidas</h3><p>Seda morera, lino italiano, lana merino y algodón Pima.</p></div>

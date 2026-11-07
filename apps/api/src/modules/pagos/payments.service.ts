@@ -37,7 +37,7 @@ import { MailService } from '../mail/mail.service';
 import { CrearIntentoPagoDto } from './dto/crear-intento-pago.dto';
 import { ConfirmarPagoTarjetaDto } from './dto/confirmar-pago-tarjeta.dto';
 import { PagoContraEntregaDto } from './dto/pago-contra-entrega.dto';
-import { PagoQrDto } from './dto/pago-qr.dto';
+import { PagoQrDto, PagoQrSimuladoDto } from './dto/pago-qr.dto';
 import { ReembolsarPagoDto } from './dto/reembolsar-pago.dto';
 import { TenantContext } from '../../common/tenant/tenant-context';
 
@@ -486,6 +486,7 @@ export class PaymentsService {
         fechaPago: new Date(),
         respuestaPasarela: {
           gateway: 'stripe_embedded_checkout',
+          livemode: session.livemode,
           sessionId: session.id,
           paymentIntentId,
           status: session.status,
@@ -743,6 +744,7 @@ export class PaymentsService {
         fechaPago: new Date(),
         respuestaPasarela: {
           gateway: 'stripe',
+          livemode: paymentIntent.livemode,
           paymentIntentId: paymentIntent.id,
           status: paymentIntent.status,
           currency: paymentIntent.currency,
@@ -999,6 +1001,41 @@ export class PaymentsService {
   private async qrDisponible(): Promise<boolean> {
     const filas = await this.dataSource.query('SELECT qr_url FROM tienda WHERE id = $1', [this.tid]);
     return Boolean(filas[0]?.qr_url && String(filas[0].qr_url).trim() !== '') || cuentaDeLaPlataforma() !== null;
+  }
+
+  async simularPagoQr(usuarioId: string, dto: PagoQrSimuladoDto) {
+    const tenantId = this.tid;
+    const consultar = () => this.dataSource.query(
+      `SELECT id AS referencia, monto FROM movimiento_qr_simulado
+       WHERE tenant_id = $1 AND tipo = 'VENTA' AND solicitud_id = $2 AND usuario_id = $3`,
+      [tenantId, dto.solicitudId, usuarioId],
+    );
+    const [existente] = await consultar();
+    if (existente) return { referencia: existente.referencia, monto: Number(existente.monto) };
+
+    const { cart, subtotal, descuento, envio, totalFinal } =
+      await this.calcularTotalesCarrito(usuarioId, dto.cuponId, dto.metodoEnvioId, dto.tipoEnvio);
+    if (!cart.items?.length) throw new BadRequestException('El carrito de compras está vacío.');
+
+    const pedido = {
+      subtotal,
+      descuento,
+      envio,
+      prendas: cart.items.map((item) => ({
+        varianteId: item.varianteId,
+        cantidad: item.cantidad,
+        precioUnitario: item.precioUnitario,
+      })),
+    };
+    const [creado] = await this.dataSource.query(
+      `INSERT INTO movimiento_qr_simulado (tenant_id, usuario_id, solicitud_id, tipo, monto, pedido)
+       VALUES ($1, $2, $3, 'VENTA', $4, $5)
+       ON CONFLICT (tenant_id, tipo, solicitud_id) DO NOTHING RETURNING id AS referencia, monto`,
+      [tenantId, usuarioId, dto.solicitudId, totalFinal, JSON.stringify(pedido)],
+    );
+    const registro = creado ?? (await consultar())[0];
+    if (!registro) throw new ConflictException('La referencia de simulación ya está en uso.');
+    return { referencia: registro.referencia, monto: Number(registro.monto) };
   }
 
   async pagoQr(usuarioId: string, dto: PagoQrDto) {

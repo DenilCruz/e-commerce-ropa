@@ -6,7 +6,7 @@ import {
   NotFoundException,
 } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
-import { DataSource, Repository } from 'typeorm';
+import { DataSource, EntityManager, Repository } from 'typeorm';
 import { StoreEntity } from './entities/store.entity';
 import { UserStoreEntity } from './entities/user-store.entity';
 import { UserEntity } from '../usuarios/entities/user.entity';
@@ -16,9 +16,27 @@ import { CrearTiendaDto } from './dto/crear-tienda.dto';
 import { ActualizarConfigPagoDto } from './dto/actualizar-config-pago.dto';
 import { TenantContext } from '../../common/tenant/tenant-context';
 
-import { cuentaDeLaPlataforma } from './platform-account';
 export const PLAN_INICIAL = 'FREE_TRIAL';
 const MAX_INTENTOS_SLUG = 3;
+
+const MOVIMIENTOS_SIMULADOS = `
+  SELECT id AS referencia, tipo, monto, creado_en,
+         CASE WHEN tipo = 'RETIRO' THEN 'RETIRO' ELSE 'QR' END AS origen
+  FROM movimiento_qr_simulado WHERE tenant_id = $1
+  UNION ALL
+  SELECT id, 'VENTA', monto, COALESCE(fecha_pago, creado_en), 'STRIPE_PRUEBA'
+  FROM pago
+  WHERE tenant_id = $1 AND estado = 'APROBADO'
+    AND respuesta_pasarela->>'gateway' IN ('stripe', 'stripe_embedded_checkout')
+    AND respuesta_pasarela->>'currency' = 'bob'
+    AND (
+      respuesta_pasarela->'livemode' = 'false'::jsonb
+      OR (
+        NOT (respuesta_pasarela ? 'livemode')
+        AND starts_with(respuesta_pasarela->>'sessionId', 'cs_test_')
+      )
+    )
+`;
 
 /** Postgres unique violation on the store slug. */
 export function esSlugDuplicado(error: any): boolean {
@@ -224,92 +242,82 @@ export class StoresService {
       throw new NotFoundException('Tienda no encontrada.');
     }
 
-    const tieneQrPropio = Boolean(tienda.qrUrl && tienda.qrUrl.trim() !== '');
-    const base = { tiendaId: tienda.id, nombre: tienda.nombre, slug: tienda.slug };
-
-    if (tieneQrPropio) {
-      return {
-        ...base,
-        disponible: true,
-        modalidad: 'MODELO_B_DIRECTO',
-        tituloModalidad: `Cobro Directo · ${tienda.nombre}`,
-        qrUrl: tienda.qrUrl,
-        titularCuenta: tienda.titularCuenta || tienda.nombre,
-        banco: tienda.banco || '',
-        numeroCuenta: tienda.numeroCuenta || '',
-        descripcion: `Tu transferencia llega directamente a la cuenta de ${tienda.nombre}.`,
-      };
-    }
-
-    const cuenta = cuentaDeLaPlataforma();
-    if (cuenta) {
-      return {
-        ...base,
-        disponible: true,
-        modalidad: 'MODELO_A_CUSTODIA',
-        tituloModalidad: 'AURA Pagos · Cuenta oficial en custodia',
-        qrUrl: cuenta.qrUrl,
-        titularCuenta: cuenta.titular,
-        banco: cuenta.banco,
-        numeroCuenta: cuenta.numeroCuenta,
-        descripcion: `AURA recibe tu transferencia y la acredita a ${tienda.nombre}.`,
-      };
-    }
-
-    // Neither the store nor the platform has a QR: the option must not be offered, and nothing is invented.
     return {
-      ...base,
-      disponible: false,
-      modalidad: 'NO_DISPONIBLE',
-      tituloModalidad: 'Pago por QR no disponible',
-      qrUrl: '',
-      titularCuenta: '',
-      banco: '',
-      numeroCuenta: '',
-      descripcion: `${tienda.nombre} aún no tiene el pago por QR disponible.`,
+      tiendaId: tienda.id,
+      nombre: tienda.nombre,
+      slug: tienda.slug,
+      disponible: true,
+      modalidad: 'QR_SIMULADO',
+      descripcion: 'Código de demostración de AURA. No se transfiere dinero.',
     };
   }
 
-  /**
-   * Vista administrativa para el dueño de la tienda:
-   * Muestra la configuración actual y el saldo acumulado en custodia (Modelo A).
-   */
+  private async consultarSaldoSimulado(manager: EntityManager, tiendaId: string) {
+    const [saldo] = await manager.query(
+      `SELECT GREATEST(0, COALESCE(SUM(CASE WHEN tipo = 'VENTA' THEN monto ELSE -monto END), 0)) AS disponible,
+              COUNT(*) FILTER (WHERE tipo = 'VENTA') AS ventas,
+              COALESCE(SUM(monto) FILTER (WHERE origen = 'STRIPE_PRUEBA'), 0) AS stripe_prueba
+       FROM (${MOVIMIENTOS_SIMULADOS}) movimientos`,
+      [tiendaId],
+    );
+    return {
+      saldoAcumulado: Number(saldo.disponible),
+      totalVentas: Number(saldo.ventas),
+      totalStripePrueba: Number(saldo.stripe_prueba),
+    };
+  }
+
+  async simularRetiro(tiendaId: string, usuarioId: string, solicitudId: string) {
+    return this.dataSource.transaction(async (manager) => {
+      await manager.query('SELECT pg_advisory_xact_lock(hashtext($1))', [`retiro-qr:${tiendaId}`]);
+      const [previo] = await manager.query(
+        `SELECT id AS referencia, monto FROM movimiento_qr_simulado
+         WHERE tenant_id = $1 AND tipo = 'RETIRO' AND solicitud_id = $2 AND usuario_id = $3`,
+        [tiendaId, solicitudId, usuarioId],
+      );
+      if (previo) return { referencia: previo.referencia, monto: Number(previo.monto) };
+
+      const tienda = await manager.findOne(StoreEntity, { where: { id: tiendaId }, lock: { mode: 'pessimistic_write' } });
+      if (!tienda) throw new NotFoundException('Tienda no encontrada.');
+      if (!tienda.titularCuenta?.trim() || !tienda.banco?.trim() || !tienda.numeroCuenta?.trim()) {
+        throw new BadRequestException('Guarda el titular, el banco y el número de cuenta antes de simular un retiro.');
+      }
+
+      const { saldoAcumulado } = await this.consultarSaldoSimulado(manager, tiendaId);
+      if (saldoAcumulado <= 0) throw new BadRequestException('No tienes saldo simulado disponible.');
+
+      const [retiro] = await manager.query(
+        `INSERT INTO movimiento_qr_simulado (tenant_id, usuario_id, solicitud_id, tipo, monto)
+         VALUES ($1, $2, $3, 'RETIRO', $4) RETURNING id AS referencia`,
+        [tiendaId, usuarioId, solicitudId, saldoAcumulado],
+      );
+      return { referencia: retiro.referencia, monto: saldoAcumulado };
+    });
+  }
+
+  /** Datos privados de liquidación y saldo de prueba de la tienda activa. */
   async obtenerConfigPagoAdmin(tiendaId: string) {
     const tienda = await this.storeRepo.findOne({ where: { id: tiendaId } });
     if (!tienda) throw new NotFoundException('Tienda no encontrada.');
 
-    // Calcular ventas acumuladas en custodia para esta tienda
-    const stats = await this.dataSource.query(
-      `SELECT COALESCE(SUM(p.monto), 0) AS total_recaudado, COUNT(p.id) AS total_ventas 
-       FROM pago p 
-       WHERE p.tenant_id = $1 AND p.estado = 'APROBADO'`,
-      [tiendaId],
-    );
-
-    const saldo = parseFloat(stats[0]?.total_recaudado || '0');
-    const totalVentas = parseInt(stats[0]?.total_ventas || '0', 10);
-    const tieneQr = Boolean(tienda.qrUrl && tienda.qrUrl.trim() !== '');
-
+    const [billeteraSimulada, movimientos] = await Promise.all([
+      this.consultarSaldoSimulado(this.dataSource.manager, tiendaId),
+      this.dataSource.query(
+        `SELECT referencia, tipo, origen, monto, creado_en AS "creadoEn"
+         FROM (${MOVIMIENTOS_SIMULADOS}) movimientos
+         ORDER BY creado_en DESC, referencia DESC LIMIT 10`,
+        [tiendaId],
+      ),
+    ]);
     return {
       tienda: {
-        id: tienda.id,
         nombre: tienda.nombre,
-        slug: tienda.slug,
-        plan: tienda.plan,
-        qrUrl: tienda.qrUrl,
         titularCuenta: tienda.titularCuenta,
         banco: tienda.banco,
         numeroCuenta: tienda.numeroCuenta,
-        modalidadPagoActiva: tieneQr ? 'MODELO_B_DIRECTO' : 'MODELO_A_CUSTODIA',
       },
-      billeteraCustodia: {
-        saldoAcumulado: saldo,
-        totalVentas,
-        estadoLiquidacion: saldo > 0 ? 'DISPONIBLE_PARA_RETIRO' : 'SIN_FONDOS_PENDIENTES',
-        descripcion: tieneQr
-          ? 'Tu tienda está operando en MODELO B (Cobro Directo): Los clientes te transfieren directamente a tu QR bancario personal.'
-          : 'Tu tienda está operando en MODELO A (Custodia Central AURA): Los fondos se recaudan en la cuenta oficial de AURA y se acreditan a tu saldo contable hasta que configures tu QR.',
-      },
+      billeteraSimulada,
+      movimientos: movimientos.map((movimiento) => ({ ...movimiento, monto: Number(movimiento.monto) })),
     };
   }
 

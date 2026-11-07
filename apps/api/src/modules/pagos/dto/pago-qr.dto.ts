@@ -1,4 +1,4 @@
-import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
+import { ApiProperty, ApiPropertyOptional, OmitType } from '@nestjs/swagger';
 import {
   IsIn,
   IsNotEmpty,
@@ -67,4 +67,9 @@ export class PagoQrDto {
   @Min(-180)
   @Max(180)
   longitud?: number;
+}
+
+export class PagoQrSimuladoDto extends OmitType(PagoQrDto, ['nroComprobante'] as const) {
+  @IsUUID('4')
+  solicitudId: string;
 }
