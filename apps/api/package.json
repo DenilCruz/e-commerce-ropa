@@ -11,6 +11,8 @@
     "lint": "eslint \"{src,apps,libs,test}/**/*.ts\"",
     "test": "jest",
     "test:watch": "jest --watch",
+    "test:db": "bash test/db/run-with-docker.sh",
+    "test:db:url": "TEST_DB_REQUIRED=1 jest --runTestsByPath test/db/tenant-isolation.spec.ts --runInBand",
     "test:e2e": "jest --config ./test/jest-e2e.json",
     "seed:ventas": "npx ts-node -r tsconfig-paths/register src/database/seeds/seed-admin-sales.ts",
     "seed:sinteticos": "npx ts-node -r tsconfig-paths/register src/database/seeds/seed-synthetic-sales.ts"
