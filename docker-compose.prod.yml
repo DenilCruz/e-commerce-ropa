@@ -63,6 +63,9 @@ services:
       JWT_SECRET: ${JWT_SECRET:-super_secret_jwt_key_si2_azure_2026}
       JWT_REFRESH_SECRET: ${JWT_REFRESH_SECRET:-super_secret_refresh_jwt_key_2026}
       STRIPE_SECRET_KEY: ${STRIPE_SECRET_KEY:-}
+      # Plan payments: "simulado" = demo gateway (no money moves), "stripe" = real Stripe Checkout.
+      # Production refuses plan payments when this is left empty, so the demo choice is written here on purpose.
+      PLAN_PAYMENT_MODE: ${PLAN_PAYMENT_MODE:-simulado}
       CLOUDINARY_CLOUD_NAME: ${CLOUDINARY_CLOUD_NAME:-}
       CLOUDINARY_API_KEY: ${CLOUDINARY_API_KEY:-}
       CLOUDINARY_API_SECRET: ${CLOUDINARY_API_SECRET:-}
