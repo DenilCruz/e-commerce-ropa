@@ -14,12 +14,13 @@ export function crearEnviarVenta(cliente: ClientePost) {
       {
         items: venta.items.map(({ varianteId, cantidad }) => ({ varianteId, cantidad })),
         clienteNombre: venta.clienteNombre,
+        cliente: venta.cliente,
         notas: venta.notas,
         vendidoEn: venta.creadoEn,
       },
       { headers: { 'Idempotency-Key': venta.id } },
     );
     const cuerpo = respuesta.data?.data ?? respuesta.data;
-    return { ordenId: cuerpo.ordenId, nroOrden: cuerpo.nroOrden };
+    return { ordenId: cuerpo.ordenId, nroOrden: cuerpo.nroOrden, clienteFusionado: cuerpo.clienteFusionado ?? undefined };
   };
 }

@@ -66,6 +66,33 @@ describe('migration', () => {
     const tablas = await db.getAllAsync<{ name: string }>("SELECT name FROM sqlite_master WHERE type = 'table' ORDER BY name");
     expect(tablas.map((t) => t.name)).toEqual(expect.arrayContaining(['catalogo', 'meta', 'ventas']));
   });
+
+  it('upgrades a version 1 database without dropping the sales already stored', async () => {
+    const vieja = crearDbNode();
+    await vieja.execAsync(`
+      CREATE TABLE ventas (
+        id TEXT PRIMARY KEY NOT NULL,
+        tenant_id TEXT NOT NULL,
+        usuario_id TEXT NOT NULL,
+        estado TEXT NOT NULL,
+        secuencia INTEGER NOT NULL,
+        datos TEXT NOT NULL
+      );
+    `);
+    await vieja.execAsync('PRAGMA user_version = 1');
+    await vieja.runAsync(
+      'INSERT INTO ventas (id, tenant_id, usuario_id, estado, secuencia, datos) VALUES (?, ?, ?, ?, ?, ?)',
+      ['venta-vieja', T1, U, 'PENDIENTE', 1, JSON.stringify({ id: 'venta-vieja', estado: 'PENDIENTE' })],
+    );
+
+    await migrar(vieja);
+
+    expect((await vieja.getFirstAsync<{ user_version: number }>('PRAGMA user_version'))?.user_version).toBe(VERSION_ESQUEMA);
+    expect((await vieja.getFirstAsync<{ id: string }>('SELECT id FROM ventas WHERE id = ?', ['venta-vieja']))?.id).toBe('venta-vieja');
+    const tablas = await vieja.getAllAsync<{ name: string }>("SELECT name FROM sqlite_master WHERE type = 'table'");
+    expect(tablas.map((t) => t.name)).toEqual(expect.arrayContaining(['ventas', 'clientes', 'productos']));
+    vieja.cerrar();
+  });
 });
 
 describe('catalog snapshot', () => {

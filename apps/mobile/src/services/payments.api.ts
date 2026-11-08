@@ -1,4 +1,5 @@
 import { api } from './api';
+import { cabeceraIdempotencia } from './pagos/claveIntentoPago';
 
 export interface MetodoPago {
   id: string;
@@ -66,8 +67,8 @@ export const paymentsApi = {
     cuponId?: string;
     metodoEnvioId?: string;
     tipoEnvio?: string;
-  }): Promise<CrearIntentoResponse> => {
-    const res = await api.post<CrearIntentoResponse>('/payments/intent', datos);
+  }, claveIdempotencia: string): Promise<CrearIntentoResponse> => {
+    const res = await api.post<CrearIntentoResponse>('/payments/intent', datos, cabeceraIdempotencia(claveIdempotencia));
     return res.data;
   },
 
@@ -79,8 +80,8 @@ export const paymentsApi = {
     cuponId?: string;
     metodoEnvioId?: string;
     tipoEnvio?: string;
-  }): Promise<OrdenRespuesta> => {
-    const res = await api.post<OrdenRespuesta>('/payments/confirm-card', datos);
+  }, claveIdempotencia: string): Promise<OrdenRespuesta> => {
+    const res = await api.post<OrdenRespuesta>('/payments/confirm-card', datos, cabeceraIdempotencia(claveIdempotencia));
     return res.data;
   },
 
@@ -91,8 +92,8 @@ export const paymentsApi = {
     cuponId?: string;
     metodoEnvioId?: string;
     tipoEnvio?: string;
-  }): Promise<OrdenRespuesta> => {
-    const res = await api.post<OrdenRespuesta>('/payments/cash-on-delivery', datos);
+  }, claveIdempotencia: string): Promise<OrdenRespuesta> => {
+    const res = await api.post<OrdenRespuesta>('/payments/cash-on-delivery', datos, cabeceraIdempotencia(claveIdempotencia));
     return res.data;
   },
 
@@ -104,8 +105,8 @@ export const paymentsApi = {
     cuponId?: string;
     metodoEnvioId?: string;
     tipoEnvio?: string;
-  }): Promise<OrdenRespuesta> => {
-    const res = await api.post<OrdenRespuesta>('/payments/qr', datos);
+  }, claveIdempotencia: string): Promise<OrdenRespuesta> => {
+    const res = await api.post<OrdenRespuesta>('/payments/qr', datos, cabeceraIdempotencia(claveIdempotencia));
     return res.data;
   },
 
@@ -117,8 +118,8 @@ export const paymentsApi = {
     metodoEnvioId?: string;
     tipoEnvio?: string;
     origen?: 'web' | 'mobile';
-  }): Promise<{ clientSecret: string; sessionId: string; url?: string; amount: number; currency: string }> => {
-    const res = await api.post('/payments/embedded-session', datos);
+  }, claveIdempotencia: string): Promise<{ clientSecret: string; sessionId: string; url?: string; amount: number; currency: string }> => {
+    const res = await api.post('/payments/embedded-session', datos, cabeceraIdempotencia(claveIdempotencia));
     return res.data;
   },
 

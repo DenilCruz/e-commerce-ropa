@@ -1,13 +1,13 @@
 import { Db, transaccion, uuidV4 } from './db';
-import { RETENCION_DIAS, catalogoVencido } from './retencion';
-import { ConflictoItem, EstadoVentaLocal, ItemVentaLocal, VarianteCatalogo, VentaLocal } from './types';
+import { RETENCION_DIAS, catalogoVencido, leerRetencionDias } from './retencion';
+import { ClienteVenta, ConflictoItem, EstadoVentaLocal, ItemVentaLocal, ProductoLocal, VarianteCatalogo, VentaLocal } from './types';
 
 /** Product as `GET /productos` returns it; only what the point of sale needs. */
 export interface ProductoParaCatalogo {
   id: string;
   nombre: string;
   precio: number | string;
-  categoria?: { nombre?: string } | null;
+  categoria?: { id?: string; nombre?: string } | null;
   imagenes?: { url: string; principal?: boolean; esPrincipal?: boolean }[];
   variantes?: {
     id: string;
@@ -29,6 +29,7 @@ export interface NuevaVentaLocal {
   usuarioId: string;
   items: LineaVenta[];
   clienteNombre?: string;
+  cliente?: ClienteVenta;
   notas?: string;
 }
 
@@ -46,9 +47,9 @@ export class StockLocalInsuficienteError extends Error {
 }
 
 export class CatalogoVencidoError extends Error {
-  constructor() {
+  constructor(dias: number = RETENCION_DIAS) {
     super(
-      `El catálogo guardado en este dispositivo tiene más de ${RETENCION_DIAS} días. Conéctate a internet para renovarlo antes de vender sin conexión.`,
+      `El catálogo guardado en este dispositivo tiene más de ${dias} días. Conéctate a internet para renovarlo antes de vender sin conexión.`,
     );
     this.name = 'CatalogoVencidoError';
   }
@@ -72,13 +73,13 @@ function juntarLineas(lineas: LineaVenta[]): Map<string, number> {
 interface FilaDatos {
   datos: string;
 }
-const leerVenta = (fila: FilaDatos): VentaLocal => JSON.parse(fila.datos);
+export const leerVenta = (fila: FilaDatos): VentaLocal => JSON.parse(fila.datos);
 
 // ---------------------------------------------------------------------------
 // Row helpers (callers hold the transaction)
 // ---------------------------------------------------------------------------
 
-async function guardarVenta(db: Db, v: VentaLocal): Promise<void> {
+export async function guardarVenta(db: Db, v: VentaLocal): Promise<void> {
   await db.runAsync(
     'INSERT OR REPLACE INTO ventas (id, tenant_id, usuario_id, estado, secuencia, datos) VALUES (?, ?, ?, ?, ?, ?)',
     [v.id, v.tenantId, v.usuarioId, v.estado, v.secuencia, JSON.stringify(v)],
@@ -90,7 +91,7 @@ async function buscarVenta(db: Db, id: string): Promise<VentaLocal | undefined> 
   return fila ? leerVenta(fila) : undefined;
 }
 
-async function guardarVariante(db: Db, v: VarianteCatalogo): Promise<void> {
+export async function guardarVariante(db: Db, v: VarianteCatalogo): Promise<void> {
   await db.runAsync('INSERT OR REPLACE INTO catalogo (clave, tenant_id, datos) VALUES (?, ?, ?)', [
     v.clave,
     v.tenantId,
@@ -98,7 +99,7 @@ async function guardarVariante(db: Db, v: VarianteCatalogo): Promise<void> {
   ]);
 }
 
-async function buscarVariante(db: Db, tenantId: string, varianteId: string): Promise<VarianteCatalogo | undefined> {
+export async function buscarVariante(db: Db, tenantId: string, varianteId: string): Promise<VarianteCatalogo | undefined> {
   const fila = await db.getFirstAsync<FilaDatos>('SELECT datos FROM catalogo WHERE clave = ?', [clave(tenantId, varianteId)]);
   return fila ? JSON.parse(fila.datos) : undefined;
 }
@@ -172,9 +173,35 @@ export async function guardarCatalogo(
           stockServidor: v.stock,
           stockLocal: Math.max(0, v.stock - (reservado.get(v.id) ?? 0)),
           categoria: p.categoria?.nombre,
+          categoriaId: p.categoria?.id,
           imagen: principal?.url,
         });
       }
+    }
+    // A product created on this device that the server has not confirmed is not in the list yet: keep it sellable
+    const sinConfirmar = await db.getAllAsync<FilaDatos>(
+      "SELECT datos FROM productos WHERE tenant_id = ? AND estado != 'SINCRONIZADA'",
+      [tenantId],
+    );
+    for (const fila of sinConfirmar) {
+      const p: ProductoLocal = JSON.parse(fila.datos);
+      const claveVariante = clave(tenantId, p.varianteId);
+      if (await buscarVariante(db, tenantId, p.varianteId)) continue;
+      await guardarVariante(db, {
+        clave: claveVariante,
+        tenantId,
+        varianteId: p.varianteId,
+        productoId: p.id,
+        sku: p.sku,
+        nombre: p.nombre,
+        talla: 'Única',
+        color: 'Original',
+        precio: p.precio,
+        stockServidor: p.stockInicial,
+        stockLocal: Math.max(0, p.stockInicial - (reservado.get(p.varianteId) ?? 0)),
+        categoria: p.categoriaNombre,
+        categoriaId: p.categoriaId,
+      });
     }
     await db.runAsync('INSERT OR REPLACE INTO meta (clave, valor) VALUES (?, ?)', [
       claveActualizacion(tenantId),
@@ -202,8 +229,9 @@ export async function leerActualizacionCatalogo(db: Db, tenantId: string): Promi
 export async function crearVenta(db: Db, datos: NuevaVentaLocal, opciones: OpcionesCrearVenta = {}): Promise<VentaLocal> {
   const ahora = opciones.ahora ?? new Date();
   return transaccion(db, async () => {
-    if (opciones.enLinea === false && catalogoVencido(await leerActualizacionCatalogo(db, datos.tenantId), ahora)) {
-      throw new CatalogoVencidoError();
+    if (opciones.enLinea === false) {
+      const dias = await leerRetencionDias(db, datos.tenantId);
+      if (catalogoVencido(await leerActualizacionCatalogo(db, datos.tenantId), ahora, dias)) throw new CatalogoVencidoError(dias);
     }
     const items = await reservar(db, datos.tenantId, datos.items);
     const ultima = await db.getFirstAsync<{ maxima: number }>('SELECT COALESCE(MAX(secuencia), 0) AS maxima FROM ventas');
@@ -212,7 +240,8 @@ export async function crearVenta(db: Db, datos: NuevaVentaLocal, opciones: Opcio
       tenantId: datos.tenantId,
       usuarioId: datos.usuarioId,
       items,
-      clienteNombre: datos.clienteNombre?.trim() || undefined,
+      clienteNombre: datos.clienteNombre?.trim() || datos.cliente?.nombre || undefined,
+      cliente: datos.cliente,
       notas: datos.notas?.trim() || undefined,
       total: totalDe(items),
       creadoEn: ahora.toISOString(),

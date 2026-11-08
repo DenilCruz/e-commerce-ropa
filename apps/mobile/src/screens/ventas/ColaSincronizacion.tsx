@@ -11,9 +11,11 @@ interface Props {
   onAjustar: (venta: VentaLocal) => void;
   onCancelar: (id: string) => void;
   onLimpiar: () => void;
+  /** Days the device keeps queued data (store setting); 7 when unknown. */
+  retencionDias?: number;
 }
 
-const ESTADO: Record<EstadoVentaLocal, { texto: string; icono: keyof typeof Ionicons.glyphMap; fondo: string; borde: string; tinta: string }> = {
+export const ESTADO: Record<EstadoVentaLocal, { texto: string; icono: keyof typeof Ionicons.glyphMap; fondo: string; borde: string; tinta: string }> = {
   PENDIENTE: { texto: 'Pendiente de sincronización', icono: 'time-outline', fondo: '#fffbeb', borde: '#fde68a', tinta: '#78350f' },
   SINCRONIZANDO: { texto: 'Sincronizando', icono: 'sync-outline', fondo: '#eff6ff', borde: '#bfdbfe', tinta: '#1e40af' },
   SINCRONIZADA: { texto: 'Sincronizada', icono: 'checkmark-circle-outline', fondo: '#ecfdf5', borde: '#a7f3d0', tinta: '#065f46' },
@@ -21,7 +23,7 @@ const ESTADO: Record<EstadoVentaLocal, { texto: string; icono: keyof typeof Ioni
   ERROR: { texto: 'Rechazada por el servidor', icono: 'close-circle-outline', fondo: '#fef2f2', borde: '#fecaca', tinta: '#991b1b' },
 };
 
-const Accion: React.FC<{ texto: string; onPress: () => void; variante?: 'principal' | 'neutra' | 'peligro' }> = ({
+export const Accion: React.FC<{ texto: string; onPress: () => void; variante?: 'principal' | 'neutra' | 'peligro' }> = ({
   texto,
   onPress,
   variante = 'neutra',
@@ -37,7 +39,7 @@ const Accion: React.FC<{ texto: string; onPress: () => void; variante?: 'princip
   </TouchableOpacity>
 );
 
-export const ColaSincronizacion: React.FC<Props> = ({ ventas, onReintentar, onAjustar, onCancelar, onLimpiar }) => {
+export const ColaSincronizacion: React.FC<Props> = ({ ventas, onReintentar, onAjustar, onCancelar, onLimpiar, retencionDias = RETENCION_DIAS }) => {
   const hayHechas = ventas.some((v) => v.estado === 'SINCRONIZADA');
   const ordenadas = [...ventas].reverse();
 
@@ -56,7 +58,7 @@ export const ColaSincronizacion: React.FC<Props> = ({ ventas, onReintentar, onAj
       ) : (
         ordenadas.map((v) => {
           const e = ESTADO[v.estado];
-          const antigua = v.estado !== 'SINCRONIZADA' && ventaAntigua(v.creadoEn);
+          const antigua = v.estado !== 'SINCRONIZADA' && ventaAntigua(v.creadoEn, new Date(), retencionDias);
           return (
             <View key={v.id} style={styles.venta}>
               <View style={styles.ventaCabecera}>
@@ -79,7 +81,7 @@ export const ColaSincronizacion: React.FC<Props> = ({ ventas, onReintentar, onAj
                 {antigua && (
                   <View style={[styles.etiqueta, { backgroundColor: '#f5f5f4', borderColor: colors.border }]}>
                     <Ionicons name="hourglass-outline" size={14} color={colors.secondary} />
-                    <Text style={[styles.etiquetaTexto, { color: colors.secondary }]}>Antigua (más de {RETENCION_DIAS} días)</Text>
+                    <Text style={[styles.etiquetaTexto, { color: colors.secondary }]}>Antigua (más de {retencionDias} días)</Text>
                   </View>
                 )}
               </View>

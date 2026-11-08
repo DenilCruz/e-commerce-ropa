@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { RETENCION_DIAS, catalogoVencido, edadEnDias, ventaAntigua } from '../retencion';
+import { RETENCION_DIAS, catalogoVencido, edadEnDias, validarDiasRetencion, ventaAntigua } from '../retencion';
 
 const DIA = 24 * 60 * 60 * 1000;
 const base = new Date('2026-10-01T00:00:00.000Z');
@@ -8,6 +8,16 @@ const despues = (dias: number) => new Date(base.getTime() + dias * DIA);
 describe('retention policy', () => {
   it('keeps local data for seven days by default', () => {
     expect(RETENCION_DIAS).toBe(7);
+  });
+
+  it('accepts only a whole number of days from 1 to 30', () => {
+    expect(validarDiasRetencion('1')).toBe(1);
+    expect(validarDiasRetencion('30')).toBe(30);
+    expect(validarDiasRetencion('7')).toBe(7);
+    expect(validarDiasRetencion('0')).toBeNull();
+    expect(validarDiasRetencion('31')).toBeNull();
+    expect(validarDiasRetencion('1.5')).toBeNull();
+    expect(validarDiasRetencion('')).toBeNull();
   });
 
   it('measures age in days', () => {

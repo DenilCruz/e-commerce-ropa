@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import {
   View,
   Text,
@@ -18,6 +18,8 @@ import { useCartStore } from '../../store/cart.store';
 import { useAuthStore } from '../../store/auth.store';
 import { useNetworkStore } from '../../store/network.store';
 import { paymentsApi, OrdenRespuesta } from '../../services/payments.api';
+import { crearGestorClavePago, huellaCarrito } from '../../services/pagos/claveIntentoPago';
+import { uuidV4 } from '../../services/pos/db';
 import { api, getBaseUrl } from '../../services/api';
 
 export const CheckoutScreen: React.FC = () => {
@@ -49,6 +51,7 @@ export const CheckoutScreen: React.FC = () => {
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
   const [ordenCompletada, setOrdenCompletada] = useState<OrdenRespuesta | null>(null);
 
+  const gestorClavePago = useRef(crearGestorClavePago(uuidV4)).current;
   const subtotal = cart?.total || 0;
   const esExpress = tipoEnvio === 'EXPRESS';
   const costoEnvio = esExpress ? 30 : (subtotal >= 200 || subtotal === 0 ? 0 : 15);
@@ -56,17 +59,22 @@ export const CheckoutScreen: React.FC = () => {
   const metodoEnvioId = esExpress
     ? 'e2000000-0000-0000-0000-000000000002'
     : 'e1000000-0000-0000-0000-000000000001';
+  const claveDeEsteIntento = () =>
+    gestorClavePago.clave(
+      huellaCarrito((cart?.items ?? []).map((item) => ({ varianteId: item.varianteId, cantidad: item.cantidad }))),
+      totalFinal,
+    );
 
   // Polling automático para verificar la sesión de Stripe en cuanto el usuario pague
   useEffect(() => {
-    if (!stripeSessionId || ordenCompletada) return;
+    if (!stripeSessionId || ordenCompletada || !isConnected) return;
 
     const interval = setInterval(() => {
       verificarPagoStripe(true);
     }, 3500);
 
     return () => clearInterval(interval);
-  }, [stripeSessionId, ordenCompletada]);
+  }, [stripeSessionId, ordenCompletada, isConnected]);
 
   // OBTENER UBICACIÓN GPS
   const obtenerUbicacionGPS = () => {
@@ -143,6 +151,10 @@ export const CheckoutScreen: React.FC = () => {
 
   // HU-56: Abrir Pasarela Oficial de Stripe (Hosted Checkout)
   const procesarPagoStripeOficial = async () => {
+    if (!isConnected) {
+      setErrorMsg('Sin conexión no se puede pagar con tarjeta. Ese cobro necesita internet y no se inicia.');
+      return;
+    }
     if (!direccion.trim()) {
       setErrorMsg('Ingresa la dirección completa de entrega.');
       return;
@@ -164,7 +176,7 @@ export const CheckoutScreen: React.FC = () => {
         metodoEnvioId,
         tipoEnvio,
         origen: 'mobile',
-      });
+      }, claveDeEsteIntento());
 
       setStripeSessionId(res.sessionId);
       if (res.url) {
@@ -186,6 +198,10 @@ export const CheckoutScreen: React.FC = () => {
 
   // PROCESAR PAGO POR QR SIMPLE
   const procesarPagoQr = async () => {
+    if (!isConnected) {
+      setErrorMsg('Sin conexión no se puede pagar con QR. Ese cobro necesita internet y no se inicia.');
+      return;
+    }
     if (!direccion.trim()) {
       setErrorMsg('Ingresa la dirección de entrega.');
       return;
@@ -207,7 +223,7 @@ export const CheckoutScreen: React.FC = () => {
         cuponId: cupon?.id,
         metodoEnvioId,
         tipoEnvio,
-      });
+      }, claveDeEsteIntento());
 
       clearCart();
       setOrdenCompletada(orden);
@@ -240,7 +256,7 @@ export const CheckoutScreen: React.FC = () => {
         cuponId: cupon?.id,
         metodoEnvioId,
         tipoEnvio,
-      });
+      }, claveDeEsteIntento());
 
       clearCart();
       setOrdenCompletada(orden);
@@ -255,7 +271,9 @@ export const CheckoutScreen: React.FC = () => {
     if (!isConnected) {
       Alert.alert(
         'Modo sin conexión',
-        'Para validar el inventario en tiempo real y procesar tu orden de pago de forma segura, necesitas conexión a internet. Tu carrito se mantendrá guardado.'
+        metodoPago === 'contra_entrega'
+          ? 'Sin conexión no se puede confirmar el pedido. Tu carrito se mantiene guardado.'
+          : 'Sin conexión no se puede pagar con tarjeta ni con QR. Esos cobros necesitan internet y no se inician. Tu carrito se mantiene guardado.',
       );
       return;
     }
@@ -425,7 +443,7 @@ export const CheckoutScreen: React.FC = () => {
             <View style={{ marginLeft: 10, flex: 1 }}>
               <Text style={styles.offlineCheckoutTitle}>Modo sin conexión</Text>
               <Text style={styles.offlineCheckoutDesc}>
-                Puedes revisar tu dirección y resumen. La confirmación del pedido y el cobro requieren conexión a internet para asegurar la reserva de inventario.
+                Sin conexión no se puede pagar con tarjeta ni con QR. Esos cobros necesitan internet y no se inician. Puedes revisar tu dirección y el resumen; el carrito sigue guardado.
               </Text>
             </View>
           </View>
@@ -616,17 +634,24 @@ export const CheckoutScreen: React.FC = () => {
 
                   <View style={styles.stripeActiveButtonsRow}>
                     <TouchableOpacity
-                      style={styles.stripeReopenBtn}
-                      onPress={() => stripeUrl && Linking.openURL(stripeUrl)}
+                      style={[styles.stripeReopenBtn, !isConnected && { opacity: 0.45 }]}
+                      disabled={!isConnected}
+                      onPress={() => {
+                        if (!isConnected) return;
+                        if (stripeUrl) Linking.openURL(stripeUrl);
+                      }}
                     >
                       <Ionicons name="open-outline" size={16} color="#4f46e5" style={{ marginRight: 6 }} />
                       <Text style={styles.stripeReopenText}>Reabrir Stripe</Text>
                     </TouchableOpacity>
 
                     <TouchableOpacity
-                      style={styles.stripeVerifyBtn}
-                      onPress={() => verificarPagoStripe(false)}
-                      disabled={verificandoStripe}
+                      style={[styles.stripeVerifyBtn, !isConnected && { opacity: 0.45 }]}
+                      onPress={() => {
+                        if (!isConnected) return;
+                        verificarPagoStripe(false);
+                      }}
+                      disabled={verificandoStripe || !isConnected}
                     >
                       {verificandoStripe ? (
                         <ActivityIndicator size="small" color="#fff" style={{ marginRight: 6 }} />

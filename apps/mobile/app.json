@@ -18,7 +18,8 @@
     "plugins": [
       "expo-image",
       "expo-status-bar",
-      "expo-sqlite"
+      "expo-sqlite",
+      "expo-notifications"
     ]
   }
 }

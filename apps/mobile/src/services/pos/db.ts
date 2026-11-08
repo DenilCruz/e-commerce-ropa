@@ -11,7 +11,7 @@ export interface Db {
 }
 
 export const NOMBRE_DB = 'aura-pos.db';
-export const VERSION_ESQUEMA = 1;
+export const VERSION_ESQUEMA = 2;
 
 const ESQUEMA_V1 = `
   CREATE TABLE IF NOT EXISTS ventas (
@@ -36,12 +36,35 @@ const ESQUEMA_V1 = `
   );
 `;
 
+/** v2: the same queue shape as `ventas` for the customers and products registered on the device. */
+const ESQUEMA_V2 = `
+  CREATE TABLE IF NOT EXISTS clientes (
+    id TEXT PRIMARY KEY NOT NULL,
+    tenant_id TEXT NOT NULL,
+    usuario_id TEXT NOT NULL,
+    estado TEXT NOT NULL,
+    secuencia INTEGER NOT NULL,
+    datos TEXT NOT NULL
+  );
+  CREATE INDEX IF NOT EXISTS idx_clientes_tenant_secuencia ON clientes (tenant_id, secuencia);
+  CREATE TABLE IF NOT EXISTS productos (
+    id TEXT PRIMARY KEY NOT NULL,
+    tenant_id TEXT NOT NULL,
+    usuario_id TEXT NOT NULL,
+    estado TEXT NOT NULL,
+    secuencia INTEGER NOT NULL,
+    datos TEXT NOT NULL
+  );
+  CREATE INDEX IF NOT EXISTS idx_productos_tenant_secuencia ON productos (tenant_id, secuencia);
+`;
+
 /** Brings the database up to VERSION_ESQUEMA. Safe to run on every start. */
 export async function migrar(db: Db): Promise<void> {
   await db.withTransactionAsync(async () => {
     const fila = await db.getFirstAsync<{ user_version: number }>('PRAGMA user_version');
     const actual = fila?.user_version ?? 0;
     if (actual < 1) await db.execAsync(ESQUEMA_V1);
+    if (actual < 2) await db.execAsync(ESQUEMA_V2);
     if (actual < VERSION_ESQUEMA) await db.execAsync(`PRAGMA user_version = ${VERSION_ESQUEMA}`);
   });
 }

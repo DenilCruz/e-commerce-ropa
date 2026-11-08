@@ -1,5 +1,6 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { Db, migrar } from '../db';
+import { crearClienteLocal, crearProductoLocal, listarClientesLocales, listarProductosLocales, reintentarRegistro } from '../colasLocales';
 import { crearEnviarVenta } from '../enviarVenta';
 import { esperaReintento, sincronizar } from '../sincronizador';
 import {
@@ -8,6 +9,7 @@ import {
   listarVentas,
   marcarConflicto,
   marcarSincronizando,
+  leerCatalogo,
   obtenerVenta,
 } from '../ventasLocales';
 import { crearDbNode } from './dbNode';
@@ -201,6 +203,88 @@ describe('sincronizar', () => {
 
     expect(enviar).toHaveBeenCalledTimes(1);
     expect(await obtenerVenta(db, vieja.id)).toMatchObject({ estado: 'SINCRONIZADA' });
+  });
+});
+
+describe('customer and product queues', () => {
+  const altaProducto = () =>
+    crearProductoLocal(db, {
+      tenantId: T, usuarioId: U, nombre: 'Polo', precio: 40,
+      categoriaId: '11111111-1111-4111-8111-111111111111', sku: 'POLO-1', stockInicial: 4,
+    });
+
+  it('shows the product in the local catalog at once, then sends customers, products and sales in that order', async () => {
+    const clienteLocal = await crearClienteLocal(db, { tenantId: T, usuarioId: U, nombre: 'Ana' });
+    const producto = await altaProducto();
+    expect((await leerCatalogo(db, T)).find((v) => v.varianteId === producto.varianteId)?.stockLocal).toBe(4);
+    const venta = await vender(producto.varianteId, 1);
+    const orden: string[] = [];
+    const cliente = vi.fn(async () => { orden.push('cliente'); });
+    const productoEnv = vi.fn(async () => { orden.push('producto'); });
+    const enviar = vi.fn(async () => { orden.push('venta'); return ok(1); });
+
+    const resultado = await sincronizar(db, sesion, enviar, { cliente, producto: productoEnv });
+
+    expect(orden).toEqual(['cliente', 'producto', 'venta']);
+    expect(resultado).toMatchObject({ sincronizadas: 3, interrumpida: false });
+    expect(await obtenerVenta(db, venta.id)).toMatchObject({ estado: 'SINCRONIZADA' });
+    expect(clienteLocal.id).toBe((await listarClientesLocales(db, T))[0].id);
+  });
+
+  it('stops products and sales when the customer request fails for the network, a 5xx or a 401', async () => {
+    await crearClienteLocal(db, { tenantId: T, usuarioId: U, nombre: 'Ana' });
+    await altaProducto();
+    await vender('v-a');
+    const producto = vi.fn();
+    const enviar = vi.fn().mockResolvedValue(ok(1));
+
+    const red = await sincronizar(db, sesion, enviar, {
+      cliente: vi.fn().mockRejectedValue(sinRed()),
+      producto,
+    });
+    const servidor = await sincronizar(db, sesion, enviar, {
+      cliente: vi.fn().mockRejectedValue(falla(503, { message: 'no disponible' })),
+      producto,
+    });
+    const sesionCaida = await sincronizar(db, sesion, enviar, {
+      cliente: vi.fn().mockRejectedValue(falla(401, { message: 'unauthorized' })),
+      producto,
+    });
+
+    expect(red).toMatchObject({ interrumpida: true, motivo: 'RED' });
+    expect(servidor).toMatchObject({ interrumpida: true, motivo: 'SERVIDOR' });
+    expect(sesionCaida).toMatchObject({ interrumpida: true, motivo: 'SESION' });
+    expect(producto).not.toHaveBeenCalled();
+    expect(enviar).not.toHaveBeenCalled();
+    expect((await listarClientesLocales(db, T))[0]).toMatchObject({ estado: 'PENDIENTE' });
+  });
+
+  it('records CLIENTE_DUPLICADO and SKU_DUPLICADO as CONFLICTO, and 422 or LIMITE_PLAN as ERROR, then continues', async () => {
+    const clienteLocal = await crearClienteLocal(db, { tenantId: T, usuarioId: U, nombre: 'Ana', ci: '123' });
+    const producto = await altaProducto();
+    const venta = await vender('v-a');
+    await sincronizar(db, sesion, vi.fn().mockResolvedValue(ok(1)), {
+      cliente: vi.fn().mockRejectedValue(falla(422, { message: 'El CI no es válido' })),
+      producto: vi.fn().mockRejectedValue(falla(403, { codigo: 'LIMITE_PLAN', message: 'Tu plan alcanzó el límite de productos.' })),
+    });
+    expect(await listarClientesLocales(db, T)).toMatchObject([{ id: clienteLocal.id, estado: 'ERROR', ultimoError: 'El CI no es válido' }]);
+    expect(await listarProductosLocales(db, T)).toMatchObject([{ id: producto.id, estado: 'ERROR', ultimoError: 'Tu plan alcanzó el límite de productos.' }]);
+    expect(await obtenerVenta(db, venta.id)).toMatchObject({ estado: 'SINCRONIZADA' });
+
+    await reintentarRegistro(db, 'clientes', clienteLocal.id);
+    await reintentarRegistro(db, 'productos', producto.id);
+    await sincronizar(db, sesion, vi.fn(), {
+      cliente: vi.fn().mockRejectedValue(falla(409, { codigo: 'CLIENTE_DUPLICADO', existente: { id: 'existente', nombre: 'Ana Ruiz', ci: '123' } })),
+      producto: vi.fn().mockRejectedValue(falla(409, { codigo: 'SKU_DUPLICADO', items: [{ sku: 'POLO-1', varianteId: 'v-srv', productoId: 'p-srv' }] })),
+    });
+    expect((await listarClientesLocales(db, T))[0]).toMatchObject({
+      estado: 'CONFLICTO',
+      conflicto: { existente: { id: 'existente', nombre: 'Ana Ruiz' } },
+    });
+    expect((await listarProductosLocales(db, T))[0]).toMatchObject({
+      estado: 'CONFLICTO',
+      conflicto: { items: [{ sku: 'POLO-1' }] },
+    });
   });
 });
 

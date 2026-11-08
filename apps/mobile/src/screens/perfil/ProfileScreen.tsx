@@ -21,6 +21,7 @@ import { perfilApi, DireccionEnvio } from '../../services/perfil.api';
 import { catalogoApi, Producto } from '../../services/catalogo.api';
 import { api, getBaseUrl, getWebBaseUrl } from '../../services/api';
 import { colors } from '../../theme/colors';
+import { darDeBajaPush, recibePush } from '../../services/push/registroPush';
 
 export const ProfileScreen: React.FC = () => {
   const navigation = useNavigation<any>();
@@ -229,6 +230,16 @@ export const ProfileScreen: React.FC = () => {
     }
   };
 
+  const darDeBajaPushSilencioso = async () => {
+    if (!recibePush(useAuthStore.getState().user?.rol)) return;
+    try {
+      const { dependenciasPush } = await import('../../services/push/pushExpo');
+      await darDeBajaPush(dependenciasPush);
+    } catch {
+      /* A missing project id, FCM credentials or network must not block logout. */
+    }
+  };
+
   const handleLogout = async () => {
     Alert.alert('Cerrar Sesión', '¿Estás seguro de que deseas salir?', [
       { text: 'Cancelar', style: 'cancel' },
@@ -237,6 +248,8 @@ export const ProfileScreen: React.FC = () => {
         style: 'destructive',
         onPress: async () => {
           try {
+            // Before the session is cleared: the request needs the access token
+            await darDeBajaPushSilencioso();
             if (refreshToken) {
               await authService.logout(refreshToken);
             }

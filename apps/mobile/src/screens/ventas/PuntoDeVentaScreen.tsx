@@ -8,12 +8,20 @@ import { colors } from '../../theme';
 import { getImageUrl } from '../../services/api';
 import { useVentasPos } from '../../hooks/useVentasPos';
 import { CatalogoVencidoError, StockLocalInsuficienteError } from '../../services/pos/ventasLocales';
-import { RETENCION_DIAS } from '../../services/pos/retencion';
-import { VarianteCatalogo } from '../../services/pos/types';
+import { useAuthStore } from '../../store/auth.store';
+import { aClienteVenta } from '../../services/pos/colasLocales';
+import { ClienteVenta, VarianteCatalogo } from '../../services/pos/types';
+import { AltaProductoModal } from './AltaProductoModal';
+import { ConfigRetencion } from './ConfigRetencion';
+import { ClienteSelector } from './ClienteSelector';
+import { ColaRegistros } from './ColaRegistros';
 import { ColaSincronizacion } from './ColaSincronizacion';
+import { RegistrarClienteModal } from './RegistrarClienteModal';
 import { IndicadorConexion } from './IndicadorConexion';
 
 const MAX_RESULTADOS = 60;
+
+const ROLES_ADMIN = ['ADMIN', 'ADMINISTRADOR', 'SUPERADMIN'];
 
 const mensajeDeError = (err: unknown, porDefecto: string) =>
   err instanceof StockLocalInsuficienteError || err instanceof CatalogoVencidoError ? err.message : porDefecto;
@@ -23,7 +31,11 @@ export const PuntoDeVentaScreen: React.FC = () => {
   const pos = useVentasPos();
   const [busqueda, setBusqueda] = useState('');
   const [ticket, setTicket] = useState<Map<string, number>>(new Map());
-  const [cliente, setCliente] = useState('');
+  const [cliente, setCliente] = useState<ClienteVenta | null>(null);
+  const [modalCliente, setModalCliente] = useState(false);
+  const [modalProducto, setModalProducto] = useState(false);
+  const rol = useAuthStore((s) => s.user?.rol);
+  const esAdmin = !!rol && ROLES_ADMIN.includes(rol.toUpperCase());
   const [registrando, setRegistrando] = useState(false);
   // State updates are asynchronous: only a ref stops a button pressed several times in the same instant
   const registrandoRef = useRef(false);
@@ -37,6 +49,13 @@ export const PuntoDeVentaScreen: React.FC = () => {
       : pos.catalogo;
     return [...lista].sort((a, b) => a.nombre.localeCompare(b.nombre) || a.talla.localeCompare(b.talla));
   }, [pos.catalogo, busqueda]);
+
+  // Categories come from the cached catalog, so the quick product form works offline too
+  const categorias = useMemo(() => {
+    const porId = new Map<string, string>();
+    for (const v of pos.catalogo) if (v.categoriaId && v.categoria) porId.set(v.categoriaId, v.categoria);
+    return [...porId.entries()].map(([id, nombre]) => ({ id, nombre })).sort((a, b) => a.nombre.localeCompare(b.nombre));
+  }, [pos.catalogo]);
 
   const lineas = [...ticket.entries()]
     .map(([id, cantidad]) => ({ variante: porId.get(id), cantidad }))
@@ -62,10 +81,12 @@ export const PuntoDeVentaScreen: React.FC = () => {
     try {
       const venta = await pos.vender(
         lineas.map((l) => ({ varianteId: l.variante.varianteId, cantidad: l.cantidad })),
-        cliente,
+        cliente?.nombre,
+        undefined,
+        cliente ?? undefined,
       );
       setTicket(new Map());
-      setCliente('');
+      setCliente(null);
       Alert.alert(
         pos.isOnline ? 'Venta registrada' : 'Venta guardada',
         pos.isOnline
@@ -88,6 +109,17 @@ export const PuntoDeVentaScreen: React.FC = () => {
       { text: 'Volver', style: 'cancel' },
       { text: 'Cancelar venta', style: 'destructive', onPress: conAccion(() => pos.cancelar(id), 'No se pudo cancelar la venta.') },
     ]);
+
+  const mensajeDe = (err: unknown, porDefecto: string) => (err instanceof Error && err.message ? err.message : porDefecto);
+
+  const confirmarCancelarRegistro = (titulo: string, cuerpo: string, accion: () => Promise<unknown>) =>
+    Alert.alert(titulo, cuerpo, [
+      { text: 'Volver', style: 'cancel' },
+      { text: titulo, style: 'destructive', onPress: () => accion().catch((err) => Alert.alert('Error', mensajeDe(err, 'No se pudo cancelar.'))) },
+    ]);
+
+  const avisarError = (accion: () => Promise<unknown>, porDefecto: string) => () =>
+    accion().catch((err) => Alert.alert('Error', mensajeDe(err, porDefecto)));
 
   const bloqueada = !pos.sesion || !pos.listo || pos.catalogoVencido;
 
@@ -146,7 +178,7 @@ export const PuntoDeVentaScreen: React.FC = () => {
       )}
       {pos.catalogoVencido && (
         <Text style={[styles.banner, styles.bannerAviso]}>
-          El catálogo de este equipo tiene más de {RETENCION_DIAS} días y ya no se pueden registrar ventas sin conexión. Conéctate a internet para renovarlo. Las ventas ya guardadas se enviarán igual.
+          El catálogo de este equipo tiene más de {pos.retencionDias} días y ya no se pueden registrar ventas sin conexión. Conéctate a internet para renovarlo. Las ventas ya guardadas se enviarán igual.
         </Text>
       )}
       {pos.aviso && (
@@ -155,6 +187,22 @@ export const PuntoDeVentaScreen: React.FC = () => {
             {pos.aviso.texto}
           </Text>
         </TouchableOpacity>
+      )}
+
+      {esAdmin && (
+        <TouchableOpacity
+          onPress={() => setModalProducto(true)}
+          disabled={!pos.sesion || !pos.listo}
+          accessibilityRole="button"
+          style={styles.altaProducto}
+        >
+          <Ionicons name="add-circle-outline" size={20} color={colors.primary} />
+          <Text style={styles.altaProductoTexto}>Alta rápida de producto</Text>
+        </TouchableOpacity>
+      )}
+
+      {esAdmin && (
+        <ConfigRetencion dias={pos.retencionDias} enLinea={pos.isOnline} onGuardar={pos.guardarRetencion} />
       )}
 
       <View style={styles.tarjeta}>
@@ -188,8 +236,12 @@ export const PuntoDeVentaScreen: React.FC = () => {
           ))
         )}
 
-        <Text style={styles.etiquetaCampo}>Cliente (opcional)</Text>
-        <TextInput value={cliente} onChangeText={setCliente} maxLength={120} style={styles.input} placeholderTextColor={colors.textMuted} />
+        <ClienteSelector
+          seleccionado={cliente}
+          buscar={pos.clientesParaElegir}
+          onElegir={setCliente}
+          onRegistrar={() => setModalCliente(true)}
+        />
 
         <View style={styles.totalFila}>
           <Text style={styles.totalTexto}>Total en efectivo</Text>
@@ -217,7 +269,7 @@ export const PuntoDeVentaScreen: React.FC = () => {
       <TextInput
         value={busqueda}
         onChangeText={setBusqueda}
-        placeholder="Buscar por nombre, SKU, talla o color"
+        placeholder="Nombre, SKU, talla o color"
         placeholderTextColor={colors.textMuted}
         autoCorrect={false}
         accessibilityLabel="Buscar prenda"
@@ -246,7 +298,18 @@ export const PuntoDeVentaScreen: React.FC = () => {
             {resultados.length > MAX_RESULTADOS && (
               <Text style={styles.vacio}>Mostrando {MAX_RESULTADOS} de {resultados.length}. Afina la búsqueda para ver el resto.</Text>
             )}
+            <ColaRegistros
+              clientes={pos.clientes}
+              productos={pos.productos}
+              onReintentarCliente={(id) => avisarError(() => pos.reintentarCliente(id), 'No se pudo reintentar.')()}
+              onUsarExistente={(id) => avisarError(() => pos.usarClienteExistente(id), 'No se pudo usar el cliente existente.')()}
+              onCancelarCliente={(id) => confirmarCancelarRegistro('Cancelar cliente', 'El cliente se eliminará de este equipo y no se enviará al servidor.', () => pos.cancelarCliente(id))}
+              onReintentarProducto={(id) => avisarError(() => pos.reintentarProducto(id), 'No se pudo reintentar.')()}
+              onCambiarSku={(id, sku) => avisarError(() => pos.cambiarSkuProducto(id, sku), 'No se pudo cambiar el SKU.')()}
+              onCancelarProducto={(id) => confirmarCancelarRegistro('Cancelar producto', 'El producto se eliminará de este equipo y del catálogo local.', () => pos.cancelarProducto(id))}
+            />
             <ColaSincronizacion
+              retencionDias={pos.retencionDias}
               ventas={pos.ventas}
               onReintentar={(id) => conAccion(() => pos.reintentar(id), 'No se pudo reintentar la venta.')()}
               onAjustar={(v) => conAccion(() => pos.ajustar(v), 'No se pudo ajustar la venta.')()}
@@ -256,6 +319,24 @@ export const PuntoDeVentaScreen: React.FC = () => {
           </View>
         }
       />
+      <RegistrarClienteModal
+        visible={modalCliente}
+        onCerrar={() => setModalCliente(false)}
+        onGuardar={async (datos) => {
+          const nuevo = await pos.registrarCliente(datos);
+          setCliente(aClienteVenta(nuevo));
+        }}
+      />
+      {esAdmin && (
+        <AltaProductoModal
+          visible={modalProducto}
+          categorias={categorias}
+          onCerrar={() => setModalProducto(false)}
+          onGuardar={async (datos) => {
+            await pos.registrarProducto(datos);
+          }}
+        />
+      )}
     </SafeAreaView>
   );
 };
@@ -288,6 +369,11 @@ const styles = StyleSheet.create({
   vender: { minHeight: 48, borderRadius: 8, backgroundColor: colors.primary, alignItems: 'center', justifyContent: 'center' },
   venderInactivo: { backgroundColor: '#d6d3d1' },
   venderTexto: { color: '#fff', fontSize: 15, fontWeight: '700' },
+  altaProducto: {
+    minHeight: 44, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8,
+    borderWidth: 1, borderColor: colors.primary, borderRadius: 8, backgroundColor: colors.surface,
+  },
+  altaProductoTexto: { fontSize: 14, fontWeight: '700', color: colors.primary },
   nota: { fontSize: 12, color: colors.secondary },
   fila: { flexDirection: 'row', alignItems: 'center', gap: 10, paddingVertical: 10, borderBottomWidth: 1, borderBottomColor: colors.borderSubtle },
   foto: { width: 44, height: 56, borderRadius: 6, backgroundColor: colors.surfaceWarm },
