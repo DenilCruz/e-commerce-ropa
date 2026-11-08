@@ -9,11 +9,17 @@ export async function enviarVentaPorApi(venta: VentaLocal): Promise<OrdenRegistr
     {
       items: venta.items.map(({ varianteId, cantidad }) => ({ varianteId, cantidad })),
       clienteNombre: venta.clienteNombre,
+      cliente: venta.cliente,
       notas: venta.notas,
       vendidoEn: venta.creadoEn,
     },
     { headers: { 'Idempotency-Key': venta.id } },
   );
   const cuerpo = respuesta.data?.data ?? respuesta.data;
-  return { ordenId: cuerpo.ordenId, nroOrden: cuerpo.nroOrden };
+  return {
+    ordenId: cuerpo.ordenId,
+    nroOrden: cuerpo.nroOrden,
+    clienteId: cuerpo.clienteId ?? null,
+    clienteFusionado: cuerpo.clienteFusionado ?? undefined,
+  };
 }

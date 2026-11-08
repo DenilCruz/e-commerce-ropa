@@ -1,20 +1,21 @@
-import { ConflictoItem, EstadoVentaLocal, ItemVentaLocal, VarianteCatalogo, VentaLocal } from '../types';
-import { STORE_CATALOGO, STORE_META, STORE_VENTAS, pedido, transaccion, uuidV4 } from './posDb';
+import { ClienteVenta, ConflictoItem, EstadoVentaLocal, ItemVentaLocal, ProductoLocal, VarianteCatalogo, VentaLocal } from '../types';
+import { STORE_CATALOGO, STORE_META, STORE_PRODUCTOS, STORE_VENTAS, pedido, transaccion, uuidV4 } from './posDb';
+import { filasLocales } from './productosLocales';
 
 /** Product as `GET /productos` returns it; only what the point of sale needs. */
 export interface ProductoParaCatalogo {
   id: string;
   nombre: string;
   precio: number | string;
-  categoria?: { nombre?: string } | null;
+  categoria?: { id?: string; nombre?: string } | null;
   imagenes?: { url: string; principal?: boolean; esPrincipal?: boolean }[];
   variantes?: {
     id: string;
     sku: string;
     precioExtra?: number | string | null;
     stock: number;
-    talla?: { nombre: string } | null;
-    color?: { nombre: string } | null;
+    talla?: { id?: string; nombre: string } | null;
+    color?: { id?: string; nombre: string } | null;
   }[];
 }
 
@@ -28,6 +29,8 @@ export interface NuevaVentaLocal {
   usuarioId: string;
   items: LineaVenta[];
   clienteNombre?: string;
+  /** Customer picked from the local list (C1); `clienteNombre` is filled from it when missing. */
+  cliente?: ClienteVenta;
   notas?: string;
 }
 
@@ -57,7 +60,7 @@ function juntarLineas(lineas: LineaVenta[]): Map<string, number> {
 
 /** Replaces the snapshot of one store with what the server just listed. */
 export async function guardarCatalogo(tenantId: string, productos: ProductoParaCatalogo[]): Promise<void> {
-  await transaccion([STORE_CATALOGO, STORE_VENTAS, STORE_META], 'readwrite', async (tx) => {
+  await transaccion([STORE_CATALOGO, STORE_VENTAS, STORE_META, STORE_PRODUCTOS], 'readwrite', async (tx) => {
     tx.objectStore(STORE_META).put({ clave: claveActualizacion(tenantId), valor: new Date().toISOString() });
     const ventas: VentaLocal[] = await pedido(tx.objectStore(STORE_VENTAS).index('tenantId').getAll(tenantId));
     const reservado = new Map<string, number>();
@@ -69,6 +72,7 @@ export async function guardarCatalogo(tenantId: string, productos: ProductoParaC
     const viejas: string[] = await pedido(catalogo.index('tenantId').getAllKeys(tenantId) as IDBRequest<string[]>);
     for (const k of viejas) catalogo.delete(k);
 
+    const vistas = new Set<string>();
     for (const p of productos) {
       const principal = p.imagenes?.find((i) => i.principal || i.esPrincipal) ?? p.imagenes?.[0];
       for (const v of p.variantes ?? []) {
@@ -85,10 +89,21 @@ export async function guardarCatalogo(tenantId: string, productos: ProductoParaC
           stockServidor: v.stock,
           stockLocal: Math.max(0, v.stock - (reservado.get(v.id) ?? 0)),
           categoria: p.categoria?.nombre,
+          categoriaId: p.categoria?.id,
+          tallaId: v.talla?.id,
+          colorId: v.color?.id,
           imagen: principal?.url,
         };
+        vistas.add(v.id);
         catalogo.put(fila);
       }
+    }
+
+    // Products created on this device that the server has not confirmed yet must stay sellable
+    const locales: ProductoLocal[] = await pedido(tx.objectStore(STORE_PRODUCTOS).index('tenantId').getAll(tenantId));
+    for (const fila of filasLocales(locales)) {
+      if (vistas.has(fila.varianteId)) continue;
+      catalogo.put({ ...fila, stockLocal: Math.max(0, fila.stockServidor - (reservado.get(fila.varianteId) ?? 0)) });
     }
   });
 }
@@ -159,7 +174,8 @@ export async function crearVenta(datos: NuevaVentaLocal): Promise<VentaLocal> {
       tenantId: datos.tenantId,
       usuarioId: datos.usuarioId,
       items,
-      clienteNombre: datos.clienteNombre?.trim() || undefined,
+      clienteNombre: datos.clienteNombre?.trim() || (datos.cliente ? [datos.cliente.nombre, datos.cliente.apellido].filter(Boolean).join(' ') : undefined),
+      cliente: datos.cliente,
       notas: datos.notas?.trim() || undefined,
       total: totalDe(items),
       creadoEn: new Date().toISOString(),

@@ -24,6 +24,8 @@ import {
 import { useCartStore } from '../../../store/cart.store';
 import { useAuthStore } from '../../../store/auth.store';
 import { paymentsApi } from '../services/payments.api';
+import { ClavePago, prepararIntentoPago } from '../services/idempotencyKey';
+import { mensajePagoOffline } from '../services/pagoOffline';
 import { OrdenRespuesta } from '../types';
 import { getImageUrl } from '../../../lib/utils';
 import { useNetworkStatus } from '../../../hooks/useNetworkStatus';
@@ -89,6 +91,7 @@ export const CheckoutPage: React.FC = () => {
   // Método de pago: 'tarjeta' | 'contra_entrega' | 'qr'
   const [metodoPago, setMetodoPago] = useState<'tarjeta' | 'contra_entrega' | 'qr'>('tarjeta');
   const solicitudQr = useRef<string>();
+  const intentoPago = useRef<ClavePago | null>(null);
   const [pagoSimulado, setPagoSimulado] = useState<{ referencia: string; monto: number } | null>(null);
 
   // Estado de Stripe Embedded Checkout
@@ -138,6 +141,13 @@ export const CheckoutPage: React.FC = () => {
       }
     };
   }, []);
+
+  useEffect(() => {
+    if (isOnline) return;
+    checkoutInstanceRef.current?.destroy();
+    checkoutInstanceRef.current = null;
+    setEmbeddedSessionId(null);
+  }, [isOnline]);
 
   useEffect(() => {
     void cargarCarrito();
@@ -310,29 +320,12 @@ export const CheckoutPage: React.FC = () => {
     cupon: cupon?.id ?? null,
   });
   const puedePrepararStripe = isOnline && !cargando && !errorCarrito && envioListo && items.length > 0;
-  const ultimaCotizacion = useRef<{ clave: string; total: number }>();
-  const claveCotizacion = JSON.stringify([claveBorrador, firmaCarrito, tipoEnvio]);
-  useEffect(() => {
-    if (isOnline && cotizacion && envioListo) {
-      ultimaCotizacion.current = { clave: claveCotizacion, total: totalFinal };
-    }
-  }, [isOnline, cotizacion, envioListo, claveCotizacion, totalFinal]);
-
-  const guardarBorradorStripe = () => {
-    if (!claveBorrador || !items.length || !direccion.trim() || !telefono.trim()) {
-      setErrorPago('Para guardar la compra, inicia sesión y completa la dirección y el teléfono.');
-      return;
-    }
-    const datos = { direccion, ciudad, telefono, notas, tipoEnvio, coordenadas, firmaCarrito,
-      total: ultimaCotizacion.current?.clave === claveCotizacion ? ultimaCotizacion.current.total : null };
-    try {
-      localStorage.setItem(claveBorrador, JSON.stringify(datos));
-      setBorrador(datos);
-      setErrorPago(null);
-    } catch {
-      setErrorPago('Este navegador no pudo guardar la compra pendiente.');
-    }
+  const clavePago = () => {
+    const siguiente = prepararIntentoPago(intentoPago.current, firmaCarrito, totalFinal, () => crypto.randomUUID());
+    intentoPago.current = siguiente;
+    return siguiente.clave;
   };
+  const pagoBloqueado = mensajePagoOffline(metodoPago, isOnline);
 
   const descartarBorradorStripe = () => {
     try {
@@ -362,6 +355,11 @@ export const CheckoutPage: React.FC = () => {
 
   // HU-56: Inicializar Stripe Embedded Checkout
   const inicializarEmbeddedCheckout = async () => {
+    const bloqueo = mensajePagoOffline('tarjeta', isOnline);
+    if (bloqueo) {
+      setErrorPago(bloqueo);
+      return;
+    }
     if (!puedePrepararStripe) return;
     if (!direccion.trim()) {
       setErrorPago('Por favor ingresa primero la dirección de entrega antes de iniciar el pago.');
@@ -390,7 +388,7 @@ export const CheckoutPage: React.FC = () => {
         tipoEnvio,
         latitud: coordenadas?.lat,
         longitud: coordenadas?.lng,
-      });
+      }, clavePago());
 
       const stripe = window.Stripe ? window.Stripe(STRIPE_PUBLIC_KEY) : null;
       if (!stripe) {
@@ -442,7 +440,7 @@ export const CheckoutPage: React.FC = () => {
         tipoEnvio,
         latitud: coordenadas?.lat,
         longitud: coordenadas?.lng,
-      });
+      }, clavePago());
 
       clearCart();
       setOrdenCompletada(orden);
@@ -455,6 +453,11 @@ export const CheckoutPage: React.FC = () => {
 
   // Pago con QR de prueba / Transferencia Bancaria
   const procesarPagoQr = async () => {
+    const bloqueo = mensajePagoOffline('qr', isOnline);
+    if (bloqueo) {
+      setErrorPago(bloqueo);
+      return;
+    }
     if (!direccion.trim()) {
       setErrorPago('Por favor ingresa la dirección de entrega.');
       return;
@@ -476,7 +479,7 @@ export const CheckoutPage: React.FC = () => {
         cuponId: cupon?.id,
         metodoEnvioId,
         tipoEnvio,
-      });
+      }, clavePago());
       setPagoSimulado(resultado);
     } catch (err: any) {
       setErrorPago(limpiarMensajeError(err.response?.data?.message || err.message));
@@ -487,12 +490,8 @@ export const CheckoutPage: React.FC = () => {
 
   const handleProcesarCompra = (e: React.FormEvent) => {
     e.preventDefault();
-    if (!isOnline) {
-      if (metodoPago === 'tarjeta') {
-        guardarBorradorStripe();
-        return;
-      }
-      setErrorPago('Necesitas conexión a internet para procesar el pago de forma segura.');
+    if (pagoBloqueado) {
+      setErrorPago(pagoBloqueado);
       return;
     }
 
@@ -731,7 +730,7 @@ export const CheckoutPage: React.FC = () => {
                     Modo sin conexión detectado
                   </p>
                   <p className="text-amber-800 mt-1 font-light">
-                    Puedes guardar una compra con tarjeta y retomarla cuando vuelva la conexión.
+                    Sin conexión no se puede pagar con tarjeta ni con QR. El pago contra entrega sigue disponible.
                   </p>
                 </div>
               </div>
@@ -1017,17 +1016,24 @@ export const CheckoutPage: React.FC = () => {
                         <CreditCard className="w-7 h-7" />
                       </div>
                       <div>
-                        <h4 className="font-serif font-bold text-base text-stone-900">Pago con tarjeta disponible</h4>
+                        <h4 className="font-serif font-bold text-base text-stone-900">
+                          {pagoBloqueado ? 'Pago con tarjeta no disponible sin conexión' : 'Pago con tarjeta disponible'}
+                        </h4>
+                        {!pagoBloqueado && (
                         <p className="text-xs text-stone-500 max-w-sm mx-auto mt-1">
                           Acepta tarjetas de débito/crédito (Visa, Mastercard, Amex) y métodos digitales de forma directa.
                         </p>
+                        )}
                       </div>
 
+                      {pagoBloqueado ? (
+                        <p role="alert" className="text-sm text-amber-950">{pagoBloqueado}</p>
+                      ) : (
                       <button
                         type="button"
-                        onClick={isOnline ? inicializarEmbeddedCheckout : guardarBorradorStripe}
-                        disabled={cargandoEmbedded || (isOnline ? !puedePrepararStripe : !claveBorrador)}
-                        className="px-6 py-3.5 bg-stone-900 text-white text-sm font-bold rounded-xl hover:bg-stone-800 transition shadow-xs inline-flex items-center gap-2 cursor-pointer"
+                        onClick={inicializarEmbeddedCheckout}
+                        disabled={cargandoEmbedded || !puedePrepararStripe}
+                        className="px-6 py-3.5 bg-stone-900 text-white text-sm font-bold rounded-xl hover:bg-stone-800 transition shadow-xs inline-flex items-center gap-2 cursor-pointer disabled:cursor-not-allowed disabled:bg-stone-300"
                       >
                         {cargandoEmbedded ? (
                           <>
@@ -1036,11 +1042,12 @@ export const CheckoutPage: React.FC = () => {
                           </>
                         ) : (
                           <>
-                            {isOnline ? <Lock className="w-4 h-4 text-[#9B7B54]" /> : <WifiOff className="w-4 h-4" />}
-                            <span>{!isOnline ? 'Guardar compra pendiente' : borrador ? 'Continuar compra con Stripe' : 'Abrir Formulario Seguro de Tarjeta'}</span>
+                            <Lock className="w-4 h-4 text-[#9B7B54]" />
+                            <span>{borrador ? 'Continuar compra con Stripe' : 'Abrir Formulario Seguro de Tarjeta'}</span>
                           </>
                         )}
                       </button>
+                      )}
                     </div>
                   ) : (
                     <div className="space-y-3">
@@ -1051,12 +1058,12 @@ export const CheckoutPage: React.FC = () => {
                         </span>
                         <button
                           type="button"
-                          onClick={isOnline ? inicializarEmbeddedCheckout : guardarBorradorStripe}
-                          disabled={cargandoEmbedded || (isOnline ? !puedePrepararStripe : !claveBorrador)}
-                          className="text-stone-700 hover:text-[#9B7B54] font-bold flex items-center gap-1 hover:underline cursor-pointer"
+                          onClick={inicializarEmbeddedCheckout}
+                          disabled={cargandoEmbedded || !isOnline || !puedePrepararStripe}
+                          className="text-stone-700 hover:text-[#9B7B54] font-bold flex items-center gap-1 hover:underline cursor-pointer disabled:cursor-not-allowed disabled:no-underline disabled:text-stone-400"
                         >
                           <RotateCcw className="w-3.5 h-3.5" />
-                          <span>{isOnline ? 'Reiniciar formulario' : 'Guardar compra pendiente'}</span>
+                          <span>{isOnline ? 'Reiniciar formulario' : 'Sin conexión'}</span>
                         </button>
                       </div>
                       <div
@@ -1069,9 +1076,15 @@ export const CheckoutPage: React.FC = () => {
               ) : metodoPago === 'qr' ? (
                 <div className="rounded-2xl border border-[#E7E1D7] bg-[#FAF8F5] p-6 text-center space-y-3">
                   <h4 className="font-serif text-lg">QR de AURA · Pago simulado</h4>
-                  <img src="/aura-qr-demo.svg" alt="QR de demostración de AURA" className="mx-auto h-40 w-40" />
-                  <p className="text-sm">Este código es de demostración. No escanees desde tu app bancaria.</p>
-                  <p className="text-sm">Al simular el pago, AURA generará el comprobante de prueba.</p>
+                  {pagoBloqueado ? (
+                    <p role="alert" className="text-sm text-amber-950">{pagoBloqueado}</p>
+                  ) : (
+                    <>
+                      <img src="/aura-qr-demo.svg" alt="QR de demostración de AURA" className="mx-auto h-40 w-40" />
+                      <p className="text-sm">Este código es de demostración. No escanees desde tu app bancaria.</p>
+                      <p className="text-sm">Al simular el pago, AURA generará el comprobante de prueba.</p>
+                    </>
+                  )}
                 </div>
               ) : (
                 /* OPCION: PAGO CONTRA ENTREGA */
@@ -1186,10 +1199,10 @@ export const CheckoutPage: React.FC = () => {
               ) : (
                 <button
                   type="submit"
-                  disabled={procesando || items.length === 0 || cargandoEmbedded ||
-                    (isOnline ? !envioListo || (metodoPago === 'tarjeta' && !puedePrepararStripe) : metodoPago !== 'tarjeta' || !claveBorrador)}
+                  disabled={procesando || items.length === 0 || cargandoEmbedded || Boolean(pagoBloqueado) ||
+                    (isOnline && (!envioListo || (metodoPago === 'tarjeta' && !puedePrepararStripe)))}
                   className={`w-full text-xs uppercase tracking-luxury py-4 px-6 rounded-none text-center shadow-sm transition flex items-center justify-center gap-2 font-medium ${
-                    !isOnline && metodoPago !== 'tarjeta'
+                    pagoBloqueado
                       ? 'bg-stone-300 text-stone-500 cursor-not-allowed border border-stone-300'
                       : 'bg-stone-900 text-white hover:bg-stone-800 disabled:opacity-50 cursor-pointer'
                   }`}
@@ -1199,10 +1212,10 @@ export const CheckoutPage: React.FC = () => {
                       <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" />
                       <span>Procesando...</span>
                     </div>
-                  ) : !isOnline ? (
+                  ) : pagoBloqueado ? (
                     <>
                       <WifiOff className="w-3.5 h-3.5" />
-                      <span>{metodoPago === 'tarjeta' ? 'Guardar compra pendiente' : 'Conexión requerida para procesar el pago'}</span>
+                      <span>{pagoBloqueado}</span>
                     </>
                   ) : (
                     <>

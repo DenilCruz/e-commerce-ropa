@@ -5,6 +5,14 @@ import {
   OrdenRespuesta,
   ReembolsoResponse,
 } from '../types';
+import { ClavePago, encabezadoIdempotencia, firmaIntentoPago, recordarClave } from './idempotencyKey';
+
+const reembolsos = new Map<string, ClavePago>();
+
+function claveReembolso(orderId: string, motivo: string | undefined, explicita?: string): string {
+  if (explicita) return explicita;
+  return recordarClave(reembolsos, orderId, firmaIntentoPago({ motivo: motivo ?? '' }, 0), () => crypto.randomUUID());
+}
 
 export const paymentsApi = {
   // Listar métodos de pago
@@ -23,8 +31,8 @@ export const paymentsApi = {
     tipoEnvio?: string;
     latitud?: number;
     longitud?: number;
-  }): Promise<CrearIntentoResponse> => {
-    const res = await api.post<CrearIntentoResponse>('/payments/intent', datos);
+  }, idempotencyKey: string): Promise<CrearIntentoResponse> => {
+    const res = await api.post<CrearIntentoResponse>('/payments/intent', datos, encabezadoIdempotencia(idempotencyKey));
     return res.data;
   },
 
@@ -39,8 +47,8 @@ export const paymentsApi = {
     tipoEnvio?: string;
     latitud?: number;
     longitud?: number;
-  }): Promise<OrdenRespuesta> => {
-    const res = await api.post<OrdenRespuesta>('/payments/confirm-card', datos);
+  }, idempotencyKey: string): Promise<OrdenRespuesta> => {
+    const res = await api.post<OrdenRespuesta>('/payments/confirm-card', datos, encabezadoIdempotencia(idempotencyKey));
     return res.data;
   },
 
@@ -54,8 +62,8 @@ export const paymentsApi = {
     tipoEnvio?: string;
     latitud?: number;
     longitud?: number;
-  }): Promise<OrdenRespuesta> => {
-    const res = await api.post<OrdenRespuesta>('/payments/cash-on-delivery', datos);
+  }, idempotencyKey: string): Promise<OrdenRespuesta> => {
+    const res = await api.post<OrdenRespuesta>('/payments/cash-on-delivery', datos, encabezadoIdempotencia(idempotencyKey));
     return res.data;
   },
 
@@ -67,8 +75,8 @@ export const paymentsApi = {
     cuponId?: string;
     metodoEnvioId?: string;
     tipoEnvio: string;
-  }): Promise<{ referencia: string; monto: number }> => {
-    const res = await api.post('/payments/qr/simular', datos);
+  }, idempotencyKey: string): Promise<{ referencia: string; monto: number }> => {
+    const res = await api.post('/payments/qr/simular', datos, encabezadoIdempotencia(idempotencyKey));
     return res.data;
   },
 
@@ -87,8 +95,8 @@ export const paymentsApi = {
     tipoEnvio?: string;
     latitud?: number;
     longitud?: number;
-  }): Promise<{ clientSecret: string; sessionId: string; amount: number; currency: string }> => {
-    const res = await api.post('/payments/embedded-session', datos);
+  }, idempotencyKey: string): Promise<{ clientSecret: string; sessionId: string; amount: number; currency: string }> => {
+    const res = await api.post('/payments/embedded-session', datos, encabezadoIdempotencia(idempotencyKey));
     return res.data;
   },
 
@@ -99,8 +107,12 @@ export const paymentsApi = {
   },
 
   // HU-59: Reembolsar pago (Admin)
-  reembolsarPago: async (orderId: string, motivo?: string): Promise<ReembolsoResponse> => {
-    const res = await api.post<ReembolsoResponse>(`/payments/refund/${orderId}`, { motivo });
+  reembolsarPago: async (orderId: string, motivo?: string, idempotencyKey?: string): Promise<ReembolsoResponse> => {
+    const res = await api.post<ReembolsoResponse>(
+      `/payments/refund/${orderId}`,
+      { motivo },
+      encabezadoIdempotencia(claveReembolso(orderId, motivo, idempotencyKey)),
+    );
     return res.data;
   },
 };

@@ -1,9 +1,11 @@
 const DB_NAME = 'aura-pos';
-const DB_VERSION = 1;
+const DB_VERSION = 2;
 
 export const STORE_VENTAS = 'ventas';
 export const STORE_CATALOGO = 'catalogo';
 export const STORE_META = 'meta';
+export const STORE_CLIENTES = 'clientes';
+export const STORE_PRODUCTOS = 'productos';
 
 let opening: Promise<IDBDatabase> | null = null;
 
@@ -25,6 +27,17 @@ export function abrirDb(): Promise<IDBDatabase> {
       }
       if (!db.objectStoreNames.contains(STORE_META)) {
         db.createObjectStore(STORE_META, { keyPath: 'clave' });
+      }
+      // v2: customers and products created without a connection (v1 data is kept as is)
+      if (!db.objectStoreNames.contains(STORE_CLIENTES)) {
+        const clientes = db.createObjectStore(STORE_CLIENTES, { keyPath: 'id' });
+        clientes.createIndex('tenantId', 'tenantId');
+        clientes.createIndex('estado', 'estado');
+      }
+      if (!db.objectStoreNames.contains(STORE_PRODUCTOS)) {
+        const productos = db.createObjectStore(STORE_PRODUCTOS, { keyPath: 'id' });
+        productos.createIndex('tenantId', 'tenantId');
+        productos.createIndex('estado', 'estado');
       }
     };
     request.onsuccess = () => {

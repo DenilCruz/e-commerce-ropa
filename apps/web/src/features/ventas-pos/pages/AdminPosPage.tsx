@@ -1,7 +1,15 @@
 import React, { useMemo, useRef, useState } from 'react';
-import { Minus, Plus, Search, Store, X } from 'lucide-react';
+import { Minus, PackagePlus, Plus, Search, Store, X } from 'lucide-react';
 import { toast } from 'sonner';
 import { getImageUrl, cn } from '../../../lib/utils';
+import { useAuthStore } from '../../../store/auth.store';
+import { esDueno } from '../../../lib/roles';
+import { AltaRapidaProductoModal } from '../components/AltaRapidaProductoModal';
+import { ConfigRetencion } from '../components/ConfigRetencion';
+import { RegistrarClienteModal } from '../components/RegistrarClienteModal';
+import { SelectorCliente } from '../components/SelectorCliente';
+import { comoClienteVenta, nombreCompleto } from '../services/clientesLocales';
+import { ClienteLocal } from '../types';
 import { BotonNotificaciones } from '../components/BotonNotificaciones';
 import { ColaSincronizacion } from '../components/ColaSincronizacion';
 import { IndicadorConexion } from '../components/IndicadorConexion';
@@ -17,7 +25,9 @@ export const AdminPosPage: React.FC = () => {
   const pos = useVentasPos();
   const [busqueda, setBusqueda] = useState('');
   const [ticket, setTicket] = useState<Map<string, number>>(new Map());
-  const [cliente, setCliente] = useState('');
+  const [cliente, setCliente] = useState<ClienteLocal | null>(null);
+  const [modal, setModal] = useState<'cliente' | 'producto' | null>(null);
+  const dueno = esDueno(useAuthStore((s) => s.user?.rol));
   const [registrando, setRegistrando] = useState(false);
   // State updates are asynchronous: only a ref stops a button pressed several times in the same instant
   const registrandoRef = useRef(false);
@@ -56,10 +66,12 @@ export const AdminPosPage: React.FC = () => {
     try {
       const venta = await pos.vender(
         lineas.map((l) => ({ varianteId: l.variante.varianteId, cantidad: l.cantidad })),
-        cliente,
+        cliente ? nombreCompleto(cliente) : undefined,
+        undefined,
+        cliente ? comoClienteVenta(cliente) : undefined,
       );
       setTicket(new Map());
-      setCliente('');
+      setCliente(null);
       toast.success(
         pos.isOnline
           ? `Venta registrada por $${venta.total.toFixed(2)}. Enviándola al servidor…`
@@ -100,6 +112,16 @@ export const AdminPosPage: React.FC = () => {
           onSincronizar={pos.sincronizarAhora}
         />
         <BotonNotificaciones />
+        {dueno && (
+          <button
+            type="button"
+            onClick={() => setModal('producto')}
+            className={cn('inline-flex min-h-[44px] items-center gap-2 rounded-xl border border-[#E7E1D7] bg-white px-4 text-sm font-semibold text-stone-800 hover:bg-[#FAF8F5]', enfoque)}
+          >
+            <PackagePlus className="h-4 w-4" aria-hidden />
+            Alta rápida de producto
+          </button>
+        )}
         </div>
       </header>
 
@@ -121,7 +143,7 @@ export const AdminPosPage: React.FC = () => {
                 type="search"
                 value={busqueda}
                 onChange={(e) => setBusqueda(e.target.value)}
-                placeholder="Buscar por nombre, SKU, talla o color"
+                placeholder="Nombre, SKU, talla o color"
                 className={cn('min-h-[44px] w-full rounded-xl border border-[#E7E1D7] py-2 pl-9 pr-3 text-sm focus:border-[#9B7B54] focus:ring-1 focus:ring-[#9B7B54]', enfoque)}
               />
             </div>
@@ -220,12 +242,12 @@ export const AdminPosPage: React.FC = () => {
           )}
 
           <div className="space-y-4 border-t border-[#E7E1D7] p-5">
-            <div>
-              <label htmlFor="pos-cliente" className="mb-1 block text-xs font-bold text-stone-600 uppercase">Cliente (opcional)</label>
-              <input id="pos-cliente" value={cliente} onChange={(e) => setCliente(e.target.value)} maxLength={120}
-                placeholder="Nombre o identificación"
-                className={cn('min-h-[44px] w-full rounded-xl border border-[#E7E1D7] px-3 text-sm focus:border-[#9B7B54] focus:ring-1 focus:ring-[#9B7B54]', enfoque)} />
-            </div>
+            <SelectorCliente
+              clientes={pos.clientes}
+              seleccionado={cliente}
+              onElegir={setCliente}
+              onRegistrar={() => setModal('cliente')}
+            />
             <div className="flex items-baseline justify-between">
               <span className="text-sm text-stone-600 font-medium">Total en efectivo</span>
               <span className="font-serif text-2xl font-bold tabular-nums text-stone-900">${total.toFixed(2)}</span>
@@ -250,13 +272,49 @@ export const AdminPosPage: React.FC = () => {
         </aside>
       </div>
 
+      {dueno && (
+        <section aria-labelledby="titulo-retencion" className="rounded-2xl border border-[#E7E1D7] bg-white p-5 shadow-xs">
+          <h2 id="titulo-retencion" className="mb-3 font-serif text-base font-bold text-stone-900">Conservación sin conexión</h2>
+          <ConfigRetencion dias={pos.retencionDias} isOnline={pos.isOnline} onGuardar={pos.guardarRetencion} />
+        </section>
+      )}
+
       <ColaSincronizacion
         ventas={pos.ventas}
+        clientes={pos.clientes}
+        productos={pos.productos}
+        retencionDias={pos.retencionDias}
+        onReintentarCliente={(id) => conAccion(() => pos.reintentarCliente(id), 'No se pudo reintentar el cliente.')()}
+        onCancelarCliente={(id) => conAccion(() => pos.cancelarCliente(id), 'No se pudo cancelar el cliente.')()}
+        onUsarClienteExistente={(id) => conAccion(() => pos.usarClienteExistente(id), 'No se pudo usar el cliente existente.')()}
+        onReintentarProducto={(id) => conAccion(() => pos.reintentarProducto(id), 'No se pudo reintentar el producto.')()}
+        onCancelarProducto={(id) => conAccion(() => pos.cancelarProducto(id), 'No se pudo cancelar el producto.')()}
+        onCambiarSku={pos.cambiarSku}
         onReintentar={(id) => conAccion(() => pos.reintentar(id), 'No se pudo reintentar la venta.')()}
         onAjustar={(v) => conAccion(() => pos.ajustar(v), 'No se pudo ajustar la venta.')()}
         onCancelar={(id) => conAccion(() => pos.cancelar(id), 'No se pudo cancelar la venta.')()}
         onLimpiar={() => conAccion(pos.limpiarSincronizadas, 'No se pudo limpiar la lista.')()}
       />
+
+      {modal === 'cliente' && (
+        <RegistrarClienteModal
+          isOnline={pos.isOnline}
+          onGuardar={async (datos) => {
+            const nuevo = await pos.registrarCliente(datos);
+            setCliente(nuevo);
+            return nuevo;
+          }}
+          onCerrar={() => setModal(null)}
+        />
+      )}
+      {modal === 'producto' && dueno && (
+        <AltaRapidaProductoModal
+          catalogo={pos.catalogo}
+          isOnline={pos.isOnline}
+          onGuardar={pos.crearProductoRapido}
+          onCerrar={() => setModal(null)}
+        />
+      )}
     </div>
   );
 };

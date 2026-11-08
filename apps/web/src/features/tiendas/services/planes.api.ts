@@ -37,6 +37,8 @@ export interface MetricasYLimitesResponse {
     productos: ConsumoDetalle;
     sucursales: ConsumoDetalle;
   };
+  /** Days the store keeps data not synced yet on its devices (C3, 1..30). */
+  retencionOfflineDias?: number;
   pruebaVencida?: boolean;
   pruebaVenceEn?: string | null;
   capacidades: {
@@ -114,6 +116,10 @@ export interface MiSuscripcion {
   } | null;
 }
 
+export interface ConfigOffline {
+  retencionOfflineDias: number;
+}
+
 export const planesApi = {
   /**
    * Obtiene el catálogo público de los 3 planes de suscripción.
@@ -128,6 +134,12 @@ export const planesApi = {
    */
   obtenerConsumoYLimites: async (): Promise<MetricasYLimitesResponse> => {
     const res = await api.get('/auth/tiendas/plan-limites');
+    return res.data;
+  },
+
+  /** Owner only: days the devices of this store keep unsynced data (1..30). */
+  actualizarConfigOffline: async (retencionOfflineDias: number): Promise<ConfigOffline> => {
+    const res = await api.patch('/auth/tiendas/mi-config-offline', { retencionOfflineDias });
     return res.data;
   },
 

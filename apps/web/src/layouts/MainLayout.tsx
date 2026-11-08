@@ -22,6 +22,7 @@ import { authApi } from '../features/autenticacion/services/auth.api';
 import { obtenerCategorias } from '../features/catalogo/services/catalogo.api';
 import { Categoria } from '../features/catalogo/types';
 import { CartDrawer } from '../components/cart/CartDrawer';
+import { InstalarApp } from '../components/pwa/InstalarApp';
 import { StoreSwitcher } from '../features/tiendas/components/StoreSwitcher';
 
 const ASSETS_URL = (import.meta.env.VITE_API_URL || 'http://localhost:3000/api/v1').replace('/api/v1', '');
@@ -135,7 +136,7 @@ export const MainLayout: React.FC = () => {
     <div className="aura-store min-h-screen flex flex-col bg-[#FAF8F5] text-stone-900 font-sans selection:bg-[#E7E1D7] selection:text-stone-900">
       {/* HEADER PRINCIPAL AURA */}
       <header className="bg-white/80 backdrop-blur-md border-b border-[#E7E1D7] px-4 sm:px-8 py-3.5 sticky top-0 z-40 transition-colors">
-        <div className="max-w-7xl mx-auto flex items-center justify-between gap-4">
+        <div className="max-w-7xl mx-auto flex items-center justify-between gap-2 sm:gap-4">
           
           {/* LOGO & NAVEGACIÓN DESKTOP */}
           <div className="flex items-center gap-10">
@@ -271,12 +272,12 @@ export const MainLayout: React.FC = () => {
           </div>
 
           {/* ACCIONES DERECHA (USUARIO / BOLSA) */}
-          <div className="flex items-center gap-4">
-            {/* FAVORITOS */}
+          <div className="flex items-center gap-1.5 sm:gap-4">
+            {/* FAVORITOS: en el teléfono vive en el menú */}
             {isAuthenticated && (
               <Link 
                 to={`${storePrefix}/favoritos`} 
-                className="text-stone-600 hover:text-stone-900 transition-colors relative p-1"
+                className="hidden lg:flex text-stone-600 hover:text-stone-900 transition-colors relative p-1"
                 title="Lista de Deseos"
               >
                 <Heart className="w-4 h-4 text-stone-700" />
@@ -308,11 +309,11 @@ export const MainLayout: React.FC = () => {
 
             {/* USUARIO / SESIÓN */}
             {isAuthenticated && user ? (
-              <div className="flex items-center gap-3 pl-2 border-l border-[#E7E1D7]">
+              <div className="flex items-center gap-1.5 sm:gap-3 lg:pl-2 lg:border-l lg:border-[#E7E1D7]">
                 <StoreSwitcher />
                 <Link
                   to={`${storePrefix}/perfil`}
-                  className="flex items-center gap-2 text-xs text-stone-700 hover:text-stone-900 transition-colors py-1"
+                  className="hidden lg:flex items-center gap-2 text-xs text-stone-700 hover:text-stone-900 transition-colors py-1"
                 >
                   <span className="w-6 h-6 rounded-full bg-[#EAE2D5] text-stone-800 flex items-center justify-center text-[10px] font-semibold border border-[#D5CCC0]">
                     {user.nombre?.charAt(0).toUpperCase() || 'U'}
@@ -322,7 +323,7 @@ export const MainLayout: React.FC = () => {
 
                 <Link
                   to={`${storePrefix}/pedidos`}
-                  className="text-stone-600 hover:text-stone-900 transition-colors p-1"
+                  className="hidden lg:block text-stone-600 hover:text-stone-900 transition-colors p-1"
                   title="Mis Pedidos"
                 >
                   <Package className="w-4 h-4" />
@@ -338,7 +339,7 @@ export const MainLayout: React.FC = () => {
                 {esPersonal(user?.rol) && (
                   <Link 
                     to="/admin" 
-                    className="text-xs uppercase tracking-widest text-[#9B7B54] font-semibold hover:text-stone-900 flex items-center gap-1"
+                    className="hidden lg:flex text-xs uppercase tracking-widest text-[#9B7B54] font-semibold hover:text-stone-900 items-center gap-1"
                     title="Panel de Administración"
                   >
                     <ShieldCheck className="w-3.5 h-3.5" />
@@ -348,7 +349,7 @@ export const MainLayout: React.FC = () => {
 
                 <button
                   onClick={handleLogout}
-                  className="text-stone-400 hover:text-stone-800 transition-colors p-1"
+                  className="hidden lg:block text-stone-400 hover:text-stone-800 transition-colors p-1"
                   title="Cerrar Sesión"
                 >
                   <LogOut className="w-3.5 h-3.5" />
@@ -447,6 +448,20 @@ export const MainLayout: React.FC = () => {
                 </Link>
               )}
 
+              {isAuthenticated && (
+                <button
+                  type="button"
+                  onClick={() => {
+                    setMenuMovilAbierto(false);
+                    handleLogout();
+                  }}
+                  className="p-2 hover:bg-[#F2ECE1] flex items-center gap-2 w-full text-left"
+                >
+                  <LogOut className="w-4 h-4" />
+                  Cerrar sesión
+                </button>
+              )}
+
               {!isAuthenticated && (
                 <div className="flex flex-col gap-2 p-2 border-b border-[#E7E1D7] pb-3 mb-1">
                   <Link
@@ -517,6 +532,8 @@ export const MainLayout: React.FC = () => {
           </div>
         )}
       </header>
+
+      <InstalarApp />
 
       {/* CONTENIDO PRINCIPAL */}
       <main className="store-content flex-1 max-w-7xl mx-auto w-full p-4 sm:p-6 lg:p-8">
