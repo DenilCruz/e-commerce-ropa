@@ -268,7 +268,7 @@ export const CheckoutPage: React.FC = () => {
           setGeolocalizando(false);
         }
       },
-      (err) => {
+      () => {
         setGeolocalizando(false);
         toast.error('No pudimos acceder a tu ubicación. Revisa los permisos del navegador e inténtalo de nuevo.');
       },
@@ -278,7 +278,6 @@ export const CheckoutPage: React.FC = () => {
 
   const items = cart?.items || [];
   const subtotal = cart?.total || 0;
-  const esExpress = tipoEnvio === 'EXPRESS';
   const [intentoCotizacion, setIntentoCotizacion] = useState(0);
   useEffect(() => {
     let vigente = true;

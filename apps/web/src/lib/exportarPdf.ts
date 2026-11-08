@@ -58,7 +58,7 @@ export function construirPdfTabla(titulo: string, columnas: string[], filas: str
 
 export function descargarPdf(nombre: string, bytes: Uint8Array): void {
   const archivo = nombre.endsWith('.pdf') ? nombre : `${nombre}.pdf`;
-  const blob = new Blob([bytes], { type: 'application/pdf' });
+  const blob = new Blob([bytes as BlobPart], { type: 'application/pdf' });
   const url = URL.createObjectURL(blob);
   const enlace = document.createElement('a');
   enlace.href = url;

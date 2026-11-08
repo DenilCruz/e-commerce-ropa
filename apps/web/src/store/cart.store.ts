@@ -327,8 +327,8 @@ export const useCartStore = create<CartStoreState>()(
 
         // Si guestItems estaba vacío pero el cart ya tenía productos del servidor, absorberlos para no perderlos en offline
         let guestItems = [...get().guestItems];
-        if (guestItems.length === 0 && get().cart?.items && get().cart.items.length > 0) {
-          guestItems = get().cart.items.map((ci) => ({
+        if (guestItems.length === 0 && get().cart?.items?.length) {
+          guestItems = (get().cart?.items ?? []).map((ci) => ({
             varianteId: ci.varianteId,
             productoId: ci.productoId,
             tallaId: ci.tallaId,
@@ -402,8 +402,8 @@ export const useCartStore = create<CartStoreState>()(
         const isOnline = typeof navigator !== 'undefined' ? navigator.onLine : true;
 
         let guestItems = [...get().guestItems];
-        if (guestItems.length === 0 && get().cart?.items && get().cart.items.length > 0) {
-          guestItems = get().cart.items.map((ci) => ({
+        if (guestItems.length === 0 && get().cart?.items?.length) {
+          guestItems = (get().cart?.items ?? []).map((ci) => ({
             varianteId: ci.varianteId,
             productoId: ci.productoId,
             tallaId: ci.tallaId,
@@ -452,8 +452,8 @@ export const useCartStore = create<CartStoreState>()(
         const isOnline = typeof navigator !== 'undefined' ? navigator.onLine : true;
 
         let guestItems = [...get().guestItems];
-        if (guestItems.length === 0 && get().cart?.items && get().cart.items.length > 0) {
-          guestItems = get().cart.items.map((ci) => ({
+        if (guestItems.length === 0 && get().cart?.items?.length) {
+          guestItems = (get().cart?.items ?? []).map((ci) => ({
             varianteId: ci.varianteId,
             productoId: ci.productoId,
             tallaId: ci.tallaId,
@@ -530,7 +530,7 @@ export const useCartStore = create<CartStoreState>()(
         }
 
         try {
-          const res = await cuponesApi.validarCupon(codigo, subtotal);
+          const res = await cuponesApi.aplicarCupon({ codigo, subtotal });
           const cupon = res.cupon;
           let descuento = 0;
 

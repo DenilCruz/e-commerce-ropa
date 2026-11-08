@@ -3,14 +3,10 @@ import {
   BrainCircuit,
   Binary,
   Layers,
-  Sparkles,
   RefreshCw,
   Target,
-  Percent,
   CheckCircle2,
-  Users,
   PieChart,
-  ArrowRight,
 } from 'lucide-react';
 import { ModelosMachineLearningRespuesta } from '../types';
 

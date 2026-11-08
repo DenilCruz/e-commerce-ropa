@@ -1,6 +1,5 @@
 import React, { useEffect, useRef, useState, useCallback } from 'react';
 import {
-  Camera,
   RefreshCw,
   AlertCircle,
   Sparkles,
@@ -31,11 +30,9 @@ export interface GarmentARLiveViewerProps {
 export const GarmentARLiveViewer: React.FC<GarmentARLiveViewerProps> = ({
   garmentImageUrl,
   garmentName = 'Prenda de Colección',
-  garmentCategory = 'tops',
   garmentColor = '',
   className = '',
   onCambiarModoFoto,
-  onCerrar,
 }) => {
   // Referencias de video
   const localVideoRef = useRef<HTMLVideoElement>(null);

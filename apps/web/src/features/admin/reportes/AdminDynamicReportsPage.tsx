@@ -18,7 +18,6 @@ import { exportarExcel, inferirCelda, tituloDeColumna } from '../../../lib/expor
 import { construirPdfTabla, descargarPdf } from '../../../lib/exportarPdf';
 import { ReporteDinamicoResultado } from '../types';
 
-import { toast } from 'sonner';
 export const AdminDynamicReportsPage: React.FC = () => {
   const [prompt, setPrompt] = useState<string>('');
   const [proveedor, setProveedor] = useState<'GROQ' | 'GEMINI'>('GROQ');

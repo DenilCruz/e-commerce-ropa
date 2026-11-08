@@ -6,7 +6,6 @@ import {
   Pencil, 
   Trash2, 
   AlertCircle, 
-  ShoppingBag, 
   X, 
   Check, 
   RefreshCw 
@@ -48,9 +47,6 @@ export const ResenasSection: React.FC<ResenasSectionProps> = ({ productoId }) =>
   const [editCalificacion, setEditCalificacion] = useState(5);
   const [editComentario, setEditComentario] = useState('');
   const [guardandoEdicion, setGuardandoEdicion] = useState(false);
-
-  // Estado de simulación de compra para pruebas
-  const [simulando, setSimulando] = useState(false);
 
   const cargarDatos = async () => {
     try {
@@ -152,23 +148,6 @@ export const ResenasSection: React.FC<ResenasSectionProps> = ({ productoId }) =>
     } catch (err: any) {
       console.error(err);
       toast.error(err.response?.data?.message || 'Error al eliminar la reseña.');
-    }
-  };
-
-  // Simular compra para pruebas (HU-66)
-  const handleSimularCompra = async () => {
-    if (!user) return;
-    try {
-      setSimulando(true);
-      const toastId = toast.loading('Registrando compra de prueba...');
-      const res = await resenasApi.simularCompra(productoId, user.id);
-      toast.success(res.mensaje, { id: toastId });
-      await cargarDatos();
-    } catch (err: any) {
-      console.error(err);
-      toast.error('Error al simular la compra.');
-    } finally {
-      setSimulando(false);
     }
   };
 

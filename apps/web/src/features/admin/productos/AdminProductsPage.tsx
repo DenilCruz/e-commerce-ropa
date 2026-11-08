@@ -456,7 +456,7 @@ export const AdminProductsPage: React.FC = () => {
                     multiple 
                     accept="image/*,.jpg,.jpeg,.png,.webp,.avif" 
                     onChange={handleFileChange} 
-                    required={!editingProduct && (!editingProduct?.imagenes || editingProduct.imagenes.length === 0)}
+                    required={!editingProduct}
                     className="w-full border border-dashed border-gray-300 hover:border-black rounded-md p-4 bg-white cursor-pointer transition"
                   />
                   <p className="text-xs text-gray-500">

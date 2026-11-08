@@ -8,6 +8,3 @@ export const tipoDePago = (nombre?: string | null): TipoPago => {
   if (/tarjeta|stripe|cr[eé]dito|d[eé]bito/.test(n)) return 'tarjeta';
   return 'otro';
 };
-
-/** A bank receipt / operation number as the API accepts it. */
-export const COMPROBANTE_VALIDO = /^[A-Za-z0-9][A-Za-z0-9._-]{3,39}$/;
