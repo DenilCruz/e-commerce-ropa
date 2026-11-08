@@ -186,6 +186,39 @@ describe('BillingService con la pasarela simulada (modo por defecto)', () => {
     expect(stores.crearPagada).not.toHaveBeenCalled();
   });
 
+  describe('modo de pago sin configurar', () => {
+    const crear = (valores: Record<string, string>) =>
+      new BillingService(dataSource, { get: jest.fn((k: string) => valores[k]) } as any, planLimits, stores);
+    const entorno = process.env.NODE_ENV;
+    const modo = process.env.PLAN_PAYMENT_MODE;
+    afterEach(() => {
+      process.env.NODE_ENV = entorno;
+      if (modo === undefined) delete process.env.PLAN_PAYMENT_MODE;
+      else process.env.PLAN_PAYMENT_MODE = modo;
+    });
+
+    it('en producción sin PLAN_PAYMENT_MODE los pagos quedan cerrados: nadie obtiene un plan gratis', async () => {
+      delete process.env.PLAN_PAYMENT_MODE;
+      const cerrado = crear({ NODE_ENV: 'production', STRIPE_SECRET_KEY: 'sk_test_dummy' });
+
+      expect(cerrado.simulado).toBe(false);
+      await expect(cerrado.crearAltaTienda(USER, 'Moda Luna', 'ESTANDAR', 'MENSUAL')).rejects.toMatchObject({ status: 503 });
+      await expect(cerrado.crearCheckout(TENANT, USER, 'ESTANDAR', 'MENSUAL')).rejects.toMatchObject({ status: 503 });
+      await expect(cerrado.confirmarPagoSimulado(USER, 'sim_cs_abc', { metodo: 'QR' })).rejects.toThrow(/desactivada/);
+      expect(stripeFalso.checkout.sessions.create).not.toHaveBeenCalled();
+    });
+
+    it('en producción solo se simula si PLAN_PAYMENT_MODE=simulado está escrito a propósito', () => {
+      expect(crear({ NODE_ENV: 'production', PLAN_PAYMENT_MODE: 'simulado', STRIPE_SECRET_KEY: 'sk_test_dummy' }).simulado).toBe(true);
+    });
+
+    it('en desarrollo sin configurar se simula, y con stripe no', () => {
+      delete process.env.PLAN_PAYMENT_MODE;
+      expect(crear({ NODE_ENV: 'development', STRIPE_SECRET_KEY: 'sk_test_dummy' }).simulado).toBe(true);
+      expect(crear({ NODE_ENV: 'production', PLAN_PAYMENT_MODE: 'stripe', STRIPE_SECRET_KEY: 'sk_test_dummy' }).simulado).toBe(false);
+    });
+  });
+
   it('con PLAN_PAYMENT_MODE=stripe la pasarela simulada responde 404', async () => {
     const config = { get: jest.fn((k: string) => ({ PLAN_PAYMENT_MODE: 'stripe', STRIPE_SECRET_KEY: 'sk_test_dummy' })[k]) };
     const real = new BillingService(dataSource, config as any, planLimits, stores);

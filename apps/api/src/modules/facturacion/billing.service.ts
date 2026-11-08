@@ -53,6 +53,9 @@ export class BillingService {
         }
       : {};
     this.stripe = new StripeClient(secretKey, { apiVersion: '2026-08-26.dahlia', ...apuntaAOtroHost });
+    if (this.simulado && (this.configService.get<string>('NODE_ENV') || process.env.NODE_ENV) === 'production') {
+      this.logger.warn('Pagos de planes SIMULADOS en producción (PLAN_PAYMENT_MODE=simulado): nadie paga de verdad.');
+    }
   }
 
   /**
@@ -60,11 +63,24 @@ export class BillingService {
    * server-side confirmation as Stripe's webhook, so the store is only created once the (simulated) payment is approved.
    */
   get simulado(): boolean {
-    const modo = this.configService.get<string>('PLAN_PAYMENT_MODE') || process.env.PLAN_PAYMENT_MODE || 'simulado';
-    return modo.toLowerCase() !== 'stripe';
+    return this.modoDePago === 'simulado';
+  }
+
+  /**
+   * An explicit PLAN_PAYMENT_MODE wins. Left unset, a development machine simulates, but a production server stays
+   * closed: a missing setting must never turn into free paid plans.
+   */
+  private get modoDePago(): 'simulado' | 'stripe' | 'cerrado' {
+    const explicito = (this.configService.get<string>('PLAN_PAYMENT_MODE') || process.env.PLAN_PAYMENT_MODE || '').toLowerCase();
+    if (explicito === 'stripe' || explicito === 'simulado') return explicito;
+    const entorno = this.configService.get<string>('NODE_ENV') || process.env.NODE_ENV;
+    return entorno === 'production' ? 'cerrado' : 'simulado';
   }
 
   private async abrirSesionDePago(params: Stripe.Checkout.SessionCreateParams): Promise<{ id: string; url: string }> {
+    if (this.modoDePago === 'cerrado') {
+      throw new ServiceUnavailableException('Los pagos de planes no están configurados en este servidor (define PLAN_PAYMENT_MODE).');
+    }
     if (!this.simulado) {
       const sesion = await this.stripe.checkout.sessions.create(params);
       return { id: sesion.id, url: sesion.url as string };
@@ -535,40 +551,37 @@ export class BillingService {
         );
       }
       await qr.query('UPDATE tienda SET plan = $2 WHERE id = $1', [tenantId, suscripcion.plan]);
+      // Moving to a higher plan replaces the old subscription, which must stop charging. This runs before the commit:
+      // if Stripe cannot cancel it the whole confirmation rolls back and Stripe retries the event, instead of leaving
+      // an old subscription that keeps charging while the database says it is cancelled.
+      await this.cancelarSuscripcionesAnteriores(qr, tenantId, sesion.id);
       return 'PROCESADO' as ResultadoEvento;
     });
-
-    // Moving to a higher plan replaces the old subscription: it must stop charging
-    if (resultado === 'PROCESADO') await this.cancelarSuscripcionesAnteriores(tenantId, sesion.id);
     return resultado;
   }
 
-  /** Cancels (now, no proration) every other live subscription of the store. A Stripe failure is logged, never thrown. */
-  private async cancelarSuscripcionesAnteriores(tenantId: string, sesionNuevaId: string): Promise<void> {
-    try {
-      const anteriores: Array<{ id: string; stripe_subscription_id: string }> = await TenantContext.runAs(tenantId, undefined, () =>
-        this.dataSource.query(
-          `SELECT id, stripe_subscription_id FROM suscripcion
-            WHERE tenant_id = $1 AND estado = 'ACTIVA' AND stripe_subscription_id IS NOT NULL AND stripe_session_id <> $2`,
-          [tenantId, sesionNuevaId],
-        ),
-      );
-      for (const anterior of anteriores) {
+  /**
+   * Cancels (now, no proration) every other live subscription of the store, inside the confirmation's transaction.
+   * Already gone on Stripe's side is fine; any other Stripe failure is thrown so nothing is committed.
+   */
+  private async cancelarSuscripcionesAnteriores(qr: QueryRunner, tenantId: string, sesionNuevaId: string): Promise<void> {
+    const anteriores: Array<{ id: string; stripe_subscription_id: string }> = await qr.query(
+      `SELECT id, stripe_subscription_id FROM suscripcion
+        WHERE tenant_id = $1 AND estado = 'ACTIVA' AND stripe_subscription_id IS NOT NULL AND stripe_session_id <> $2`,
+      [tenantId, sesionNuevaId],
+    );
+    for (const anterior of anteriores) {
+      if (!esSimulada(anterior.stripe_subscription_id)) {
         try {
-          if (!esSimulada(anterior.stripe_subscription_id)) await this.stripe.subscriptions.cancel(anterior.stripe_subscription_id);
+          await this.stripe.subscriptions.cancel(anterior.stripe_subscription_id);
         } catch (error: any) {
-          // Already gone on Stripe's side is fine; anything else is worth a log line
-          if (error?.code !== 'resource_missing') this.logger.error(`No se pudo cancelar la suscripción anterior ${anterior.stripe_subscription_id}: ${error?.message}`);
+          if (error?.code !== 'resource_missing') throw error;
         }
-        await TenantContext.runAs(tenantId, undefined, () =>
-          this.dataSource.query(
-            `UPDATE suscripcion SET estado = 'CANCELADA', cancelar_al_vencer = false, vence_en = LEAST(vence_en, now()), actualizado_en = now() WHERE id = $1`,
-            [anterior.id],
-          ),
-        );
       }
-    } catch (error: any) {
-      this.logger.error(`Fallo al retirar las suscripciones anteriores de la tienda ${tenantId}: ${error?.message}`);
+      await qr.query(
+        `UPDATE suscripcion SET estado = 'CANCELADA', cancelar_al_vencer = false, vence_en = LEAST(vence_en, now()), actualizado_en = now() WHERE id = $1`,
+        [anterior.id],
+      );
     }
   }
 

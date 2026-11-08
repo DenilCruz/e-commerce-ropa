@@ -361,6 +361,7 @@ describe('BillingService: alta de tienda al pagar y ciclo de vida de la suscripc
     beforeEach(() => {
       qr.query.mockImplementation(async (sql: string) => {
         if (/INSERT INTO evento_webhook/.test(sql)) return [{ stripe_event_id: 'evt_1' }];
+        if (/stripe_subscription_id IS NOT NULL AND stripe_session_id <>/.test(sql)) return bd.anteriores;
         if (/FROM suscripcion/.test(sql) && /FOR UPDATE/.test(sql)) {
           return [{ id: 'sus-2', tenant_id: TENANT, plan: 'CORPORATIVO', periodo: 'MENSUAL', estado: 'PENDIENTE_PAGO', monto: String(PLANES_CONFIG.CORPORATIVO.precioMensual), moneda: 'usd' }];
         }
@@ -368,23 +369,36 @@ describe('BillingService: alta de tienda al pagar y ciclo de vida de la suscripc
       });
     });
 
-    it('cancela en Stripe la suscripción anterior y la marca CANCELADA', async () => {
+    it('cancela en Stripe la suscripción anterior y la marca CANCELADA en la misma transacción', async () => {
       bd.anteriores = [{ id: 'sus-vieja', stripe_subscription_id: 'sub_vieja' }];
 
       const r = await service.procesarEvento(evento('checkout.session.completed', sesionPlan));
 
       expect(r).toBe('PROCESADO');
       expect(stripeFalso.subscriptions.cancel).toHaveBeenCalledWith('sub_vieja');
-      expect(consultasDs().some((c: { sql: string }) => /SET estado = 'CANCELADA'/.test(c.sql))).toBe(true);
+      expect(consultasQr().some((c: { sql: string }) => /SET estado = 'CANCELADA'/.test(c.sql))).toBe(true);
+      expect(qr.commitTransaction).toHaveBeenCalledTimes(1);
     });
 
-    it('si Stripe falla al cancelar la anterior, el pago nuevo igual queda activo', async () => {
+    it('si Stripe no puede cancelar la anterior se revierte todo y el error sube para que Stripe reintente el evento', async () => {
       bd.anteriores = [{ id: 'sus-vieja', stripe_subscription_id: 'sub_vieja' }];
       stripeFalso.subscriptions.cancel.mockRejectedValue(Object.assign(new Error('boom'), { code: 'api_error' }));
+
+      await expect(service.procesarEvento(evento('checkout.session.completed', sesionPlan))).rejects.toThrow('boom');
+
+      expect(qr.rollbackTransaction).toHaveBeenCalledTimes(1);
+      expect(qr.commitTransaction).not.toHaveBeenCalled();
+      expect(consultasQr().some((c: { sql: string }) => /SET estado = 'CANCELADA'/.test(c.sql))).toBe(false);
+    });
+
+    it('una suscripción anterior que Stripe ya no tiene (resource_missing) no impide activar la nueva', async () => {
+      bd.anteriores = [{ id: 'sus-vieja', stripe_subscription_id: 'sub_vieja' }];
+      stripeFalso.subscriptions.cancel.mockRejectedValue(Object.assign(new Error('no such subscription'), { code: 'resource_missing' }));
 
       const r = await service.procesarEvento(evento('checkout.session.completed', sesionPlan));
 
       expect(r).toBe('PROCESADO');
+      expect(consultasQr().some((c: { sql: string }) => /SET estado = 'CANCELADA'/.test(c.sql))).toBe(true);
     });
   });
 });
