@@ -19,7 +19,8 @@ import { usePlanLimites } from '../tiendas/hooks/usePlanLimites';
 import { tiendasApi } from '../tiendas/services/tiendas.api';
 import { esDueno } from '../../lib/roles';
 import { planesApi } from '../tiendas/services/planes.api';
-import { PLAN_NOMBRES_FALLBACK, esBajaDePlan, esPlanDePago } from '../tiendas/utils/planes';
+import { iniciarAltaDeTienda } from '../tiendas/services/alta-tienda';
+import { PLAN_NOMBRES_FALLBACK, esBajaDePlan, esPlanDePago, limpiarAltaPendiente, precioDelPlan } from '../tiendas/utils/planes';
 import { MiTienda } from '../tiendas/types';
 import { Modal } from '../../components/ui/Modal';
 import { motion } from 'framer-motion';
@@ -34,20 +35,25 @@ export const PricingSection: React.FC = () => {
   const [anual, setAnual] = useState<boolean>(false);
   const [planAActualizar, setPlanAActualizar] = useState<'FREE_TRIAL' | 'ESTANDAR' | 'CORPORATIVO' | null>(null);
 
-  // Pago del plan: el cobro ocurre en Stripe; aquí solo se prepara y se redirige
+  // Pago del plan: el cobro ocurre en la pasarela (simulada o Stripe); aquí solo se prepara y se redirige
   const [procesando, setProcesando] = useState(false);
   const [errorModal, setErrorModal] = useState<string | null>(null);
+
+  // Quien ya inició sesión pero todavía no tiene tienda: elige plan y pone el nombre de la que va a crear
+  const [planNuevaTienda, setPlanNuevaTienda] = useState<'FREE_TRIAL' | 'ESTANDAR' | 'CORPORATIVO' | null>(null);
+  const [nombreNuevaTienda, setNombreNuevaTienda] = useState('');
   const [searchParams, setSearchParams] = useSearchParams();
 
-  const { data: misTiendas = [] } = useQuery<MiTienda[]>({
+  const { data: misTiendas = [], isSuccess: tiendasListas } = useQuery<MiTienda[]>({
     queryKey: ['mis-tiendas-pricing', user?.id],
     queryFn: tiendasApi.listarMias,
     enabled: !!user,
   });
 
-  // Identificar la tienda que administra el usuario
+  // Identificar la tienda que administra el usuario. Un cliente que solo compra no administra ninguna:
+  // la tienda activa de su sesión no es suya, así que no se le ofrece cambiar su plan.
   const tiendasAdmin = misTiendas.filter((t) => esDueno(t.rol));
-  const tiendaDestino = tiendasAdmin.find((t) => t.esActiva) || tiendasAdmin[0] || (metricas?.tienda ? {
+  const tiendaDestino = tiendasAdmin.find((t) => t.esActiva) || tiendasAdmin[0] || (metricas?.tienda && esDueno(user?.rol) ? {
     id: metricas.tienda.id,
     nombre: metricas.tienda.nombre,
     slug: metricas.tienda.slug,
@@ -142,6 +148,15 @@ export const PricingSection: React.FC = () => {
       return;
     }
 
+    if (!tiendaDestino) {
+      // Sin la lista de tiendas no se sabe si ya tiene una: no se abre ningún modal todavía
+      if (!tiendasListas) return;
+      setErrorModal(null);
+      setNombreNuevaTienda('');
+      setPlanNuevaTienda(planId);
+      return;
+    }
+
     if (planActualTienda === planId) {
       return;
     }
@@ -183,6 +198,34 @@ export const PricingSection: React.FC = () => {
     }
   };
 
+  // Crear la primera tienda: gratis al instante, de pago después de aprobar el pago
+  const crearPrimeraTienda = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!planNuevaTienda) return;
+    const nombre = nombreNuevaTienda.trim();
+    if (nombre.length < 3) {
+      setErrorModal('El nombre de tu tienda debe tener al menos 3 caracteres.');
+      return;
+    }
+    setProcesando(true);
+    setErrorModal(null);
+    try {
+      const resultado = await iniciarAltaDeTienda({ nombre, plan: planNuevaTienda, periodo: anual ? 'ANUAL' : 'MENSUAL' });
+      if (resultado.destino === 'PASARELA') {
+        window.location.assign(resultado.url);
+        return;
+      }
+      const sesion = resultado.sesion;
+      localStorage.removeItem('el-magnifico-cart-storage');
+      localStorage.setItem('tenant_slug', sesion.tienda?.slug || 'aura');
+      useAuthStore.getState().setAuth(sesion.usuario, sesion.accessToken, sesion.refreshToken);
+      window.location.assign('/admin');
+    } catch (err) {
+      setErrorModal(mensajeDeError(err, 'No se pudo crear tu tienda. Inténtalo de nuevo.'));
+      setProcesando(false);
+    }
+  };
+
   // Bajar de plan no cuesta nada
   const confirmarBaja = async () => {
     if (!planAActualizar) return;
@@ -214,7 +257,9 @@ export const PricingSection: React.FC = () => {
   // Stripe devuelve aquí al cliente que cierra el pago sin completarlo
   useEffect(() => {
     if (searchParams.get('cancelado') === '1') {
-      toast.info('Cancelaste el pago. No se hizo ningún cargo y tu plan no cambió.');
+      // Walking away from the payment also drops the store asked for at sign-up, so the next login does not reopen it
+      limpiarAltaPendiente();
+      toast.info('Cancelaste el pago. No se hizo ningún cargo y no se creó ni cambió nada.');
       const siguiente = new URLSearchParams(searchParams);
       siguiente.delete('cancelado');
       setSearchParams(siguiente, { replace: true });
@@ -391,7 +436,7 @@ export const PricingSection: React.FC = () => {
               <span className="text-lg font-bold text-[#9B7B54]">{esBaja ? 'Sin costo' : `$${montoAPagar}`}</span>
               <span className="text-[11px] text-stone-500 block">
                 {planElegidoObj?.nombre}
-                {!esBaja && (anual ? ' · 12 meses' : ' · 1 mes')}
+                {!esBaja && (anual ? ' · anual' : ' · mensual')}
               </span>
             </div>
           </div>
@@ -416,8 +461,8 @@ export const PricingSection: React.FC = () => {
             <div className="p-4 bg-white border border-[#E7E1D7] rounded-lg flex items-start gap-3">
               <ShieldCheck className="w-5 h-5 text-[#9B7B54] shrink-0 mt-0.5" aria-hidden />
               <p className="text-xs text-stone-600 leading-relaxed">
-                Pagarás en la página segura de Stripe; nosotros nunca vemos los datos de tu tarjeta. Tu plan se activa automáticamente en cuanto Stripe
-                confirma el pago.
+                Pagarás en una página de pago segura; nosotros nunca guardamos los datos de tu tarjeta. Tu plan se activa automáticamente en cuanto se
+                confirma el pago y se renueva cada {anual ? 'año' : 'mes'} hasta que canceles la renovación.
               </p>
             </div>
           )}
@@ -446,20 +491,96 @@ export const PricingSection: React.FC = () => {
               {procesando ? (
                 <>
                   <Loader2 className="w-4 h-4 animate-spin" />
-                  <span>{esBaja ? 'Cambiando…' : 'Abriendo Stripe…'}</span>
+                  <span>{esBaja ? 'Cambiando…' : 'Abriendo el pago…'}</span>
                 </>
               ) : esBaja ? (
                 <span>Confirmar cambio</span>
               ) : (
                 <>
                   <CreditCard className="w-4 h-4" />
-                  <span>Pagar ${montoAPagar} con Stripe</span>
+                  <span>Continuar al pago · ${montoAPagar}</span>
                   <ArrowRight className="w-3.5 h-3.5" />
                 </>
               )}
             </button>
           </div>
         </div>
+      </Modal>
+
+      {/* Quien todavía no tiene tienda: el nombre de la que va a crear */}
+      <Modal
+        isOpen={!!planNuevaTienda}
+        onClose={() => {
+          if (!procesando) setPlanNuevaTienda(null);
+        }}
+        title="Crea tu tienda"
+      >
+        <form onSubmit={crearPrimeraTienda} className="space-y-5 text-stone-900" noValidate>
+          {planNuevaTienda && (
+            <div className="p-3.5 bg-[#FAF8F5] border border-[#E7E1D7] rounded-lg flex items-center justify-between">
+              <div>
+                <p className="text-[10px] uppercase font-bold tracking-wider text-stone-500">Tu plan</p>
+                <p className="font-serif text-base font-semibold text-stone-900">{PLAN_NOMBRES_FALLBACK[planNuevaTienda]}</p>
+              </div>
+              <span className="text-lg font-bold text-[#9B7B54]">
+                {planNuevaTienda === 'FREE_TRIAL'
+                  ? 'Gratis 14 días'
+                  : `$${precioDelPlan(planNuevaTienda, anual ? 'ANUAL' : 'MENSUAL')} / ${anual ? 'año' : 'mes'}`}
+              </span>
+            </div>
+          )}
+          <div>
+            <label htmlFor="nombre-nueva-tienda" className="block text-xs font-medium text-stone-700 mb-1">
+              Nombre de tu tienda o marca
+            </label>
+            <input
+              id="nombre-nueva-tienda"
+              value={nombreNuevaTienda}
+              onChange={(e) => setNombreNuevaTienda(e.target.value)}
+              placeholder="Ej. Mi Marca Atelier"
+              maxLength={100}
+              autoFocus
+              className="w-full px-3 py-2.5 text-sm border border-[#D5CCC0] rounded-sm bg-white text-stone-900 focus:outline-none focus-visible:ring-2 focus-visible:ring-stone-900"
+            />
+            <p className="text-[11px] text-stone-500 mt-1">
+              {planNuevaTienda === 'FREE_TRIAL'
+                ? 'Se crea al instante y entras a tu panel.'
+                : 'Después te llevamos al pago. Tu tienda se crea en cuanto se aprueba.'}
+            </p>
+          </div>
+          {errorModal && (
+            <p role="alert" className="text-sm text-rose-800 bg-rose-50 border border-rose-200 rounded p-3">
+              {errorModal}
+            </p>
+          )}
+          <div className="flex flex-col-reverse sm:flex-row sm:justify-end gap-2 pt-1">
+            <button
+              type="button"
+              onClick={() => setPlanNuevaTienda(null)}
+              disabled={procesando}
+              className="w-full sm:w-auto px-5 py-2.5 border border-[#D5CCC0] text-xs uppercase tracking-widest text-stone-700 hover:bg-[#FAF8F5]"
+            >
+              Cancelar
+            </button>
+            <button
+              type="submit"
+              disabled={procesando}
+              className="w-full sm:w-auto justify-center px-6 py-2.5 bg-stone-900 text-white text-xs uppercase tracking-widest font-semibold hover:bg-stone-800 disabled:opacity-60 flex items-center gap-2 shadow-md"
+            >
+              {procesando ? (
+                <>
+                  <Loader2 className="w-4 h-4 animate-spin motion-reduce:animate-none" aria-hidden />
+                  <span>Un momento…</span>
+                </>
+              ) : (
+                <>
+                  <span>{planNuevaTienda === 'FREE_TRIAL' ? 'Crear mi tienda' : 'Continuar al pago'}</span>
+                  <ArrowRight className="w-3.5 h-3.5" aria-hidden />
+                </>
+              )}
+            </button>
+          </div>
+        </form>
       </Modal>
     </section>
   );

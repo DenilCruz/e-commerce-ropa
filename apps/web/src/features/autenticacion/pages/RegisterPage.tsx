@@ -153,11 +153,13 @@ export const RegisterPage: React.FC = () => {
           <CheckCircle2 className="w-8 h-8 text-emerald-600" />
         </div>
         <h2 className="text-2xl font-bold text-gray-900 mb-2 font-serif">
-          {modo === 'tienda' ? '¡Tu Tienda está lista!' : '¡Registro Exitoso!'}
+          {modo === 'tienda' ? (planActivo === 'FREE_TRIAL' ? '¡Tu Tienda está lista!' : '¡Cuenta creada!') : '¡Registro Exitoso!'}
         </h2>
         <p className="text-sm text-gray-600 mb-5">
           {modo === 'tienda'
-            ? `Hemos preparado tu cuenta de Administrador para "${nombreTienda}". Solo confirma tu correo para activarla.`
+            ? planActivo === 'FREE_TRIAL'
+              ? `Hemos preparado tu cuenta de Administrador para "${nombreTienda}". Solo confirma tu correo para activarla.`
+              : `Creamos tu cuenta de Administrador. Confirma tu correo y paga tu suscripción: "${nombreTienda}" se crea en cuanto el pago se aprueba.`
             : (mensajeExito || 'Tu cuenta ha sido creada. Hemos enviado un correo con el enlace de verificación.')}
         </p>
 
@@ -165,7 +167,7 @@ export const RegisterPage: React.FC = () => {
           <div className="space-y-2 mb-4">
             {slugPreview && (
               <div className="p-3 bg-[#FAF8F5] border border-[#E7E1D7] rounded-lg text-xs text-stone-700 inline-flex items-center gap-2">
-                <span>Enlace reservado:</span>
+                <span>{planActivo === 'FREE_TRIAL' ? 'Enlace reservado:' : 'Tu enlace será:'}</span>
                 <code className="text-[#9B7B54] font-semibold">/t/{slugPreview}</code>
               </div>
             )}
@@ -209,7 +211,11 @@ export const RegisterPage: React.FC = () => {
                   variant="outline"
                   className="w-full bg-[#FAF8F5] text-stone-900 border-[#E7E1D7] hover:bg-[#F2ECE1] hover:text-[#9B7B54] font-semibold shadow-xs text-xs py-2"
                 >
-                  {modo === 'tienda' ? 'Activar mi cuenta y entrar a mi tienda' : 'Activar mi cuenta directamente'}
+                  {modo === 'tienda'
+                    ? planActivo === 'FREE_TRIAL'
+                      ? 'Activar mi cuenta y entrar a mi tienda'
+                      : 'Activar mi cuenta y continuar al pago'
+                    : 'Activar mi cuenta directamente'}
                 </Button>
               </Link>
             </div>
@@ -240,11 +246,9 @@ export const RegisterPage: React.FC = () => {
             <div className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-[#FAF8F5] border border-[#E7E1D7] text-xs font-semibold uppercase tracking-wider text-[#9B7B54] mb-3">
               <Sparkles className="w-3.5 h-3.5" />
               <span>
-                {planActivo === 'CORPORATIVO'
-                  ? 'Suscripción: Plan Corporativo ($100/mes)'
-                  : planActivo === 'ESTANDAR'
-                  ? 'Suscripción: Plan Estándar ($20/mes)'
-                  : '14 Días de Prueba Gratis · Plan Free Trial'}
+                {planActivo === 'FREE_TRIAL'
+                  ? '14 Días de Prueba Gratis · Plan Free Trial'
+                  : `Suscripción: Plan ${planActivo === 'CORPORATIVO' ? 'Corporativo' : 'Estándar'} ($${precioPlan}/${unidadPlan})`}
               </span>
             </div>
             <h2 className="text-2xl font-bold text-gray-900 tracking-tight font-serif">
