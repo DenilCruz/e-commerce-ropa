@@ -512,7 +512,7 @@ export const CheckoutPage: React.FC = () => {
     return (
       <section className="mx-auto max-w-lg space-y-4 px-6 py-16 text-center">
         <h1 className="font-serif text-3xl">Pago simulado registrado</h1>
-        <p>Se acreditaron Bs {pagoSimulado.monto.toFixed(2)} de prueba a la tienda.</p>
+        <p>Se acreditaron ${pagoSimulado.monto.toFixed(2)} de prueba a la tienda.</p>
         <p>No se movió dinero ni se generó un envío.</p>
         <p className="break-all text-sm">Comprobante de prueba: {pagoSimulado.referencia}</p>
         <Link className="underline" to={getStoreUrl('/catalogo')}>Volver al catálogo</Link>
@@ -1211,7 +1211,7 @@ export const CheckoutPage: React.FC = () => {
                         {metodoPago === 'tarjeta'
                           ? `Pagar ahora ($${totalFinal.toFixed(2)})`
                           : metodoPago === 'qr'
-                          ? `Simular pago (Bs ${totalFinal.toFixed(2)})`
+                          ? `Simular pago ($${totalFinal.toFixed(2)})`
                           : `Confirmar Pedido en Efectivo ($${totalFinal.toFixed(2)})`}
                       </span>
                       <Lock className="w-3.5 h-3.5" />

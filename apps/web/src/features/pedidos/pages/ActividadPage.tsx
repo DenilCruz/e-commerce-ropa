@@ -36,7 +36,7 @@ export const ActividadPage: React.FC = () => {
         </div>
         <div className="border border-[#E7E1D7] bg-[#FAF8F5] p-4">
           <p className="text-[10px] uppercase tracking-widest text-stone-500">Total</p>
-          <p className="font-serif text-2xl text-stone-900">{cargando ? '…' : `Bs ${total.toFixed(2)}`}</p>
+          <p className="font-serif text-2xl text-stone-900">{cargando ? '…' : `$${total.toFixed(2)}`}</p>
         </div>
       </div>
 
@@ -53,7 +53,7 @@ export const ActividadPage: React.FC = () => {
               {pedido.nro}
               <span className="text-stone-500"> · {pedido.estado}</span>
             </span>
-            <span className="text-stone-800">Bs {Number(pedido.total).toFixed(2)}</span>
+            <span className="text-stone-800">${Number(pedido.total).toFixed(2)}</span>
           </li>
         ))}
       </ul>

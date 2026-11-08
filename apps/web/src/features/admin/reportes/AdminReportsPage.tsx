@@ -142,10 +142,10 @@ export const AdminReportsPage: React.FC = () => {
       'Estado',
       'Metodo de Pago',
       'Cupon',
-      'Subtotal (Bs)',
-      'Descuento (Bs)',
-      'Envio (Bs)',
-      'Total (Bs)',
+      'Subtotal (USD)',
+      'Descuento (USD)',
+      'Envio (USD)',
+      'Total (USD)',
       'Items',
     ];
 
@@ -224,10 +224,10 @@ export const AdminReportsPage: React.FC = () => {
           { titulo: 'Estado', valor: (p) => p.estado },
           { titulo: 'Método de Pago', valor: (p) => p.metodoPago },
           { titulo: 'Cupón', valor: (p) => p.cuponCodigo || 'Sin cupón' },
-          { titulo: 'Subtotal (Bs)', valor: (p) => p.subtotal, formato: FORMATO_MONEDA },
-          { titulo: 'Descuento (Bs)', valor: (p) => p.descuento, formato: FORMATO_MONEDA },
-          { titulo: 'Envío (Bs)', valor: (p) => p.costoEnvio, formato: FORMATO_MONEDA },
-          { titulo: 'Total (Bs)', valor: (p) => p.total, formato: FORMATO_MONEDA },
+          { titulo: 'Subtotal (USD)', valor: (p) => p.subtotal, formato: FORMATO_MONEDA },
+          { titulo: 'Descuento (USD)', valor: (p) => p.descuento, formato: FORMATO_MONEDA },
+          { titulo: 'Envío (USD)', valor: (p) => p.costoEnvio, formato: FORMATO_MONEDA },
+          { titulo: 'Total (USD)', valor: (p) => p.total, formato: FORMATO_MONEDA },
           {
             titulo: 'Items',
             valor: (p) =>

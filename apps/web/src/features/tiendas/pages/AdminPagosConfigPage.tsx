@@ -8,7 +8,7 @@ const camposLiquidacion = {
   numeroCuenta: 'Número de cuenta',
 };
 
-const formatoSaldo = new Intl.NumberFormat('es-BO', { style: 'currency', currency: 'BOB' });
+const formatoSaldo = new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD' });
 
 const etiquetasMovimiento = {
   QR: 'Venta de prueba por QR',
