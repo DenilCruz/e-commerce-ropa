@@ -85,7 +85,7 @@ BEGIN
             ) g), '[]'::jsonb),
         'ingresosMesUsd', COALESCE((
             SELECT sum(monto) FROM suscripcion
-            WHERE estado = 'ACTIVA' AND lower(moneda) = 'usd'
+            WHERE estado IN ('ACTIVA', 'CANCELADA') AND lower(moneda) = 'usd'  -- cobradas alguna vez, aunque ya se hayan cancelado
               AND inicio_en >= date_trunc('month', now())
               AND inicio_en < date_trunc('month', now()) + INTERVAL '1 month'), 0)
     ) INTO resultado;

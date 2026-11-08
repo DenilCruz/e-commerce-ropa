@@ -624,7 +624,7 @@ export class BillingService {
         await qr.query(
           `INSERT INTO suscripcion (id, tenant_id, usuario_id, plan, periodo, monto, moneda, estado, stripe_session_id,
                                     stripe_subscription_id, stripe_customer_id, inicio_en, vence_en)
-           VALUES ($1, $2, $3, $4, $5, $6, $7, 'ACTIVA', $8, $9, $10, now(),
+           VALUES ($1, $2, $3, $4, $5::text, $6, $7, 'ACTIVA', $8, $9, $10, now(),
                    now() + CASE WHEN $5::text = 'ANUAL' THEN interval '1 year' ELSE interval '1 month' END)`,
           [randomUUID(), tienda.id, alta.usuario_id, alta.plan, alta.periodo, alta.monto, alta.moneda, sesion.id, stripeSubscriptionId, stripeCustomerId],
         );
