@@ -79,7 +79,7 @@ export const RegisterPage: React.FC = () => {
   const [mensajeExito, setMensajeExito] = useState('');
   const [tokenVerificacion, setTokenVerificacion] = useState('');
 
-  const precioPlan = planActivo === 'CORPORATIVO' ? 499 : planActivo === 'ESTANDAR' ? 199 : 0;
+  const precioPlan = planActivo === 'CORPORATIVO' ? 100 : planActivo === 'ESTANDAR' ? 20 : 0;
 
   const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     setFormData({
@@ -185,7 +185,7 @@ export const RegisterPage: React.FC = () => {
               <div className="p-3 bg-emerald-50 border border-emerald-200 rounded-lg text-xs text-emerald-800 text-left space-y-1">
                 <p className="font-semibold flex items-center gap-1.5">
                   <CheckCircle2 className="w-4 h-4 text-emerald-600" />
-                  <span>Suscripción Pagada y Aprobada ({precioPlan} Bs)</span>
+                  <span>Suscripción Pagada y Aprobada (${precioPlan})</span>
                 </p>
                 <p className="text-[11px] text-emerald-700">
                   ID Transacción: <code className="font-mono font-bold">{transaccionExitosa || 'STR-SUB-982143'}</code> · Plan {planActivo}
@@ -250,9 +250,9 @@ export const RegisterPage: React.FC = () => {
               <Sparkles className="w-3.5 h-3.5" />
               <span>
                 {planActivo === 'CORPORATIVO'
-                  ? 'Suscripción: Plan Corporativo (499 Bs/mes)'
+                  ? 'Suscripción: Plan Corporativo ($100/mes)'
                   : planActivo === 'ESTANDAR'
-                  ? 'Suscripción: Plan Estándar (199 Bs/mes)'
+                  ? 'Suscripción: Plan Estándar ($20/mes)'
                   : '14 Días de Prueba Gratis · Plan Free Trial'}
               </span>
             </div>
@@ -337,7 +337,7 @@ export const RegisterPage: React.FC = () => {
                   }`}
                 >
                   <span className="block text-xs font-bold text-stone-900">Free Trial</span>
-                  <span className="block text-[11px] text-[#9B7B54] font-medium">0 Bs</span>
+                  <span className="block text-[11px] text-[#9B7B54] font-medium">$0</span>
                   <span className="block text-[9px] text-stone-400">14 días gratis</span>
                 </button>
 
@@ -351,7 +351,7 @@ export const RegisterPage: React.FC = () => {
                   }`}
                 >
                   <span className="block text-xs font-bold text-stone-900">Estándar</span>
-                  <span className="block text-[11px] text-[#9B7B54] font-medium">199 Bs/m</span>
+                  <span className="block text-[11px] text-[#9B7B54] font-medium">$20/m</span>
                   <span className="block text-[9px] text-stone-400">POS + Sync</span>
                 </button>
 
@@ -365,7 +365,7 @@ export const RegisterPage: React.FC = () => {
                   }`}
                 >
                   <span className="block text-xs font-bold text-stone-900">Corporativo</span>
-                  <span className="block text-[11px] text-[#9B7B54] font-medium">499 Bs/m</span>
+                  <span className="block text-[11px] text-[#9B7B54] font-medium">$100/m</span>
                   <span className="block text-[9px] text-stone-400">ML + BI</span>
                 </button>
               </div>
@@ -469,7 +469,7 @@ export const RegisterPage: React.FC = () => {
                 <span>Pasarela de Pago de Suscripción</span>
               </div>
               <span className="text-xs font-bold text-[#9B7B54] bg-[#FAF8F5] px-2 py-0.5 border border-[#E7E1D7] rounded">
-                Total: {precioPlan} Bs / mes
+                Total: ${precioPlan} / mes
               </span>
             </div>
 
@@ -543,7 +543,7 @@ export const RegisterPage: React.FC = () => {
                   <QrCode className="w-20 h-20" />
                 </div>
                 <p className="text-xs font-semibold text-stone-800">
-                  Total a Transferir: <span className="text-[#9B7B54]">{precioPlan} Bs</span>
+                  Total a Transferir: <span className="text-[#9B7B54]">${precioPlan}</span>
                 </p>
               </div>
             )}
@@ -561,7 +561,7 @@ export const RegisterPage: React.FC = () => {
             <>
               <span>
                 {planActivo !== 'FREE_TRIAL'
-                  ? `Pagar ${precioPlan} Bs y Crear mi Tienda`
+                  ? `Pagar $${precioPlan} y Crear mi Tienda`
                   : 'Crear mi Tienda (14 días gratis)'}
               </span>
               <ArrowRight className="w-3.5 h-3.5" />

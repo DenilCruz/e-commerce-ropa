@@ -28,7 +28,7 @@ const MOVIMIENTOS_SIMULADOS = `
   FROM pago
   WHERE tenant_id = $1 AND estado = 'APROBADO'
     AND respuesta_pasarela->>'gateway' IN ('stripe', 'stripe_embedded_checkout')
-    AND respuesta_pasarela->>'currency' = 'bob'
+    AND respuesta_pasarela->>'currency' IN ('usd', 'bob')
     AND (
       respuesta_pasarela->'livemode' = 'false'::jsonb
       OR (

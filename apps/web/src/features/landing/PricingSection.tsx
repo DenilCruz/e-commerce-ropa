@@ -9,7 +9,6 @@ import {
   CreditCard,
   ShieldCheck,
   Building2,
-  Sparkles,
   Store,
   ArrowRight,
   Shirt,
@@ -88,8 +87,8 @@ export const PricingSection: React.FC = () => {
       id: 'ESTANDAR' as const,
       nombre: 'Plan Estándar',
       subtitulo: 'Para marcas en crecimiento',
-      precio: anual ? 159 : 199,
-      periodo: anual ? 'Bs / mes (facturado anualmente)' : 'Bs / mes',
+      precio: anual ? 16 : 20,
+      periodo: anual ? 'USD / mes (facturado anualmente)' : 'USD / mes',
       descripcion: 'Vende omnicanal en boutique física y digital con sincronización offline.',
       limites: {
         sucursales: 'Hasta 3 tiendas físicas',
@@ -112,8 +111,8 @@ export const PricingSection: React.FC = () => {
       id: 'CORPORATIVO' as const,
       nombre: 'Plan Corporativo',
       subtitulo: 'Para franquicias y marcas consolidadas',
-      precio: anual ? 399 : 499,
-      periodo: anual ? 'Bs / mes (facturado anualmente)' : 'Bs / mes',
+      precio: anual ? 80 : 100,
+      periodo: anual ? 'USD / mes (facturado anualmente)' : 'USD / mes',
       descripcion: 'Inteligencia artificial que anticipa tus ventas, más soporte prioritario todos los días.',
       limites: {
         sucursales: 'Tiendas físicas ilimitadas',
@@ -295,7 +294,7 @@ export const PricingSection: React.FC = () => {
                   <div className="pt-2">
                     <div className="flex items-baseline gap-1">
                       <span className="text-3xl font-bold tracking-tight text-stone-900">
-                        {plan.precio === 0 ? 'Gratis' : `${plan.precio} Bs`}
+                        {plan.precio === 0 ? 'Gratis' : `$${plan.precio}`}
                       </span>
                       {plan.precio > 0 && (
                         <span className="text-xs text-stone-500 font-light">/ mes</span>
@@ -388,7 +387,7 @@ export const PricingSection: React.FC = () => {
               </p>
             </div>
             <div className="text-right">
-              <span className="text-lg font-bold text-[#9B7B54]">{esBaja ? 'Sin costo' : `${montoAPagar} Bs`}</span>
+              <span className="text-lg font-bold text-[#9B7B54]">{esBaja ? 'Sin costo' : `$${montoAPagar}`}</span>
               <span className="text-[11px] text-stone-500 block">
                 {planElegidoObj?.nombre}
                 {!esBaja && (anual ? ' · 12 meses' : ' · 1 mes')}
@@ -453,7 +452,7 @@ export const PricingSection: React.FC = () => {
               ) : (
                 <>
                   <CreditCard className="w-4 h-4" />
-                  <span>Pagar {montoAPagar} Bs con Stripe</span>
+                  <span>Pagar ${montoAPagar} con Stripe</span>
                   <ArrowRight className="w-3.5 h-3.5" />
                 </>
               )}

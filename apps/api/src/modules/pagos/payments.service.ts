@@ -163,7 +163,7 @@ export class PaymentsService {
     try {
       const paymentIntent = await this.stripe.paymentIntents.create({
         amount: amountInCents,
-        currency: 'bob',
+        currency: 'usd',
         payment_method_types: ['card'],
         description: `Compra AURA - Cliente ${usuario?.correo || usuarioId}`,
         metadata: {
@@ -185,7 +185,7 @@ export class PaymentsService {
         clientSecret: paymentIntent.client_secret,
         paymentIntentId: paymentIntent.id,
         amount: totalFinal,
-        currency: 'bob',
+        currency: 'usd',
         resumen: {
           subtotal,
           descuento,
@@ -280,7 +280,7 @@ export class PaymentsService {
         line_items: [
           {
             price_data: {
-              currency: 'bob',
+              currency: 'usd',
               product_data: {
                 name: `Colección AURA (${cart.items.length} ${cart.items.length === 1 ? 'prenda' : 'prendas'})`,
                 description: `Subtotal $${subtotal.toFixed(2)}${descuento > 0 ? ` | Descuento: -$${descuento.toFixed(2)}` : ''}${envio > 0 ? ` | Envío: $${envio.toFixed(2)}` : ' | Envío: GRATIS'}`,
@@ -324,7 +324,7 @@ export class PaymentsService {
         sessionId: session.id,
         url: session.url,
         amount: totalFinal,
-        currency: 'bob',
+        currency: 'usd',
       };
     } catch (err: any) {
       this.logger.error(`Error creando sesión de Embedded Checkout en Stripe: ${err.message}`);

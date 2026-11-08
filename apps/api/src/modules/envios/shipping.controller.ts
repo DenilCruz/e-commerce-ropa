@@ -51,7 +51,7 @@ export class ShippingController {
   @Post('quote')
   @ApiOperation({
     summary: 'HU-62: Cotizar costo de envío antes de pagar',
-    description: 'Calcula costos y determina si aplica envío gratis (compras >= Bs. 200).',
+    description: 'Calcula costos y determina si aplica envío gratis (compras >= $200).',
   })
   @ApiResponse({ status: 200, description: 'Opciones de envío con costos finales.' })
   cotizar(@Body() dto: CotizarEnvioDto) {

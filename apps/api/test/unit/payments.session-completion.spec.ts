@@ -30,7 +30,7 @@ describe('PaymentsService: a paid Checkout session creates its order exactly onc
       payment_status: 'paid',
       payment_intent: 'pi_1',
       amount_total: TOTAL * 100,
-      currency: 'bob',
+      currency: 'usd',
       metadata: { tenantId: TENANT, usuarioId: USER, ...metadata },
       ...over,
     }) as any;

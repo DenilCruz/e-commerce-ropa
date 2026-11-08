@@ -29,7 +29,7 @@ describe('PaymentsService Stripe payments are bound to store, user and amount', 
     status: 'succeeded',
     amount: TOTAL * 100,
     amount_received: TOTAL * 100,
-    currency: 'bob',
+    currency: 'usd',
     metadata: { tenantId: TENANT, usuarioId: USER, ...metadata },
     ...over,
   });

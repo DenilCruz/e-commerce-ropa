@@ -21,7 +21,7 @@ const suscripcionPendiente = (extra: Record<string, unknown> = {}) => ({
   periodo: 'MENSUAL',
   estado: 'PENDIENTE_PAGO',
   monto: String(PLANES_CONFIG.ESTANDAR.precioMensual),
-  moneda: 'bob',
+  moneda: 'usd',
   ...extra,
 });
 
@@ -29,7 +29,7 @@ const sesionPagada = (extra: Record<string, unknown> = {}) => ({
   id: SESION,
   payment_status: 'paid',
   amount_total: PLANES_CONFIG.ESTANDAR.precioMensual * 100,
-  currency: 'bob',
+  currency: 'usd',
   payment_intent: 'pi_123',
   metadata: { tipo: 'PLAN', tenantId: TENANT, plan: 'ESTANDAR', periodo: 'MENSUAL', suscripcionId: 'sus-1' },
   ...extra,
@@ -81,7 +81,7 @@ describe('BillingService', () => {
 
       const args = stripeFalso.checkout.sessions.create.mock.calls[0][0];
       expect(args.mode).toBe('payment');
-      expect(args.line_items[0].price_data.currency).toBe('bob');
+      expect(args.line_items[0].price_data.currency).toBe('usd');
       expect(args.line_items[0].price_data.unit_amount).toBe(PLANES_CONFIG.ESTANDAR.precioAnual * 12 * 100);
       expect(args.metadata).toMatchObject({ tipo: 'PLAN', tenantId: TENANT, plan: 'ESTANDAR', periodo: 'ANUAL' });
       expect(args.success_url).toContain('/planes/retorno?session_id={CHECKOUT_SESSION_ID}');
@@ -189,7 +189,7 @@ describe('BillingService', () => {
     });
 
     it('rechaza una moneda distinta a la guardada', async () => {
-      const r = await service.procesarEvento(evento('checkout.session.completed', sesionPagada({ currency: 'usd' })));
+      const r = await service.procesarEvento(evento('checkout.session.completed', sesionPagada({ currency: 'bob' })));
 
       expect(r).toBe('RECHAZADO');
       expect(hizo(/UPDATE tienda/)).toBe(false);

@@ -55,7 +55,7 @@ export class BillingService {
         {
           quantity: 1,
           price_data: {
-            currency: 'bob',
+            currency: 'usd',
             unit_amount: Math.round(monto * 100),
             product_data: {
               name: `${config.nombre} · ${periodo === 'ANUAL' ? '12 meses' : '1 mes'}`,
@@ -72,11 +72,11 @@ export class BillingService {
 
     await this.dataSource.query(
       `INSERT INTO suscripcion (id, tenant_id, usuario_id, plan, periodo, monto, moneda, stripe_session_id)
-       VALUES ($1, $2, $3, $4, $5, $6, 'bob', $7)`,
+       VALUES ($1, $2, $3, $4, $5, $6, 'usd', $7)`,
       [suscripcionId, tenantId, usuarioId, planKey, periodo, monto, sesion.id],
     );
 
-    return { url: sesion.url as string, sesionId: sesion.id, suscripcionId, monto, moneda: 'bob' };
+    return { url: sesion.url as string, sesionId: sesion.id, suscripcionId, monto, moneda: 'usd' };
   }
 
   /** Estado de una compra de plan (la pantalla de retorno lo consulta hasta que el webhook la activa). */

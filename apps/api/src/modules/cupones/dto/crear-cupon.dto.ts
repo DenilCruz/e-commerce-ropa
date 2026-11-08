@@ -42,7 +42,7 @@ export class CrearCuponDto {
 
   @ApiProperty({
     example: 15,
-    description: 'Valor del descuento (ej. 15 para 15% o 50 para Bs. 50)',
+    description: 'Valor del descuento (ej. 15 para 15% o 50 para $50)',
   })
   @Type(() => Number)
   @IsNumber({}, { message: 'El valor debe ser un número' })

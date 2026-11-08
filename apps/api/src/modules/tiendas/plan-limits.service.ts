@@ -45,7 +45,7 @@ export function pruebaEstaVencida(
   return !Number.isNaN(fecha.getTime()) && fecha.getTime() < ahora.getTime();
 }
 
-/** Amount in Bs for a plan and period. The annual price is a per-month price billed as 12 months at once. */
+/** Amount in USD for a plan and period. The annual price is a per-month price billed as 12 months at once. */
 export function calcularMontoPlan(plan: TipoPlan, periodo: PeriodoPlan): number {
   const config = PLANES_CONFIG[plan];
   if (!config || config.precioMensual <= 0) {
@@ -99,8 +99,8 @@ export const PLANES_CONFIG: Record<TipoPlan, PlanConfig> = {
     id: 'ESTANDAR',
     nombre: 'Plan Estándar (Crecimiento)',
     descripcion: 'Para marcas consolidadas con ventas físicas y online en constante expansión.',
-    precioMensual: 199,
-    precioAnual: 159,
+    precioMensual: 20,
+    precioAnual: 16,
     maxSucursales: 3,
     maxUsuarios: 10,
     maxProductos: 300,
@@ -114,8 +114,8 @@ export const PLANES_CONFIG: Record<TipoPlan, PlanConfig> = {
     id: 'CORPORATIVO',
     nombre: 'Plan Corporativo (Enterprise)',
     descripcion: 'Infraestructura sin límites con analítica predictiva avanzada e IA.',
-    precioMensual: 499,
-    precioAnual: 399,
+    precioMensual: 100,
+    precioAnual: 80,
     maxSucursales: 99,
     maxUsuarios: 999,
     maxProductos: 10000,

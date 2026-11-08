@@ -254,7 +254,7 @@ export class CouponsService {
       subtotal: Number(subtotal.toFixed(2)),
       descuento: Number(descuento.toFixed(2)),
       totalConDescuento,
-      mensaje: `Cupón "${cupon.codigo}" aplicado exitosamente. Descuento: Bs. ${descuento.toFixed(2)}`,
+      mensaje: `Cupón "${cupon.codigo}" aplicado exitosamente. Descuento: $${descuento.toFixed(2)}`,
     };
   }
 }

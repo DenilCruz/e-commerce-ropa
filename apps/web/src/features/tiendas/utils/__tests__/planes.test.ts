@@ -6,8 +6,8 @@ const compra = (estado: EstadoCompraPlan['estado'], extra: Partial<EstadoCompraP
   estado,
   plan: 'ESTANDAR',
   periodo: 'MENSUAL',
-  monto: 199,
-  moneda: 'bob',
+  monto: 20,
+  moneda: 'usd',
   venceEn: '2026-11-30T00:00:00.000Z',
   ...extra,
 });
