@@ -192,7 +192,8 @@ describe('BillingService con la pasarela simulada (modo por defecto)', () => {
     const entorno = process.env.NODE_ENV;
     const modo = process.env.PLAN_PAYMENT_MODE;
     afterEach(() => {
-      process.env.NODE_ENV = entorno;
+      if (entorno === undefined) delete process.env.NODE_ENV;
+      else process.env.NODE_ENV = entorno;
       if (modo === undefined) delete process.env.PLAN_PAYMENT_MODE;
       else process.env.PLAN_PAYMENT_MODE = modo;
     });
