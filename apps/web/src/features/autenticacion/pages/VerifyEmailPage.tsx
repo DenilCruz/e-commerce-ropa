@@ -4,9 +4,9 @@ import { CheckCircle2, AlertCircle, Store, ArrowRight, Loader2 } from 'lucide-re
 import { Button } from '../../../components/ui/Button';
 import { Input } from '../../../components/ui/Input';
 import { authApi } from '../services/auth.api';
-import { tiendasApi } from '../../tiendas/services/tiendas.api';
+import { iniciarAltaDeTienda } from '../../tiendas/services/alta-tienda';
 import { useAuthStore } from '../../../store/auth.store';
-import { destinoTrasCrearTienda } from '../../tiendas/utils/planes';
+import { esPlanDePago, limpiarAltaPendiente, type PeriodoCompra } from '../../tiendas/utils/planes';
 
 export const VerifyEmailPage: React.FC = () => {
   const [searchParams] = useSearchParams();
@@ -21,6 +21,10 @@ export const VerifyEmailPage: React.FC = () => {
 
   const tiendaPendiente =
     searchParams.get('tienda') || localStorage.getItem('pending_store_name') || '';
+  const planPendiente = searchParams.get('plan') || localStorage.getItem('pending_store_plan') || 'FREE_TRIAL';
+  const periodoPendiente: PeriodoCompra =
+    (searchParams.get('periodo') || localStorage.getItem('pending_store_periodo')) === 'ANUAL' ? 'ANUAL' : 'MENSUAL';
+  const conPago = esPlanDePago(planPendiente);
 
   const [creandoTienda, setCreandoTienda] = useState(false);
   const [errorTienda, setErrorTienda] = useState<string | null>(null);
@@ -58,21 +62,23 @@ export const VerifyEmailPage: React.FC = () => {
   const handleAprovisionarTienda = async () => {
     if (!tiendaPendiente.trim()) return;
     setCreandoTienda(true);
-    const planPendiente = searchParams.get('plan') || localStorage.getItem('pending_store_plan') || 'FREE_TRIAL';
     try {
-      const res = await tiendasApi.crear({
-        nombre: tiendaPendiente.trim(),
-        plan: planPendiente,
-      });
-      localStorage.removeItem('pending_store_name');
-      localStorage.removeItem('pending_store_plan');
+      const resultado = await iniciarAltaDeTienda({ nombre: tiendaPendiente, plan: planPendiente, periodo: periodoPendiente });
+      if (resultado.destino === 'PASARELA') {
+        // The store is created only after the payment is approved
+        window.location.assign(resultado.url);
+        return;
+      }
+      const res = resultado.sesion;
+      limpiarAltaPendiente();
       localStorage.removeItem('el-magnifico-cart-storage');
       localStorage.setItem('tenant_slug', res.tienda?.slug || 'aura');
       setAuth(res.usuario, res.accessToken, res.refreshToken);
-      window.location.assign(destinoTrasCrearTienda(planPendiente));
+      window.location.assign('/admin');
     } catch (err: any) {
       const msg =
-        err?.response?.data?.message || 'No se pudo aprovisionar la tienda automáticamente.';
+        err?.response?.data?.message ||
+        (conPago ? 'No se pudo abrir el pago. Inténtalo de nuevo.' : 'No se pudo aprovisionar la tienda automáticamente.');
       setErrorTienda(Array.isArray(msg) ? msg.join(', ') : msg);
       setCreandoTienda(false);
     }
@@ -115,10 +121,13 @@ export const VerifyEmailPage: React.FC = () => {
           <div className="space-y-4 text-left p-4 bg-[#FAF8F5] border border-[#E7E1D7] rounded-xl mb-4">
             <div className="flex items-center gap-2 text-stone-900 font-semibold text-sm">
               <Store className="w-4 h-4 text-[#9B7B54]" />
-              <span>Tienda pendiente de aprovisionamiento</span>
+              <span>{conPago ? 'Tu tienda se crea al pagar' : 'Tienda pendiente de aprovisionamiento'}</span>
             </div>
             <p className="text-xs text-stone-600">
-              Marca: <strong className="text-stone-900">{tiendaPendiente}</strong> (Plan Free Trial 14 días).
+              Marca: <strong className="text-stone-900">{tiendaPendiente}</strong>{' '}
+              {conPago
+                ? `(Plan ${planPendiente === 'CORPORATIVO' ? 'Corporativo' : 'Estándar'}, pago ${periodoPendiente === 'ANUAL' ? 'anual' : 'mensual'}).`
+                : '(Plan Free Trial 14 días).'}
             </p>
 
             {errorTienda && (
@@ -136,19 +145,19 @@ export const VerifyEmailPage: React.FC = () => {
                 {creandoTienda ? (
                   <>
                     <Loader2 className="w-4 h-4 animate-spin" />
-                    <span>Aprovisionando tienda...</span>
+                    <span>{conPago ? 'Abriendo el pago...' : 'Aprovisionando tienda...'}</span>
                   </>
                 ) : (
                   <>
-                    <span>Aprovisionar y entrar al Panel Admin</span>
+                    <span>{conPago ? 'Continuar al pago' : 'Aprovisionar y entrar al Panel Admin'}</span>
                     <ArrowRight className="w-3.5 h-3.5" />
                   </>
                 )}
               </Button>
             ) : (
-              <Link to={`/login?tienda=${encodeURIComponent(tiendaPendiente)}`}>
+              <Link to={`/login?tienda=${encodeURIComponent(tiendaPendiente)}&plan=${encodeURIComponent(planPendiente)}&periodo=${periodoPendiente}`}>
                 <Button className="w-full bg-stone-900 hover:bg-stone-800 text-white font-medium py-3 text-xs uppercase tracking-widest flex items-center justify-center gap-2">
-                  <span>Iniciar Sesión para Aprovisionar mi Tienda</span>
+                  <span>{conPago ? 'Iniciar sesión para continuar al pago' : 'Iniciar Sesión para Aprovisionar mi Tienda'}</span>
                   <ArrowRight className="w-3.5 h-3.5" />
                 </Button>
               </Link>

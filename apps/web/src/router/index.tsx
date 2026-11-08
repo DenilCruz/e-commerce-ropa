@@ -53,6 +53,7 @@ import { TrackingPage } from '../features/envios/pages/TrackingPage';
 import { StoreInfoPage } from '../features/info/pages/StoreInfoPage';
 import { LandingSaaSPage } from '../features/landing/LandingSaaSPage';
 import { PlanRetornoPage } from '../features/tiendas/pages/PlanRetornoPage';
+import { PagoSimuladoPage } from '../features/tiendas/pages/PagoSimuladoPage';
 import { AdminPagosConfigPage } from '../features/tiendas/pages/AdminPagosConfigPage';
 
 import { TenantStoreResolver } from '../features/tiendas/components/TenantStoreResolver';
@@ -90,6 +91,7 @@ export const AppRouter: React.FC = () => {
       <Route path="/" element={<LandingSaaSPage />} />
       <Route path="/planes" element={<LandingSaaSPage />} />
       <Route element={<ProtectedRoute />}>
+        <Route path="/planes/pago-simulado" element={<PagoSimuladoPage />} />
         <Route path="/planes/retorno" element={<PlanRetornoPage />} />
       </Route>
       <Route path="/saas" element={<LandingSaaSPage />} />

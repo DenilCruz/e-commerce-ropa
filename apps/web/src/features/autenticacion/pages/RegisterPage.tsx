@@ -8,11 +8,11 @@ import {
   Store,
   ArrowRight,
   CreditCard,
-  QrCode,
 } from 'lucide-react';
 import { Button } from '../../../components/ui/Button';
 import { Input } from '../../../components/ui/Input';
 import { authApi } from '../services/auth.api';
+import { guardarAltaPendiente, precioDelPlan, type PeriodoCompra } from '../../tiendas/utils/planes';
 
 export const RegisterPage: React.FC = () => {
   const location = useLocation();
@@ -63,23 +63,19 @@ export const RegisterPage: React.FC = () => {
     ci: '',
   });
 
-  // Pasarela de pago de suscripción
-  const [metodoPago, setMetodoPago] = useState<'STRIPE' | 'QR'>('STRIPE');
-  const [datosTarjeta, setDatosTarjeta] = useState({
-    numero: '4242 •••• •••• 4242',
-    expiracion: '12/28',
-    cvc: '888',
-    titular: '',
-  });
-  const [transaccionExitosa, setTransaccionExitosa] = useState('');
-
   const [loading, setLoading] = useState(false);
   const [errores, setErrores] = useState<string[]>([]);
   const [registroExitoso, setRegistroExitoso] = useState(false);
   const [mensajeExito, setMensajeExito] = useState('');
   const [tokenVerificacion, setTokenVerificacion] = useState('');
 
-  const precioPlan = planActivo === 'CORPORATIVO' ? 100 : planActivo === 'ESTANDAR' ? 20 : 0;
+  const periodo: PeriodoCompra = (
+    (location.state as any)?.periodo || searchParams.get('periodo') || 'MENSUAL'
+  ).toUpperCase() === 'ANUAL'
+    ? 'ANUAL'
+    : 'MENSUAL';
+  const precioPlan = precioDelPlan(planActivo, periodo);
+  const unidadPlan = periodo === 'ANUAL' ? 'año' : 'mes';
 
   const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     setFormData({
@@ -97,17 +93,10 @@ export const RegisterPage: React.FC = () => {
         setErrores(['El nombre de tu tienda debe tener al menos 3 caracteres.']);
         return;
       }
-      localStorage.setItem('pending_store_name', nombreTienda.trim());
-      localStorage.setItem('pending_store_plan', planActivo);
+      guardarAltaPendiente({ nombre: nombreTienda, plan: planActivo, periodo });
     }
 
     setLoading(true);
-
-    // Si es plan de pago, simular procesamiento en pasarela segura
-    if (modo === 'tienda' && planActivo !== 'FREE_TRIAL') {
-      await new Promise((r) => setTimeout(r, 1200));
-      setTransaccionExitosa(`STR-SUB-${Math.floor(100000 + Math.random() * 900000)}`);
-    }
 
     const payload: {
       nombre: string;
@@ -182,13 +171,15 @@ export const RegisterPage: React.FC = () => {
             )}
 
             {planActivo !== 'FREE_TRIAL' && (
-              <div className="p-3 bg-emerald-50 border border-emerald-200 rounded-lg text-xs text-emerald-800 text-left space-y-1">
+              <div className="p-3 bg-[#FAF8F5] border border-[#E7E1D7] rounded-lg text-xs text-stone-700 text-left space-y-1">
                 <p className="font-semibold flex items-center gap-1.5">
-                  <CheckCircle2 className="w-4 h-4 text-emerald-600" />
-                  <span>Suscripción Pagada y Aprobada (${precioPlan})</span>
+                  <CreditCard className="w-4 h-4 text-[#9B7B54]" />
+                  <span>
+                    Falta el pago: {planActivo === 'CORPORATIVO' ? 'Corporativo' : 'Estándar'} · ${precioPlan} por {unidadPlan}
+                  </span>
                 </p>
-                <p className="text-[11px] text-emerald-700">
-                  ID Transacción: <code className="font-mono font-bold">{transaccionExitosa || 'STR-SUB-982143'}</code> · Plan {planActivo}
+                <p className="text-[11px] text-stone-600">
+                  Al activar tu cuenta pasas a la pasarela de pago. Tu tienda se crea cuando el pago se aprueba.
                 </p>
               </div>
             )}
@@ -208,7 +199,7 @@ export const RegisterPage: React.FC = () => {
               <Link
                 to={`/verificar-email?token=${tokenVerificacion}${
                   modo === 'tienda' && nombreTienda
-                    ? `&tienda=${encodeURIComponent(nombreTienda.trim())}&plan=${encodeURIComponent(planActivo)}`
+                    ? `&tienda=${encodeURIComponent(nombreTienda.trim())}&plan=${encodeURIComponent(planActivo)}&periodo=${periodo}`
                     : esContextoTienda
                     ? `&slug=${encodeURIComponent(storeSlug)}`
                     : ''
@@ -228,7 +219,7 @@ export const RegisterPage: React.FC = () => {
         <Link
           to={
             modo === 'tienda' && nombreTienda
-              ? `/login?tienda=${encodeURIComponent(nombreTienda.trim())}&plan=${encodeURIComponent(planActivo)}`
+              ? `/login?tienda=${encodeURIComponent(nombreTienda.trim())}&plan=${encodeURIComponent(planActivo)}&periodo=${periodo}`
               : esContextoTienda
               ? (slug ? `/t/${storeSlug}/login` : `/login?slug=${storeSlug}`)
               : '/login'
@@ -460,93 +451,22 @@ export const RegisterPage: React.FC = () => {
           </div>
         </div>
 
-        {/* Pasarela de Pago Integrada si es Plan de Pago */}
+        {/* El cobro ocurre en la pasarela, después de verificar el correo: aquí solo se muestra lo que se va a pagar */}
         {modo === 'tienda' && planActivo !== 'FREE_TRIAL' && (
-          <div className="p-4 bg-white border border-[#E7E1D7] rounded-lg space-y-3 shadow-xs mt-2">
-            <div className="flex items-center justify-between border-b border-[#E7E1D7] pb-2">
+          <div className="p-4 bg-white border border-[#E7E1D7] rounded-lg space-y-1.5 shadow-xs mt-2">
+            <div className="flex items-center justify-between gap-2">
               <div className="flex items-center gap-1.5 text-xs font-bold text-stone-900 uppercase tracking-wider">
-                <CreditCard className="w-4 h-4 text-[#9B7B54]" />
-                <span>Pasarela de Pago de Suscripción</span>
+                <CreditCard className="w-4 h-4 text-[#9B7B54]" aria-hidden />
+                <span>Tu suscripción</span>
               </div>
               <span className="text-xs font-bold text-[#9B7B54] bg-[#FAF8F5] px-2 py-0.5 border border-[#E7E1D7] rounded">
-                Total: ${precioPlan} / mes
+                ${precioPlan} / {unidadPlan}
               </span>
             </div>
-
-            {/* Selector Tarjeta vs QR */}
-            <div className="grid grid-cols-2 gap-2">
-              <button
-                type="button"
-                onClick={() => setMetodoPago('STRIPE')}
-                className={`py-2 px-3 border rounded text-xs font-semibold uppercase tracking-wider flex items-center justify-center gap-1.5 transition-all ${
-                  metodoPago === 'STRIPE'
-                    ? 'bg-stone-900 text-white border-stone-900'
-                    : 'bg-[#FAF8F5] text-stone-600 border-[#E7E1D7] hover:bg-white'
-                }`}
-              >
-                <CreditCard className="w-3.5 h-3.5" />
-                <span>Tarjeta Stripe</span>
-              </button>
-
-              <button
-                type="button"
-                onClick={() => setMetodoPago('QR')}
-                className={`py-2 px-3 border rounded text-xs font-semibold uppercase tracking-wider flex items-center justify-center gap-1.5 transition-all ${
-                  metodoPago === 'QR'
-                    ? 'bg-stone-900 text-white border-stone-900'
-                    : 'bg-[#FAF8F5] text-stone-600 border-[#E7E1D7] hover:bg-white'
-                }`}
-              >
-                <QrCode className="w-3.5 h-3.5" />
-                <span>QR Simple (Bolivia)</span>
-              </button>
-            </div>
-
-            {metodoPago === 'STRIPE' ? (
-              <div className="space-y-2 pt-1 text-left">
-                <div>
-                  <label className="block text-[11px] font-medium text-stone-700 mb-0.5">
-                    Número de Tarjeta (Stripe Sandbox)
-                  </label>
-                  <input
-                    type="text"
-                    value={datosTarjeta.numero}
-                    onChange={(e) => setDatosTarjeta({ ...datosTarjeta, numero: e.target.value })}
-                    className="w-full px-3 py-1.5 text-xs border border-[#D5CCC0] rounded-sm focus:outline-none focus:border-stone-900 font-mono tracking-widest bg-white"
-                  />
-                </div>
-                <div className="grid grid-cols-2 gap-2">
-                  <div>
-                    <label className="block text-[11px] font-medium text-stone-700 mb-0.5">Expiración</label>
-                    <input
-                      type="text"
-                      value={datosTarjeta.expiracion}
-                      onChange={(e) => setDatosTarjeta({ ...datosTarjeta, expiracion: e.target.value })}
-                      className="w-full px-3 py-1.5 text-xs border border-[#D5CCC0] rounded-sm focus:outline-none focus:border-stone-900 font-mono bg-white"
-                    />
-                  </div>
-                  <div>
-                    <label className="block text-[11px] font-medium text-stone-700 mb-0.5">CVC</label>
-                    <input
-                      type="text"
-                      value={datosTarjeta.cvc}
-                      onChange={(e) => setDatosTarjeta({ ...datosTarjeta, cvc: e.target.value })}
-                      className="w-full px-3 py-1.5 text-xs border border-[#D5CCC0] rounded-sm focus:outline-none focus:border-stone-900 font-mono bg-white"
-                    />
-                  </div>
-                </div>
-              </div>
-            ) : (
-              <div className="p-3 bg-[#FAF8F5] border border-[#E7E1D7] rounded text-center space-y-2">
-                <p className="text-[11px] text-stone-600">Escanea con tu banca móvil (BCP, BNB, Banco Unión):</p>
-                <div className="w-24 h-24 mx-auto bg-stone-900 p-2 rounded flex items-center justify-center text-white">
-                  <QrCode className="w-20 h-20" />
-                </div>
-                <p className="text-xs font-semibold text-stone-800">
-                  Total a Transferir: <span className="text-[#9B7B54]">${precioPlan}</span>
-                </p>
-              </div>
-            )}
+            <p className="text-xs text-stone-600 leading-relaxed">
+              Plan {planActivo === 'CORPORATIVO' ? 'Corporativo' : 'Estándar'}. Primero creamos tu cuenta y confirmas tu correo; después
+              pagas en la pasarela y tu tienda se crea en cuanto se aprueba el pago.
+            </p>
           </div>
         )}
 
@@ -556,13 +476,11 @@ export const RegisterPage: React.FC = () => {
           disabled={loading}
         >
           {loading ? (
-            <span>{planActivo !== 'FREE_TRIAL' ? 'Procesando pago y suscripción...' : 'Procesando...'}</span>
+            <span>Creando tu cuenta...</span>
           ) : modo === 'tienda' ? (
             <>
               <span>
-                {planActivo !== 'FREE_TRIAL'
-                  ? `Pagar $${precioPlan} y Crear mi Tienda`
-                  : 'Crear mi Tienda (14 días gratis)'}
+                {planActivo !== 'FREE_TRIAL' ? 'Crear mi cuenta y continuar al pago' : 'Crear mi Tienda (14 días gratis)'}
               </span>
               <ArrowRight className="w-3.5 h-3.5" />
             </>

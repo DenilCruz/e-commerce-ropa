@@ -135,8 +135,9 @@ export const PricingSection: React.FC = () => {
 
   const handleSeleccionarPlan = (planId: 'FREE_TRIAL' | 'ESTANDAR' | 'CORPORATIVO') => {
     if (!isAuthenticated) {
-      navigate(`/registro?crearTienda=true&plan=${planId}`, {
-        state: { planSeleccionado: planId, crearTienda: true },
+      const periodo = anual ? 'ANUAL' : 'MENSUAL';
+      navigate(`/registro?crearTienda=true&plan=${planId}&periodo=${periodo}`, {
+        state: { planSeleccionado: planId, crearTienda: true, periodo },
       });
       return;
     }

@@ -1,8 +1,145 @@
 import React, { useState } from 'react';
 import { Link } from 'react-router-dom';
-import { Sparkles, ArrowUpRight, AlertTriangle, Copy, Check, ExternalLink } from 'lucide-react';
+import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
+import { Sparkles, ArrowUpRight, AlertTriangle, Copy, Check, ExternalLink, RefreshCw } from 'lucide-react';
 import { usePlanLimites } from '../hooks/usePlanLimites';
+import { planesApi, type MiSuscripcion } from '../services/planes.api';
 import { toast } from 'sonner';
+
+const fechaCorta = (iso: string) => new Date(iso).toLocaleDateString('es-BO', { day: 'numeric', month: 'short', year: 'numeric' });
+
+/** Renewal state of the paid plan, with the controls to stop or resume it. The plan keeps working until the paid period ends. */
+const SuscripcionDelPlan: React.FC = () => {
+  const queryClient = useQueryClient();
+  const [confirmando, setConfirmando] = useState(false);
+  const { data } = useQuery<MiSuscripcion>({ queryKey: ['mi-suscripcion'], queryFn: planesApi.obtenerMiSuscripcion, retry: false });
+
+  const actualizar = (nueva: MiSuscripcion) => {
+    queryClient.setQueryData(['mi-suscripcion'], nueva);
+  };
+  const mensajeDe = (err: any, porDefecto: string) => {
+    const msg = err?.response?.data?.message;
+    return Array.isArray(msg) ? msg.join(', ') : msg || porDefecto;
+  };
+  const cancelar = useMutation({
+    mutationFn: planesApi.cancelarRenovacion,
+    onSuccess: (r) => {
+      actualizar(r);
+      setConfirmando(false);
+      toast.success('Listo. Tu plan sigue activo hasta el final del período pagado y no se renovará.');
+    },
+    onError: (err) => toast.error(mensajeDe(err, 'No se pudo cancelar la renovación.')),
+  });
+  const reanudar = useMutation({
+    mutationFn: planesApi.reanudarRenovacion,
+    onSuccess: (r) => {
+      actualizar(r);
+      toast.success('La renovación automática volvió a activarse.');
+    },
+    onError: (err) => toast.error(mensajeDe(err, 'No se pudo reanudar la renovación.')),
+  });
+  const simular = useMutation({
+    mutationFn: planesApi.simularCobro,
+    onSuccess: (r, resultado) => {
+      actualizar(r);
+      toast[resultado === 'EXITOSO' ? 'success' : 'warning'](
+        resultado === 'EXITOSO' ? 'Cobro del período aprobado: el plan se extendió.' : 'El cobro del período falló.',
+      );
+    },
+    onError: (err) => toast.error(mensajeDe(err, 'No se pudo simular el cobro.')),
+  });
+
+  const suscripcion = data?.suscripcion;
+  if (!suscripcion) return null;
+  const ocupado = cancelar.isPending || reanudar.isPending || simular.isPending;
+
+  return (
+    <div className="pt-2 border-t border-gray-800/80 space-y-1.5 text-[10px]">
+      <div className="flex items-center justify-between text-gray-400">
+        <span className="uppercase tracking-wider font-medium text-[9px]">Suscripción</span>
+        <span className="font-mono text-gray-300">
+          ${suscripcion.monto} / {suscripcion.periodo === 'ANUAL' ? 'año' : 'mes'}
+        </span>
+      </div>
+      <p className="text-gray-300">
+        {suscripcion.cancelarAlVencer
+          ? `No se renueva. Activo hasta el ${fechaCorta(suscripcion.venceEn)}.`
+          : `Se renueva el ${fechaCorta(suscripcion.venceEn)}.`}
+      </p>
+      {suscripcion.ultimoCobroFallidoEn && !suscripcion.cancelarAlVencer && (
+        <p className="flex items-start gap-1 text-amber-300" role="alert">
+          <AlertTriangle className="w-3 h-3 shrink-0 mt-px" aria-hidden />
+          <span>El último cobro falló. Revisa tu método de pago para no perder el plan.</span>
+        </p>
+      )}
+
+      {suscripcion.cancelarAlVencer ? (
+        <button
+          type="button"
+          disabled={ocupado}
+          onClick={() => reanudar.mutate()}
+          className="w-full px-2 py-1.5 rounded border border-gray-700 text-gray-200 hover:bg-gray-800 disabled:opacity-60 focus:outline-none focus-visible:ring-2 focus-visible:ring-[#9B7B54]"
+        >
+          Reanudar renovación
+        </button>
+      ) : confirmando ? (
+        <div className="space-y-1.5" role="group" aria-label="Confirmar cancelación">
+          <p className="text-gray-300">¿Cancelar la renovación? Mantienes el plan hasta {fechaCorta(suscripcion.venceEn)}.</p>
+          <div className="flex gap-1.5">
+            <button
+              type="button"
+              disabled={ocupado}
+              onClick={() => cancelar.mutate()}
+              className="flex-1 px-2 py-1.5 rounded bg-rose-700 text-white hover:bg-rose-600 disabled:opacity-60 focus:outline-none focus-visible:ring-2 focus-visible:ring-rose-300"
+            >
+              Sí, cancelar
+            </button>
+            <button
+              type="button"
+              onClick={() => setConfirmando(false)}
+              className="flex-1 px-2 py-1.5 rounded border border-gray-700 text-gray-200 hover:bg-gray-800 focus:outline-none focus-visible:ring-2 focus-visible:ring-[#9B7B54]"
+            >
+              Volver
+            </button>
+          </div>
+        </div>
+      ) : (
+        <button
+          type="button"
+          onClick={() => setConfirmando(true)}
+          className="w-full px-2 py-1.5 rounded border border-gray-700 text-gray-300 hover:bg-gray-800 focus:outline-none focus-visible:ring-2 focus-visible:ring-[#9B7B54]"
+        >
+          Cancelar renovación
+        </button>
+      )}
+
+      {data?.simulado && (
+        <div className="pt-1.5 space-y-1" aria-label="Herramientas de la simulación">
+          <p className="text-[9px] uppercase tracking-wider text-amber-400/80">Simulación de cobros</p>
+          <div className="flex gap-1.5">
+            <button
+              type="button"
+              disabled={ocupado}
+              onClick={() => simular.mutate('EXITOSO')}
+              className="flex-1 flex items-center justify-center gap-1 px-2 py-1.5 rounded border border-gray-700 text-gray-200 hover:bg-gray-800 disabled:opacity-60 focus:outline-none focus-visible:ring-2 focus-visible:ring-[#9B7B54]"
+            >
+              <RefreshCw className="w-3 h-3" aria-hidden />
+              Cobro exitoso
+            </button>
+            <button
+              type="button"
+              disabled={ocupado}
+              onClick={() => simular.mutate('FALLIDO')}
+              className="flex-1 px-2 py-1.5 rounded border border-gray-700 text-gray-200 hover:bg-gray-800 disabled:opacity-60 focus:outline-none focus-visible:ring-2 focus-visible:ring-[#9B7B54]"
+            >
+              Cobro fallido
+            </button>
+          </div>
+        </div>
+      )}
+    </div>
+  );
+};
 
 export const AdminPlanBadge: React.FC = () => {
   const { metricas, cargando } = usePlanLimites();
@@ -135,6 +272,8 @@ export const AdminPlanBadge: React.FC = () => {
           )}
         </button>
       </div>
+
+      {!esFreeTrial && <SuscripcionDelPlan />}
 
       {esFreeTrial && (
         <div className="pt-1 border-t border-gray-800/80 flex items-center gap-1.5 text-[10px] text-amber-300">

@@ -7,7 +7,8 @@ import { authApi } from '../services/auth.api';
 import { tiendasApi } from '../../tiendas/services/tiendas.api';
 import { useAuthStore } from '../../../store/auth.store';
 import { useCartStore } from '../../../store/cart.store';
-import { destinoTrasCrearTienda } from '../../tiendas/utils/planes';
+import { iniciarAltaDeTienda } from '../../tiendas/services/alta-tienda';
+import { limpiarAltaPendiente, type PeriodoCompra } from '../../tiendas/utils/planes';
 
 import { storeDisplayName } from '../../../lib/storeName';
 import { esPersonal } from '../../../lib/roles';
@@ -38,21 +39,25 @@ export const LoginPage: React.FC = () => {
       // Si había una tienda pendiente de crear en el flujo de registro SaaS
       const tiendaPendiente = searchParams.get('tienda') || localStorage.getItem('pending_store_name');
       const planPendiente = searchParams.get('plan') || localStorage.getItem('pending_store_plan') || 'FREE_TRIAL';
+      const periodoPendiente: PeriodoCompra =
+        (searchParams.get('periodo') || localStorage.getItem('pending_store_periodo')) === 'ANUAL' ? 'ANUAL' : 'MENSUAL';
       if (tiendaPendiente && tiendaPendiente.trim() && data.usuario.emailVerificado) {
         try {
-          const resTienda = await tiendasApi.crear({
-            nombre: tiendaPendiente.trim(),
-            plan: planPendiente,
-          });
-          localStorage.removeItem('pending_store_name');
-          localStorage.removeItem('pending_store_plan');
+          const resultado = await iniciarAltaDeTienda({ nombre: tiendaPendiente, plan: planPendiente, periodo: periodoPendiente });
+          if (resultado.destino === 'PASARELA') {
+            // A paid plan: the store is created once the payment is approved, so go pay first
+            window.location.assign(resultado.url);
+            return;
+          }
+          const resTienda = resultado.sesion;
+          limpiarAltaPendiente();
           localStorage.removeItem('el-magnifico-cart-storage');
           localStorage.setItem('tenant_slug', resTienda.tienda?.slug || 'aura');
           setAuth(resTienda.usuario, resTienda.accessToken, resTienda.refreshToken);
-          window.location.assign(destinoTrasCrearTienda(planPendiente));
+          window.location.assign('/admin');
           return;
         } catch (storeErr: any) {
-          console.warn('No se pudo auto-crear la tienda tras login:', storeErr);
+          console.warn('No se pudo iniciar la tienda pendiente tras el login:', storeErr);
         }
       }
 

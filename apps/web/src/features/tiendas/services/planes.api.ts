@@ -63,15 +63,55 @@ export interface CheckoutPlanResponse {
   suscripcionId: string;
   monto: number;
   moneda: string;
+  /** true when the payment page is the app's own simulated gateway instead of Stripe */
+  simulado: boolean;
+}
+
+export interface AltaTiendaResponse {
+  url: string;
+  sesionId: string;
+  altaId: string;
+  monto: number;
+  moneda: string;
+  simulado: boolean;
 }
 
 export interface EstadoCompraPlan {
+  /** ALTA_TIENDA: a store that is created when the payment is approved; PLAN: a plan for a store that exists */
+  tipo?: 'ALTA_TIENDA' | 'PLAN';
   estado: 'PENDIENTE_PAGO' | 'ACTIVA' | 'FALLIDA' | 'EXPIRADA';
   plan: string;
   periodo: PeriodoPlan;
   monto: number;
   moneda: string;
   venceEn: string | null;
+  nombreTienda?: string | null;
+  tienda?: { id: string; slug: string; nombre: string } | null;
+}
+
+export type MetodoPagoSimulado = 'TARJETA' | 'QR';
+
+export interface PagoSimuladoRequest {
+  sessionId: string;
+  metodo: MetodoPagoSimulado;
+  numero?: string;
+  expiracion?: string;
+  cvc?: string;
+  titular?: string;
+}
+
+export interface MiSuscripcion {
+  /** true when plan payments run on the simulated gateway */
+  simulado: boolean;
+  suscripcion: {
+    plan: string;
+    periodo: PeriodoPlan;
+    monto: number;
+    moneda: string;
+    venceEn: string;
+    cancelarAlVencer: boolean;
+    ultimoCobroFallidoEn: string | null;
+  } | null;
 }
 
 export const planesApi = {
@@ -122,6 +162,41 @@ export const planesApi = {
    */
   obtenerEstadoCompra: async (sesionId: string): Promise<EstadoCompraPlan> => {
     const res = await api.get('/planes/estado', { params: { session_id: sesionId } });
+    return res.data;
+  },
+
+  /**
+   * Starts a paid plan for someone who has no store yet. The store is created when the payment is approved, not before.
+   */
+  crearAltaTienda: async (nombre: string, plan: PlanComprable, periodo: PeriodoPlan): Promise<AltaTiendaResponse> => {
+    const res = await api.post('/planes/alta-tienda', { nombre, plan, periodo });
+    return res.data;
+  },
+
+  /** Pays on the simulated gateway. A decline answers 402 with the reason. */
+  pagarSimulado: async (pago: PagoSimuladoRequest): Promise<EstadoCompraPlan> => {
+    const res = await api.post('/planes/pago-simulado', pago);
+    return res.data;
+  },
+
+  obtenerMiSuscripcion: async (): Promise<MiSuscripcion> => {
+    const res = await api.get('/planes/mi-suscripcion');
+    return res.data;
+  },
+
+  cancelarRenovacion: async (): Promise<MiSuscripcion> => {
+    const res = await api.post('/planes/cancelar');
+    return res.data;
+  },
+
+  reanudarRenovacion: async (): Promise<MiSuscripcion> => {
+    const res = await api.post('/planes/reanudar');
+    return res.data;
+  },
+
+  /** Demo helper of the simulated gateway: the next period's charge goes through or fails. */
+  simularCobro: async (resultado: 'EXITOSO' | 'FALLIDO'): Promise<MiSuscripcion> => {
+    const res = await api.post(resultado === 'EXITOSO' ? '/planes/simulacion/renovar' : '/planes/simulacion/cobro-fallido');
     return res.data;
   },
 };
