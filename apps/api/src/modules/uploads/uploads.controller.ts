@@ -11,16 +11,22 @@ import {
   UseGuards 
 } from '@nestjs/common';
 import { FileInterceptor } from '@nestjs/platform-express';
-import { ApiTags, ApiOperation, ApiConsumes, ApiBody, ApiQuery, ApiResponse } from '@nestjs/swagger';
+import { ApiTags, ApiOperation, ApiConsumes, ApiBody, ApiQuery, ApiResponse, ApiBearerAuth } from '@nestjs/swagger';
 import { Request } from 'express';
 import { ArchivosService } from './uploads.service';
+import { JwtAuthGuard } from '../autenticacion/guards/jwt-auth.guard';
+import { RolesGuard } from '../autenticacion/guards/roles.guard';
+import { Roles } from '../autenticacion/decorators/roles.decorator';
 import { ArchivoRespuestaDto, EstadoCloudinaryDto } from './dto/archivo-respuesta.dto';
 
 @ApiTags('Archivos y Recursos Multimedia')
+@ApiBearerAuth()
 @Controller('archivos')
 export class ArchivosController {
   constructor(private readonly servicioArchivos: ArchivosService) {}
 
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles('ADMIN')
   @Get('estado-cloudinary')
   @ApiOperation({ summary: 'HU-80: Consultar estado de conexión e integración con Cloudinary' })
   @ApiResponse({ status: 200, type: EstadoCloudinaryDto })
@@ -28,6 +34,8 @@ export class ArchivosController {
     return this.servicioArchivos.obtenerEstadoCloudinary();
   }
 
+  // Any signed-in user: customers upload their profile photo here.
+  @UseGuards(JwtAuthGuard)
   @Post('subir')
   @ApiOperation({ summary: 'HU-80, HU-82, HU-83: Subir, optimizar a WebP y almacenar imagen' })
   @ApiConsumes('multipart/form-data')
@@ -62,6 +70,8 @@ export class ArchivosController {
     return this.servicioArchivos.procesarSubida(file, req);
   }
 
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles('ADMIN')
   @Get()
   @ApiOperation({ summary: 'HU-81: Listar galería multimedia con detección de imágenes en uso u obsoletas' })
   @ApiQuery({ name: 'categoria', required: false, description: 'Filtrar por categoría (ej: productos, perfiles)' })
@@ -73,12 +83,16 @@ export class ArchivosController {
     return this.servicioArchivos.obtenerArchivos(categoria, filtroUso);
   }
 
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles('ADMIN')
   @Delete('obsoletas')
   @ApiOperation({ summary: 'HU-81: Limpiar en lote todas las imágenes obsoletas / no vinculadas' })
   limpiarObsoletas() {
     return this.servicioArchivos.limpiarArchivosObsoletos();
   }
 
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles('ADMIN')
   @Delete(':id')
   @ApiOperation({ summary: 'HU-81: Eliminar una imagen de Cloudinary o del almacenamiento local' })
   eliminarArchivo(@Param('id') id: string) {
