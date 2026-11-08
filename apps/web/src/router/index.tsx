@@ -7,6 +7,12 @@ import { AdminLayout } from '../layouts/AdminLayout';
 import { ProtectedRoute } from './ProtectedRoute';
 import { AdminRoute, RequiereCapacidad, RequiereDueno } from './AdminRoute';
 import { esDueno } from '../lib/roles';
+import { PlataformaRoute } from '../features/plataforma/PlataformaRoute';
+import { PlataformaLayout } from '../features/plataforma/PlataformaLayout';
+import { PlataformaDashboardPage } from '../features/plataforma/pages/PlataformaDashboardPage';
+import { PlataformaTiendasPage } from '../features/plataforma/pages/PlataformaTiendasPage';
+import { PlataformaSuscripcionesPage } from '../features/plataforma/pages/PlataformaSuscripcionesPage';
+import { destinoEntradaAdmin } from '../features/plataforma/lib/acceso';
 import { useAuthStore } from '../store/auth.store';
 
 import { LoginPage } from '../features/autenticacion/pages/LoginPage';
@@ -53,6 +59,8 @@ import { TenantStoreResolver } from '../features/tiendas/components/TenantStoreR
 
 const EntradaAdmin: React.FC = () => {
   const { user } = useAuthStore();
+  // The platform operator lands on the console unless they came from it into a store
+  if (destinoEntradaAdmin(user?.rol) === 'plataforma') return <Navigate to="/plataforma" replace />;
   if (!esDueno(user?.rol)) return <Navigate to="/admin/puesto" replace />;
   return <AdminDashboardPage />;
 };
@@ -142,6 +150,16 @@ export const AppRouter: React.FC = () => {
         <Route path="/recuperar-password" element={<ForgotPasswordPage />} />
         <Route path="/restablecer-password" element={<ResetPasswordPage />} />
         <Route path="/verificar-email" element={<VerifyEmailPage />} />
+      </Route>
+
+      {/* Consola de plataforma: solo SUPERADMIN */}
+      <Route path="/plataforma" element={<PlataformaRoute />}>
+        <Route element={<PlataformaLayout />}>
+          <Route index element={<PlataformaDashboardPage />} />
+          <Route path="tiendas" element={<PlataformaTiendasPage />} />
+          <Route path="suscripciones" element={<PlataformaSuscripcionesPage />} />
+          <Route path="*" element={<Navigate to="/plataforma" replace />} />
+        </Route>
       </Route>
 
       {/* Panel Administrador */}

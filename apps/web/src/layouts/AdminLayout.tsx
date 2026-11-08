@@ -21,13 +21,14 @@ import {
   QrCode,
   Menu,
   X,
+  ShieldCheck,
 } from 'lucide-react';
 import { useAuthStore } from '../store/auth.store';
 import { authApi } from '../features/autenticacion/services/auth.api';
 import { AdminPlanBadge } from '../features/tiendas/components/AdminPlanBadge';
 import { StoreSwitcher } from '../features/tiendas/components/StoreSwitcher';
 import { usePlanLimites } from '../features/tiendas/hooks/usePlanLimites';
-import { esDueno } from '../lib/roles';
+import { esDueno, esSuperadmin } from '../lib/roles';
 import '../features/admin/styles/admin.css';
 
 export const AdminLayout: React.FC = () => {
@@ -67,7 +68,7 @@ export const AdminLayout: React.FC = () => {
   const caps = metricas?.capacidades;
   const navItems = [
     { to: '/admin/puesto', label: 'Puesto', icon: Store, end: false },
-    { to: '/admin', label: 'Dashboard Descriptivo', icon: LayoutDashboard, end: true, dueno: true },
+    { to: '/admin/dashboard', label: 'Dashboard Descriptivo', icon: LayoutDashboard, dueno: true },
     { to: '/admin/dashboard-predictivo', label: 'Dashboard Predictivo (IA)', icon: TrendingUp, dueno: true, capacidad: 'modelosPredictivosMl' as const },
     { to: '/admin/reportes', label: 'Reportes de Ventas', icon: BarChart3, dueno: true },
     { to: '/admin/reportes-dinamicos', label: 'Reportes por Voz (IA)', icon: Sparkles, dueno: true, capacidad: 'reportesVozNlp' as const },
@@ -125,6 +126,15 @@ export const AdminLayout: React.FC = () => {
         <div className="flex-1 min-h-0 overflow-y-auto px-3.5 py-3 space-y-4 sidebar-dark-scrollbar">
           {/* Items de Navegación */}
           <nav className="flex flex-col space-y-1 text-xs font-semibold">
+            {esSuperadmin(user?.rol) && (
+              <NavLink
+                to="/plataforma"
+                className="flex items-center gap-3 px-3 py-2.5 rounded-lg transition-all bg-[#9B7B54]/20 text-[#E3CFAE] hover:bg-[#9B7B54]/30 focus-visible:outline focus-visible:outline-2 focus-visible:outline-[#9B7B54]"
+              >
+                <ShieldCheck className="w-4 h-4 shrink-0" />
+                <span>Consola de plataforma</span>
+              </NavLink>
+            )}
             {navItems.map((item) => {
               const Icon = item.icon;
               return (

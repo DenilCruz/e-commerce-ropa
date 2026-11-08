@@ -44,10 +44,14 @@ export class JwtStrategy extends PassportStrategy(Strategy) {
     // The role always comes from the live membership, not from the token claim
     const membership = await this.memberships.findOne({
       where: { usuarioId: payload.sub, tiendaId: payload.tid, activo: true },
-      relations: ['rol'],
+      relations: ['rol', 'tienda'],
     });
     if (!membership) {
       throw new UnauthorizedException('Ya no tienes acceso a esta tienda.');
+    }
+    // A suspended store stops working for tokens that were issued before the suspension
+    if (membership.tienda && membership.tienda.estado !== 'ACTIVA') {
+      throw new UnauthorizedException('Esta tienda está suspendida.');
     }
 
     return {

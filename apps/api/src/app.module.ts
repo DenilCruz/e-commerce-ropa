@@ -24,6 +24,7 @@ import { MailModule } from './modules/mail/mail.module';
 import { AdminModule } from './modules/admin/admin.module';
 import { ProbadorModule } from './modules/probador/probador.module';
 import { StoresModule } from './modules/tiendas/stores.module';
+import { PlataformaModule } from './modules/plataforma/plataforma.module';
 import { TenantMiddleware } from './modules/tiendas/tenant.middleware';
 import { TenantSubscriber } from './common/tenant/tenant.subscriber';
 
@@ -68,6 +69,7 @@ import { TenantSubscriber } from './common/tenant/tenant.subscriber';
     ProbadorModule,
     StoresModule,
     FacturacionModule,
+    PlataformaModule,
   ],
 })
 export class AppModule implements NestModule {

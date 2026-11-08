@@ -31,4 +31,11 @@ export class TenantResolverService {
     this.cache.set(wanted, { id: store.id, expiresAt: Date.now() + CACHE_TTL_MS });
     return store.id;
   }
+
+  /** Drops cached slugs (all, or those of one store) so a suspension takes effect at once on this instance. */
+  forget(tenantId?: string): void {
+    for (const [slug, entry] of this.cache) {
+      if (!tenantId || entry.id === tenantId) this.cache.delete(slug);
+    }
+  }
 }

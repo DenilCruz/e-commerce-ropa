@@ -202,11 +202,14 @@ export class AuthService {
     const tenantId = TenantContext.require();
     const membresia = await this.membershipRepo.findOne({
       where: { usuarioId: usuario.id, tiendaId: tenantId, activo: true },
-      relations: ['rol'],
+      relations: ['rol', 'tienda'],
     });
     const esOperador = usuario.rol?.nombre === 'SUPERADMIN';
     if (!membresia && !esOperador) {
       throw new UnauthorizedException('No tienes acceso a esta tienda.');
+    }
+    if (!esOperador && membresia?.tienda && membresia.tienda.estado !== 'ACTIVA') {
+      throw new UnauthorizedException('Esta tienda está suspendida.');
     }
     const rolEnTienda = esOperador ? 'SUPERADMIN' : membresia?.rol?.nombre || 'CLIENTE';
 
@@ -383,11 +386,14 @@ export class AuthService {
     const membresia = payload.tid
       ? await this.membershipRepo.findOne({
           where: { usuarioId: usuario.id, tiendaId: payload.tid, activo: true },
-          relations: ['rol'],
+          relations: ['rol', 'tienda'],
         })
       : null;
     if (!membresia) {
       throw new UnauthorizedException('Ya no tienes acceso a esta tienda. Inicia sesión nuevamente.');
+    }
+    if (membresia.tienda && membresia.tienda.estado !== 'ACTIVA') {
+      throw new UnauthorizedException('Esta tienda está suspendida.');
     }
 
     // 5. Marcar el token anterior como usado (rotación de tokens)
