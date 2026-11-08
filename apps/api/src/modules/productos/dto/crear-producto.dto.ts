@@ -3,6 +3,11 @@ import { IsString, IsNotEmpty, IsOptional, IsBoolean, IsNumber, IsUUID, IsArray,
 import { Type } from 'class-transformer';
 
 export class CrearVarianteDto {
+  @ApiPropertyOptional({ description: 'UUID v4 generado por el dispositivo (alta sin conexión).' })
+  @IsUUID('4')
+  @IsOptional()
+  id?: string;
+
   @ApiPropertyOptional({ description: 'ID de la Talla' })
   @IsUUID()
   @IsOptional()
@@ -42,6 +47,11 @@ export class CrearImagenDto {
 }
 
 export class CrearProductoDto {
+  @ApiPropertyOptional({ description: 'UUID v4 generado por el dispositivo (alta sin conexión); también es la Idempotency-Key.' })
+  @IsUUID('4')
+  @IsOptional()
+  id?: string;
+
   @ApiProperty({ description: 'ID de la categoría a la que pertenece' })
   @IsUUID()
   @IsNotEmpty()

@@ -26,6 +26,8 @@ import { ProbadorModule } from './modules/probador/probador.module';
 import { StoresModule } from './modules/tiendas/stores.module';
 import { PlataformaModule } from './modules/plataforma/plataforma.module';
 import { TenantMiddleware } from './modules/tiendas/tenant.middleware';
+import { ClientesMostradorModule } from './modules/clientes-mostrador/clientes-mostrador.module';
+import { IdempotenciaLimpiezaService } from './common/idempotency/idempotencia-limpieza.service';
 import { TenantSubscriber } from './common/tenant/tenant.subscriber';
 
 @Module({
@@ -70,7 +72,9 @@ import { TenantSubscriber } from './common/tenant/tenant.subscriber';
     StoresModule,
     FacturacionModule,
     PlataformaModule,
+    ClientesMostradorModule,
   ],
+  providers: [IdempotenciaLimpiezaService],
 })
 export class AppModule implements NestModule {
   configure(consumer: MiddlewareConsumer) {

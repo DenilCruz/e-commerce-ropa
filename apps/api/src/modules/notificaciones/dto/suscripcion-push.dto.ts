@@ -1,5 +1,5 @@
 import { Type } from 'class-transformer';
-import { IsNotEmpty, IsString, IsUrl, MaxLength, ValidateNested } from 'class-validator';
+import { IsNotEmpty, IsString, IsUrl, Matches, MaxLength, ValidateNested } from 'class-validator';
 
 class ClavesPushDto {
   @IsString()
@@ -27,4 +27,13 @@ export class BajaPushDto {
   @IsUrl({ require_tld: false, protocols: ['https'] })
   @MaxLength(1000)
   endpoint: string;
+}
+
+export const EXPO_TOKEN_REGEX = /^(Expo|Exponent)PushToken\[.+\]$/;
+
+export class ExpoTokenDto {
+  @IsString()
+  @MaxLength(255)
+  @Matches(EXPO_TOKEN_REGEX, { message: 'El token de Expo no es válido.' })
+  token: string;
 }

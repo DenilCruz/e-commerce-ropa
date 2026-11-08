@@ -29,6 +29,7 @@ import { VerificarEmailDto } from './dto/verificar-email.dto';
 import { CrearTiendaDto } from '../tiendas/dto/crear-tienda.dto';
 import { CambiarPlanDto } from '../tiendas/dto/cambiar-plan.dto';
 import { ActualizarConfigPagoDto } from '../tiendas/dto/actualizar-config-pago.dto';
+import { ActualizarConfigOfflineDto } from '../tiendas/dto/actualizar-config-offline.dto';
 import { PlanLimitsService } from '../tiendas/plan-limits.service';
 import { StoresService } from '../tiendas/stores.service';
 import { JwtAuthGuard } from './guards/jwt-auth.guard';
@@ -359,5 +360,20 @@ export class AuthController {
   ) {
     return this.storesService.actualizarConfigPagoAdmin(usuario.tenantId, dto);
   }
-}
 
+  @Patch('tiendas/mi-config-offline')
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles('ADMIN')
+  @ApiBearerAuth()
+  @HttpCode(HttpStatus.OK)
+  @ApiOperation({
+    summary: 'Días que los dispositivos de la tienda conservan sus datos sin conexión (1 a 30)',
+  })
+  @ApiResponse({ status: 200, description: 'Retención guardada.' })
+  async actualizarMiConfigOffline(
+    @CurrentUser() usuario: any,
+    @Body() dto: ActualizarConfigOfflineDto,
+  ) {
+    return this.storesService.actualizarConfigOffline(usuario.tenantId, dto);
+  }
+}

@@ -1,7 +1,6 @@
 import { Injectable, Logger } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { MensajePush, PushSender } from './push-sender';
-import { PushSubscriptionEntity } from './entities/push-subscription.entity';
 
 /** Web Push with VAPID. Needs VAPID_PUBLIC_KEY and VAPID_PRIVATE_KEY (generate them with `npx web-push generate-vapid-keys`). */
 @Injectable()
@@ -24,7 +23,7 @@ export class WebPushSender implements PushSender {
     this.lib.setVapidDetails(config.get<string>('VAPID_SUBJECT') || 'mailto:admin@aura.local', publica, privada);
   }
 
-  async send(sub: Pick<PushSubscriptionEntity, 'endpoint' | 'p256dh' | 'auth'>, mensaje: MensajePush): Promise<void> {
+  async send(sub: { endpoint: string; p256dh: string; auth: string }, mensaje: MensajePush): Promise<void> {
     await this.lib.sendNotification(
       { endpoint: sub.endpoint, keys: { p256dh: sub.p256dh, auth: sub.auth } },
       JSON.stringify(mensaje),

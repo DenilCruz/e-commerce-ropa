@@ -1,5 +1,5 @@
-import { Controller, Get, Post, Body, Param, Put, Delete, HttpCode, HttpStatus, ParseUUIDPipe, Query, UseGuards } from '@nestjs/common';
-import { ApiTags, ApiOperation, ApiResponse, ApiParam, ApiBearerAuth } from '@nestjs/swagger';
+import { Controller, Get, Post, Body, Param, Put, Delete, HttpCode, HttpStatus, ParseUUIDPipe, Query, UseGuards, UseInterceptors } from '@nestjs/common';
+import { ApiTags, ApiOperation, ApiResponse, ApiParam, ApiBearerAuth, ApiHeader } from '@nestjs/swagger';
 import { ProductosService } from './products.service';
 import { CrearProductoDto } from './dto/crear-producto.dto';
 import { ActualizarProductoDto } from './dto/actualizar-producto.dto';
@@ -7,6 +7,7 @@ import { CrearColorDto } from './dto/crear-color.dto';
 import { JwtAuthGuard } from '../autenticacion/guards/jwt-auth.guard';
 import { RolesGuard } from '../autenticacion/guards/roles.guard';
 import { Roles } from '../autenticacion/decorators/roles.decorator';
+import { IdempotencyInterceptor } from '../../common/idempotency/idempotency.interceptor';
 
 @ApiTags('Productos')
 @Controller(['productos', 'catalogo/productos'])
@@ -16,9 +17,13 @@ export class ProductosController {
   @Post()
   @UseGuards(JwtAuthGuard, RolesGuard)
   @Roles('ADMIN', 'SUPERADMIN', 'ADMINISTRADOR')
+  @UseInterceptors(IdempotencyInterceptor)
   @ApiBearerAuth()
+  @ApiHeader({ name: 'Idempotency-Key', required: false, description: 'UUID: el id del producto cuando se crea sin conexión.' })
   @ApiOperation({ summary: 'Crear un nuevo producto junto con sus variantes e imágenes' })
   @ApiResponse({ status: 201, description: 'Producto creado exitosamente.' })
+  @ApiResponse({ status: 403, description: 'Límite del plan alcanzado (codigo LIMITE_PLAN).' })
+  @ApiResponse({ status: 409, description: 'SKU_DUPLICADO o PRODUCTO_EXISTENTE.' })
   crear(@Body() datos: CrearProductoDto) {
     return this.servicioProductos.crear(datos);
   }

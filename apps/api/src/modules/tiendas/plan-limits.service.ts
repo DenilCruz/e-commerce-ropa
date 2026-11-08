@@ -228,6 +228,7 @@ export class PlanLimitsService {
           porcentaje: Math.min(100, Math.round((totalSucursales / config.maxSucursales) * 100)),
         },
       },
+      retencionOfflineDias: tienda.retencionOfflineDias ?? 7,
       pruebaVencida,
       pruebaVenceEn: tienda.pruebaVenceEn ? new Date(tienda.pruebaVenceEn).toISOString() : null,
       capacidades: pruebaVencida

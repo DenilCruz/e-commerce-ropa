@@ -12,6 +12,7 @@
     "test": "jest",
     "test:watch": "jest --watch",
     "test:db": "bash test/db/run-with-docker.sh",
+    "test:db:concurrencia": "TEST_DB_JEST_CONFIG=test/db/jest-db.config.js TEST_DB_SPEC=test/db/pos-concurrencia.spec.ts TEST_DB_PORT=55443 TEST_DB_CONTAINER=aura-conc-test bash test/db/run-with-docker.sh",
     "test:db:url": "TEST_DB_REQUIRED=1 jest --runTestsByPath test/db/tenant-isolation.spec.ts --runInBand",
     "test:e2e": "jest --config ./test/jest-e2e.json",
     "seed:ventas": "npx ts-node -r tsconfig-paths/register src/database/seeds/seed-admin-sales.ts",

@@ -10,9 +10,10 @@
  * order, seeds two stores with the admin connection and drops the database afterwards.
  */
 import { randomBytes } from 'crypto';
-import { readdirSync, readFileSync } from 'fs';
+import { readFileSync } from 'fs';
 import { join } from 'path';
 import { Client } from 'pg';
+import { APP_ROLE_PASSWORD, DATABASE_DIR, discoverMigrations } from './schema';
 
 const adminUrl = process.env.TEST_DB_ADMIN_URL;
 
@@ -29,19 +30,8 @@ const suiteTitle = adminUrl
   ? 'tenant isolation (row-level security)'
   : 'tenant isolation (row-level security) [skipped: set TEST_DB_ADMIN_URL, see test/db/README.md]';
 
-const DATABASE_DIR = join(__dirname, '../../../../database');
+export { discoverMigrations };
 
-/**
- * Schema migrations, discovered in numeric order so new files (15_*, 16_*, ...) are picked up without
- * editing this spec. Excluded: data seeds (02_seed_*, 03_seed_*), which load demo rows and are not schema
- * or RLS migrations, and dump_completo.sql, a full pg_dump that is not numbered and would duplicate objects.
- */
-export const discoverMigrations = (): string[] =>
-  readdirSync(DATABASE_DIR)
-    .filter((f) => /^\d{2}_.*\.sql$/.test(f) && !/seed/i.test(f))
-    .sort((a, b) => a.localeCompare(b));
-
-const APP_ROLE_PASSWORD = 'aura_app_dev';
 
 /**
  * Tables that intentionally have neither a tenant_id column nor row-level security. Keep each reason

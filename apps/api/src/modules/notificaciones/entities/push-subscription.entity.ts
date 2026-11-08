@@ -11,14 +11,21 @@ export class PushSubscriptionEntity {
   @Column({ type: 'uuid', name: 'usuario_id' })
   usuarioId: string;
 
-  @Column({ type: 'text' })
-  endpoint: string;
+  /** WEBPUSH rows carry endpoint + keys; EXPO rows carry only expoToken. */
+  @Column({ type: 'varchar', length: 10, default: 'WEBPUSH' })
+  canal: 'WEBPUSH' | 'EXPO';
 
-  @Column({ type: 'text' })
-  p256dh: string;
+  @Column({ type: 'text', nullable: true })
+  endpoint: string | null;
 
-  @Column({ type: 'text' })
-  auth: string;
+  @Column({ type: 'text', nullable: true })
+  p256dh: string | null;
+
+  @Column({ type: 'text', nullable: true })
+  auth: string | null;
+
+  @Column({ type: 'text', name: 'expo_token', nullable: true })
+  expoToken: string | null;
 
   @CreateDateColumn({ name: 'creado_en' })
   creadoEn: Date;

@@ -45,4 +45,8 @@ export class StoreEntity {
   /** End of the 14-day trial. Null on a store that was never on FREE_TRIAL. */
   @Column({ type: 'timestamp', name: 'prueba_vence_en', nullable: true })
   pruebaVenceEn: Date | null;
+
+  /** Days a device keeps its offline data (sales, customers, products). 1..30. */
+  @Column({ type: 'int', name: 'retencion_offline_dias', default: 7 })
+  retencionOfflineDias: number;
 }

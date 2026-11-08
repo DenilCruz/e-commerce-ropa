@@ -1,6 +1,6 @@
-import { Injectable, NotFoundException, BadRequestException } from '@nestjs/common';
+import { Injectable, NotFoundException, BadRequestException, ConflictException, ForbiddenException } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
-import { Repository } from 'typeorm';
+import { In, Repository } from 'typeorm';
 import { ProductEntity } from './entities/product.entity';
 import { CrearProductoDto } from './dto/crear-producto.dto';
 import { ActualizarProductoDto } from './dto/actualizar-producto.dto';
@@ -9,6 +9,7 @@ import { CategoriaEntity } from '../categorias/entities/category.entity';
 import { SizeEntity } from './entities/size.entity';
 import { ColorEntity } from './entities/color.entity';
 import { BrandEntity } from './entities/brand.entity';
+import { ProductVariantEntity } from './entities/product-variant.entity';
 import { PlanLimitsService } from '../tiendas/plan-limits.service';
 
 import { TenantContext } from '../../common/tenant/tenant-context';
@@ -40,20 +41,82 @@ export class ProductosService {
   }
 
   async crear(datos: CrearProductoDto): Promise<ProductEntity> {
+    // 0. A client-generated id that already exists must never reach save(): TypeORM would UPDATE that row
+    await this.rechazarIdsExistentes(datos);
+
     // 1. Control de cuota según plan de la tienda
-    await this.planLimitsService.validarLimiteProductos(this.tid);
+    try {
+      await this.planLimitsService.validarLimiteProductos(this.tid);
+    } catch (error) {
+      if (error instanceof ForbiddenException) {
+        throw new ForbiddenException({
+          statusCode: 403,
+          error: 'Forbidden',
+          codigo: 'LIMITE_PLAN',
+          message: error.message,
+        });
+      }
+      throw error;
+    }
 
     // 2. Validación de referencias
     await this.validarReferencias(datos.categoriaId, datos.marcaId);
 
     // TypeORM automáticamente insertará las variantes y las imágenes gracias a { cascade: true }
-    // en la entidad si vienen incluidas en el DTO.
+    // en la entidad si vienen incluidas en el DTO. Los ids que trae el cliente se insertan tal cual.
     const nuevoProducto = this.repositorioProducto.create(datos);
-    return await this.repositorioProducto.save(nuevoProducto);
+    try {
+      return await this.repositorioProducto.save(nuevoProducto);
+    } catch (error: any) {
+      throw await this.traducirErrorDeCreacion(error, datos);
+    }
   }
 
+  /** 409 PRODUCTO_EXISTENTE when the product id (or one of its variant ids) is already in this store. */
+  private async rechazarIdsExistentes(datos: CrearProductoDto): Promise<void> {
+    if (datos.id && (await this.repositorioProducto.count({ where: { id: datos.id, tenantId: this.tid } }))) {
+      throw this.productoExistente(datos.id);
+    }
+    const idsVariante = (datos.variantes ?? []).map((v) => v.id).filter((id): id is string => !!id);
+    if (!idsVariante.length) return;
+    const existentes = await this.repositorioProducto.manager.find(ProductVariantEntity, {
+      where: { id: In(idsVariante), tenantId: this.tid },
+    });
+    if (existentes.length) throw this.productoExistente(datos.id ?? existentes[0].productoId);
+  }
 
-  
+  private productoExistente(productoId: string): ConflictException {
+    return new ConflictException({
+      statusCode: 409,
+      error: 'Conflict',
+      codigo: 'PRODUCTO_EXISTENTE',
+      message: 'Ya existe un producto con ese id en esta tienda.',
+      productoId,
+    });
+  }
+
+  /** Postgres 23505 becomes the 409 the client can act on; anything else is rethrown as it came. */
+  private async traducirErrorDeCreacion(error: any, datos: CrearProductoDto): Promise<unknown> {
+    if (error?.code !== '23505') return error;
+    const restriccion = String(error.constraint ?? error.message ?? '');
+    if (restriccion.includes('uq_variante_tenant_sku')) {
+      const skus = (datos.variantes ?? []).map((v) => v.sku);
+      const existentes = skus.length
+        ? await this.repositorioProducto.manager.find(ProductVariantEntity, { where: { tenantId: this.tid, sku: In(skus) } })
+        : [];
+      return new ConflictException({
+        statusCode: 409,
+        error: 'Conflict',
+        codigo: 'SKU_DUPLICADO',
+        message: 'Ya existe una variante con ese SKU en esta tienda.',
+        items: existentes.map((v) => ({ sku: v.sku, varianteId: v.id, productoId: v.productoId })),
+      });
+    }
+    // Another store owns the id (row-level security hides it from the pre-check but the key is global)
+    if (restriccion.includes('producto_pkey') && datos.id) return this.productoExistente(datos.id);
+    return error;
+  }
+
   async obtenerTallas(): Promise<SizeEntity[]> {
     return await this.repositorioTalla.find();
   }

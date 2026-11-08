@@ -85,4 +85,76 @@ describe('PushService', () => {
     expect(await service.notificarTienda({ titulo: 't', cuerpo: 'c' })).toBe(0);
     expect(repo.find).not.toHaveBeenCalled();
   });
+
+  describe('Expo channel', () => {
+    const movil = (n: number) => ({ id: `m${n}`, canal: 'EXPO', usuarioId: 'u1', expoToken: `ExponentPushToken[${n}]` });
+    let expo: { sendBatch: jest.Mock };
+
+    beforeEach(() => {
+      expo = {
+        sendBatch: jest.fn(async (tokens: string[]) => tokens.map((token) => ({ token, ok: true, remove: false }))),
+      };
+      repo.find.mockResolvedValue([sub(1), movil(1), movil(2)]);
+      service = new PushService(repo, sender as any, expo as any);
+    });
+
+    it('notifies both channels and sums the deliveries', async () => {
+      const n = await service.notificarTienda({ titulo: 't', cuerpo: 'c', url: '/x' });
+
+      expect(n).toBe(3);
+      expect(sender.send).toHaveBeenCalledTimes(1);
+      expect(expo.sendBatch).toHaveBeenCalledWith(['ExponentPushToken[1]', 'ExponentPushToken[2]'], { titulo: 't', cuerpo: 'c', url: '/x' });
+    });
+
+    it('still notifies mobile devices when web push is not configured', async () => {
+      sender.enabled = false;
+
+      expect(await service.notificarTienda({ titulo: 't', cuerpo: 'c' })).toBe(2);
+      expect(sender.send).not.toHaveBeenCalled();
+    });
+
+    it('a failing Expo channel does not block web push, and vice versa', async () => {
+      expo.sendBatch.mockRejectedValue(new Error('expo down'));
+      expect(await service.notificarTienda({ titulo: 't', cuerpo: 'c' })).toBe(1);
+
+      expo.sendBatch.mockResolvedValue([{ token: 'a', ok: true, remove: false }]);
+      sender.send.mockRejectedValue(new Error('web down'));
+      expect(await service.notificarTienda({ titulo: 't', cuerpo: 'c' })).toBe(1);
+    });
+
+    it('removes the tokens Expo reports as DeviceNotRegistered', async () => {
+      expo.sendBatch.mockResolvedValue([
+        { token: 'ExponentPushToken[1]', ok: false, remove: true },
+        { token: 'ExponentPushToken[2]', ok: true, remove: false },
+      ]);
+
+      await service.notificarTienda({ titulo: 't', cuerpo: 'c' });
+
+      expect(repo.delete).toHaveBeenCalledWith({ expoToken: 'ExponentPushToken[1]' });
+      expect(repo.delete).toHaveBeenCalledTimes(1);
+    });
+
+    it('saves a new token for the store and user', async () => {
+      await service.suscribirExpo('u1', 'ExponentPushToken[1]');
+
+      expect(repo.save).toHaveBeenCalledWith(
+        expect.objectContaining({ tenantId: 'tenant-luna', usuarioId: 'u1', canal: 'EXPO', expoToken: 'ExponentPushToken[1]' }),
+      );
+    });
+
+    it('re-subscribing the same token updates its row instead of duplicating it', async () => {
+      repo.findOne.mockResolvedValue({ id: 'old', usuarioId: 'other', canal: 'EXPO', expoToken: 'ExponentPushToken[1]' });
+
+      await service.suscribirExpo('u1', 'ExponentPushToken[1]');
+
+      expect(repo.findOne).toHaveBeenCalledWith({ where: { tenantId: 'tenant-luna', expoToken: 'ExponentPushToken[1]' } });
+      expect(repo.save).toHaveBeenCalledWith(expect.objectContaining({ id: 'old', usuarioId: 'u1' }));
+    });
+
+    it('removes a token on request', async () => {
+      await service.cancelarExpo('ExponentPushToken[1]');
+
+      expect(repo.delete).toHaveBeenCalledWith({ expoToken: 'ExponentPushToken[1]' });
+    });
+  });
 });

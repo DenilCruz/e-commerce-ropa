@@ -243,3 +243,116 @@ describe('PosSalesController', () => {
     expect(registrar).not.toHaveBeenCalled();
   });
 });
+
+describe('PosSalesService counter customer', () => {
+  const CLIENTE_A = '44444444-4444-4444-8444-444444444444';
+  const CLIENTE_B = '55555555-5555-4555-8555-555555555555';
+  let service: PosSalesService;
+  let qr: any;
+  let saved: any[];
+  let customerSql: Array<[string, any[]]>;
+  let customerAnswers: { byId: any[]; insert: any[]; byCi: any[] };
+
+  const customer = (id: string, nombre = 'Ana', apellido: string | null = 'Pérez') => ({
+    id, nombre, apellido, celular: null, ci: '1234567', correo: null, creadoEn: new Date(),
+  });
+
+  beforeEach(() => {
+    jest.spyOn(TenantContext, 'require').mockReturnValue('tenant-luna');
+    saved = [];
+    customerSql = [];
+    customerAnswers = { byId: [], insert: [customer(CLIENTE_A)], byCi: [] };
+    qr = {
+      connect: jest.fn(), startTransaction: jest.fn(), commitTransaction: jest.fn(),
+      rollbackTransaction: jest.fn(), release: jest.fn(), query: jest.fn(),
+      manager: {
+        count: jest.fn().mockResolvedValue(0),
+        create: jest.fn((_e, v) => ({ ...v })),
+        // the shared customer rule runs through the transaction's manager
+        query: jest.fn(async (sql: string, params: any[]) => {
+          customerSql.push([sql, params]);
+          if (/^\s*INSERT/.test(sql)) return customerAnswers.insert;
+          if (/AND id = \$2/.test(sql)) return customerAnswers.byId;
+          return customerAnswers.byCi;
+        }),
+        save: jest.fn(async (...args: any[]) => {
+          const value = args.length === 2 ? args[1] : args[0];
+          saved.push(value);
+          return Array.isArray(value) ? value : { id: 'o1', ...value };
+        }),
+        findOne: jest.fn(async (entity: any, opts: any) => {
+          if (entity === OrderEntity) return null;
+          return { id: opts.where.id, productoId: 'p', stock: 5, precioExtra: 0, activa: true, producto: { nombre: 'Solera', precio: 10 }, talla: { nombre: 'M' }, color: { nombre: 'Rojo' } };
+        }),
+      },
+    };
+    const builder: any = { where: jest.fn().mockReturnThis(), getOne: jest.fn().mockResolvedValue({ id: 'efectivo-id' }) };
+    service = new PosSalesService({ createQueryBuilder: jest.fn().mockReturnValue(builder), findOne: jest.fn() } as any, { createQueryRunner: () => qr } as any);
+  });
+
+  afterEach(() => jest.restoreAllMocks());
+
+  const sell = (extra: object = {}) =>
+    service.registrar('seller-1', { items: [{ varianteId: V1, cantidad: 1 }], ...extra } as any, KEY);
+
+  it('saves the customer in the sale transaction and links the order to it', async () => {
+    const result: any = await sell({ cliente: { id: CLIENTE_A, nombre: 'Ana', apellido: 'Pérez' } });
+
+    expect(customerSql.some(([sql]) => /INSERT INTO cliente_mostrador/.test(sql))).toBe(true);
+    expect(saved.find((s) => s.estado === 'COMPLETADO')).toMatchObject({ clienteMostradorId: CLIENTE_A });
+    expect(result).toMatchObject({ clienteId: CLIENTE_A });
+    expect(result).not.toHaveProperty('clienteFusionado');
+    expect(qr.commitTransaction).toHaveBeenCalledTimes(1);
+  });
+
+  it('links the sale to the existing customer when the ci already has another id, and says so', async () => {
+    customerAnswers = { byId: [], insert: [], byCi: [customer(CLIENTE_B)] };
+
+    const result: any = await sell({ cliente: { id: CLIENTE_A, nombre: 'Ana', ci: '1234567' } });
+
+    expect(saved.find((s) => s.estado === 'COMPLETADO')).toMatchObject({ clienteMostradorId: CLIENTE_B });
+    expect(result).toMatchObject({ clienteId: CLIENTE_B, clienteFusionado: { de: CLIENTE_A, a: CLIENTE_B } });
+  });
+
+  it('reuses a customer whose id already exists without fusing anything', async () => {
+    customerAnswers = { byId: [customer(CLIENTE_A)], insert: [], byCi: [] };
+
+    const result: any = await sell({ cliente: { id: CLIENTE_A, nombre: 'Ana' } });
+
+    expect(result.clienteId).toBe(CLIENTE_A);
+    expect(result).not.toHaveProperty('clienteFusionado');
+    expect(customerSql.some(([sql]) => /INSERT/.test(sql))).toBe(false);
+  });
+
+  it('writes the customer nothing when the stock is short (same transaction, rolled back)', async () => {
+    qr.manager.findOne.mockImplementation(async (entity: any, opts: any) =>
+      entity === OrderEntity ? null : { id: opts.where.id, productoId: 'p', stock: 0, activa: true, producto: { nombre: 'Solera', precio: 10 } });
+
+    await expect(sell({ cliente: { id: CLIENTE_A, nombre: 'Ana' } })).rejects.toBeInstanceOf(ConflictException);
+
+    expect(qr.rollbackTransaction).toHaveBeenCalledTimes(1);
+    expect(qr.commitTransaction).not.toHaveBeenCalled();
+  });
+
+  it('keeps the sale exactly as before without a customer: no customer query, no link, clienteId null', async () => {
+    const result: any = await sell();
+
+    expect(qr.manager.query).not.toHaveBeenCalled();
+    const order = saved.find((s) => s.estado === 'COMPLETADO');
+    expect(order).not.toHaveProperty('clienteMostradorId');
+    expect(result.clienteId).toBeNull();
+    expect(result).not.toHaveProperty('clienteFusionado');
+  });
+
+  it('answers a replayed sale with the customer it was linked to', async () => {
+    qr.manager.findOne.mockImplementation(async (entity: any) =>
+      entity === OrderEntity
+        ? { id: 'o-old', nro: 'NV-2026-00042', fecha: new Date(), total: 10, clienteMostradorId: CLIENTE_B, items: [], pago: { id: 'pay-old' } }
+        : null);
+
+    const result: any = await sell({ cliente: { id: CLIENTE_A, nombre: 'Ana' } });
+
+    expect(result).toMatchObject({ ordenId: 'o-old', clienteId: CLIENTE_B });
+    expect(qr.manager.query).not.toHaveBeenCalled();
+  });
+});

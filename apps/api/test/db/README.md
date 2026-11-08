@@ -48,3 +48,10 @@ see only members of the active store).
 
 Known gap: `evento_webhook` has a `tenant_id` column but no RLS, so `aura_app` can read every store's webhook
 event metadata.
+
+## Offline POS concurrency (`pos-concurrencia.spec.ts`)
+
+Boots the real `AppModule` over HTTP, connected as `aura_app` (RLS in force), and races `POST /api/v1/sales/pos`
+(last unit between two sellers x20, same Idempotency-Key repeated, offline queue replay, atomicity, 422 on a
+changed body, purged idempotency row). Run it with `pnpm --filter @ecommerce/api test:db:concurrencia` (throwaway
+Postgres on port 55443). It uses `jest-db.config.js` because the installed `@nestjs/typeorm` is ESM-only.

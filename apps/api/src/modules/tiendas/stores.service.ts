@@ -14,6 +14,7 @@ import { RoleEntity } from '../usuarios/entities/role.entity';
 import { CategoriaEntity } from '../categorias/entities/category.entity';
 import { CrearTiendaDto } from './dto/crear-tienda.dto';
 import { ActualizarConfigPagoDto } from './dto/actualizar-config-pago.dto';
+import { ActualizarConfigOfflineDto } from './dto/actualizar-config-offline.dto';
 import { TenantContext } from '../../common/tenant/tenant-context';
 
 export const PLAN_INICIAL = 'FREE_TRIAL';
@@ -367,5 +368,13 @@ export class StoresService {
     await this.storeRepo.save(tienda);
     return this.obtenerConfigPagoAdmin(tiendaId);
   }
-}
 
+  /** How many days devices of this store keep their offline data. */
+  async actualizarConfigOffline(tiendaId: string, dto: ActualizarConfigOfflineDto) {
+    const tienda = await this.storeRepo.findOne({ where: { id: tiendaId } });
+    if (!tienda) throw new NotFoundException('Tienda no encontrada.');
+    tienda.retencionOfflineDias = dto.retencionOfflineDias;
+    await this.storeRepo.save(tienda);
+    return { retencionOfflineDias: tienda.retencionOfflineDias };
+  }
+}

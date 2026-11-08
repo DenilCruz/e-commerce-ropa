@@ -9,6 +9,7 @@ import { PaymentMethodEntity } from '../pagos/entities/payment-method.entity';
 import { ProductVariantEntity } from '../productos/entities/product-variant.entity';
 import { TenantContext } from '../../common/tenant/tenant-context';
 import { PushService } from '../notificaciones/push.service';
+import { upsertarClienteMostrador } from '../clientes-mostrador/cliente-mostrador.upsert';
 import { CrearVentaPosDto } from './dto/crear-venta-pos.dto';
 
 export interface StockConflictItem {
@@ -96,6 +97,18 @@ export class PosSalesService {
         });
       }
 
+      // The counter customer is saved in the same transaction, so the sale never depends on the order in
+      // which a device syncs its customers. A ci that already belongs to another id links the sale to that one.
+      let clienteId: string | null = null;
+      let clienteFusionado: { de: string; a: string } | undefined;
+      let clienteNombre = dto.clienteNombre ?? null;
+      if (dto.cliente) {
+        const resultado = await upsertarClienteMostrador(queryRunner.manager, this.tid, dto.cliente);
+        clienteId = resultado.cliente.id;
+        if (resultado.tipo === 'CI_DUPLICADO') clienteFusionado = { de: dto.cliente.id, a: resultado.cliente.id };
+        clienteNombre ??= [resultado.cliente.nombre, resultado.cliente.apellido].filter(Boolean).join(' ');
+      }
+
       // Same number sequence as the other sales, serialized per store while the sale is written
       await queryRunner.query('SELECT pg_advisory_xact_lock(hashtext($1))', [`nro-venta:${this.tid}`]);
       const cantidadOrdenes = await queryRunner.manager.count(OrderEntity, { where: { tenantId: this.tid } });
@@ -140,6 +153,7 @@ export class PosSalesService {
           total,
           estado: 'COMPLETADO',
           claveIdempotencia: clave,
+          ...(clienteId ? { clienteMostradorId: clienteId } : {}),
         }),
       );
       if (dto.vendidoEn) {
@@ -163,7 +177,7 @@ export class PosSalesService {
           fechaPago: fecha,
           respuestaPasarela: {
             gateway: 'pos_efectivo',
-            cliente: dto.clienteNombre ?? null,
+            cliente: clienteNombre,
             notas: dto.notas ?? null,
             vendidoEn: fecha.toISOString(),
           },
@@ -175,7 +189,7 @@ export class PosSalesService {
           notaventaId: orden.id,
           estadoAnterior: null,
           estadoNuevo: 'COMPLETADO',
-          comentario: `Venta de mostrador en efectivo${dto.clienteNombre ? ` para ${dto.clienteNombre}` : ''}${
+          comentario: `Venta de mostrador en efectivo${clienteNombre ? ` para ${clienteNombre}` : ''}${
             dto.vendidoEn ? ` registrada en el dispositivo el ${fecha.toISOString()}` : ''
           }.`,
           usuarioId: vendedorId,
@@ -200,6 +214,8 @@ export class PosSalesService {
         nroOrden: nro,
         fecha: fecha.toISOString(),
         total,
+        clienteId,
+        ...(clienteFusionado ? { clienteFusionado } : {}),
         items: lineas.map((l) => ({
           varianteId: l.varianteId,
           nombre: l.nombreProducto,
@@ -239,6 +255,7 @@ export class PosSalesService {
       nroOrden: orden.nro,
       fecha: new Date(orden.fecha).toISOString(),
       total,
+      clienteId: orden.clienteMostradorId ?? null,
       items: (orden.items ?? []).map((l) => ({
         varianteId: l.varianteId,
         nombre: l.nombreProducto,

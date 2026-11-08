@@ -1,9 +1,9 @@
-import { Inject, Injectable, Logger } from '@nestjs/common';
+import { Inject, Injectable, Logger, Optional } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 import { TenantContext } from '../../common/tenant/tenant-context';
 import { PushSubscriptionEntity } from './entities/push-subscription.entity';
-import { MensajePush, PUSH_SENDER, PushSender } from './push-sender';
+import { EXPO_PUSH_SENDER, ExpoSender, MensajePush, PUSH_SENDER, PushSender } from './push-sender';
 
 export interface SuscripcionPush {
   endpoint: string;
@@ -18,6 +18,7 @@ export class PushService {
     @InjectRepository(PushSubscriptionEntity)
     private readonly repo: Repository<PushSubscriptionEntity>,
     @Inject(PUSH_SENDER) private readonly sender: PushSender,
+    @Optional() @Inject(EXPO_PUSH_SENDER) private readonly expo?: ExpoSender,
   ) {}
 
   clavePublica() {
@@ -32,6 +33,7 @@ export class PushService {
       ...(existente ?? {}),
       tenantId,
       usuarioId,
+      canal: 'WEBPUSH' as const,
       endpoint: datos.endpoint,
       p256dh: datos.keys.p256dh,
       auth: datos.keys.auth,
@@ -42,12 +44,48 @@ export class PushService {
     await this.repo.delete({ endpoint });
   }
 
-  /** Sends the message to every subscribed browser of the active store. Never throws; returns how many were delivered. */
+  /** Saves the Expo token of a mobile device; the same token subscribing again updates its row (no duplicates). */
+  async suscribirExpo(usuarioId: string, token: string) {
+    const tenantId = TenantContext.require();
+    const existente = await this.repo.findOne({ where: { tenantId, expoToken: token } });
+    return this.repo.save({
+      ...(existente ?? {}),
+      tenantId,
+      usuarioId,
+      canal: 'EXPO' as const,
+      expoToken: token,
+    });
+  }
+
+  async cancelarExpo(token: string): Promise<void> {
+    await this.repo.delete({ expoToken: token });
+  }
+
+  /**
+   * Sends the message to every subscribed browser and mobile device of the active store.
+   * Never throws; a failing channel never blocks the other. Returns how many were delivered.
+   */
   async notificarTienda(mensaje: MensajePush): Promise<number> {
-    if (!this.sender.enabled) return 0;
+    if (!this.sender.enabled && !this.expo) return 0;
     try {
       const suscripciones = await this.repo.find({ where: { tenantId: TenantContext.require() } });
-      const resultados = await Promise.allSettled(suscripciones.map((s) => this.sender.send(s, mensaje)));
+      const [web, movil] = await Promise.all([
+        this.enviarWeb(suscripciones.filter((s) => s.canal !== 'EXPO' && s.endpoint), mensaje),
+        this.enviarExpo(suscripciones.filter((s) => s.canal === 'EXPO' && s.expoToken), mensaje),
+      ]);
+      return web + movil;
+    } catch (err) {
+      this.logger.warn(`No se pudo notificar a la tienda: ${(err as Error)?.message}`);
+      return 0;
+    }
+  }
+
+  private async enviarWeb(suscripciones: PushSubscriptionEntity[], mensaje: MensajePush): Promise<number> {
+    if (!this.sender.enabled || !suscripciones.length) return 0;
+    try {
+      const resultados = await Promise.allSettled(
+        suscripciones.map((s) => this.sender.send({ endpoint: s.endpoint!, p256dh: s.p256dh!, auth: s.auth! }, mensaje)),
+      );
       let entregadas = 0;
       for (const [i, r] of resultados.entries()) {
         if (r.status === 'fulfilled') {
@@ -62,7 +100,27 @@ export class PushService {
       }
       return entregadas;
     } catch (err) {
-      this.logger.warn(`No se pudo notificar a la tienda: ${(err as Error)?.message}`);
+      this.logger.warn(`Falló el canal Web Push: ${(err as Error)?.message}`);
+      return 0;
+    }
+  }
+
+  private async enviarExpo(suscripciones: PushSubscriptionEntity[], mensaje: MensajePush): Promise<number> {
+    if (!this.expo || !suscripciones.length) return 0;
+    try {
+      const resultados = await this.expo.sendBatch(suscripciones.map((s) => s.expoToken!), mensaje);
+      let entregadas = 0;
+      for (const r of resultados) {
+        if (r.ok) {
+          entregadas += 1;
+        } else if (r.remove) {
+          this.logger.log('Token de Expo retirado: el dispositivo ya no está registrado.');
+          await this.repo.delete({ expoToken: r.token });
+        }
+      }
+      return entregadas;
+    } catch (err) {
+      this.logger.warn(`Falló el canal Expo: ${(err as Error)?.message}`);
       return 0;
     }
   }

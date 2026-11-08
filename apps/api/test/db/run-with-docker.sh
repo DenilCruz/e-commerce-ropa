@@ -1,10 +1,12 @@
 #!/usr/bin/env bash
-# Runs the tenant-isolation spec against a throwaway Postgres in Docker.
+# Runs a real-database spec (default: the tenant-isolation spec) against a throwaway Postgres in Docker.
 # Never touches any local Postgres on 5432 or any .env file; the container is always removed.
 set -euo pipefail
 
-NAME="aura-iso-test"
-PORT=55433
+# Overridable so other specs can run side by side: TEST_DB_SPEC, TEST_DB_PORT, TEST_DB_CONTAINER
+NAME="${TEST_DB_CONTAINER:-aura-iso-test}"
+PORT="${TEST_DB_PORT:-55433}"
+SPEC="${TEST_DB_SPEC:-test/db/tenant-isolation.spec.ts}"
 API_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)"
 
 cleanup() {
@@ -32,4 +34,4 @@ export TEST_DB_ADMIN_URL="postgres://postgres:iso_test_pw@localhost:${PORT}/post
 export TEST_DB_REQUIRED=1
 
 cd "$API_DIR"
-pnpm exec jest --runTestsByPath test/db/tenant-isolation.spec.ts --runInBand "$@"
+pnpm exec jest ${TEST_DB_JEST_CONFIG:+--config "$TEST_DB_JEST_CONFIG"} --runTestsByPath "$SPEC" --runInBand "$@"

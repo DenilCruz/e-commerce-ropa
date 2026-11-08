@@ -49,6 +49,7 @@ export class PaymentsController {
   // HU-56: CREAR INTENTO DE PAGO (STRIPE)
   // =========================================================================
   @Post('intent')
+  @UseInterceptors(IdempotencyInterceptor)
   @UseGuards(JwtAuthGuard)
   @ApiBearerAuth()
   @HttpCode(HttpStatus.OK)
@@ -69,6 +70,7 @@ export class PaymentsController {
   // STRIPE EMBEDDED CHECKOUT (HU-56: Checkout Embebido Oficial)
   // =========================================================================
   @Post('embedded-session')
+  @UseInterceptors(IdempotencyInterceptor)
   @UseGuards(JwtAuthGuard)
   @ApiBearerAuth()
   @HttpCode(HttpStatus.OK)
@@ -162,6 +164,7 @@ export class PaymentsController {
   }
 
   @Post('qr/simular')
+  @UseInterceptors(IdempotencyInterceptor)
   @UseGuards(JwtAuthGuard)
   @ApiBearerAuth()
   simularPagoQr(

@@ -4,7 +4,7 @@ import { JwtAuthGuard } from '../autenticacion/guards/jwt-auth.guard';
 import { RolesGuard } from '../autenticacion/guards/roles.guard';
 import { Roles } from '../autenticacion/decorators/roles.decorator';
 import { CurrentUser } from '../autenticacion/decorators/current-user.decorator';
-import { BajaPushDto, SuscripcionPushDto } from './dto/suscripcion-push.dto';
+import { BajaPushDto, ExpoTokenDto, SuscripcionPushDto } from './dto/suscripcion-push.dto';
 import { PushService } from './push.service';
 
 @ApiTags('Notificaciones push')
@@ -33,6 +33,22 @@ export class PushController {
   @ApiOperation({ summary: 'Quitar la suscripción push de este navegador' })
   async baja(@Body() dto: BajaPushDto): Promise<void> {
     await this.pushService.cancelar(dto.endpoint);
+  }
+
+  @Post('expo')
+  @Roles('ADMIN', 'VENDEDOR', 'SUPERADMIN')
+  @HttpCode(HttpStatus.NO_CONTENT)
+  @ApiOperation({ summary: 'Guardar el token de Expo Push de la app móvil' })
+  async suscribirExpo(@CurrentUser('userId') usuarioId: string, @Body() dto: ExpoTokenDto): Promise<void> {
+    await this.pushService.suscribirExpo(usuarioId, dto.token);
+  }
+
+  @Post('expo/baja')
+  @Roles('ADMIN', 'VENDEDOR', 'SUPERADMIN')
+  @HttpCode(HttpStatus.NO_CONTENT)
+  @ApiOperation({ summary: 'Quitar el token de Expo Push de este dispositivo' })
+  async bajaExpo(@Body() dto: ExpoTokenDto): Promise<void> {
+    await this.pushService.cancelarExpo(dto.token);
   }
 
   @Post('prueba')

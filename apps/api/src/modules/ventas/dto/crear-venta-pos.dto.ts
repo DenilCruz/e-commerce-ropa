@@ -14,6 +14,7 @@ import {
   Min,
   ValidateNested,
 } from 'class-validator';
+import { ClienteMostradorDto } from '../../clientes-mostrador/dto/cliente-mostrador.dto';
 
 export class ItemVentaPosDto {
   @ApiProperty({ description: 'Variante vendida (talla y color).' })
@@ -52,4 +53,13 @@ export class CrearVentaPosDto {
   @IsOptional()
   @IsISO8601()
   vendidoEn?: string;
+
+  @ApiPropertyOptional({
+    type: ClienteMostradorDto,
+    description: 'Cliente de mostrador de la venta: se guarda en la misma transacción (idempotente por id, único por CI).',
+  })
+  @IsOptional()
+  @ValidateNested()
+  @Type(() => ClienteMostradorDto)
+  cliente?: ClienteMostradorDto;
 }

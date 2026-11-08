@@ -35,6 +35,10 @@ export class OrderEntity {
   @Column({ type: 'uuid', name: 'cliente_id', nullable: true })
   clienteId: string;
 
+  /** Walk-in customer (no account) of a counter sale. */
+  @Column({ type: 'uuid', name: 'cliente_mostrador_id', nullable: true })
+  clienteMostradorId: string | null;
+
   @Column({ type: 'uuid', name: 'caja_id', nullable: true })
   cajaId: string;
 
