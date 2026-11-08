@@ -1,5 +1,6 @@
 import {
   BadRequestException,
+  ConflictException,
   ForbiddenException,
   HttpException,
   HttpStatus,
@@ -375,6 +376,23 @@ export class PlanLimitsService {
     }
   }
 
+  /** A live Stripe subscription that is still going to renew, if the store has one. */
+  private async suscripcionConRenovacion(tiendaId: string): Promise<boolean> {
+    try {
+      const filas = await this.storeRepo.manager.query(
+        `SELECT 1 FROM suscripcion
+          WHERE tenant_id = $1 AND estado = 'ACTIVA' AND stripe_subscription_id IS NOT NULL
+            AND cancelar_al_vencer = false AND vence_en > now() LIMIT 1`,
+        [tiendaId],
+      );
+      return filas.length > 0;
+    } catch (error: any) {
+      // 42P01 / 42703: the billing tables or columns are not migrated yet, so there is nothing to renew
+      if (error?.code === '42P01' || error?.code === '42703') return false;
+      throw error;
+    }
+  }
+
   /** Returns the store when the user is its owner or an ADMIN; 404 if it does not exist, 403 otherwise. */
   async verificarAdministradorDeTienda(tiendaId: string, usuarioId: string): Promise<StoreEntity> {
     const tienda = await this.storeRepo.findOne({ where: { id: tiendaId } });
@@ -416,6 +434,16 @@ export class PlanLimitsService {
         `Para pasar al plan ${PLANES_CONFIG[planKey].nombre} debes completar el pago desde el checkout de planes.`,
         HttpStatus.PAYMENT_REQUIRED,
       );
+    }
+
+    if (planKey !== (await this.planEfectivo(tienda))) {
+      // Dropping the stored plan would leave a subscription that keeps charging every period
+      const renovacion = await this.suscripcionConRenovacion(tiendaId);
+      if (renovacion) {
+        throw new ConflictException(
+          'Tu plan se renueva automáticamente. Cancela la renovación y seguirá vigente hasta el final del período ya pagado.',
+        );
+      }
     }
 
     tienda.plan = planKey;

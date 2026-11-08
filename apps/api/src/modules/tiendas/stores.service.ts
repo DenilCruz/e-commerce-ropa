@@ -6,7 +6,7 @@ import {
   NotFoundException,
 } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
-import { DataSource, EntityManager, Repository } from 'typeorm';
+import { DataSource, EntityManager, QueryRunner, Repository } from 'typeorm';
 import { StoreEntity } from './entities/store.entity';
 import { UserStoreEntity } from './entities/user-store.entity';
 import { UserEntity } from '../usuarios/entities/user.entity';
@@ -134,15 +134,39 @@ export class StoresService {
       throw new ForbiddenException('Verifica tu correo electrónico antes de crear una tienda.');
     }
 
+    return this.crearConSlug(usuarioId, dto.nombre.trim(), PLAN_INICIAL);
+  }
+
+  /**
+   * Creates a store that was already paid for. The webhook calls this once Stripe confirms the payment.
+   * `dentroDeLaTransaccion` runs inside the same transaction, under the new tenant's context, so the
+   * subscription record and the "this purchase is done" mark commit or roll back together with the store.
+   */
+  async crearPagada(
+    usuarioId: string,
+    nombre: string,
+    plan: string,
+    dentroDeLaTransaccion: (queryRunner: QueryRunner, tienda: StoreEntity) => Promise<void>,
+  ): Promise<StoreEntity> {
+    const usuario = await this.userRepo.findOne({ where: { id: usuarioId } });
+    if (!usuario) throw new NotFoundException('Usuario no encontrado.');
+    return this.crearConSlug(usuarioId, nombre.trim(), plan, dentroDeLaTransaccion);
+  }
+
+  private async crearConSlug(
+    usuarioId: string,
+    nombre: string,
+    plan: string,
+    dentroDeLaTransaccion?: (queryRunner: QueryRunner, tienda: StoreEntity) => Promise<void>,
+  ): Promise<StoreEntity> {
     const rolAdmin = await this.roleRepo.findOne({ where: { nombre: 'ADMIN' } });
     if (!rolAdmin) throw new BadRequestException('El rol ADMIN no existe en el sistema.');
 
-    const nombre = dto.nombre.trim();
     // Two sign-ups with the same name can pick the same slug at once: the loser retries with the next one
     for (let intento = 1; intento <= MAX_INTENTOS_SLUG; intento++) {
       const slug = await this.slugDisponible(generarSlugBase(nombre));
       try {
-        return await this.aprovisionar(usuarioId, rolAdmin.id, nombre, slug);
+        return await this.aprovisionar(usuarioId, rolAdmin.id, nombre, slug, plan, dentroDeLaTransaccion);
       } catch (error) {
         if (!esSlugDuplicado(error)) throw error;
       }
@@ -157,6 +181,7 @@ export class StoresService {
     nombre: string,
     slug: string,
     plan: string = PLAN_INICIAL,
+    dentroDeLaTransaccion?: (queryRunner: QueryRunner, tienda: StoreEntity) => Promise<void>,
   ): Promise<StoreEntity> {
     // The new store is a different tenant than the request's one
     const tiendaId = (await this.dataSource.query('SELECT uuid_generate_v4() AS id'))[0].id as string;
@@ -173,7 +198,8 @@ export class StoresService {
             slug,
             plan,
             propietarioId: usuarioId,
-            pruebaVenceEn: new Date(Date.now() + 14 * 24 * 60 * 60 * 1000),
+            // Only a store that starts in the free trial has a trial clock
+            pruebaVenceEn: plan === PLAN_INICIAL ? new Date(Date.now() + 14 * 24 * 60 * 60 * 1000) : null,
           }),
         );
         await queryRunner.manager.query(
@@ -195,6 +221,7 @@ export class StoresService {
             orden: 0,
           }),
         );
+        if (dentroDeLaTransaccion) await dentroDeLaTransaccion(queryRunner, tienda);
         await queryRunner.commitTransaction();
         return tienda;
       } catch (error) {

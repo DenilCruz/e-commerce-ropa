@@ -14,7 +14,8 @@ export class StripeWebhooksService {
   async procesar(evento: Stripe.Event): Promise<ResultadoEvento> {
     if (evento.type === 'checkout.session.completed' || evento.type === 'checkout.session.async_payment_succeeded') {
       const sesion = evento.data.object as Stripe.Checkout.Session;
-      if (sesion.metadata?.tipo !== 'PLAN') return this.payments.completarPedidoDesdeWebhook(sesion);
+      const tipo = sesion.metadata?.tipo;
+      if (tipo !== 'PLAN' && tipo !== 'ALTA_TIENDA') return this.payments.completarPedidoDesdeWebhook(sesion);
     }
     return this.billing.procesarEvento(evento);
   }

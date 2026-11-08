@@ -44,10 +44,10 @@ describe('BillingService', () => {
   let planLimits: any;
   let stripeFalso: any;
   /** what the mocked database answers */
-  let bd: { eventoNuevo: boolean; suscripcion: any | null };
+  let bd: { eventoNuevo: boolean; suscripcion: any | null; mismaVigente: any | null };
 
   beforeEach(() => {
-    bd = { eventoNuevo: true, suscripcion: suscripcionPendiente() };
+    bd = { eventoNuevo: true, suscripcion: suscripcionPendiente(), mismaVigente: null };
     qr = {
       connect: jest.fn(),
       startTransaction: jest.fn(),
@@ -60,12 +60,19 @@ describe('BillingService', () => {
         return [];
       }),
     };
-    dataSource = { createQueryRunner: jest.fn(() => qr), query: jest.fn().mockResolvedValue([{ correo: 'admin@aura.com' }]) };
+    dataSource = {
+      createQueryRunner: jest.fn(() => qr),
+      query: jest.fn(async (sql: string) => {
+        if (/SELECT cancelar_al_vencer FROM suscripcion/.test(sql)) return bd.mismaVigente ? [bd.mismaVigente] : [];
+        if (/FROM usuario/.test(sql)) return [{ correo: 'admin@aura.com' }];
+        return [];
+      }),
+    };
     planLimits = {
       verificarAdministradorDeTienda: jest.fn().mockResolvedValue({ id: TENANT, nombre: 'AURA' }),
       obtenerPlanEfectivo: jest.fn().mockResolvedValue('FREE_TRIAL'),
     };
-    const config = { get: jest.fn((k: string) => ({ STRIPE_SECRET_KEY: 'sk_test_dummy', STRIPE_WEBHOOK_SECRET: SECRETO, APP_URL: 'http://localhost:5173' })[k]) };
+    const config = { get: jest.fn((k: string) => ({ PLAN_PAYMENT_MODE: 'stripe', STRIPE_SECRET_KEY: 'sk_test_dummy', STRIPE_WEBHOOK_SECRET: SECRETO, APP_URL: 'http://localhost:5173' })[k]) };
 
     service = new BillingService(dataSource, config as any, planLimits);
     stripeFalso = { checkout: { sessions: { create: jest.fn().mockResolvedValue({ id: SESION, url: 'https://checkout.stripe.com/c/pay/cs_test_123' }) } } };
@@ -76,13 +83,15 @@ describe('BillingService', () => {
   const hizo = (patron: RegExp) => consultas().some((c: { sql: string }) => patron.test(c.sql));
 
   describe('crearCheckout', () => {
-    it('abre una sesión de Stripe por el monto exacto del plan y guarda la suscripción PENDIENTE_PAGO', async () => {
+    it('abre una suscripción de Stripe por el monto exacto del plan y guarda la suscripción PENDIENTE_PAGO', async () => {
       const r = await service.crearCheckout(TENANT, USER, 'ESTANDAR', 'ANUAL');
 
       const args = stripeFalso.checkout.sessions.create.mock.calls[0][0];
-      expect(args.mode).toBe('payment');
+      expect(args.mode).toBe('subscription');
       expect(args.line_items[0].price_data.currency).toBe('usd');
       expect(args.line_items[0].price_data.unit_amount).toBe(PLANES_CONFIG.ESTANDAR.precioAnual * 12 * 100);
+      expect(args.line_items[0].price_data.recurring).toEqual({ interval: 'year' });
+      expect(args.subscription_data.metadata).toMatchObject({ tipo: 'PLAN', tenantId: TENANT });
       expect(args.metadata).toMatchObject({ tipo: 'PLAN', tenantId: TENANT, plan: 'ESTANDAR', periodo: 'ANUAL' });
       expect(args.success_url).toContain('/planes/retorno?session_id={CHECKOUT_SESSION_ID}');
       expect(r.url).toContain('checkout.stripe.com');
@@ -114,11 +123,25 @@ describe('BillingService', () => {
       expect(dataSource.query.mock.calls.some(([sql]: [string]) => /INSERT INTO suscripcion/.test(sql))).toBe(false);
     });
 
-    it('sí deja renovar el mismo plan y subir a uno superior', async () => {
+    it('deja subir a un plan superior', async () => {
       planLimits.obtenerPlanEfectivo.mockResolvedValue('ESTANDAR');
 
-      await expect(service.crearCheckout(TENANT, USER, 'ESTANDAR', 'MENSUAL')).resolves.toBeTruthy();
       await expect(service.crearCheckout(TENANT, USER, 'CORPORATIVO', 'ANUAL')).resolves.toBeTruthy();
+    });
+
+    it('no abre una segunda suscripción al mismo plan: cobraría dos veces', async () => {
+      planLimits.obtenerPlanEfectivo.mockResolvedValue('ESTANDAR');
+      bd.mismaVigente = { cancelar_al_vencer: false };
+
+      await expect(service.crearCheckout(TENANT, USER, 'ESTANDAR', 'MENSUAL')).rejects.toThrow(/renovación automática/i);
+      expect(stripeFalso.checkout.sessions.create).not.toHaveBeenCalled();
+    });
+
+    it('si el plan sigue vigente pero ya no se renueva, manda a reanudarlo en vez de comprarlo otra vez', async () => {
+      planLimits.obtenerPlanEfectivo.mockResolvedValue('ESTANDAR');
+      bd.mismaVigente = { cancelar_al_vencer: true };
+
+      await expect(service.crearCheckout(TENANT, USER, 'ESTANDAR', 'MENSUAL')).rejects.toThrow(/reanuda/i);
     });
 
     it('exige ser propietario o administrador de la tienda', async () => {
