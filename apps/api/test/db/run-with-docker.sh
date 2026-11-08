@@ -13,7 +13,7 @@ cleanup() {
 trap cleanup EXIT INT TERM
 
 cleanup # a leftover container from an interrupted run
-docker run -d --rm --name "$NAME" -e POSTGRES_PASSWORD=iso_test_pw -p "${PORT}:5432" postgres:16-alpine >/dev/null
+docker run -d --rm --name "$NAME" -e POSTGRES_PASSWORD=iso_test_pw -p "127.0.0.1:${PORT}:5432" postgres:16-alpine >/dev/null
 
 echo "Waiting for Postgres in container $NAME..."
 for _ in $(seq 1 60); do

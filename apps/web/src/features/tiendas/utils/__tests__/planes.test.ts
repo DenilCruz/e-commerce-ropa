@@ -8,6 +8,7 @@ import {
   leerAltaPendiente,
   limpiarAltaPendiente,
   numeroDeTarjetaValido,
+  precioDelPlan,
   SEGUNDOS_MAXIMOS_DE_ESPERA,
 } from '../planes';
 import type { EstadoCompraPlan } from '../../services/planes.api';
@@ -129,5 +130,28 @@ describe('interpretarCompra', () => {
 
   it('una compra activa gana aunque haya pasado mucho tiempo', () => {
     expect(interpretarCompra(compra('ACTIVA'), 500).fase).toBe('ACTIVA');
+  });
+});
+
+describe('precioDelPlan', () => {
+  it('el mensual es el precio del plan y el anual son 12 meses al precio con descuento', () => {
+    expect(precioDelPlan('ESTANDAR', 'MENSUAL')).toBe(20);
+    expect(precioDelPlan('ESTANDAR', 'ANUAL')).toBe(192);
+    expect(precioDelPlan('CORPORATIVO', 'MENSUAL')).toBe(100);
+    expect(precioDelPlan('CORPORATIVO', 'ANUAL')).toBe(960);
+  });
+
+  it('un plan que no se vende cuesta cero', () => {
+    expect(precioDelPlan('FREE_TRIAL', 'MENSUAL')).toBe(0);
+    expect(precioDelPlan('RARO', 'ANUAL')).toBe(0);
+  });
+});
+
+describe('expiracionVigente con año de cuatro dígitos', () => {
+  it('acepta MM/AAAA y respeta el límite del mes', () => {
+    const ahora = new Date('2026-11-08T12:00:00Z');
+    expect(expiracionVigente('11/2026', ahora)).toBe(true);
+    expect(expiracionVigente('10/2026', ahora)).toBe(false);
+    expect(expiracionVigente('01/2031', ahora)).toBe(true);
   });
 });

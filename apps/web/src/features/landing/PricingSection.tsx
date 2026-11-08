@@ -150,7 +150,10 @@ export const PricingSection: React.FC = () => {
 
     if (!tiendaDestino) {
       // Sin la lista de tiendas no se sabe si ya tiene una: no se abre ningún modal todavía
-      if (!tiendasListas) return;
+      if (!tiendasListas) {
+        toast.info('Estamos cargando tus tiendas. Vuelve a intentarlo en un momento.');
+        return;
+      }
       setErrorModal(null);
       setNombreNuevaTienda('');
       setPlanNuevaTienda(planId);
